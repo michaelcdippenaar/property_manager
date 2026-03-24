@@ -49,3 +49,16 @@ class Unit(models.Model):
 
     def __str__(self):
         return f"{self.property.name} — Unit {self.unit_number}"
+
+
+class PropertyGroup(models.Model):
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    properties = models.ManyToManyField(Property, related_name="groups", blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name

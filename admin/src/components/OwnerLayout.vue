@@ -1,16 +1,11 @@
 <template>
   <div class="flex flex-col h-screen bg-gray-50 overflow-hidden">
-
-    <!-- Top nav -->
     <header class="bg-navy flex items-center h-14 px-6 flex-shrink-0 z-50 gap-6">
-
-      <!-- Logo -->
-      <RouterLink to="/" class="flex items-center gap-1.5 mr-4 flex-shrink-0">
+      <RouterLink to="/owner" class="flex items-center gap-1.5 mr-4 flex-shrink-0">
         <span class="text-white font-bold text-xl leading-none">K<span class="text-pink-brand">.</span></span>
         <span class="text-white font-bold text-lg leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
       </RouterLink>
 
-      <!-- Primary nav -->
       <nav class="flex items-center gap-1 flex-1 min-w-0">
         <RouterLink
           v-for="item in navItems"
@@ -26,25 +21,20 @@
         </RouterLink>
       </nav>
 
-      <!-- Right: user + logout -->
       <div class="flex items-center gap-3 flex-shrink-0">
         <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-bold">
           {{ initials }}
         </div>
-        <button
-          @click="handleLogout"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors text-sm"
-        >
+        <button @click="handleLogout"
+          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors text-sm">
           <LogOut :size="15" />
         </button>
       </div>
     </header>
 
-    <!-- Page content -->
     <main class="flex-1 overflow-y-auto p-6">
       <RouterView />
     </main>
-
   </div>
 </template>
 
@@ -52,29 +42,24 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import {
-  LayoutDashboard, Building2, Users, Wrench, Truck, FileText, LogOut,
-} from 'lucide-vue-next'
+import { LayoutDashboard, Building2, LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
 const navItems = [
-  { to: '/',            icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/properties',  icon: Building2,       label: 'Properties' },
-  { to: '/tenants',     icon: Users,           label: 'Tenants' },
-  { to: '/maintenance', icon: Wrench,          label: 'Maintenance' },
-  { to: '/suppliers',   icon: Truck,           label: 'Suppliers' },
-  { to: '/leases',      icon: FileText,        label: 'Leases' },
+  { to: '/owner',            icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/owner/properties', icon: Building2,       label: 'Properties' },
 ]
 
 function isActive(to: string) {
-  return to === '/' ? route.path === '/' : route.path.startsWith(to)
+  if (to === '/owner') return route.path === '/owner'
+  return route.path.startsWith(to)
 }
 
 const initials = computed(() => {
-  const name = auth.user?.full_name || auth.user?.email || 'A'
+  const name = auth.user?.full_name || auth.user?.email || 'O'
   return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 })
 

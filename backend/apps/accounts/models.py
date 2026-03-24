@@ -24,6 +24,8 @@ class User(AbstractBaseUser, PermissionsMixin):
         TENANT = "tenant", "Tenant"
         AGENT = "agent", "Agent"
         ADMIN = "admin", "Admin"
+        SUPPLIER = "supplier", "Supplier"
+        OWNER = "owner", "Owner"
 
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True)
@@ -49,6 +51,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip() or self.email
+
+    def get_full_name(self):
+        """AbstractUser-compatible display name (our model uses AbstractBaseUser only)."""
+        return self.full_name
 
 
 class Person(models.Model):
@@ -94,3 +100,23 @@ class OTPCode(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.email}"
+
+
+class PushToken(models.Model):
+    """FCM/APNs device token for push notifications."""
+
+    class Platform(models.TextChoices):
+        IOS = "ios", "iOS"
+        ANDROID = "android", "Android"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_tokens")
+    token = models.TextField()
+    platform = models.CharField(max_length=10, choices=Platform.choices)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "token")
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"{self.platform} token for {self.user.email}"
