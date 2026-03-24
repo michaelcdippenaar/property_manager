@@ -1,0 +1,123 @@
+from django.db import models
+from apps.accounts.models import Person
+from apps.properties.models import Unit
+
+
+class Lease(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        EXPIRED = "expired", "Expired"
+        TERMINATED = "terminated", "Terminated"
+        PENDING = "pending", "Pending"
+
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="leases")
+
+    # Primary signatory — financially responsible, may or may not have a portal login
+    primary_tenant = models.ForeignKey(
+        Person, on_delete=models.CASCADE, related_name="leases_as_primary",
+        null=True, blank=True  # nullable during migration; tighten once data is clean
+    )
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+    monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
+    deposit = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+
+    # Utility terms
+    max_occupants = models.PositiveSmallIntegerField(default=1)
+    water_included = models.BooleanField(default=True)
+    water_limit_litres = models.PositiveIntegerField(default=4000)
+    electricity_prepaid = models.BooleanField(default=True)
+
+    # Termination terms
+    notice_period_days = models.PositiveSmallIntegerField(default=20)
+    early_termination_penalty_months = models.PositiveSmallIntegerField(default=3)
+
+    # Payment reference (e.g. "18 Irene - Smith")
+    payment_reference = models.CharField(max_length=100, blank=True)
+
+    # Raw AI extraction result stored for audit / re-use
+    ai_parse_result = models.JSONField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        name = self.primary_tenant.full_name if self.primary_tenant else "Unknown"
+        return f"Lease: {name} @ {self.unit}"
+
+
+class LeaseTenant(models.Model):
+    """
+    Additional legal signatories on a lease (jointly and severally liable).
+    The primary signatory is Lease.primary_tenant.
+    Up to 3 additional co-tenants (4 total per unit).
+    A Person can appear on multiple leases over time (renewals, different units).
+    """
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="co_tenants")
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="co_tenancies")
+
+    class Meta:
+        unique_together = [("lease", "person")]
+
+    def __str__(self):
+        return f"Co-tenant: {self.person.full_name} on Lease {self.lease_id}"
+
+
+class LeaseOccupant(models.Model):
+    """
+    Person physically residing in the unit.
+    May differ from the tenants (e.g. student whose parent signs, or employee
+    whose company signs). A person can be an occupant across multiple lease periods.
+    """
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="occupants")
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="occupancies")
+    relationship_to_tenant = models.CharField(
+        max_length=50, blank=True,
+        help_text="e.g. self, spouse, child, employee, student"
+    )
+
+    class Meta:
+        unique_together = [("lease", "person")]
+
+    def __str__(self):
+        return f"Occupant: {self.person.full_name} on Lease {self.lease_id}"
+
+
+class LeaseGuarantor(models.Model):
+    """
+    Surety / guarantor covering a specific signatory's obligations on a lease.
+    """
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="guarantors")
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="guarantees")
+    covers_tenant = models.ForeignKey(
+        Person, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="covered_by_guarantors",
+        help_text="Which tenant's obligations this guarantor covers"
+    )
+
+    def __str__(self):
+        return f"Guarantor: {self.person.full_name} for Lease {self.lease_id}"
+
+
+class LeaseDocument(models.Model):
+    class DocumentType(models.TextChoices):
+        SIGNED_LEASE = "signed_lease", "Signed Lease"
+        ID_COPY = "id_copy", "ID Copy"
+        OTHER = "other", "Other"
+
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="documents")
+    document_type = models.CharField(max_length=20, choices=DocumentType.choices)
+    file = models.FileField(upload_to="lease_documents/")
+    description = models.CharField(max_length=200, blank=True)
+    uploaded_by = models.ForeignKey("accounts.Person", on_delete=models.SET_NULL, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-uploaded_at"]
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} — Lease {self.lease_id}"

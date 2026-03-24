@@ -1,0 +1,36 @@
+# Secrets
+.env
+*.pem
+
+# Python
+backend/.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Django
+backend/staticfiles/
+backend/media/
+*.sqlite3
+
+# Node / frontend
+admin/node_modules/
+admin/dist/
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# OS / editor
+.DS_Store
+.idea/
+*.swp
+*.swo
