@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from apps.accounts.models import User
 from apps.properties.models import Property, Unit
 from apps.leases.models import Lease
-from apps.maintenance.models import MaintenanceRequest
+from apps.maintenance.models import MaintenanceRequest, Supplier
 
 
 class StatsView(APIView):
@@ -20,4 +20,6 @@ class StatsView(APIView):
             "active_leases": Lease.objects.filter(status="active").count(),
             "open_maintenance": MaintenanceRequest.objects.filter(status="open").count(),
             "in_progress_maintenance": MaintenanceRequest.objects.filter(status="in_progress").count(),
+            "total_suppliers": Supplier.objects.count(),
+            "active_suppliers": Supplier.objects.filter(is_active=True).count(),
         })
