@@ -32,17 +32,22 @@ const router = createRouter({
         },
         {
           path: 'maintenance',
-          component: () => import('../views/maintenance/MaintenanceLayout.vue'),
+          name: 'maintenance',
+          component: () => import('../views/maintenance/RequestsView.vue'),
+        },
+        {
+          path: 'suppliers',
+          component: () => import('../views/suppliers/SuppliersLayout.vue'),
           children: [
             {
               path: '',
-              name: 'maintenance',
-              component: () => import('../views/maintenance/RequestsView.vue'),
+              name: 'suppliers',
+              component: () => import('../views/suppliers/DirectoryView.vue'),
             },
             {
-              path: 'suppliers',
-              name: 'suppliers',
-              component: () => import('../views/maintenance/SuppliersView.vue'),
+              path: 'dispatch',
+              name: 'dispatch',
+              component: () => import('../views/suppliers/DispatchView.vue'),
             },
           ],
         },

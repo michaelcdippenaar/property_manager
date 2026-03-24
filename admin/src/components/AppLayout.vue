@@ -72,7 +72,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import {
-  LayoutDashboard, Building2, Users, Wrench, FileText, LogOut, Menu,
+  LayoutDashboard, Building2, Users, Wrench, Truck, FileText, LogOut, Menu,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -85,6 +85,7 @@ const navItems = [
   { to: '/properties',  icon: Building2,       label: 'Properties' },
   { to: '/tenants',     icon: Users,           label: 'Tenants' },
   { to: '/maintenance', icon: Wrench,          label: 'Maintenance' },
+  { to: '/suppliers',   icon: Truck,           label: 'Suppliers' },
   { to: '/leases',      icon: FileText,        label: 'Leases' },
 ]
 

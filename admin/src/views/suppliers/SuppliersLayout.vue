@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-5">
-    <!-- Sub-navigation tabs -->
     <div class="flex items-center gap-1 border-b border-gray-200">
       <RouterLink
         v-for="tab in tabs"
@@ -15,24 +14,23 @@
         {{ tab.label }}
       </RouterLink>
     </div>
-
     <RouterView />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
-import { Wrench, Truck } from 'lucide-vue-next'
+import { Truck, Send } from 'lucide-vue-next'
 
 const route = useRoute()
 
 const tabs = [
-  { to: '/maintenance',           icon: Wrench, label: 'Requests' },
-  { to: '/maintenance/suppliers',  icon: Truck,  label: 'Suppliers' },
+  { to: '/suppliers',          icon: Truck, label: 'Directory' },
+  { to: '/suppliers/dispatch', icon: Send,  label: 'Dispatch & Quotes' },
 ]
 
 function isActive(to: string) {
-  if (to === '/maintenance') return route.path === '/maintenance'
+  if (to === '/suppliers') return route.path === '/suppliers'
   return route.path.startsWith(to)
 }
 </script>

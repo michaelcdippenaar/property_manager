@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Property, Unit
-from .serializers import PropertySerializer, UnitSerializer
+from .models import Property, PropertyGroup, Unit
+from .serializers import PropertyGroupSerializer, PropertySerializer, UnitSerializer
 
 
 class PropertyViewSet(viewsets.ModelViewSet):
@@ -22,3 +22,11 @@ class UnitViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Unit.objects.select_related("property")
+
+
+class PropertyGroupViewSet(viewsets.ModelViewSet):
+    serializer_class = PropertyGroupSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return PropertyGroup.objects.prefetch_related("properties")
