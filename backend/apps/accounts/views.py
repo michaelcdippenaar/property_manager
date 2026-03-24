@@ -7,8 +7,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from .models import User, OTPCode
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer
+from .models import User, OTPCode, Person, PushToken
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer
 
 
 class RegisterView(APIView):
@@ -59,8 +59,8 @@ class OTPSendView(APIView):
 
         code = f"{random.randint(100000, 999999)}"
         OTPCode.objects.create(user=user, code=code)
-        # TODO: integrate SMS provider (e.g. Twilio, Africa's Talking)
-        print(f"[DEV] OTP for {phone}: {code}")
+        from core.notifications import send_sms_otp
+        send_sms_otp(phone, code)
 
         return Response({"detail": "OTP sent if phone is registered."})
 
@@ -96,9 +96,67 @@ class OTPVerifyView(APIView):
         })
 
 
+class PushTokenView(APIView):
+    """Register or refresh an FCM/APNs push token for the authenticated user."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get("token", "").strip()
+        platform = request.data.get("platform", "").strip().lower()
+        if not token:
+            return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if platform not in ("ios", "android"):
+            return Response({"detail": "platform must be 'ios' or 'android'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        PushToken.objects.update_or_create(
+            user=request.user,
+            token=token,
+            defaults={"platform": platform},
+        )
+        return Response({"detail": "Token registered."})
+
+    def delete(self, request):
+        token = request.data.get("token", "").strip()
+        if token:
+            PushToken.objects.filter(user=request.user, token=token).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class TenantsListView(generics.ListAPIView):
-    serializer_class = UserSerializer
+    """
+    Returns all Person records who appear on at least one lease
+    (as primary tenant or co-tenant).
+    """
+    serializer_class = PersonSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return User.objects.filter(role=User.Role.TENANT)
+        from django.db.models import Q, Count
+        qs = Person.objects.filter(
+            Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False)
+        ).distinct().annotate(
+            active_lease_count=Count(
+                'leases_as_primary',
+                filter=Q(leases_as_primary__status='active')
+            )
+        ).order_by('full_name')
+        return qs
+
+
+class PersonViewSet(generics.ListCreateAPIView):
+    serializer_class = PersonSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Person.objects.all()
+        q = self.request.query_params.get("q")
+        if q:
+            qs = qs.filter(full_name__icontains=q)
+        return qs
+
+
+class PersonDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = PersonSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = Person.objects.all()
