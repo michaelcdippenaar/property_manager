@@ -15,6 +15,17 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
 
   const isAuthenticated = computed(() => !!accessToken.value)
+  const isAgent = computed(() => ['agent', 'admin'].includes(user.value?.role ?? ''))
+  const isSupplier = computed(() => user.value?.role === 'supplier')
+  const isOwner = computed(() => user.value?.role === 'owner')
+  const isTenant = computed(() => user.value?.role === 'tenant')
+
+  /** Where to redirect after login based on role. */
+  const homeRoute = computed(() => {
+    if (isSupplier.value) return '/jobs'
+    if (isOwner.value) return '/owner'
+    return '/'
+  })
 
   async function login(email: string, password: string) {
     const { data } = await api.post('/auth/login/', { email, password })
@@ -38,5 +49,9 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data
   }
 
-  return { accessToken, user, isAuthenticated, login, logout, fetchMe }
+  return {
+    accessToken, user, isAuthenticated,
+    isAgent, isSupplier, isOwner, isTenant, homeRoute,
+    login, logout, fetchMe,
+  }
 })

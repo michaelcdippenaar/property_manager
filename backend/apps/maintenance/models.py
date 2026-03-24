@@ -20,6 +20,13 @@ class Supplier(models.Model):
         CLEANING = "cleaning", "Cleaning"
         OTHER = "other", "Other"
 
+    # Login link
+    linked_user = models.OneToOneField(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="supplier_profile",
+        help_text="System login account for supplier portal access",
+    )
+
     # Core
     name = models.CharField(max_length=200, help_text="Contact person name")
     company_name = models.CharField(max_length=200, blank=True)
