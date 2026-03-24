@@ -1,0 +1,487 @@
+"""
+AI-powered conversational lease builder.
+
+Endpoints:
+  POST /api/v1/leases/builder/sessions/              — create session
+  POST /api/v1/leases/builder/sessions/{id}/message/ — chat turn
+  POST /api/v1/leases/builder/sessions/{id}/finalize/ — create Lease from session
+"""
+import json
+import os
+import re
+from datetime import date
+from functools import lru_cache
+
+import anthropic
+from django.conf import settings
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import LeaseBuilderSession, LeaseTemplate, Lease
+from .import_view import ImportLeaseView, _get_or_create_person
+
+
+# Path to the legal reference maintained in .claude/skills/
+_LEGAL_REF_PATH = os.path.join(
+    settings.BASE_DIR,          # backend/
+    "..",                       # project root
+    ".claude", "skills", "rental-agreement", "references", "sa-rental-law.md",
+)
+
+
+@lru_cache(maxsize=1)
+def _load_legal_reference() -> str:
+    """Load sa-rental-law.md once and cache it for the process lifetime."""
+    path = os.path.normpath(_LEGAL_REF_PATH)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return ""  # degrade gracefully if file is missing
+
+
+REQUIRED_FIELDS = [
+    "landlord_name",
+    "property_address",
+    "unit_number",
+    "tenant_name",
+    "lease_start",
+    "lease_end",
+    "monthly_rent",
+    "deposit",
+    "notice_period_days",
+]
+
+BUILDER_SYSTEM_PROMPT = """You are an expert South African residential lease drafter helping a landlord or agent build a legally compliant lease agreement.
+
+Your job: guide them through filling in all required fields by having a friendly, efficient conversation. Ask ONE focused question at a time.
+
+## South African Legal Reference
+{legal_reference}
+
+## Current Session State
+Extracted fields so far:
+{state_json}
+
+Required fields still missing:
+{missing_fields}
+
+## Instructions
+1. Extract any field values mentioned in the user's message and merge them into `updated_state`.
+2. Validate compliance using the legal reference above:
+   - deposit must be <= 2 × monthly_rent (RHA s5(3)(g))
+   - notice_period_days must be >= 30 / ~20 business days (RHA s5(3)(c))
+   - lease term must not exceed 24 months without tenant's explicit request (CPA s14)
+   - lease_end must be after lease_start
+   - cancellation penalty must be reasonable, not full remaining rent (CPA s48)
+3. Flag any violations in `rha_flags` as {{"field": "...", "severity": "error|warning", "message": "plain English explanation citing the relevant section"}}.
+4. If nothing is missing and no errors exist, set `ready_to_finalize: true` and `next_question: null`.
+5. Keep your reply conversational and brief (1-2 sentences max). Never repeat information the user already provided.
+
+Respond with ONLY valid JSON — no markdown, no preamble:
+{{
+  "reply": "...",
+  "updated_state": {{...all extracted fields merged with existing state...}},
+  "rha_flags": [...],
+  "next_question": "... or null",
+  "ready_to_finalize": false
+}}"""
+
+
+def _missing_required(state: dict) -> list[str]:
+    return [f for f in REQUIRED_FIELDS if not state.get(f)]
+
+
+def _call_claude(system: str, messages: list) -> dict:
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system=system,
+        messages=messages,
+    )
+    raw = resp.content[0].text.strip()
+
+    # Strip markdown fences if present
+    raw = re.sub(r"^```(?:json)?\s*", "", raw)
+    raw = re.sub(r"\s*```$", "", raw)
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # Best-effort repair: ask Claude to fix it
+        repair_resp = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            system="Output only valid JSON. No markdown, no explanation.",
+            messages=[{"role": "user", "content": f"Fix this malformed JSON:\n{raw}"}],
+        )
+        return json.loads(repair_resp.content[0].text.strip())
+
+
+class LeaseBuilderSessionCreateView(APIView):
+    """POST /api/v1/leases/builder/sessions/ — start a new builder session.
+
+    Optional body:
+      existing_lease_id (int) — pre-populate session state from an existing lease.
+      template_id       (int) — use a specific template (defaults to active template).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # Resolve template — explicit ID takes priority, else fall back to active
+        template_id = request.data.get("template_id")
+        if template_id:
+            try:
+                template = LeaseTemplate.objects.get(pk=template_id)
+            except LeaseTemplate.DoesNotExist:
+                return Response({"error": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            template = LeaseTemplate.objects.filter(is_active=True).first()
+
+        # Pre-populate state from an existing lease if requested
+        initial_state = {}
+        existing_lease_id = request.data.get("existing_lease_id")
+        if existing_lease_id:
+            try:
+                lease = Lease.objects.select_related(
+                    "unit__property"
+                ).prefetch_related("tenants__person").get(pk=existing_lease_id)
+                initial_state = _lease_to_state(lease)
+            except Lease.DoesNotExist:
+                return Response(
+                    {"error": "Lease not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        session = LeaseBuilderSession.objects.create(
+            created_by=request.user,
+            template=template,
+            messages=[],
+            current_state=initial_state,
+            rha_flags=[],
+        )
+
+        # Build template context for the opening message
+        tmpl_context = ""
+        if template and template.fields_schema:
+            tmpl_context = (
+                f" Your uploaded template \"{template.name}\" has these merge fields: "
+                f"{', '.join(template.fields_schema)}."
+            )
+
+        # Kick off with an opening AI message (stored separately — NOT in messages
+        # array used for Anthropic API calls, which must start with a user message).
+        if initial_state:
+            missing = _missing_required(initial_state)
+            if missing:
+                opening = (
+                    f"I've loaded the existing lease details.{tmpl_context} "
+                    f"Still need: {', '.join(missing)}. "
+                    "Update any fields or tell me what you'd like to change."
+                )
+            else:
+                opening = (
+                    f"I've loaded the existing lease details.{tmpl_context} Everything looks complete. "
+                    "Tell me what you'd like to change, or click Finalize to create a new lease."
+                )
+        elif template and template.fields_schema:
+            opening = (
+                f"I can see your template \"{template.name}\" has {len(template.fields_schema)} merge fields: "
+                f"{', '.join(template.fields_schema[:8])}{'…' if len(template.fields_schema) > 8 else ''}. "
+                "Tell me about the tenant and property and I'll fill them all in."
+            )
+        else:
+            opening = (
+                "Welcome! Let's build your lease. "
+                "Start by telling me the property address and the tenant's name, "
+                "or describe the lease you need and I'll ask for anything that's missing."
+            )
+
+        # messages stays empty — the opening is only in the API response, not persisted
+        # to the conversation history used for Claude API calls.
+
+        return Response(
+            {
+                "session_id": session.id,
+                "message": opening,
+                "current_state": session.current_state,
+                "rha_flags": session.rha_flags,
+                "ready_to_finalize": False,
+                "required_fields": REQUIRED_FIELDS,
+                "missing_fields": _missing_required(initial_state),
+                "template": {"id": template.id, "name": template.name} if template else None,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class LeaseBuilderChatView(APIView):
+    """POST /api/v1/leases/builder/sessions/{id}/message/ — send a message."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+        except LeaseBuilderSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if session.status == LeaseBuilderSession.Status.FINALIZED:
+            return Response({"error": "This session has already been finalized."}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_message = (request.data.get("message") or "").strip()
+        if not user_message:
+            return Response({"error": "message is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Append user turn to stored history
+        messages = list(session.messages)
+        messages.append({"role": "user", "content": user_message})
+
+        # Build system prompt with current state context + legal reference
+        missing = _missing_required(session.current_state)
+        legal_ref = _load_legal_reference()
+
+        # Include template field list in system prompt if available
+        tmpl_note = ""
+        if session.template and session.template.fields_schema:
+            tmpl_note = (
+                f"\n\n## Active Template: {session.template.name}\n"
+                f"Merge fields in this template: {', '.join(session.template.fields_schema)}\n"
+                "Ensure all these fields are filled before marking ready_to_finalize."
+            )
+
+        system = BUILDER_SYSTEM_PROMPT.format(
+            legal_reference=(legal_ref if legal_ref else "(reference file not found — apply standard RHA rules)") + tmpl_note,
+            state_json=json.dumps(session.current_state, indent=2),
+            missing_fields=", ".join(missing) if missing else "none",
+        )
+
+        # Anthropic API requires the messages array to start with a user message.
+        # Strip any leading assistant turns (e.g. the opening greeting) before the call.
+        api_messages = messages
+        while api_messages and api_messages[0].get("role") != "user":
+            api_messages = api_messages[1:]
+
+        # Call Claude — pass full conversation history
+        try:
+            result = _call_claude(system, api_messages)
+        except Exception as exc:
+            return Response({"error": f"AI error: {exc}"}, status=status.HTTP_502_BAD_GATEWAY)
+
+        # Merge updated state
+        updated_state = {**session.current_state, **(result.get("updated_state") or {})}
+        rha_flags = result.get("rha_flags") or []
+        reply = result.get("reply", "")
+        next_question = result.get("next_question")
+        ready = bool(result.get("ready_to_finalize", False)) and not any(
+            f.get("severity") == "error" for f in rha_flags
+        )
+
+        # Append assistant reply to stored history
+        messages.append({"role": "assistant", "content": reply})
+
+        # Persist full history (including any leading assistant turns for display)
+        session.messages = messages
+        session.current_state = updated_state
+        session.rha_flags = rha_flags
+        if ready:
+            session.status = LeaseBuilderSession.Status.REVIEW
+        session.save(update_fields=["messages", "current_state", "rha_flags", "status", "updated_at"])
+
+        return Response(
+            {
+                "reply": reply,
+                "current_state": updated_state,
+                "rha_flags": rha_flags,
+                "next_question": next_question,
+                "ready_to_finalize": ready,
+                "missing_fields": _missing_required(updated_state),
+            }
+        )
+
+
+class LeaseBuilderFinalizeView(APIView):
+    """
+    POST /api/v1/leases/builder/sessions/{id}/finalize/
+
+    Validate the session state and create a Lease record via the same logic
+    as ImportLeaseView (reuses _get_or_create_person).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+        except LeaseBuilderSession.DoesNotExist:
+            return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if session.status == LeaseBuilderSession.Status.FINALIZED:
+            return Response(
+                {"error": "Already finalized.", "lease_id": session.lease_id},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        s = session.current_state
+        missing = _missing_required(s)
+        if missing:
+            return Response(
+                {"error": "Missing required fields.", "missing_fields": missing},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        errors = [f for f in session.rha_flags if f.get("severity") == "error"]
+        if errors:
+            return Response(
+                {"error": "RHA compliance errors must be resolved before finalizing.", "rha_flags": errors},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Build request.data compatible payload for ImportLeaseView logic
+        # The session state uses builder field names; map to import field names.
+        import_payload = _build_import_payload(s, request)
+
+        # Delegate to ImportLeaseView to handle property/unit/person resolution atomically
+        import_view = ImportLeaseView()
+        import_view.request = request
+
+        # Inject session AI state as audit trail
+        import_payload["ai_parse_result"] = {"source": "builder", "session_id": session.id, "state": s}
+
+        # Monkey-patch request.data for reuse
+        from rest_framework.test import APIRequestFactory
+        factory = APIRequestFactory()
+        fake_request = factory.post("/", import_payload, format="json")
+        fake_request.user = request.user
+
+        from rest_framework.request import Request
+        drf_request = Request(fake_request)
+        drf_request.user = request.user
+
+        response = import_view.post(drf_request)
+        if response.status_code != 201:
+            return response
+
+        lease_id = response.data["id"]
+        lease_number = response.data["lease_number"]
+
+        # Link session to the new lease
+        session.lease_id = lease_id
+        session.status = LeaseBuilderSession.Status.FINALIZED
+        session.save(update_fields=["lease", "status", "updated_at"])
+
+        return Response(
+            {"lease_id": lease_id, "lease_number": lease_number},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+def _build_import_payload(state: dict, request) -> dict:
+    """
+    Map LeaseBuilderSession.current_state field names to ImportLeaseView payload format.
+    """
+    payload = {
+        "property": {
+            "name": state.get("property_name") or state.get("property_address", ""),
+            "address": state.get("property_address", ""),
+            "city": state.get("city", ""),
+            "province": state.get("province", ""),
+            "property_type": "house",
+        },
+        "unit": {
+            "unit_number": state.get("unit_number", "1"),
+        },
+        "primary_tenant": {
+            "full_name": state.get("tenant_name", ""),
+            "id_number": state.get("tenant_id", ""),
+            "phone": state.get("tenant_phone", ""),
+            "email": state.get("tenant_email", ""),
+        },
+        "co_tenants": _parse_co_tenants(state.get("co_tenants")),
+        "start_date": state.get("lease_start"),
+        "end_date": state.get("lease_end"),
+        "monthly_rent": _to_number(state.get("monthly_rent")),
+        "deposit": _to_number(state.get("deposit")),
+        "notice_period_days": _to_int(state.get("notice_period_days"), 30),
+        "early_termination_penalty_months": _to_int(state.get("early_termination_months"), 3),
+        "max_occupants": _to_int(state.get("max_occupants"), 1),
+        "water_included": _to_bool(state.get("water_included"), True),
+        "electricity_prepaid": _to_bool(state.get("electricity_prepaid"), True),
+        "payment_reference": state.get("payment_reference", ""),
+        "status": "pending",
+    }
+    return payload
+
+
+def _parse_co_tenants(value) -> list:
+    if not value:
+        return []
+    if isinstance(value, list):
+        return [{"full_name": v} if isinstance(v, str) else v for v in value]
+    if isinstance(value, str) and value.strip():
+        return [{"full_name": name.strip()} for name in value.split(",") if name.strip()]
+    return []
+
+
+def _to_number(value, default=0):
+    if value is None:
+        return default
+    try:
+        return float(str(value).replace(",", "").replace("R", "").strip())
+    except (ValueError, TypeError):
+        return default
+
+
+def _to_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _to_bool(value, default=True):
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.lower() not in ("false", "no", "excluded", "0", "prepaid")
+    return default
+
+
+def _lease_to_state(lease) -> dict:
+    """
+    Convert an existing Lease ORM object into a LeaseBuilderSession current_state dict.
+    Used when starting a builder session from an existing contract.
+    """
+    unit = lease.unit
+    prop = unit.property if unit else None
+    primary = lease.primary_tenant  # ForeignKey(Person)
+
+    co_tenants = list(
+        lease.co_tenants.select_related("person").values_list("person__full_name", flat=True)
+    )
+
+    state = {
+        "property_address": prop.address if prop else "",
+        "property_name": prop.name if prop else "",
+        "city": prop.city if prop else "",
+        "province": prop.province if prop else "",
+        "unit_number": unit.unit_number if unit else "",
+        "landlord_name": "",  # not stored on Lease currently
+        "tenant_name": primary.full_name if primary else "",
+        "tenant_id": primary.id_number if primary else "",
+        "tenant_phone": primary.phone if primary else "",
+        "tenant_email": primary.email if primary else "",
+        "co_tenants": co_tenants,
+        "lease_start": str(lease.start_date) if lease.start_date else "",
+        "lease_end": str(lease.end_date) if lease.end_date else "",
+        "monthly_rent": str(lease.monthly_rent) if lease.monthly_rent else "",
+        "deposit": str(lease.deposit) if lease.deposit else "",
+        "notice_period_days": str(lease.notice_period_days) if lease.notice_period_days else "30",
+        "payment_reference": lease.payment_reference or "",
+        "water_included": lease.water_included,
+        "electricity_prepaid": lease.electricity_prepaid,
+        "max_occupants": str(lease.max_occupants) if lease.max_occupants else "",
+    }
+    # Remove empty strings so _missing_required() works correctly
+    return {k: v for k, v in state.items() if v != "" and v is not None}

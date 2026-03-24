@@ -1,6 +1,8 @@
+import base64
+import io
 import json
 import os
-import tempfile
+import re
 
 import anthropic
 from pypdf import PdfReader
@@ -12,29 +14,50 @@ from rest_framework.permissions import IsAuthenticated
 
 SYSTEM_PROMPT = """You are an expert at reading South African residential lease agreements.
 Extract structured data from the lease text and return ONLY valid JSON with no extra commentary.
+Do not wrap the JSON in markdown code fences.
+Do not write any text before the opening { or after the closing }.
 All monetary values should be plain numbers (no currency symbols or commas).
 Dates must be in YYYY-MM-DD format.
-If a field cannot be determined from the document, use null."""
+If a field cannot be determined from the document, use null.
+Use double quotes for all JSON keys and string values. No trailing commas."""
 
 EXTRACTION_PROMPT = """Extract the following fields from this lease agreement and return them as JSON.
 
+CRITICAL — READ ALL TENANTS:
+South African leases frequently have 2–4 tenants who are ALL jointly and severally liable. They may appear as:
+  "TENANT 1 / TENANT 2 / TENANT 3 / TENANT 4"
+  "LESSEE 1 / LESSEE 2"  (Afrikaans: HUURDER)
+  "THE LESSEES" followed by multiple named parties
+  Listed individually under headings like "1. PARTIES" or "DIE HUURDER"
+  Repeated in a signature block at the back of the document
+
+YOU MUST scan the ENTIRE document — intro, body, annexures, AND signature pages — and capture EVERY person who appears as a lessee/tenant/huurder.
+Do NOT stop after finding the first name. Put the first one in primary_tenant and ALL remaining ones in co_tenants.
+
 IMPORTANT DISTINCTIONS:
-- "tenants" = legal signatories who are jointly and severally liable (financially responsible). There can be up to 4.
-- "occupants" = people who physically live in the property. This may overlap with tenants or be entirely different people (e.g. a student whose parent signs, or an employee whose company signs).
-- "guardians" = sureties/guarantors who guarantee a specific tenant's obligations.
+- "tenants" = legal signatories (jointly and severally liable). There can be up to 4. ALL are equally important.
+- "occupants" = people who physically live in the property (may overlap with tenants, or be different — e.g. a student whose parent signs).
+- "guarantors" = sureties who guarantee a specific tenant's obligations.
+
+PROPERTY / PREMISES (critical — SA leases use many wordings):
+- Look for "PREMISES", "DIE PAND", "ERF", "UNIT", "SECTIONAL TITLE", "ADDRESS",
+  "PROPERTY", "STAND", "BOSCH EN DAL", farm/estate names, unit numbers in headers.
+- Always fill property_address with the full human-readable location (street + suburb + town + province + postal if visible).
+- Also set property_name to a short label (e.g. estate + unit, or first line of address).
+- If city / province / postal appear separately, set property_city, property_province, property_postal_code.
 
 Return this exact JSON structure:
 
 {
   "primary_tenant": {
-    "full_name": "Primary/first tenant full name",
+    "full_name": "First tenant full name — the one listed first as TENANT 1 or HUURDER 1",
     "id_number": "SA ID or passport number",
     "phone": "Phone number",
     "email": "Email address"
   },
   "co_tenants": [
     {
-      "full_name": "Co-tenant full name",
+      "full_name": "EVERY additional tenant — TENANT 2, TENANT 3, TENANT 4 etc.",
       "id_number": "ID number",
       "phone": "Phone",
       "email": "Email"
@@ -49,13 +72,13 @@ Return this exact JSON structure:
       "relationship_to_tenant": "e.g. self, spouse, child, employee, student"
     }
   ],
-  "guardians": [
+  "guarantors": [
     {
-      "for_tenant": "Full name of the tenant this guardian covers",
-      "full_name": "Guardian/surety full name",
-      "id_number": "Guardian ID",
-      "phone": "Guardian phone",
-      "email": "Guardian email"
+      "for_tenant": "Full name of the tenant this guarantor covers",
+      "full_name": "Guarantor/surety full name",
+      "id_number": "Guarantor ID",
+      "phone": "Guarantor phone",
+      "email": "Guarantor email"
     }
   ],
   "monthly_rent": 5000,
@@ -69,14 +92,164 @@ Return this exact JSON structure:
   "notice_period_days": 20,
   "early_termination_penalty_months": 3,
   "payment_reference": "e.g. '18 Irene - Smith'",
-  "property_address": "Full property address",
-  "unit_number": "Unit/flat number if present"
+  "property_name": "Short name e.g. Bosch En Dal Unit 1 or building name",
+  "property_address": "Full address line as on lease",
+  "property_city": "City or town",
+  "property_province": "Province e.g. Western Cape",
+  "property_postal_code": "Postal code",
+  "unit_number": "Unit/flat/erf stand number if present"
 }
 
 If a field is not found, use null. Arrays may be empty [].
 
 Lease document text:
 """
+
+
+def _message_text(message) -> str:
+    parts: list[str] = []
+    for block in message.content:
+        if getattr(block, "type", None) == "text" and hasattr(block, "text"):
+            parts.append(block.text)
+    return "".join(parts).strip()
+
+
+def _strip_markdown_fence(text: str) -> str:
+    text = text.strip()
+    m = re.search(r"```(?:json)?\s*([\s\S]*?)```", text, re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return text
+
+
+def _extract_json_object(s: str) -> str | None:
+    """Find first top-level {...} with string-aware brace matching."""
+    s = s.strip()
+    start = s.find("{")
+    if start < 0:
+        return None
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(start, len(s)):
+        ch = s[i]
+        if escape:
+            escape = False
+            continue
+        if in_string:
+            if ch == "\\":
+                escape = True
+            elif ch == '"':
+                in_string = False
+            continue
+        if ch == '"':
+            in_string = True
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return s[start : i + 1]
+    return None
+
+
+def _relax_json(s: str) -> str:
+    """Remove trailing commas before } or ] (common LLM mistake)."""
+    return re.sub(r",(\s*[\]}])", r"\1", s)
+
+
+def _parse_extracted_json(raw: str) -> dict | None:
+    cleaned = _strip_markdown_fence(raw)
+    candidate = _extract_json_object(cleaned)
+    if candidate is None:
+        candidate = cleaned.strip()
+    for blob in (candidate, _relax_json(candidate)):
+        try:
+            out = json.loads(blob)
+            return out if isinstance(out, dict) else None
+        except json.JSONDecodeError:
+            continue
+    return None
+
+
+def _repair_json_with_claude(client: anthropic.Anthropic, broken: str) -> dict | None:
+    snippet = broken.strip()
+    if len(snippet) > 100_000:
+        snippet = snippet[:100_000]
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=8192,
+            system="Output only valid JSON. No markdown fences, no explanation, no keys but the JSON object.",
+            messages=[
+                {
+                    "role": "user",
+                    "content": (
+                        "The text below was meant to be a single JSON object from a lease extractor "
+                        "but it is invalid (truncated, extra prose, bad commas, or markdown). "
+                        "Return ONE valid JSON object only. Preserve all fields you can read. "
+                        "If JSON was cut off mid-string, fix or null that field. "
+                        "Use null for unknown scalars and [] for unknown arrays.\n\n---\n" + snippet
+                    ),
+                }
+            ],
+        )
+    except Exception:
+        return None
+    return _parse_extracted_json(_message_text(message))
+
+
+# If pypdf yields fewer chars than this, the PDF is likely scanned — send native PDF to Claude.
+MIN_EXTRACTED_TEXT_CHARS = 800
+
+
+def normalize_extracted_lease(d: dict) -> dict:
+    """Flatten nested `property` and alternate keys so the admin UI receives top-level fields."""
+    if not isinstance(d, dict):
+        return d
+    out = dict(d)
+
+    nested = out.get("property")
+    if isinstance(nested, dict):
+        addr = (nested.get("address") or nested.get("full_address") or nested.get("street") or "").strip()
+        name = (nested.get("name") or nested.get("label") or "").strip()
+        city = (nested.get("city") or nested.get("town") or "").strip()
+        prov = (nested.get("province") or "").strip()
+        pc = nested.get("postal_code") or nested.get("postal") or nested.get("postcode")
+        if addr and not out.get("property_address"):
+            out["property_address"] = addr
+        if name and not out.get("property_name"):
+            out["property_name"] = name
+        if city and not out.get("property_city"):
+            out["property_city"] = city
+        if prov and not out.get("property_province"):
+            out["property_province"] = prov
+        if pc and not out.get("property_postal_code"):
+            out["property_postal_code"] = str(pc).strip()
+
+    for alt_key in (
+        "premises_address",
+        "leased_premises",
+        "premises",
+        "dwelling_address",
+        "address_of_premises",
+        "property_full_address",
+        "full_address",
+        "address",
+    ):
+        v = out.get(alt_key)
+        if isinstance(v, str) and v.strip() and not out.get("property_address"):
+            out["property_address"] = v.strip()
+
+    if isinstance(out.get("property_name"), str) and out["property_name"].strip():
+        pass  # keep
+    elif out.get("property_address"):
+        first = str(out["property_address"]).split(",")[0].strip()
+        if first:
+            out["property_name"] = first
+
+    return out
 
 
 class ParseLeaseDocumentView(APIView):
@@ -91,25 +264,23 @@ class ParseLeaseDocumentView(APIView):
         if not file.name.lower().endswith(".pdf"):
             return Response({"error": "Only PDF files are supported."}, status=400)
 
-        # Extract text from PDF
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-                for chunk in file.chunks():
-                    tmp.write(chunk)
-                tmp_path = tmp.name
+        pdf_bytes = b"".join(file.chunks())
+        if len(pdf_bytes) > 32 * 1024 * 1024:
+            return Response({"error": "PDF is too large (max 32 MB)."}, status=400)
 
-            reader = PdfReader(tmp_path)
+        try:
+            reader = PdfReader(io.BytesIO(pdf_bytes))
             pages_text = []
             for page in reader.pages:
                 text = page.extract_text()
                 if text:
                     pages_text.append(text)
             pdf_text = "\n\n".join(pages_text)
-        finally:
-            os.unlink(tmp_path)
+        except Exception as e:
+            return Response({"error": f"Could not read PDF: {e}"}, status=400)
 
-        if not pdf_text.strip():
-            return Response({"error": "Could not extract text from PDF. It may be scanned/image-based."}, status=400)
+        text_len = len(pdf_text.strip())
+        use_native_pdf = text_len < MIN_EXTRACTED_TEXT_CHARS
 
         # Read key directly from .env file (bypass os.environ which Claude Code clears)
         _env_path = os.path.abspath(
@@ -130,36 +301,59 @@ class ParseLeaseDocumentView(APIView):
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        # Truncate to ~80k chars to stay within context limits
-        truncated_text = pdf_text[:80000]
+        if use_native_pdf:
+            b64_pdf = base64.standard_b64encode(pdf_bytes).decode("ascii")
+            user_content = [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": b64_pdf,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": (
+                        EXTRACTION_PROMPT
+                        + "\n\nThe lease is attached as a PDF. "
+                        "Most pages may be scanned images — read the full document visually. "
+                        f"(Selectable text in this file was only ~{text_len} characters.)"
+                    ),
+                },
+            ]
+        else:
+            user_content = EXTRACTION_PROMPT + pdf_text[:80000]
 
         try:
             message = client.messages.create(
-                model="claude-opus-4-6",
-                max_tokens=4096,
+                model="claude-sonnet-4-20250514",
+                max_tokens=8192,
                 system=SYSTEM_PROMPT,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": EXTRACTION_PROMPT + truncated_text,
-                    }
-                ],
+                messages=[{"role": "user", "content": user_content}],
             )
         except Exception as e:
             return Response({"error": f"Claude API error: {e}"}, status=502)
 
-        raw = message.content[0].text.strip()
+        raw = _message_text(message)
 
-        # Strip markdown code fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.strip()
+        extracted = _parse_extracted_json(raw)
+        if extracted is None:
+            extracted = _repair_json_with_claude(client, raw)
 
-        try:
-            extracted = json.loads(raw)
-        except json.JSONDecodeError:
-            return Response({"error": "Claude returned invalid JSON.", "raw": raw}, status=502)
+        if extracted is None:
+            return Response(
+                {
+                    "error": "Claude returned invalid JSON. Try a shorter PDF or re-upload.",
+                    "raw": raw[:8000] + ("…" if len(raw) > 8000 else ""),
+                },
+                status=502,
+            )
+
+        extracted = normalize_extracted_lease(extracted)
+        if use_native_pdf:
+            extracted["_parse_via"] = "pdf_document"
+        else:
+            extracted["_parse_via"] = "extracted_text"
 
         return Response(extracted)

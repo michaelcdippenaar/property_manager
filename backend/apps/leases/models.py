@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from apps.accounts.models import Person
 from apps.properties.models import Unit
@@ -34,6 +35,9 @@ class Lease(models.Model):
     notice_period_days = models.PositiveSmallIntegerField(default=20)
     early_termination_penalty_months = models.PositiveSmallIntegerField(default=3)
 
+    # Human-readable lease reference, e.g. L-202601-0001 (auto-generated on import)
+    lease_number = models.CharField(max_length=50, blank=True)
+
     # Payment reference (e.g. "18 Irene - Smith")
     payment_reference = models.CharField(max_length=100, blank=True)
 
@@ -48,6 +52,55 @@ class Lease(models.Model):
     def __str__(self):
         name = self.primary_tenant.full_name if self.primary_tenant else "Unknown"
         return f"Lease: {name} @ {self.unit}"
+
+
+class LeaseTemplate(models.Model):
+    """Reusable DOCX template for generating lease agreements."""
+    name = models.CharField(max_length=200)
+    version = models.CharField(max_length=20, default="1.0")
+    province = models.CharField(max_length=100, blank=True, help_text="Leave blank for national template")
+    docx_file = models.FileField(upload_to="lease_templates/")
+    fields_schema = models.JSONField(default=list, help_text="List of merge field names in the template")
+    content_html = models.TextField(blank=True, default="", help_text="Manually edited HTML content (overrides DOCX render)")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.name} v{self.version}"
+
+
+class LeaseBuilderSession(models.Model):
+    """Tracks an in-progress AI-assisted lease building conversation."""
+
+    class Status(models.TextChoices):
+        DRAFTING = "drafting", "Drafting"
+        REVIEW = "review", "Review"
+        FINALIZED = "finalized", "Finalized"
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="lease_builder_sessions"
+    )
+    template = models.ForeignKey(
+        LeaseTemplate, null=True, blank=True, on_delete=models.SET_NULL
+    )
+    lease = models.OneToOneField(
+        "Lease", null=True, blank=True, on_delete=models.SET_NULL, related_name="builder_session"
+    )
+    messages = models.JSONField(default=list, help_text="[{role, content}] conversation history")
+    current_state = models.JSONField(default=dict, help_text="Extracted lease field values")
+    rha_flags = models.JSONField(default=list, help_text="RHA compliance issues found")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.DRAFTING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"BuilderSession #{self.id} by {self.created_by} ({self.status})"
 
 
 class LeaseTenant(models.Model):
