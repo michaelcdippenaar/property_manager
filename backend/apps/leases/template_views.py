@@ -169,11 +169,13 @@ class LeaseTemplatePreviewView(APIView):
 
         lower = file_path.lower()
         if lower.endswith(".pdf"):
+            pdf_url = request.build_absolute_uri(tmpl.docx_file.url) if tmpl.docx_file else None
             return Response({
                 "type": "pdf",
                 "name": tmpl.name,
                 "fields": tmpl.fields_schema,
                 "paragraphs": [],
+                "pdf_url": pdf_url,
             })
 
         try:
