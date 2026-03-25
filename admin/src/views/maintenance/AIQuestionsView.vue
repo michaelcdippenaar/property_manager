@@ -223,6 +223,8 @@ async function loadQuestions() {
     if (activeStatus.value) params.status = activeStatus.value
     const { data } = await api.get('/maintenance/agent-questions/', { params })
     questions.value = data.results ?? data
+  } catch {
+    questions.value = []
   } finally {
     listLoading.value = false
   }
