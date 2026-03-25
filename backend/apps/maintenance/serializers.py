@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    JobDispatch, JobQuote, JobQuoteRequest,
+    AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceRequest, Supplier, SupplierTrade,
     SupplierDocument, SupplierProperty,
 )
@@ -170,3 +170,18 @@ class SupplierQuotePageSerializer(serializers.ModelSerializer):
             return obj.dispatch.maintenance_request.unit.property.city
         except AttributeError:
             return ""
+
+
+class AgentQuestionSerializer(serializers.ModelSerializer):
+    answered_by_name = serializers.CharField(source='answered_by.full_name', read_only=True, default='')
+    property_name = serializers.CharField(source='property.name', read_only=True, default='')
+
+    class Meta:
+        model = AgentQuestion
+        fields = [
+            'id', 'question', 'answer', 'category', 'status',
+            'context_source', 'property', 'property_name',
+            'answered_by', 'answered_by_name', 'answered_at',
+            'added_to_context', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'answered_by', 'answered_at', 'added_to_context', 'created_at', 'updated_at']

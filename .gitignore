@@ -17,6 +17,7 @@ build/
 # Django
 backend/staticfiles/
 backend/media/
+backend/documents/
 *.sqlite3
 
 # Node / frontend

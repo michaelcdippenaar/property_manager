@@ -184,7 +184,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import {
   LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature, Calendar,
-  LogOut, Sparkles, BookOpen, Info, ChevronDown, Bot, HelpCircle, Truck, Hammer,
+  LogOut, Sparkles, BookOpen, Info, ChevronDown, Truck, Hammer,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -214,8 +214,6 @@ const leaseSubItems = [
 const maintenanceSubItems = [
   { to: '/maintenance/issues', icon: Wrench, label: 'Issues' },
   { to: '/maintenance/suppliers', icon: Truck, label: 'Suppliers' },
-  { to: '/maintenance/ai-questions', icon: HelpCircle, label: 'AI Agent Questions' },
-  { to: '/maintenance/ai-sandbox', icon: Bot, label: 'AI Agent Sandbox' },
 ]
 
 const propertyInfoSubItems = [

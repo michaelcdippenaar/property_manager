@@ -21,6 +21,7 @@ from rest_framework import status
 
 from .models import LeaseBuilderSession, LeaseTemplate, Lease
 from .import_view import ImportLeaseView, _get_or_create_person
+from .template_views import _get_anthropic_api_key
 
 
 # Path to the legal reference maintained in .claude/skills/
@@ -95,7 +96,7 @@ def _missing_required(state: dict) -> list[str]:
 
 
 def _call_claude(system: str, messages: list) -> dict:
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
+    client = anthropic.Anthropic(api_key=_get_anthropic_api_key())
     resp = client.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=1024,

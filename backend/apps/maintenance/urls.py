@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
+    AgentQuestionViewSet,
     JobDispatchListView,
     MaintenanceRequestViewSet,
     SupplierQuoteDeclineView,
@@ -20,6 +21,7 @@ from .supplier_views import (
 
 router = DefaultRouter()
 router.register("suppliers", SupplierViewSet, basename="supplier")
+router.register("agent-questions", AgentQuestionViewSet, basename="agent-question")
 router.register("", MaintenanceRequestViewSet, basename="maintenance")
 
 supplier_portal_urls = [

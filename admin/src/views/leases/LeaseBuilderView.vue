@@ -2,310 +2,133 @@
   <Teleport to="body">
     <div class="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden">
 
-      <!-- ── Header ──────────────────────────────────────────────────────── -->
-      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+      <!-- ── Header ── -->
+      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
         <div class="flex items-center gap-3">
           <div class="w-7 h-7 rounded-lg bg-navy flex items-center justify-center">
             <FileSignature :size="14" class="text-white" />
           </div>
-          <div>
-            <div class="font-semibold text-gray-900 text-sm">Lease Builder</div>
-            <div class="text-xs text-gray-400">Build a South African residential lease from scratch</div>
-          </div>
+          <div class="font-semibold text-gray-900 text-sm">New Lease</div>
         </div>
-        <div class="flex items-center gap-4">
-          <!-- Step indicator -->
-          <div class="hidden sm:flex items-center gap-1.5 text-xs text-gray-400">
-            <span :class="step >= 1 ? 'text-navy font-medium' : ''">Mode</span>
-            <ChevronRight :size="12" />
-            <span :class="step >= 2 ? 'text-navy font-medium' : ''">
-              {{ mode === 'chat' ? 'AI Chat' : 'Smart Form' }}
-            </span>
-            <ChevronRight :size="12" />
-            <span :class="step >= 3 ? 'text-navy font-medium' : ''">Done</span>
+
+        <div class="flex items-center gap-2">
+          <!-- Template selector -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-400 hidden sm:block">Template:</span>
+            <select
+              v-model="selectedTemplateId"
+              class="input text-sm py-1 px-2.5 min-w-[180px]"
+            >
+              <option :value="null" disabled>Select template…</option>
+              <option v-for="t in templates" :key="t.id" :value="t.id">
+                {{ t.name }} v{{ t.version }}
+              </option>
+            </select>
+            <button class="btn-ghost text-xs py-1 px-2" @click="router.push('/leases/templates')">
+              <Plus :size="12" /> New
+            </button>
           </div>
-          <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
+          <button @click="router.push('/leases')" class="text-gray-400 hover:text-gray-600 ml-2">
             <X :size="18" />
           </button>
         </div>
       </div>
 
-      <!-- ── Step 1: Choose mode ─────────────────────────────────────────── -->
-      <div v-if="step === 1" class="flex-1 flex items-center justify-center p-8">
-        <div class="w-full max-w-2xl space-y-6">
-          <div class="text-center space-y-1">
-            <h2 class="text-xl font-semibold text-gray-900">How would you like to build this lease?</h2>
-            <p class="text-sm text-gray-500">Both modes produce the same result — choose what suits you best.</p>
+      <!-- ── Done screen ── -->
+      <div v-if="step === 3" class="flex-1 flex items-center justify-center">
+        <div class="text-center space-y-4">
+          <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 :size="28" class="text-emerald-500" />
           </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <!-- Smart Form -->
-            <button
-              @click="selectMode('form')"
-              class="text-left border-2 rounded-2xl p-6 transition-all hover:shadow-md"
-              :class="mode === 'form' ? 'border-navy bg-navy/5 shadow-md' : 'border-gray-200 hover:border-gray-300'"
-            >
-              <div class="w-10 h-10 rounded-xl bg-lavender flex items-center justify-center mb-4">
-                <FormInput :size="20" class="text-navy" />
-              </div>
-              <div class="font-semibold text-gray-900">Smart Form</div>
-              <div class="text-sm text-gray-500 mt-1">
-                Fill in all fields directly. Instant, precise, full control.
-                Best when you have all the details ready.
-              </div>
-            </button>
-
-            <!-- AI Builder -->
-            <button
-              @click="selectMode('chat')"
-              class="text-left border-2 rounded-2xl p-6 transition-all hover:shadow-md"
-              :class="mode === 'chat' ? 'border-navy bg-navy/5 shadow-md' : 'border-gray-200 hover:border-gray-300'"
-            >
-              <div class="w-10 h-10 rounded-xl bg-lavender flex items-center justify-center mb-4">
-                <Sparkles :size="20" class="text-navy" />
-              </div>
-              <div class="font-semibold text-gray-900">AI Builder</div>
-              <div class="text-sm text-gray-500 mt-1">
-                Chat with AI — describe the lease and it asks what's missing,
-                flags RHA compliance issues, and fills the form for you.
-              </div>
-            </button>
-          </div>
-
-          <!-- Template -->
-          <div class="border border-gray-200 rounded-2xl p-4 space-y-2 bg-gray-50">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <FileSignature :size="14" class="text-gray-400" />
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">DOCX Template</span>
-              </div>
-              <label
-                class="btn-ghost text-xs cursor-pointer"
-                :class="uploadingTemplate ? 'opacity-50 pointer-events-none' : ''"
-              >
-                <Loader2 v-if="uploadingTemplate" :size="12" class="animate-spin" />
-                <Plus v-else :size="12" />
-                {{ uploadingTemplate ? 'Uploading…' : 'Upload template' }}
-                <input
-                  ref="templateFileInput"
-                  type="file"
-                  accept=".docx,.pdf"
-                  class="hidden"
-                  @change="handleTemplateUpload"
-                />
-              </label>
-            </div>
-            <div v-if="templateUploadError" class="text-xs text-red-500">{{ templateUploadError }}</div>
-            <div v-if="activeTemplate" class="flex items-center gap-2 text-sm text-gray-700">
-              <div class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></div>
-              <span class="font-medium">{{ activeTemplate.name }}</span>
-              <span class="text-gray-400 text-xs">v{{ activeTemplate.version }}</span>
-              <span v-if="activeTemplate.fields_schema?.length" class="text-gray-400 text-xs">
-                · {{ activeTemplate.fields_schema.length }} fields
-              </span>
-            </div>
-            <div v-else class="text-xs text-amber-600 flex items-center gap-1.5">
-              <AlertCircle :size="12" />
-              No template uploaded yet — upload a .docx or .pdf to enable document generation.
-            </div>
-          </div>
-
-          <div class="flex justify-center pt-2">
-            <button
-              class="btn-primary px-8"
-              :disabled="!mode"
-              @click="startMode"
-            >
-              Continue
-              <ChevronRight :size="14" />
-            </button>
+          <div class="font-semibold text-gray-900 text-lg">Lease created!</div>
+          <div class="text-sm text-gray-500">{{ createdLeaseNumber }} is ready.</div>
+          <div class="flex gap-2 justify-center pt-2">
+            <button class="btn-ghost" @click="reset">Build another</button>
+            <button class="btn-primary" @click="router.push('/leases')">View leases</button>
           </div>
         </div>
       </div>
 
-      <!-- ── Step 2a: Smart Form ─────────────────────────────────────────── -->
-      <template v-if="step === 2 && mode === 'form'">
-        <div class="flex-1 overflow-y-auto">
-          <div class="max-w-xl mx-auto px-6 py-8 space-y-8">
+      <!-- ── Main split panel ── -->
+      <div v-else class="flex flex-1 min-h-0">
+
+        <!-- Left: Form -->
+        <div class="w-[400px] flex-shrink-0 border-r border-gray-200 flex flex-col overflow-hidden">
+          <div class="flex-1 overflow-y-auto px-5 py-5 space-y-8">
             <LeaseFormFields
               v-model:form="form"
               v-model:useExistingProperty="useExistingProperty"
               v-model:useExistingUnit="useExistingUnit"
               :properties="properties"
             />
-          </div>
-        </div>
 
-        <!-- Footer -->
-        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 flex-shrink-0 bg-white">
-          <div v-if="submitError" class="flex items-center gap-2 text-sm text-red-600">
-            <AlertCircle :size="14" />
-            {{ submitError }}
-          </div>
-          <div v-else class="flex items-center gap-3">
-            <button
-              class="btn-ghost"
-              :disabled="generating"
-              @click="previewDocx"
-            >
-              <Loader2 v-if="generating" :size="13" class="animate-spin" />
-              {{ generating ? 'Generating…' : 'Preview DOCX' }}
-            </button>
-          </div>
-          <div class="flex gap-2 ml-auto">
-            <button class="btn-ghost" @click="step = 1">Back</button>
-            <button class="btn-primary" :disabled="submitting" @click="doFormCreate">
-              <Loader2 v-if="submitting" :size="14" class="animate-spin" />
-              {{ submitting ? 'Creating…' : 'Create Lease' }}
-            </button>
-          </div>
-        </div>
-      </template>
-
-      <!-- ── Step 2b: AI Chat ────────────────────────────────────────────── -->
-      <template v-if="step === 2 && mode === 'chat'">
-        <div class="flex-1 flex overflow-hidden">
-
-          <!-- Left: Chat panel -->
-          <div class="flex flex-col w-full lg:w-1/2 border-r border-gray-100">
-
-            <!-- Chat messages -->
-            <div ref="chatScrollEl" class="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              <div
-                v-for="(msg, i) in chatMessages"
-                :key="i"
-                class="flex gap-2"
-                :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
-              >
-                <!-- Avatar -->
-                <div
-                  class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold mt-0.5"
-                  :class="msg.role === 'assistant' ? 'bg-navy/10 text-navy' : 'bg-gray-200 text-gray-600'"
-                >
-                  {{ msg.role === 'assistant' ? 'AI' : 'You' }}
-                </div>
-                <div
-                  class="max-w-[80%] rounded-2xl px-4 py-2.5 text-sm"
-                  :class="msg.role === 'user'
-                    ? 'bg-navy text-white rounded-tr-sm'
-                    : 'bg-gray-100 text-gray-800 rounded-tl-sm'"
-                >
-                  {{ msg.content }}
-                </div>
-              </div>
-
-              <!-- Typing indicator -->
-              <div v-if="chatThinking" class="flex gap-2">
-                <div class="w-7 h-7 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold bg-navy/10 text-navy mt-0.5">AI</div>
-                <div class="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1">
-                  <span v-for="i in 3" :key="i" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" :style="`animation-delay:${(i-1)*0.15}s`" />
-                </div>
-              </div>
-            </div>
-
-            <!-- RHA flags -->
-            <div v-if="rhaFlags.length" class="px-4 py-2 border-t border-orange-100 bg-orange-50 space-y-1">
-              <div
-                v-for="(flag, i) in rhaFlags"
-                :key="i"
-                class="flex items-start gap-2 text-xs"
-                :class="flag.severity === 'error' ? 'text-red-700' : 'text-amber-700'"
-              >
-                <AlertCircle :size="12" class="mt-0.5 flex-shrink-0" />
-                <span>{{ flag.message }}</span>
-              </div>
-            </div>
-
-            <!-- Progress bar: required fields filled -->
-            <div class="px-4 py-2 border-t border-gray-100 bg-gray-50 flex items-center gap-3">
-              <div class="flex-1 bg-gray-200 rounded-full h-1.5 overflow-hidden">
-                <div
-                  class="h-full bg-navy rounded-full transition-all duration-500"
-                  :style="`width:${fieldProgress}%`"
-                />
-              </div>
-              <span class="text-xs text-gray-500 whitespace-nowrap">
-                {{ filledCount }}/{{ requiredFields.length }} required fields
-              </span>
-            </div>
-
-            <!-- Chat input -->
-            <div class="border-t border-gray-200 p-3 flex gap-2">
+            <!-- Additional Terms -->
+            <section class="space-y-2">
+              <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Additional Terms</div>
               <textarea
-                v-model="chatInput"
-                rows="2"
-                placeholder="Describe the lease or answer the question above…"
-                class="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-navy/30"
-                @keydown.enter.exact.prevent="sendMessage"
-                :disabled="chatThinking || sessionFinalized"
+                v-model="additionalTerms"
+                rows="5"
+                class="input resize-none w-full text-sm"
+                placeholder="Type any additional clauses or special conditions…"
               />
+            </section>
+          </div>
+
+          <!-- Form footer -->
+          <div class="border-t border-gray-200 px-5 py-3 flex items-center gap-2 bg-white flex-shrink-0">
+            <div v-if="submitError" class="flex items-center gap-1.5 text-xs text-red-600 flex-1 min-w-0">
+              <AlertCircle :size="12" class="flex-shrink-0" />
+              <span class="truncate">{{ submitError }}</span>
+            </div>
+            <div class="flex gap-2 ml-auto">
               <button
-                class="btn-primary px-4 self-end"
-                :disabled="!chatInput.trim() || chatThinking || sessionFinalized"
-                @click="sendMessage"
+                class="btn-ghost text-xs"
+                :disabled="generating || !selectedTemplateId"
+                @click="previewDocx"
               >
-                <Send :size="14" />
+                <Loader2 v-if="generating" :size="12" class="animate-spin" />
+                {{ generating ? 'Generating…' : 'Download DOCX' }}
+              </button>
+              <button class="btn-primary" :disabled="submitting" @click="doFormCreate">
+                <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+                {{ submitting ? 'Creating…' : 'Create Lease' }}
               </button>
             </div>
           </div>
-
-          <!-- Right: Live form preview -->
-          <div class="hidden lg:flex flex-col w-1/2 overflow-y-auto">
-            <div class="px-4 py-3 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
-              <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span class="text-xs font-medium text-gray-600">Live preview — updates as AI extracts fields</span>
-            </div>
-            <div class="px-5 py-5 space-y-6">
-              <LeaseFormFields
-                v-model:form="form"
-                v-model:useExistingProperty="useExistingProperty"
-                v-model:useExistingUnit="useExistingUnit"
-                :properties="properties"
-                :readonly-hint="true"
-              />
-            </div>
-          </div>
         </div>
 
-        <!-- Footer -->
-        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-200 flex-shrink-0 bg-white">
-          <div v-if="submitError" class="flex items-center gap-2 text-sm text-red-600">
-            <AlertCircle :size="14" />
-            {{ submitError }}
+        <!-- Right: Template preview -->
+        <div class="flex-1 bg-[#e8eaed] overflow-y-auto flex flex-col items-center py-8 px-6 min-h-0">
+
+          <!-- No template -->
+          <div v-if="!selectedTemplateId && !loadingTemplates" class="text-center text-gray-400 mt-24">
+            <FileSignature :size="36" class="mx-auto mb-3 opacity-30" />
+            <p class="font-medium text-sm">No template selected</p>
+            <p class="text-xs mt-1">Pick a template in the header to preview it here</p>
           </div>
-          <div v-else class="text-xs text-gray-400">
-            {{ readyToFinalize ? 'All required fields collected — ready to create the lease.' : 'Chat with AI to fill in required fields.' }}
+
+          <!-- Loading -->
+          <div v-else-if="loadingContent" class="flex items-center gap-2 text-gray-400 text-sm mt-24">
+            <Loader2 :size="16" class="animate-spin" /> Loading template…
           </div>
-          <div class="flex gap-2">
-            <button class="btn-ghost" @click="step = 1">Back</button>
+
+          <!-- No HTML content -->
+          <div v-else-if="selectedTemplateId && !templateHtml" class="text-center text-gray-400 mt-24 space-y-3">
+            <p class="text-sm">This template has no content yet.</p>
             <button
-              class="btn-primary"
-              :disabled="!readyToFinalize || submitting"
-              @click="doFinalizeSession"
+              class="btn-ghost text-xs"
+              @click="router.push(`/leases/templates/${selectedTemplateId}/edit`)"
             >
-              <Loader2 v-if="submitting" :size="14" class="animate-spin" />
-              {{ submitting ? 'Creating…' : 'Create Lease' }}
+              Open in template editor →
             </button>
           </div>
-        </div>
-      </template>
 
-      <!-- ── Step 3: Done ────────────────────────────────────────────────── -->
-      <div v-if="step === 3" class="flex-1 flex items-center justify-center">
-        <div class="text-center space-y-4 max-w-sm">
-          <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto">
-            <CheckCircle2 :size="32" class="text-emerald-600" />
-          </div>
-          <div>
-            <div class="font-semibold text-gray-900 text-lg">Lease created!</div>
-            <div class="text-sm text-gray-500 mt-1">
-              {{ createdLeaseNumber }} has been created and is ready for signing.
-            </div>
-          </div>
-          <div class="flex gap-2 justify-center pt-2">
-            <button class="btn-ghost" @click="reset">Build another</button>
-            <button class="btn-primary" @click="$emit('done')">View leases</button>
-          </div>
+          <!-- Preview page -->
+          <div
+            v-else-if="templateHtml"
+            class="w-[680px] bg-white shadow-lg rounded-sm lease-preview-page"
+            v-html="previewHtml"
+          />
         </div>
       </div>
 
@@ -314,15 +137,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../api'
 import {
-  X, ChevronRight, FileSignature, Sparkles, FormInput, AlertCircle,
-  Loader2, CheckCircle2, Send, Plus,
+  X, FileSignature, AlertCircle, Loader2, CheckCircle2, Plus,
 } from 'lucide-vue-next'
 
-const props = defineProps<{ existingLeaseId?: number | null; startMode?: 'form' | 'chat' | null; templateId?: number | null }>()
-const emit = defineEmits<{ close: []; done: [] }>()
+const router = useRouter()
+
+const props = defineProps<{ existingLeaseId?: number | null; templateId?: number | null }>()
 
 // ── Inline shared sub-components ──────────────────────────────────────────
 
@@ -371,14 +195,12 @@ const PersonBlock = defineComponent({
   },
 })
 
-// LeaseFormFields is a render-function component wrapping all the form sections
 const LeaseFormFields = defineComponent({
   props: {
     form: Object,
     useExistingProperty: [Number, Boolean],
     useExistingUnit: [Number, Boolean],
     properties: Array,
-    readonlyHint: Boolean,
   },
   emits: ['update:form', 'update:useExistingProperty', 'update:useExistingUnit'],
   setup(props, { emit }) {
@@ -400,8 +222,7 @@ const LeaseFormFields = defineComponent({
 
     return () => {
       const f = props.form as any
-      const ro = props.readonlyHint
-      const inputCls = `input${ro ? ' bg-gray-50' : ''}`
+      const inputCls = 'input'
 
       return h('div', { class: 'space-y-8' }, [
         // Property
@@ -495,7 +316,7 @@ const LeaseFormFields = defineComponent({
         h('section', { class: 'space-y-3' }, [
           h('div', { class: 'flex items-center justify-between' }, [
             h(SectionLabel, { text: 'Tenants — jointly & severally liable', color: 'navy' }),
-            !ro && f.co_tenants?.length < 3
+            f.co_tenants?.length < 3
               ? h('button', {
                   class: 'btn-ghost text-xs px-2 py-1',
                   onClick: () => updForm('co_tenants', [...(f.co_tenants ?? []), emptyPerson()]),
@@ -509,7 +330,7 @@ const LeaseFormFields = defineComponent({
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>
             h('div', { key: i, class: 'relative border border-navy/20 rounded-xl p-4 bg-navy/5' }, [
               h('span', { class: 'absolute top-3 left-4 text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
-              !ro && h('button', {
+              h('button', {
                 class: 'absolute top-2.5 right-3 text-gray-400 hover:text-red-500',
                 onClick: () => updForm('co_tenants', f.co_tenants.filter((_: any, j: number) => j !== i)),
               }, h(X, { size: 14 })),
@@ -527,7 +348,7 @@ const LeaseFormFields = defineComponent({
         h('section', { class: 'space-y-3' }, [
           h('div', { class: 'flex items-center justify-between' }, [
             h(SectionLabel, { text: 'Occupants', color: 'green' }),
-            !ro && h('button', {
+            h('button', {
               class: 'btn-ghost text-xs px-2 py-1',
               onClick: () => updForm('occupants', [...(f.occupants ?? []), { ...emptyPerson(), relationship_to_tenant: 'self' }]),
             }, '+ Add'),
@@ -535,7 +356,7 @@ const LeaseFormFields = defineComponent({
           ...(f.occupants?.length
             ? f.occupants.map((oc: any, i: number) =>
                 h('div', { key: i, class: 'relative border border-emerald-100 rounded-xl p-4 bg-emerald-50/40' }, [
-                  !ro && h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
+                  h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
                   h(PersonBlock, { modelValue: oc, compact: true, 'onUpdate:modelValue': (v: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? v : o)) }),
                   h('div', { class: 'mt-2' }, [
                     h('label', { class: 'label' }, 'Relationship'),
@@ -550,7 +371,7 @@ const LeaseFormFields = defineComponent({
         h('section', { class: 'space-y-3' }, [
           h('div', { class: 'flex items-center justify-between' }, [
             h(SectionLabel, { text: 'Guarantors / Sureties', color: 'amber' }),
-            !ro && h('button', {
+            h('button', {
               class: 'btn-ghost text-xs px-2 py-1',
               onClick: () => updForm('guarantors', [...(f.guarantors ?? []), { ...emptyPerson(), for_tenant: '' }]),
             }, '+ Add'),
@@ -558,7 +379,7 @@ const LeaseFormFields = defineComponent({
           ...(f.guarantors?.length
             ? f.guarantors.map((g: any, i: number) =>
                 h('div', { key: i, class: 'relative border border-amber-100 rounded-xl p-4 bg-amber-50/40' }, [
-                  !ro && h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
+                  h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
                   h(PersonBlock, { modelValue: g, compact: true, 'onUpdate:modelValue': (v: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? v : gg)) }),
                   h('div', { class: 'mt-2' }, [
                     h('label', { class: 'label' }, 'Covers tenant'),
@@ -576,7 +397,6 @@ const LeaseFormFields = defineComponent({
 // ── State ──────────────────────────────────────────────────────────────────
 
 const step = ref(1)
-const mode = ref<'form' | 'chat' | null>(null)
 const properties = ref<any[]>([])
 const useExistingProperty = ref<number | false>(false)
 const useExistingUnit = ref<number | false>(false)
@@ -607,63 +427,82 @@ const form = ref({
   guarantors: [] as any[],
 })
 
+const additionalTerms = ref('')
+
 // ── Template management ────────────────────────────────────────────────────
 
 const templates = ref<any[]>([])
-const activeTemplate = computed(() => templates.value.find(t => t.is_active) ?? templates.value[0] ?? null)
-const uploadingTemplate = ref(false)
-const templateUploadError = ref('')
-const templateFileInput = ref<HTMLInputElement | null>(null)
+const loadingTemplates = ref(false)
+const loadingContent = ref(false)
+const selectedTemplateId = ref<number | null>(null)
+const templateHtml = ref('')
 
 async function loadTemplates() {
+  loadingTemplates.value = true
   try {
     const { data } = await api.get('/leases/templates/')
     templates.value = data.results ?? data
+    // Auto-select: prefer templateId prop, then first active, then first
+    const preferred = props.templateId
+      ? templates.value.find(t => t.id === props.templateId)
+      : templates.value.find(t => t.is_active) ?? templates.value[0]
+    if (preferred) selectedTemplateId.value = preferred.id
   } catch { /* non-fatal */ }
+  finally { loadingTemplates.value = false }
 }
 
-async function handleTemplateUpload(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  const lower = file.name.toLowerCase()
-  if (!lower.endsWith('.docx') && !lower.endsWith('.pdf')) {
-    templateUploadError.value = 'Only .docx or .pdf files are accepted.'
-    return
-  }
-  templateUploadError.value = ''
-  uploadingTemplate.value = true
+async function fetchTemplateContent(id: number) {
+  loadingContent.value = true
+  templateHtml.value = ''
   try {
-    const fd = new FormData()
-    fd.append('name', file.name.replace(/\.(docx|pdf)$/i, ''))
-    fd.append('template_file', file)
-    await api.post('/leases/templates/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
-    await loadTemplates()
-  } catch (err: any) {
-    templateUploadError.value = err?.response?.data?.error ?? 'Upload failed.'
-  } finally {
-    uploadingTemplate.value = false
-    if (templateFileInput.value) templateFileInput.value.value = ''
-  }
+    const { data } = await api.get(`/leases/templates/${id}/`)
+    templateHtml.value = data.content_html ?? ''
+  } catch { /* non-fatal */ }
+  finally { loadingContent.value = false }
 }
 
-// ── AI Chat state ─────────────────────────────────────────────────────────
+watch(selectedTemplateId, (id) => {
+  if (id) fetchTemplateContent(id)
+  else templateHtml.value = ''
+})
 
-const chatMessages = ref<{ role: string; content: string }[]>([])
-const chatInput = ref('')
-const chatThinking = ref(false)
-const chatScrollEl = ref<HTMLElement | null>(null)
-const sessionId = ref<number | null>(null)
-const sessionFinalized = ref(false)
-const readyToFinalize = ref(false)
-const rhaFlags = ref<any[]>([])
+// ── Template preview with filled values ───────────────────────────────────
 
-const requiredFields = [
-  'landlord_name', 'property_address', 'unit_number', 'tenant_name',
-  'lease_start', 'lease_end', 'monthly_rent', 'deposit', 'notice_period_days',
-]
-const missingFields = ref<string[]>([...requiredFields])
-const filledCount = computed(() => requiredFields.length - missingFields.value.length)
-const fieldProgress = computed(() => Math.round((filledCount.value / requiredFields.length) * 100))
+function escHtml(s: string) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+const previewHtml = computed(() => {
+  if (!templateHtml.value) return ''
+  const vals = buildDocxContext() as Record<string, any>
+
+  let html = templateHtml.value
+
+  // Replace <span data-merge-field="X">...</span> with filled value or placeholder
+  html = html.replace(/<span[^>]*data-merge-field="([^"]+)"[^>]*>[\s\S]*?<\/span>/g, (_, field) => {
+    const val = vals[field]
+    if (val !== undefined && String(val).trim() && String(val) !== '—') {
+      return `<span class="pf-filled">${escHtml(String(val))}</span>`
+    }
+    return `<span class="pf-empty">{{${field}}}</span>`
+  })
+
+  // Also replace bare {{ field }} jinja-style placeholders
+  html = html.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, field) => {
+    const val = vals[field]
+    if (val !== undefined && String(val).trim() && String(val) !== '—') {
+      return `<span class="pf-filled">${escHtml(String(val))}</span>`
+    }
+    return `<span class="pf-empty">{{${field}}}</span>`
+  })
+
+  // Append additional terms
+  if (additionalTerms.value.trim()) {
+    html += `<div class="pf-additional-terms"><strong>Additional Terms &amp; Conditions</strong><div class="pf-terms-body">${escHtml(additionalTerms.value)}</div></div>`
+  }
+
+  return html
+})
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -672,107 +511,18 @@ onMounted(() => {
     properties.value = data.results ?? data
   })
   loadTemplates()
-  // Skip mode selection if startMode prop is provided
-  if (props.startMode) {
-    mode.value = props.startMode
-    step.value = 2
-    if (props.startMode === 'chat') startChatSession()
-  }
 })
-
-// ── Mode selection ────────────────────────────────────────────────────────
-
-function selectMode(m: 'form' | 'chat') {
-  mode.value = m
-}
-
-async function startMode() {
-  if (!mode.value) return
-  if (mode.value === 'chat') {
-    await startChatSession()
-  }
-  step.value = 2
-}
-
-// ── AI Chat ───────────────────────────────────────────────────────────────
-
-async function startChatSession() {
-  try {
-    const payload: Record<string, unknown> = {}
-    if (props.existingLeaseId) payload.existing_lease_id = props.existingLeaseId
-    if (props.templateId) payload.template_id = props.templateId
-    const { data } = await api.post('/leases/builder/sessions/', payload)
-    sessionId.value = data.session_id
-    chatMessages.value = [{ role: 'assistant', content: data.message }]
-    missingFields.value = data.missing_fields ?? data.required_fields ?? [...requiredFields]
-    if (data.current_state) applyStateToForm(data.current_state)
-  } catch {
-    chatMessages.value = [{ role: 'assistant', content: 'Hi! Tell me about the lease you want to create.' }]
-  }
-}
-
-async function sendMessage() {
-  const msg = chatInput.value.trim()
-  if (!msg || chatThinking.value || !sessionId.value) return
-
-  chatInput.value = ''
-  chatMessages.value.push({ role: 'user', content: msg })
-  chatThinking.value = true
-  scrollChat()
-
-  try {
-    const { data } = await api.post(`/leases/builder/sessions/${sessionId.value}/message/`, { message: msg })
-
-    chatMessages.value.push({ role: 'assistant', content: data.reply })
-    rhaFlags.value = data.rha_flags ?? []
-    missingFields.value = data.missing_fields ?? []
-    readyToFinalize.value = data.ready_to_finalize ?? false
-
-    // Sync form from current_state
-    if (data.current_state) applyStateToForm(data.current_state)
-  } catch (e: any) {
-    chatMessages.value.push({ role: 'assistant', content: 'Sorry, something went wrong. Please try again.' })
-  } finally {
-    chatThinking.value = false
-    scrollChat()
-  }
-}
-
-function applyStateToForm(state: any) {
-  if (state.property_address) form.value.property.address = state.property_address
-  if (state.property_name) form.value.property.name = state.property_name
-  if (state.city) form.value.property.city = state.city
-  if (state.province) form.value.property.province = state.province
-  if (state.unit_number) form.value.unit.unit_number = String(state.unit_number)
-  if (state.lease_start) form.value.start_date = state.lease_start
-  if (state.lease_end) form.value.end_date = state.lease_end
-  if (state.monthly_rent) form.value.monthly_rent = state.monthly_rent
-  if (state.deposit) form.value.deposit = state.deposit
-  if (state.notice_period_days) form.value.notice_period_days = state.notice_period_days
-  if (state.early_termination_months) form.value.early_termination_penalty_months = state.early_termination_months
-  if (state.max_occupants) form.value.max_occupants = state.max_occupants
-  if (state.payment_reference) form.value.payment_reference = state.payment_reference
-  if (state.tenant_name) form.value.primary_tenant.full_name = state.tenant_name
-  if (state.tenant_id) form.value.primary_tenant.id_number = state.tenant_id
-  if (state.tenant_phone) form.value.primary_tenant.phone = state.tenant_phone
-  if (state.tenant_email) form.value.primary_tenant.email = state.tenant_email
-  if (state.water_included != null) form.value.water_included = state.water_included !== false && state.water_included !== 'Excluded'
-  if (state.electricity_prepaid != null) form.value.electricity_prepaid = state.electricity_prepaid !== false && state.electricity_prepaid !== 'Included'
-}
-
-function scrollChat() {
-  nextTick(() => {
-    if (chatScrollEl.value) {
-      chatScrollEl.value.scrollTop = chatScrollEl.value.scrollHeight
-    }
-  })
-}
 
 // ── Smart Form: create via import ──────────────────────────────────────────
 
 async function doFormCreate() {
-  submitting.value = true
   submitError.value = ''
+  const f = form.value
+  if (!f.primary_tenant.full_name) { submitError.value = 'Primary tenant name is required.'; return }
+  if (!f.start_date) { submitError.value = 'Lease start date is required.'; return }
+  if (!f.end_date)   { submitError.value = 'Lease end date is required.'; return }
+  if (!f.monthly_rent) { submitError.value = 'Monthly rent is required.'; return }
+  submitting.value = true
   try {
     const payload: any = { ...form.value }
     if (useExistingProperty.value) {
@@ -796,7 +546,7 @@ async function previewDocx() {
   generating.value = true
   try {
     const context = buildDocxContext()
-    const resp = await api.post('/leases/generate/', { context }, { responseType: 'blob' })
+    const resp = await api.post('/leases/generate/', { template_id: selectedTemplateId.value, context }, { responseType: 'blob' })
     const url = URL.createObjectURL(resp.data)
     const a = document.createElement('a')
     a.href = url
@@ -804,7 +554,7 @@ async function previewDocx() {
     a.click()
     URL.revokeObjectURL(url)
   } catch {
-    // silently ignore preview errors — main action is still Create Lease
+    // silently ignore preview errors
   } finally {
     generating.value = false
   }
@@ -829,8 +579,8 @@ function buildDocxContext() {
     co_tenants: f.co_tenants.map((c: any) => c.full_name).filter(Boolean).join(', ') || '—',
     lease_start: f.start_date,
     lease_end: f.end_date,
-    monthly_rent: `R ${Number(f.monthly_rent).toLocaleString('en-ZA')}`,
-    deposit: `R ${Number(f.deposit).toLocaleString('en-ZA')}`,
+    monthly_rent: f.monthly_rent ? `R ${Number(f.monthly_rent).toLocaleString('en-ZA')}` : '',
+    deposit: f.deposit ? `R ${Number(f.deposit).toLocaleString('en-ZA')}` : '',
     payment_reference: f.payment_reference,
     escalation_percent: '—',
     escalation_date: '—',
@@ -844,39 +594,13 @@ function buildDocxContext() {
   }
 }
 
-// ── AI Chat: finalize ──────────────────────────────────────────────────────
-
-async function doFinalizeSession() {
-  if (!sessionId.value) return
-  submitting.value = true
-  submitError.value = ''
-  try {
-    const { data } = await api.post(`/leases/builder/sessions/${sessionId.value}/finalize/`)
-    createdLeaseNumber.value = data.lease_number
-    sessionFinalized.value = true
-    step.value = 3
-  } catch (e: any) {
-    const detail = e?.response?.data?.error ?? e?.message ?? 'Failed to create lease'
-    submitError.value = typeof detail === 'string' ? detail : JSON.stringify(detail)
-  } finally {
-    submitting.value = false
-  }
-}
-
 // ── Reset ──────────────────────────────────────────────────────────────────
 
 function reset() {
   step.value = 1
-  mode.value = null
-  sessionId.value = null
-  sessionFinalized.value = false
-  readyToFinalize.value = false
-  rhaFlags.value = []
-  chatMessages.value = []
-  chatInput.value = ''
   submitError.value = ''
   createdLeaseNumber.value = ''
-  missingFields.value = [...requiredFields]
+  additionalTerms.value = ''
   useExistingProperty.value = false
   useExistingUnit.value = false
   form.value = {
@@ -892,3 +616,79 @@ function reset() {
   }
 }
 </script>
+
+<style scoped>
+.lease-preview-page {
+  padding: 54px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #1a1a1a;
+  min-height: 961px;
+}
+
+/* Filled merge field */
+.lease-preview-page :deep(.pf-filled) {
+  background: #dbeafe55;
+  color: #1e3a5f;
+  font-weight: 500;
+  border-bottom: 1px solid #93c5fd;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* Empty / unfilled merge field */
+.lease-preview-page :deep(.pf-empty) {
+  background: #fef9c3;
+  color: #92400e;
+  font-size: 0.82em;
+  padding: 0 4px;
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  border: 1px dashed #fcd34d;
+}
+
+/* Additional terms block */
+.lease-preview-page :deep(.pf-additional-terms) {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.9em;
+}
+.lease-preview-page :deep(.pf-terms-body) {
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  color: #374151;
+}
+
+/* Page break visual */
+.lease-preview-page :deep([data-page-break]) {
+  display: block;
+  height: 0;
+  position: relative;
+  margin: 0;
+  page-break-after: always;
+}
+.lease-preview-page :deep([data-page-break])::before {
+  content: '— page break —';
+  position: absolute;
+  top: 0; left: -54px; right: -54px;
+  height: 32px; margin-top: -16px;
+  background: #e8eaed;
+  border-top: 1px dashed #c8cdd5;
+  border-bottom: 1px dashed #c8cdd5;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; color: #9ca3af; letter-spacing: 0.1em;
+}
+
+/* Table styles */
+.lease-preview-page :deep(table) {
+  width: 100%; border-collapse: collapse; margin: 0.75rem 0;
+}
+.lease-preview-page :deep(td),
+.lease-preview-page :deep(th) {
+  border: 1px solid #e5e7eb; padding: 6px 10px; font-size: 12px;
+}
+.lease-preview-page :deep(th) {
+  background: #f9fafb; font-weight: 600;
+}
+</style>

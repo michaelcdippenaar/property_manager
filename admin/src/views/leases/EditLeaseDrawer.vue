@@ -212,6 +212,10 @@
                   <input v-model="newTenant.email" type="email" class="input" />
                 </div>
               </div>
+              <div v-if="addTenantError" class="mt-2 text-xs text-red-600 flex items-center gap-1.5">
+                <AlertCircle :size="12" class="flex-shrink-0" />
+                {{ addTenantError }}
+              </div>
               <div class="flex items-center gap-2 mt-3">
                 <button @click="addTenant" :disabled="!newTenant.full_name || addingTenant" class="btn-primary text-xs">
                   <Loader2 v-if="addingTenant" :size="12" class="animate-spin" />
@@ -509,12 +513,14 @@ const docList = ref<any[]>([...(props.lease.documents ?? [])])
 // ── Add / remove tenant ──────────────────────────────────────────────── //
 const showAddTenant = ref(false)
 const addingTenant = ref(false)
+const addTenantError = ref('')
 const newTenant = ref({ full_name: '', id_number: '', phone: '', email: '' })
-function resetNewTenant() { newTenant.value = { full_name: '', id_number: '', phone: '', email: '' } }
+function resetNewTenant() { newTenant.value = { full_name: '', id_number: '', phone: '', email: '' }; addTenantError.value = '' }
 
 async function addTenant() {
   if (!newTenant.value.full_name) return
   addingTenant.value = true
+  addTenantError.value = ''
   try {
     const { data } = await api.post(`/leases/${props.lease.id}/tenants/`, {
       person: { person_type: 'individual', ...newTenant.value },
@@ -528,6 +534,10 @@ async function addTenant() {
     })
     showAddTenant.value = false
     resetNewTenant()
+  } catch (e: any) {
+    addTenantError.value = e?.response?.data
+      ? JSON.stringify(e.response.data)
+      : 'Failed to add tenant — please try again'
   } finally {
     addingTenant.value = false
   }

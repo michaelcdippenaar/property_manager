@@ -17,3 +17,5 @@ twilio>=9.0.0
 firebase-admin>=6.5.0
 # DOCX template rendering (jinja2-based merge fields for lease generation)
 docxtpl>=0.16.0
+# HTML → PDF export (reverse of PDF import)
+xhtml2pdf>=0.2.11

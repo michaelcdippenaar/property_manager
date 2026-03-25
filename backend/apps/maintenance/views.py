@@ -10,12 +10,13 @@ from rest_framework.views import APIView
 
 from .matching import rank_suppliers
 from .models import (
-    JobDispatch, JobQuote, JobQuoteRequest,
+    AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceRequest, Supplier, SupplierDocument,
     SupplierProperty, SupplierTrade,
 )
 from .notifications import notify_supplier
 from .serializers import (
+    AgentQuestionSerializer,
     JobDispatchSerializer,
     JobQuoteRequestSerializer,
     JobQuoteSerializer,
@@ -400,3 +401,39 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 errors.append(f"Row {row_idx}: {str(e)[:100]}")
 
         return Response({"created": created, "errors": errors})
+
+
+class AgentQuestionViewSet(viewsets.ModelViewSet):
+    serializer_class = AgentQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = AgentQuestion.objects.all()
+        status_filter = self.request.query_params.get('status')
+        category = self.request.query_params.get('category')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        if category:
+            qs = qs.filter(category=category)
+        return qs
+
+    @action(detail=True, methods=['post'])
+    def answer(self, request, pk=None):
+        question = self.get_object()
+        answer_text = request.data.get('answer', '').strip()
+        if not answer_text:
+            return Response({'error': 'Answer is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        question.answer = answer_text
+        question.status = AgentQuestion.Status.ANSWERED
+        question.answered_by = request.user
+        question.answered_at = timezone.now()
+        question.added_to_context = True
+        question.save()
+        return Response(AgentQuestionSerializer(question).data)
+
+    @action(detail=True, methods=['post'])
+    def dismiss(self, request, pk=None):
+        question = self.get_object()
+        question.status = AgentQuestion.Status.DISMISSED
+        question.save()
+        return Response(AgentQuestionSerializer(question).data)

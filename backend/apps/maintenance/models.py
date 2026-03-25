@@ -248,3 +248,37 @@ class MaintenanceRequest(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.unit}"
+
+
+class AgentQuestion(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ANSWERED = "answered", "Answered"
+        DISMISSED = "dismissed", "Dismissed"
+
+    class Category(models.TextChoices):
+        PROPERTY = "property", "Property Info"
+        LEASE = "lease", "Lease / Contract"
+        MAINTENANCE = "maintenance", "Maintenance"
+        TENANT = "tenant", "Tenant"
+        SUPPLIER = "supplier", "Supplier"
+        POLICY = "policy", "Policy / Rules"
+        OTHER = "other", "Other"
+
+    question = models.TextField(help_text="The question the AI agent needs answered")
+    answer = models.TextField(blank=True, help_text="Human-provided answer")
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    context_source = models.CharField(max_length=200, blank=True, help_text="What triggered this question, e.g. maintenance request #123")
+    property = models.ForeignKey('properties.Property', on_delete=models.SET_NULL, null=True, blank=True, related_name="agent_questions")
+    answered_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    answered_at = models.DateTimeField(null=True, blank=True)
+    added_to_context = models.BooleanField(default=False, help_text="Whether the answer was synced to agent knowledge")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"[{self.get_status_display()}] {self.question[:80]}"

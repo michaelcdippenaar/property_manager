@@ -27,7 +27,7 @@
           <Sparkles :size="14" class="text-pink-brand" />
           Import from PDF
         </button>
-        <button class="btn-primary" @click="addLeaseStartMode = 'form'; editingTemplateId = null; showAddLease = true">
+        <button class="btn-primary" @click="router.push('/leases/build')">
           <Plus :size="15" /> Add Lease
         </button>
       </div>
@@ -200,7 +200,8 @@
               </div>
               <div>
                 <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Period</div>
-                <div class="font-semibold text-gray-900">{{ formatDate(lease.start_date) }} → {{ formatDate(lease.end_date) }}</div>
+                <div class="font-semibold text-gray-900">{{ leasePeriodMonths(lease.start_date, lease.end_date) }}</div>
+                <div class="text-[11px] text-gray-400">{{ formatDate(lease.start_date) }} → {{ formatDate(lease.end_date) }}</div>
               </div>
               <div>
                 <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-0.5">Payment ref</div>
@@ -269,63 +270,94 @@
       </div>
 
       <div v-else class="card divide-y divide-gray-100">
-        <div v-for="t in templates" :key="t.id" class="flex items-start gap-4 px-5 py-4">
-          <!-- Icon -->
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-            :class="t.docx_file?.endsWith('.pdf') ? 'bg-red-50' : 'bg-blue-50'">
-            <FileText :size="16" :class="t.docx_file?.endsWith('.pdf') ? 'text-red-500' : 'text-blue-600'" />
+        <div v-for="t in templates" :key="t.id" class="px-5 py-4 space-y-3">
+
+          <!-- Top row -->
+          <div class="flex items-start gap-4">
+            <!-- Icon -->
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+              :class="t.docx_file?.endsWith('.pdf') ? 'bg-red-50' : 'bg-blue-50'">
+              <FileText :size="16" :class="t.docx_file?.endsWith('.pdf') ? 'text-red-500' : 'text-blue-600'" />
+            </div>
+
+            <!-- Info -->
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-medium text-gray-900 text-sm">{{ t.name }}</span>
+                <span class="text-xs text-gray-400">v{{ t.version }}</span>
+                <span v-if="t.province" class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ t.province }}</span>
+                <span v-if="t.is_active" class="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Active</span>
+              </div>
+              <div v-if="t.fields_schema?.length" class="mt-1 text-xs text-gray-400">
+                {{ t.fields_schema.length }} merge fields:
+                <span class="font-mono">{{ t.fields_schema.slice(0,5).join(', ') }}{{ t.fields_schema.length > 5 ? ` +${t.fields_schema.length - 5} more` : '' }}</span>
+              </div>
+              <div class="mt-0.5 text-xs text-gray-300">Uploaded {{ formatDate(t.created_at) }}</div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+              <button @click="editTemplateWithAI(t.id)"
+                class="btn-ghost text-xs flex items-center gap-1">
+                <Sparkles :size="12" class="text-pink-brand" /> Edit with AI
+              </button>
+              <button v-if="!t.is_active" @click="setActiveTemplate(t.id)"
+                class="btn-ghost text-xs">Set active</button>
+              <button @click="deleteTemplate(t.id)" :disabled="deletingTmplId === t.id"
+                class="btn-ghost text-xs text-red-500 hover:text-red-700 hover:bg-red-50">
+                <Loader2 v-if="deletingTmplId === t.id" :size="12" class="animate-spin" />
+                <Trash2 v-else :size="12" />
+              </button>
+            </div>
           </div>
 
-          <!-- Info -->
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-medium text-gray-900 text-sm">{{ t.name }}</span>
-              <span class="text-xs text-gray-400">v{{ t.version }}</span>
-              <span v-if="t.province" class="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ t.province }}</span>
-              <span v-if="t.is_active" class="text-xs bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded font-medium">Active</span>
+          <!-- Completeness score row -->
+          <div class="ml-13 pl-0.5">
+            <div class="flex items-center gap-3">
+              <!-- Score badge -->
+              <span
+                class="text-xs font-semibold px-2 py-0.5 rounded border cursor-pointer select-none"
+                :class="scoreTemplate(t).labelClass"
+                @click="toggleScore(t.id)"
+                :title="expandedScores.has(t.id) ? 'Hide details' : 'Show what\'s missing'"
+              >
+                {{ scoreTemplate(t).score }}% · {{ scoreTemplate(t).label }}
+              </span>
+              <!-- Progress bar -->
+              <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden max-w-xs">
+                <div
+                  class="h-full rounded-full transition-all duration-500"
+                  :class="scoreTemplate(t).barClass"
+                  :style="{ width: scoreTemplate(t).score + '%' }"
+                />
+              </div>
+              <!-- Toggle details link -->
+              <button class="text-[11px] text-gray-400 hover:text-gray-600" @click="toggleScore(t.id)">
+                {{ expandedScores.has(t.id) ? '▲ hide' : '▼ details' }}
+              </button>
             </div>
-            <div v-if="t.fields_schema?.length" class="mt-1 text-xs text-gray-400">
-              {{ t.fields_schema.length }} merge fields:
-              <span class="font-mono">{{ t.fields_schema.slice(0,5).join(', ') }}{{ t.fields_schema.length > 5 ? ` +${t.fields_schema.length - 5} more` : '' }}</span>
+
+            <!-- Expandable details -->
+            <div v-if="expandedScores.has(t.id)" class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1">
+              <div v-for="item in scoreTemplate(t).passed" :key="item"
+                class="flex items-center gap-1.5 text-[11px] text-emerald-600">
+                <span class="w-3 h-3 rounded-full bg-emerald-100 flex items-center justify-center text-[9px] font-bold">✓</span>
+                {{ item }}
+              </div>
+              <div v-for="item in scoreTemplate(t).missing" :key="item"
+                class="flex items-center gap-1.5 text-[11px] text-gray-400">
+                <span class="w-3 h-3 rounded-full bg-gray-100 flex items-center justify-center text-[9px] font-bold text-gray-400">✗</span>
+                {{ item }}
+              </div>
             </div>
-            <div class="mt-0.5 text-xs text-gray-300">Uploaded {{ formatDate(t.created_at) }}</div>
           </div>
 
-          <!-- Actions -->
-          <div class="flex items-center gap-2 flex-shrink-0">
-            <button @click="editTemplateWithAI(t.id)"
-              class="btn-ghost text-xs flex items-center gap-1">
-              <Sparkles :size="12" class="text-pink-brand" /> Edit with AI
-            </button>
-            <button v-if="!t.is_active" @click="setActiveTemplate(t.id)"
-              class="btn-ghost text-xs">Set active</button>
-            <button @click="deleteTemplate(t.id)" :disabled="deletingTmplId === t.id"
-              class="btn-ghost text-xs text-red-500 hover:text-red-700 hover:bg-red-50">
-              <Loader2 v-if="deletingTmplId === t.id" :size="12" class="animate-spin" />
-              <Trash2 v-else :size="12" />
-            </button>
-          </div>
         </div>
       </div>
     </div>
 
     <!-- Import wizard (full screen) -->
     <ImportLeaseWizard v-if="showImport" @close="showImport = false" @done="onImportDone" />
-
-    <!-- Template editor (full screen 3-panel) -->
-    <TemplateEditorView
-      v-if="showTemplateEditor && templateEditorId"
-      :template-id="templateEditorId"
-      @close="showTemplateEditor = false; templateEditorId = null"
-    />
-
-    <LeaseBuilderView
-      v-if="showAddLease"
-      :start-mode="addLeaseStartMode"
-      :template-id="editingTemplateId"
-      @close="showAddLease = false; editingTemplateId = null"
-      @done="onAddLeaseDone"
-    />
 
     <!-- Edit drawer (full screen) -->
     <EditLeaseDrawer
@@ -472,22 +504,18 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../api'
 import { Plus, Paperclip, X, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, AlertCircle } from 'lucide-vue-next'
 import ImportLeaseWizard from './ImportLeaseWizard.vue'
 import EditLeaseDrawer from './EditLeaseDrawer.vue'
-import LeaseBuilderView from './LeaseBuilderView.vue'
-import TemplateEditorView from './TemplateEditorView.vue'
+
+const router = useRouter()
 
 const loading = ref(true)
 const saving = ref(false)
 const activeTab = ref<'leases' | 'templates'>('leases')
 const showImport = ref(false)
-const showAddLease = ref(false)
-const addLeaseStartMode = ref<'form' | 'chat'>('form')
-const editingTemplateId = ref<number | null>(null)
-const showTemplateEditor = ref(false)
-const templateEditorId = ref<number | null>(null)
 const showEdit = ref(false)
 const editingLease = ref<any>(null)
 const leases = ref<any[]>([])
@@ -667,21 +695,80 @@ async function onImportDone() {
   await loadLeases()
 }
 
-async function onAddLeaseDone() {
-  showAddLease.value = false
-  editingTemplateId.value = null
-  await loadLeases()
-}
-
 function openBuilderFromLease(_leaseId: number) {
-  addLeaseStartMode.value = 'form'
-  editingTemplateId.value = null
-  showAddLease.value = true
+  router.push('/leases/build')
 }
 
 function editTemplateWithAI(templateId: number) {
-  templateEditorId.value = templateId
-  showTemplateEditor.value = true
+  router.push(`/leases/templates/${templateId}/edit`)
+}
+
+// ── Template completeness scoring ─────────────────────────────────────────
+interface TemplateScore {
+  score: number
+  label: string
+  labelClass: string
+  barClass: string
+  passed: string[]
+  missing: string[]
+}
+
+function scoreTemplate(t: any): TemplateScore {
+  const rawFields: string[] = [
+    ...(t.fields_schema ?? []),
+    ...Object.values(t.detected_variables ?? {}).flat() as string[],
+  ]
+  const fieldSet = new Set(rawFields.map((f: string) => f.toLowerCase()))
+  const html = (t.content_html ?? '').toLowerCase()
+
+  const hasField = (...names: string[]) => names.some(n => fieldSet.has(n))
+  const hasText  = (...words: string[]) => words.some(w => html.includes(w))
+  const hasSig   = () => [...fieldSet].some(f => f.includes('signature'))
+
+  const checks: { name: string; ok: boolean; pts: number }[] = [
+    // Core parties & property (5 pts each)
+    { name: 'Landlord details',   ok: hasField('landlord_name', 'landlord'),            pts: 5 },
+    { name: 'Tenant name',        ok: hasField('tenant_name', 'tenant_1_name'),          pts: 5 },
+    { name: 'Property / unit',    ok: hasField('property_address', 'unit_number'),        pts: 5 },
+    // Lease terms (5 pts each)
+    { name: 'Lease dates',        ok: hasField('lease_start', 'lease_end'),               pts: 5 },
+    { name: 'Monthly rent',       ok: hasField('monthly_rent'),                           pts: 5 },
+    { name: 'Deposit amount',     ok: hasField('deposit'),                                pts: 5 },
+    { name: 'Notice period',      ok: hasField('notice_period_days'),                     pts: 5 },
+    // Signatures (4 pts each)
+    { name: 'Signature fields',   ok: hasSig(),                                           pts: 4 },
+    { name: 'Date signed',        ok: [...fieldSet].some(f => f.includes('date')),         pts: 4 },
+    // Legal sections in document content (4 pts each)
+    { name: 'Deposit / RHA clause',    ok: hasText('deposit', 'interest-bearing'),        pts: 4 },
+    { name: 'Notice / termination',    ok: hasText('notice period', 'termination'),       pts: 4 },
+    { name: 'POPIA clause',            ok: hasText('popia', 'personal information'),      pts: 4 },
+    { name: 'Dispute resolution',      ok: hasText('tribunal', 'dispute'),                pts: 4 },
+    { name: 'Consumer Protection Act', ok: hasText('consumer protection', ' cpa '),       pts: 4 },
+    // Good to have (3 pts each)
+    { name: 'Tenant ID / contact',  ok: hasField('tenant_id', 'tenant_1_id', 'tenant_phone'),  pts: 3 },
+    { name: 'Landlord ID',          ok: hasField('landlord_id'),                          pts: 3 },
+    { name: 'Escalation clause',    ok: hasField('escalation_percent'),                   pts: 3 },
+    { name: 'Utilities',            ok: hasField('water_included', 'electricity_prepaid'), pts: 3 },
+  ]
+
+  const total   = checks.reduce((s, c) => s + c.pts, 0)
+  const earned  = checks.filter(c => c.ok).reduce((s, c) => s + c.pts, 0)
+  const score   = Math.round((earned / total) * 100)
+  const passed  = checks.filter(c => c.ok).map(c => c.name)
+  const missing = checks.filter(c => !c.ok).map(c => c.name)
+
+  let label = 'Incomplete'; let labelClass = 'text-red-600 bg-red-50 border-red-100'; let barClass = 'bg-red-400'
+  if (score >= 85) { label = 'Complete';    labelClass = 'text-emerald-700 bg-emerald-50 border-emerald-100'; barClass = 'bg-emerald-500' }
+  else if (score >= 65) { label = 'Good';   labelClass = 'text-blue-700 bg-blue-50 border-blue-100';         barClass = 'bg-blue-500' }
+  else if (score >= 40) { label = 'Fair';   labelClass = 'text-amber-700 bg-amber-50 border-amber-100';      barClass = 'bg-amber-400' }
+
+  return { score, label, labelClass, barClass, passed, missing }
+}
+
+const expandedScores = ref<Set<number>>(new Set())
+function toggleScore(id: number) {
+  if (expandedScores.value.has(id)) expandedScores.value.delete(id)
+  else expandedScores.value.add(id)
 }
 
 // ── Template management ────────────────────────────────────────────────────
@@ -752,5 +839,13 @@ function docTypeBadge(t: string) {
 }
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString('en-ZA') : '—'
+}
+
+function leasePeriodMonths(start: string, end: string): string {
+  if (!start || !end) return '—'
+  const s = new Date(start)
+  const e = new Date(end)
+  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
+  return months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : '—'
 }
 </script>

@@ -102,12 +102,20 @@ class ImportLeaseView(APIView):
         if not primary_person:
             return Response({"error": "primary_tenant.full_name is required."}, status=400)
 
+        # ── Validate required date fields ───────────────────────────────────
+        start_date = (d.get("start_date") or "").strip() or None
+        end_date   = (d.get("end_date")   or "").strip() or None
+        if not start_date:
+            return Response({"error": "start_date is required."}, status=400)
+        if not end_date:
+            return Response({"error": "end_date is required."}, status=400)
+
         # ── Lease ────────────────────────────────────────────────────────────
         lease_fields = {
             "unit": unit,
             "primary_tenant": primary_person,
-            "start_date": d.get("start_date"),
-            "end_date": d.get("end_date"),
+            "start_date": start_date,
+            "end_date": end_date,
             "monthly_rent": d.get("monthly_rent") or 0,
             "deposit": d.get("deposit") or 0,
             "status": d.get("status", "pending"),

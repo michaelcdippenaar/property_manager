@@ -1,309 +1,428 @@
 <template>
   <div class="space-y-4">
 
-    <!-- Header row -->
+    <!-- Header -->
     <div class="flex items-center justify-between">
-      <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">E-Signing</div>
-      <button class="btn-ghost text-xs px-2 py-1" @click="openCreateModal">
-        <Plus :size="12" />
-        New signing request
+      <div class="flex items-center gap-2 text-sm text-gray-700">
+        <FileSignature :size="16" class="text-navy" />
+        <span class="font-medium">Signing Submissions</span>
+        <span v-if="submissions.length" class="text-xs text-gray-400">({{ submissions.length }})</span>
+      </div>
+      <button class="btn-primary text-xs flex items-center gap-1.5" @click="openModal">
+        <Send :size="13" />
+        Send for Signing
       </button>
     </div>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400 py-3">
-      <Loader2 :size="14" class="animate-spin" />
-      Loading…
+    <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400 py-4">
+      <Loader2 :size="15" class="animate-spin" />
+      Loading submissions…
     </div>
 
-    <!-- Empty state -->
-    <div v-else-if="!requests.length" class="py-4 text-center">
-      <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center mx-auto mb-2">
-        <PenLine :size="18" class="text-gray-400" />
-      </div>
-      <p class="text-sm text-gray-500">No signing requests yet.</p>
-      <p class="text-xs text-gray-400 mt-0.5">Create one to send this lease for e-signature.</p>
-    </div>
-
-    <!-- Signing request cards -->
-    <div v-else class="space-y-3">
+    <!-- Submission list -->
+    <div v-else-if="submissions.length" class="space-y-3">
       <div
-        v-for="req in requests"
-        :key="req.id"
-        class="border border-gray-200 rounded-xl overflow-hidden"
+        v-for="sub in submissions"
+        :key="sub.id"
+        class="rounded-xl border border-gray-200 bg-white overflow-hidden"
       >
-        <!-- Request header -->
+        <!-- Submission header -->
         <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
           <div class="flex items-center gap-2">
             <span
-              class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
-              :class="statusClass(req.status)"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              :class="statusBadgeClass(sub.status)"
             >
-              <span class="w-1.5 h-1.5 rounded-full" :class="statusDot(req.status)" />
-              {{ req.status.replace('_', ' ') }}
+              <component :is="statusIcon(sub.status)" :size="11" />
+              {{ statusLabel(sub.status) }}
             </span>
-            <span class="text-xs text-gray-500">{{ formatDate(req.created_at) }}</span>
+            <span class="text-xs text-gray-400">{{ formatDate(sub.created_at) }}</span>
           </div>
-          <button
-            v-if="req.status !== 'completed'"
-            class="btn-ghost text-xs px-2 py-1"
-            :disabled="resendingId === req.id"
-            @click="resendInvites(req.id)"
+          <a
+            v-if="sub.signed_pdf_url"
+            :href="sub.signed_pdf_url"
+            target="_blank"
+            class="text-xs text-navy hover:underline flex items-center gap-1"
           >
-            <Loader2 v-if="resendingId === req.id" :size="11" class="animate-spin" />
-            <Send v-else :size="11" />
-            Resend
-          </button>
+            <Download :size="12" />
+            Signed PDF
+          </a>
         </div>
 
-        <!-- Parties -->
+        <!-- Signer rows -->
         <div class="divide-y divide-gray-100">
           <div
-            v-for="party in req.parties"
-            :key="party.id"
-            class="flex items-center justify-between px-4 py-2.5"
+            v-for="signer in sub.signers"
+            :key="signer.id"
+            class="flex items-center gap-3 px-4 py-2.5"
           >
-            <div class="flex items-center gap-2.5 min-w-0">
-              <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0 text-xs font-bold text-gray-500">
-                {{ initials(party.name) }}
-              </div>
-              <div class="min-w-0">
-                <div class="text-sm font-medium text-gray-900 truncate">{{ party.name }}</div>
-                <div class="text-xs text-gray-400 truncate">{{ party.role }} · {{ party.email }}</div>
-              </div>
+            <div class="w-6 h-6 rounded-full bg-navy/10 flex items-center justify-center flex-shrink-0">
+              <component
+                :is="signerStatusIcon(signer.status)"
+                :size="12"
+                :class="signerStatusColor(signer.status)"
+              />
             </div>
-            <span
-              class="text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ml-2"
-              :class="partyStatusClass(party.status)"
-            >
-              {{ party.status }}
-            </span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800">{{ signer.name || signer.email }}</div>
+              <div class="text-xs text-gray-400">{{ signer.email }} · {{ signer.role }}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs" :class="signerStatusColor(signer.status)">
+                {{ signerStatusLabel(signer.status) }}
+              </span>
+              <button
+                v-if="signer.id && sub.status !== 'completed'"
+                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
+                :disabled="resendingId === signer.id"
+                @click="resend(sub.id, signer.id)"
+              >
+                <Loader2 v-if="resendingId === signer.id" :size="11" class="animate-spin" />
+                <RefreshCw v-else :size="11" />
+                Resend
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ── Create Request Modal ───────────────────────────────────────────── -->
+    <!-- Empty state -->
+    <div v-else class="flex flex-col items-center justify-center py-8 text-center text-gray-400">
+      <FileSignature :size="28" class="mb-2 opacity-40" />
+      <p class="text-sm">No signing submissions yet</p>
+      <p class="text-xs mt-1">Click "Send for Signing" to start the e-signing process</p>
+    </div>
+
+    <!-- Error banner -->
     <div
-      v-if="showCreateModal"
-      class="fixed inset-0 z-[60] flex items-center justify-center p-4"
-      @click.self="showCreateModal = false"
+      v-if="errorMsg"
+      class="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"
     >
-      <div class="absolute inset-0 bg-black/40" @click="showCreateModal = false" />
-      <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
-        <div class="flex items-center justify-between">
-          <div class="font-semibold text-gray-900">New Signing Request</div>
-          <button class="text-gray-400 hover:text-gray-600" @click="showCreateModal = false"><X :size="16" /></button>
-        </div>
+      <AlertCircle :size="14" class="flex-shrink-0" />
+      {{ errorMsg }}
+    </div>
 
-        <!-- Template selector -->
-        <div class="space-y-1.5">
-          <label class="label">Signing template</label>
-          <div v-if="loadingTemplates" class="text-xs text-gray-400 flex items-center gap-1">
-            <Loader2 :size="12" class="animate-spin" /> Loading templates…
-          </div>
-          <select v-else v-model="newRequest.template_id" class="input">
-            <option :value="null" disabled>Select a template</option>
-            <option v-for="t in signingTemplates" :key="t.id" :value="t.id">{{ t.name }}</option>
-          </select>
-          <p v-if="!signingTemplates.length && !loadingTemplates" class="text-xs text-amber-600">
-            No signing templates found. Set one up in DocuSeal first.
-          </p>
-        </div>
+    <!-- Create submission modal -->
+    <Teleport to="body">
+      <div v-if="showModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
 
-        <!-- Parties -->
-        <div class="space-y-2">
-          <label class="label">Parties</label>
-          <div
-            v-for="(party, i) in newRequest.parties"
-            :key="i"
-            class="border border-gray-200 rounded-xl p-3 space-y-2 relative"
-          >
-            <button class="absolute top-2.5 right-2.5 text-gray-400 hover:text-red-500" @click="newRequest.parties.splice(i, 1)">
-              <X :size="12" />
+          <!-- Modal header -->
+          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+            <div class="flex items-center gap-2">
+              <Send :size="16" class="text-navy" />
+              <span class="font-semibold text-gray-900 text-sm">Send Lease for Signing</span>
+            </div>
+            <button class="p-1 text-gray-400 hover:text-gray-600 transition-colors" @click="closeModal">
+              <X :size="18" />
             </button>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="label">Name</label>
-                <input v-model="party.name" class="input text-xs" placeholder="Full name" />
-              </div>
-              <div>
-                <label class="label">Role</label>
-                <select v-model="party.role" class="input text-xs">
-                  <option value="tenant">Tenant</option>
-                  <option value="co_tenant">Co-Tenant</option>
-                  <option value="guarantor">Guarantor</option>
-                  <option value="agent">Agent</option>
-                  <option value="landlord">Landlord</option>
-                </select>
-              </div>
-              <div class="col-span-2">
-                <label class="label">Email</label>
-                <input v-model="party.email" type="email" class="input text-xs" placeholder="email@example.com" />
-              </div>
-              <div class="col-span-2 flex items-center gap-2">
-                <input v-model="party.sign_in_app" type="checkbox" class="rounded" id="`sign-in-app-${i}`" />
-                <label :for="`sign-in-app-${i}`" class="text-xs text-gray-600 cursor-pointer">
-                  Sign in tenant portal (embed) — otherwise DocuSeal emails a link
-                </label>
+          </div>
+
+          <!-- Modal body -->
+          <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+            <p class="text-xs text-gray-500">
+              Each signer will receive an email with a link to review and sign the lease document.
+            </p>
+
+            <!-- Signer list -->
+            <div class="space-y-3">
+              <div
+                v-for="(signer, idx) in draftSigners"
+                :key="idx"
+                class="rounded-xl border p-4 space-y-3"
+                :class="!signer.email ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold text-gray-600">Signer {{ idx + 1 }}</span>
+                    <span
+                      v-if="!signer.email"
+                      class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
+                    >
+                      Email required
+                    </span>
+                  </div>
+                  <button
+                    v-if="draftSigners.length > 1"
+                    class="text-xs text-red-400 hover:text-red-600 transition-colors"
+                    @click="removeSigner(idx)"
+                  >
+                    Remove
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="col-span-2">
+                    <label class="label">Full Name</label>
+                    <input v-model="signer.name" class="input" placeholder="Full legal name" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="label">Email *</label>
+                    <input
+                      v-model="signer.email"
+                      type="email"
+                      class="input"
+                      :class="!signer.email ? 'border-amber-400 focus:border-amber-500' : ''"
+                      placeholder="signer@example.com"
+                    />
+                  </div>
+                  <div>
+                    <label class="label">Phone</label>
+                    <input v-model="signer.phone" type="tel" class="input" placeholder="+27 …" />
+                  </div>
+                  <div>
+                    <label class="label">Role</label>
+                    <input v-model="signer.role" class="input" placeholder="e.g. Tenant" />
+                  </div>
+                </div>
+
+                <!-- Per-signer options -->
+                <div class="flex flex-wrap items-center gap-4 pt-1">
+                  <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                    <input type="checkbox" v-model="signer.send_email" class="rounded" />
+                    Send invitation email
+                  </label>
+                  <label
+                    v-if="signer.personId"
+                    class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none"
+                  >
+                    <input type="checkbox" v-model="signer.saveToRecord" class="rounded" />
+                    Save contact to tenant record
+                  </label>
+                </div>
               </div>
             </div>
+
+            <button
+              class="btn-ghost text-xs flex items-center gap-1.5 w-full justify-center py-2 border-dashed border border-gray-200 rounded-xl"
+              @click="addSigner"
+            >
+              <Plus :size="13" />
+              Add Another Signer
+            </button>
           </div>
 
-          <button class="btn-ghost text-xs px-2 py-1.5 w-full" @click="addParty">
-            <Plus :size="12" /> Add party
-          </button>
-        </div>
-
-        <div v-if="createError" class="text-sm text-red-600 flex items-center gap-1.5">
-          <AlertCircle :size="13" />
-          {{ createError }}
-        </div>
-
-        <div class="flex justify-end gap-2 pt-1">
-          <button class="btn-ghost" @click="showCreateModal = false">Cancel</button>
-          <button class="btn-primary" :disabled="creating || !newRequest.template_id" @click="submitCreateRequest">
-            <Loader2 v-if="creating" :size="13" class="animate-spin" />
-            {{ creating ? 'Creating…' : 'Send for signing' }}
-          </button>
+          <!-- Modal footer -->
+          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
+            <button class="btn-ghost" @click="closeModal">Cancel</button>
+            <button
+              class="btn-primary flex items-center gap-2"
+              :disabled="submitting || !canSubmit"
+              @click="submitSigning"
+            >
+              <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+              <Send v-else :size="14" />
+              Send for Signing
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
-import { Plus, Loader2, PenLine, X, AlertCircle, Send } from 'lucide-vue-next'
+import {
+  Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle,
+  Plus, Loader2, FileSignature, RefreshCw, X, Download,
+} from 'lucide-vue-next'
 
-const props = defineProps<{ leaseId: number; leaseTenants?: any[] }>()
+const props = defineProps<{
+  leaseId: number
+  leaseTenants?: any[]
+}>()
+
 const emit = defineEmits<{ signed: [] }>()
 
-// ── Signing requests ──────────────────────────────────────────────────────
+// ── State ────────────────────────────────────────────────────────────── //
+const submissions = ref<any[]>([])
+const loading     = ref(false)
+const errorMsg    = ref('')
+const showModal   = ref(false)
+const submitting  = ref(false)
+const resendingId = ref<number | string | null>(null)
 
-const loading = ref(false)
-const requests = ref<any[]>([])
-const resendingId = ref<number | null>(null)
+interface DraftSigner {
+  name: string
+  email: string
+  phone: string
+  role: string
+  send_email: boolean
+  personId?: number        // set when pre-populated from a known tenant
+  saveToRecord?: boolean   // if true, PATCH the person record on submit
+}
+const draftSigners = ref<DraftSigner[]>([])
 
-async function loadRequests() {
+// ── Computed ─────────────────────────────────────────────────────────── //
+const canSubmit = computed(() =>
+  draftSigners.value.length > 0 &&
+  draftSigners.value.every(s => s.name.trim() && s.email.trim())
+)
+
+// ── Lifecycle ────────────────────────────────────────────────────────── //
+onMounted(loadSubmissions)
+
+// ── API ──────────────────────────────────────────────────────────────── //
+async function loadSubmissions() {
   if (!props.leaseId) return
   loading.value = true
+  errorMsg.value = ''
   try {
-    const { data } = await api.get(`/esigning/requests/?lease_id=${props.leaseId}`)
-    requests.value = data.results ?? data
-  } catch {
-    // ignore
+    const { data } = await api.get('/esigning/submissions/', {
+      params: { lease_id: props.leaseId },
+    })
+    submissions.value = data.results ?? data
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error ?? 'Failed to load submissions'
   } finally {
     loading.value = false
   }
 }
 
-async function resendInvites(requestId: number) {
-  resendingId.value = requestId
+async function submitSigning() {
+  if (!canSubmit.value) return
+  submitting.value = true
+  errorMsg.value = ''
   try {
-    await api.post(`/esigning/requests/${requestId}/send/`)
+    // Save updated contact details back to person records where requested
+    const savePromises = draftSigners.value
+      .filter(s => s.personId && s.saveToRecord)
+      .map(s => api.patch(`/auth/persons/${s.personId}/`, {
+        full_name: s.name,
+        email: s.email,
+        phone: s.phone,
+      }))
+    if (savePromises.length) await Promise.allSettled(savePromises)
+
+    const { data } = await api.post('/esigning/submissions/', {
+      lease_id: props.leaseId,
+      signers: draftSigners.value,
+    })
+    submissions.value.unshift(data)
+    closeModal()
+    emit('signed')
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error ?? 'Failed to create submission'
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function resend(submissionId: number, submitterId: number | string) {
+  resendingId.value = submitterId
+  errorMsg.value = ''
+  try {
+    await api.post(`/esigning/submissions/${submissionId}/resend/`, {
+      submitter_id: submitterId,
+    })
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error ?? 'Failed to resend invitation'
   } finally {
     resendingId.value = null
   }
 }
 
-// ── Create request modal ──────────────────────────────────────────────────
-
-const showCreateModal = ref(false)
-const creating = ref(false)
-const createError = ref('')
-const signingTemplates = ref<any[]>([])
-const loadingTemplates = ref(false)
-
-const newRequest = ref<{
-  template_id: number | null
-  parties: { name: string; email: string; role: string; sign_in_app: boolean }[]
-}>({
-  template_id: null,
-  parties: [],
-})
-
-async function openCreateModal() {
-  createError.value = ''
-  newRequest.value = { template_id: null, parties: [] }
-
-  // Pre-populate parties from lease tenants if provided
-  if (props.leaseTenants?.length) {
-    newRequest.value.parties = props.leaseTenants.map((t: any) => ({
-      name: t.person?.full_name ?? t.full_name ?? '',
-      email: t.person?.email ?? t.email ?? '',
-      role: 'tenant',
-      sign_in_app: false,
-    }))
+// ── Modal helpers ────────────────────────────────────────────────────── //
+function buildDefaultSigners(): DraftSigner[] {
+  const tenants = props.leaseTenants ?? []
+  if (!tenants.length) {
+    return [{ name: '', email: '', phone: '', role: 'Tenant', send_email: true }]
   }
+  return tenants.map((t, i) => ({
+    name:         t.person?.full_name ?? t.full_name ?? '',
+    email:        t.person?.email     ?? t.email     ?? '',
+    phone:        t.person?.phone     ?? t.phone     ?? '',
+    role:         i === 0 ? 'Tenant' : 'Co-Tenant',
+    send_email:   true,
+    personId:     t.person?.id ?? t.id ?? undefined,
+    saveToRecord: false,
+  }))
+}
 
-  showCreateModal.value = true
-  loadingTemplates.value = true
-  try {
-    const { data } = await api.get('/esigning/templates/')
-    signingTemplates.value = data.results ?? data
-  } finally {
-    loadingTemplates.value = false
+function openModal() {
+  draftSigners.value = buildDefaultSigners()
+  showModal.value = true
+}
+
+function closeModal() {
+  showModal.value = false
+  draftSigners.value = []
+  errorMsg.value = ''
+}
+
+function addSigner() {
+  draftSigners.value.push({ name: '', email: '', phone: '', role: 'Signer', send_email: true })
+}
+
+function removeSigner(idx: number) {
+  draftSigners.value.splice(idx, 1)
+}
+
+// ── Display helpers ──────────────────────────────────────────────────── //
+function statusLabel(s: string) {
+  const map: Record<string, string> = {
+    pending:     'Pending',
+    in_progress: 'In Progress',
+    completed:   'Completed',
+    declined:    'Declined',
+    expired:     'Expired',
   }
+  return map[s] ?? s
 }
 
-function addParty() {
-  newRequest.value.parties.push({ name: '', email: '', role: 'tenant', sign_in_app: false })
-}
-
-async function submitCreateRequest() {
-  if (!newRequest.value.template_id) return
-  creating.value = true
-  createError.value = ''
-  try {
-    await api.post('/esigning/requests/create/', {
-      lease_id: props.leaseId,
-      template_id: newRequest.value.template_id,
-      parties: newRequest.value.parties,
-    })
-    showCreateModal.value = false
-    await loadRequests()
-    emit('signed')
-  } catch (e: any) {
-    const detail = e?.response?.data?.error ?? e?.response?.data ?? e?.message ?? 'Failed to create request'
-    createError.value = typeof detail === 'string' ? detail : JSON.stringify(detail)
-  } finally {
-    creating.value = false
+function statusBadgeClass(s: string) {
+  const map: Record<string, string> = {
+    pending:     'bg-gray-100 text-gray-600',
+    in_progress: 'bg-blue-100 text-blue-700',
+    completed:   'bg-green-100 text-green-700',
+    declined:    'bg-red-100 text-red-700',
+    expired:     'bg-amber-100 text-amber-700',
   }
+  return map[s] ?? 'bg-gray-100 text-gray-600'
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-function statusClass(s: string) {
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700'
-  if (s === 'in_progress') return 'bg-blue-100 text-blue-700'
-  if (s === 'expired') return 'bg-gray-100 text-gray-600'
-  return 'bg-amber-100 text-amber-700'
+function statusIcon(s: string) {
+  const map: Record<string, any> = {
+    pending:     Clock,
+    in_progress: Loader2,
+    completed:   CheckCircle2,
+    declined:    XCircle,
+    expired:     AlertCircle,
+  }
+  return map[s] ?? Clock
 }
 
-function statusDot(s: string) {
-  if (s === 'completed') return 'bg-emerald-500'
-  if (s === 'in_progress') return 'bg-blue-500'
-  if (s === 'expired') return 'bg-gray-400'
-  return 'bg-amber-500'
+function signerStatusIcon(s: string) {
+  if (s === 'completed' || s === 'signed') return CheckCircle2
+  if (s === 'declined') return XCircle
+  return Mail
 }
 
-function partyStatusClass(s: string) {
-  if (s === 'completed') return 'bg-emerald-100 text-emerald-700'
-  if (s === 'opened') return 'bg-blue-100 text-blue-700'
-  return 'bg-gray-100 text-gray-600'
+function signerStatusColor(s: string) {
+  if (s === 'completed' || s === 'signed') return 'text-green-600'
+  if (s === 'declined') return 'text-red-500'
+  return 'text-gray-400'
+}
+
+function signerStatusLabel(s: string) {
+  const map: Record<string, string> = {
+    sent:      'Sent',
+    opened:    'Opened',
+    completed: 'Signed',
+    signed:    'Signed',
+    declined:  'Declined',
+  }
+  return map[s] ?? s
 }
 
 function formatDate(d: string) {
-  if (!d) return ''
-  return new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
+  return d
+    ? new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '—'
 }
-
-function initials(name: string) {
-  return (name || '?').split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
-}
-
-onMounted(loadRequests)
 </script>

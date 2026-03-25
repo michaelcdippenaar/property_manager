@@ -39,6 +39,7 @@ LOCAL_APPS = [
     "apps.properties",
     "apps.leases",
     "apps.maintenance",
+    "apps.esigning",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -132,7 +133,14 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
 ]
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+
+# DocuSeal e-signing
+DOCUSEAL_API_URL        = config("DOCUSEAL_API_URL", default="https://api.docuseal.com")
+DOCUSEAL_API_KEY        = config("DOCUSEAL_API_KEY", default="")
+DOCUSEAL_WEBHOOK_SECRET = config("DOCUSEAL_WEBHOOK_SECRET", default="")

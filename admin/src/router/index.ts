@@ -29,17 +29,7 @@ const router = createRouter({
         {
           path: 'maintenance/suppliers',
           name: 'maintenance-suppliers',
-          component: () => import('../views/maintenance/MaintenanceView.vue'),
-        },
-        {
-          path: 'maintenance/ai-questions',
-          name: 'maintenance-ai-questions',
-          component: () => import('../views/maintenance/MaintenanceView.vue'),
-        },
-        {
-          path: 'maintenance/ai-sandbox',
-          name: 'maintenance-ai-sandbox',
-          component: () => import('../views/maintenance/MaintenanceView.vue'),
+          component: () => import('../views/maintenance/SuppliersView.vue'),
         },
         {
           path: 'suppliers',
