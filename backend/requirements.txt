@@ -19,3 +19,6 @@ firebase-admin>=6.5.0
 docxtpl>=0.16.0
 # HTML → PDF export (reverse of PDF import)
 xhtml2pdf>=0.2.11
+# Local vector RAG for contract / policy documents
+chromadb>=0.5.0
+python-docx>=1.1.0

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../services/api_client.dart';
+import '../../services/api_client.dart' show apiClient, ApiException;
 import '../../theme/app_colors.dart';
 
 class _Conversation {
@@ -11,7 +11,7 @@ class _Conversation {
   final String updatedAt;
 
   factory _Conversation.fromJson(Map<String, dynamic> j) => _Conversation(
-    id: j['id'] as int,
+    id: (j['id'] as num?)?.toInt() ?? 0,
     title: j['title'] as String? ?? 'Conversation',
     lastMessage: j['last_message'] as String? ?? '',
     updatedAt: j['updated_at'] as String? ?? '',
@@ -34,20 +34,55 @@ class _ChatListScreenState extends State<ChatListScreen> {
     setState(() => _loading = true);
     try {
       final data = await apiClient.getList('/tenant-portal/conversations/');
-      if (mounted) setState(() {
-        _convos = (data as List).map((e) => _Conversation.fromJson(e as Map<String, dynamic>)).toList();
+      if (!mounted) return;
+      final list = data is List ? data : <dynamic>[];
+      setState(() {
+        _convos = list
+            .map((e) => _Conversation.fromJson(e as Map<String, dynamic>))
+            .where((c) => c.id > 0)
+            .toList();
         _loading = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _loading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        final msg = e is ApiException ? e.message : 'Could not load conversations';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
     }
+  }
+
+  int _parseConversationId(dynamic raw) {
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse('$raw') ?? 0;
+  }
+
+  Future<void> _openChat(int id) async {
+    if (id <= 0) return;
+    await context.push('/chat/$id');
+    if (mounted) await _load();
   }
 
   Future<void> _newChat() async {
     try {
       final data = await apiClient.post('/tenant-portal/conversations/', body: {});
-      if (mounted) context.push('/chat/${data['id']}');
-    } catch (_) {}
+      final id = _parseConversationId(data['id']);
+      if (id <= 0) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not create conversation — invalid response.')),
+        );
+        return;
+      }
+      if (!mounted) return;
+      await context.push('/chat/$id');
+      if (mounted) await _load();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is ApiException ? e.message : 'Could not start a chat';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
   }
 
   @override
@@ -70,20 +105,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _convos.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.chat_bubble_outline_rounded, size: 56, color: AppColors.textSecondary),
-                            const SizedBox(height: 16),
-                            const Text('No conversations yet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 8),
-                            const Text('Tap + to chat with the AI assistant', style: TextStyle(color: AppColors.textSecondary)),
-                          ],
-                        ),
-                      )
-                    : ListView.separated(
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: _convos.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: const [
+                              SizedBox(height: 80),
+                              Icon(Icons.chat_bubble_outline_rounded, size: 56, color: AppColors.textSecondary),
+                              SizedBox(height: 16),
+                              Center(
+                                child: Text('No conversations yet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                              ),
+                              SizedBox(height: 8),
+                              Center(
+                                child: Text('Tap + to chat with the AI assistant', style: TextStyle(color: AppColors.textSecondary)),
+                              ),
+                            ],
+                          )
+                        : ListView.separated(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
                         itemCount: _convos.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -94,7 +135,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             borderRadius: BorderRadius.circular(14),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(14),
-                              onTap: () => context.push('/chat/${c.id}'),
+                              onTap: () => _openChat(c.id),
                               child: Padding(
                                 padding: const EdgeInsets.all(16),
                                 child: Row(
@@ -123,6 +164,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           );
                         },
                       ),
+                  ),
           ),
         ],
       ),

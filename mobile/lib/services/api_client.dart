@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
@@ -65,6 +67,40 @@ class ApiClient {
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       final newToken = await _token;
       res = await http.post(uri, headers: _headers(newToken), body: jsonEncode(body ?? {}));
+    }
+    return _parse(res);
+  }
+
+  /// Multipart POST for tenant AI messages with optional [content] and [filePath] (`file` field).
+  Future<Map<String, dynamic>> postMultipart(
+    String path, {
+    String? content,
+    required String filePath,
+  }) async {
+    Future<http.Response> sendOnce(String? token) async {
+      final uri = Uri.parse('${ApiConfig.baseUrl}$path');
+      final req = http.MultipartRequest('POST', uri);
+      if (token != null) {
+        req.headers['Authorization'] = 'Bearer $token';
+      }
+      if (content != null && content.isNotEmpty) {
+        req.fields['content'] = content;
+      }
+      final name = filePath.split(Platform.pathSeparator).last;
+      req.files.add(
+        await http.MultipartFile.fromPath('file', filePath, filename: name),
+      );
+      final streamed = await req.send();
+      return http.Response.fromStream(streamed);
+    }
+
+    var token = await _token;
+    var res = await sendOnce(token);
+    if (res.statusCode == 401) {
+      final refreshed = await _tryRefresh();
+      if (!refreshed) throw ApiException('Session expired', statusCode: 401);
+      token = await _token;
+      res = await sendOnce(token);
     }
     return _parse(res);
   }

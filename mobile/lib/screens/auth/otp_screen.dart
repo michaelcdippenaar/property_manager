@@ -32,7 +32,7 @@ class _OtpScreenState extends State<OtpScreen> {
     // TODO: call POST /api/v1/auth/otp/verify/
     await Future.delayed(const Duration(seconds: 1));
     setState(() => _isLoading = false);
-    if (mounted) context.go('/dashboard');
+    if (mounted) context.go('/home');
   }
 
   @override

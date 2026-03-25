@@ -24,6 +24,17 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Debug/profile only: credentials omitted in release (assert stripped).
+    assert(() {
+      _emailController.text = 'mc@tremly.com';
+      _passwordController.text = 'Number55dip';
+      return true;
+    }());
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
@@ -38,7 +49,7 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
             _emailController.text.trim(),
             _passwordController.text,
           );
-      if (mounted) context.go('/dashboard');
+      if (mounted) context.go('/home');
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

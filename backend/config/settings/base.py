@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.leases",
     "apps.maintenance",
     "apps.esigning",
+    "apps.tenant_portal",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -151,6 +152,28 @@ CORS_ALLOWED_ORIGINS = [
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+
+# Local contract / policy RAG (ChromaDB under RAG_CHROMA_PATH)
+CONTRACT_DOCUMENTS_ROOT = Path(
+    config("CONTRACT_DOCUMENTS_ROOT", default=str(BASE_DIR / "documents"))
+)
+RAG_CHROMA_PATH = Path(config("RAG_CHROMA_PATH", default=str(BASE_DIR / "rag_chroma")))
+RAG_PDF_MAX_PAGES = config("RAG_PDF_MAX_PAGES", default=120, cast=int)
+RAG_MAX_FILE_BYTES = config("RAG_MAX_FILE_BYTES", default=40 * 1024 * 1024, cast=int)
+RAG_QUERY_CHUNKS = config("RAG_QUERY_CHUNKS", default=8, cast=int)
+
+# Tenant AI chat attachments (multipart uploads)
+TENANT_AI_MAX_IMAGE_BYTES = config(
+    "TENANT_AI_MAX_IMAGE_BYTES", default=12 * 1024 * 1024, cast=int
+)
+TENANT_AI_MAX_VIDEO_BYTES = config(
+    "TENANT_AI_MAX_VIDEO_BYTES", default=45 * 1024 * 1024, cast=int
+)
+
+# Anthropic hosted web_fetch for agent-assist (optional)
+ANTHROPIC_WEB_FETCH_ENABLED = config(
+    "ANTHROPIC_WEB_FETCH_ENABLED", default=False, cast=bool
+)
 
 # DocuSeal e-signing
 DOCUSEAL_API_URL        = config("DOCUSEAL_API_URL", default="https://api.docuseal.com")

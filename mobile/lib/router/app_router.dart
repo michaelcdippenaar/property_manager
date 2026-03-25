@@ -13,6 +13,10 @@ import '../screens/chat/chat_detail_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
+  redirect: (context, state) {
+    if (state.matchedLocation == '/dashboard') return '/home';
+    return null;
+  },
   routes: [
     GoRoute(path: '/', builder: (ctx, st) => const SplashScreen()),
     GoRoute(path: '/onboarding', builder: (ctx, st) => const OnboardingScreen()),
@@ -24,7 +28,12 @@ final appRouter = GoRouter(
     GoRoute(path: '/home', builder: (ctx, st) => const AppShell()),
     GoRoute(
       path: '/issues/report',
-      builder: (ctx, st) => const ReportIssueScreen(),
+      builder: (ctx, st) {
+        final x = st.extra;
+        return ReportIssueScreen(
+          initialDraft: x is Map<String, dynamic> ? x : null,
+        );
+      },
     ),
     GoRoute(
       path: '/issues/:id',

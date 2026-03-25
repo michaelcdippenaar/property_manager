@@ -1,5 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+
+from .agent_assist_views import AgentAssistChatView, AgentAssistRagStatusView
 from .views import (
     AgentQuestionViewSet,
     JobDispatchListView,
@@ -38,6 +40,12 @@ supplier_portal_urls = [
 ]
 
 urlpatterns = [
+    path("agent-assist/chat/", AgentAssistChatView.as_view(), name="agent-assist-chat"),
+    path(
+        "agent-assist/rag-status/",
+        AgentAssistRagStatusView.as_view(),
+        name="agent-assist-rag-status",
+    ),
     # Supplier portal (authenticated supplier users)
     path("supplier/", include(supplier_portal_urls)),
     # Token-based quote pages (no auth)

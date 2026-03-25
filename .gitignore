@@ -18,6 +18,7 @@ build/
 backend/staticfiles/
 backend/media/
 backend/documents/
+backend/rag_chroma/
 *.sqlite3
 
 # Node / frontend

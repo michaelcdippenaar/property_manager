@@ -40,8 +40,11 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         user = self.request.user
         qs = MaintenanceRequest.objects.select_related("supplier")
         if hasattr(user, "role") and user.role == "tenant":
-            return qs.filter(tenant=user)
-        return qs.all()
+            qs = qs.filter(tenant=user)
+        exclude_status = self.request.query_params.get("exclude_status")
+        if exclude_status:
+            qs = qs.exclude(status=exclude_status)
+        return qs
 
 
     # --- Dispatch & Quoting ---
@@ -457,6 +460,7 @@ class MaintenanceSkillViewSet(viewsets.ModelViewSet):
     serializer_class = MaintenanceSkillSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["trade", "difficulty", "is_active"]
+    pagination_class = None  # small catalog — return all rows for admin / agent UI
 
     def get_queryset(self):
         qs = MaintenanceSkill.objects.all()

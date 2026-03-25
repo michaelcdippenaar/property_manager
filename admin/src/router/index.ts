@@ -24,7 +24,7 @@ const router = createRouter({
         {
           path: 'maintenance/issues',
           name: 'maintenance-issues',
-          component: () => import('../views/maintenance/MaintenanceView.vue'),
+          component: () => import('../views/maintenance/RequestsView.vue'),
         },
         {
           path: 'maintenance/suppliers',

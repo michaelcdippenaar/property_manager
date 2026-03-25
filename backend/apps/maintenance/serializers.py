@@ -189,10 +189,11 @@ class AgentQuestionSerializer(serializers.ModelSerializer):
 
 class MaintenanceActivitySerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+    created_by_role = serializers.CharField(source="created_by.role", read_only=True, default=None)
 
     class Meta:
         model = MaintenanceActivity
-        fields = ["id", "activity_type", "message", "metadata", "created_by", "created_by_name", "created_at"]
+        fields = ["id", "activity_type", "message", "metadata", "created_by", "created_by_name", "created_by_role", "created_at"]
         read_only_fields = ["id", "created_by", "created_at"]
 
 

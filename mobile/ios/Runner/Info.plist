@@ -71,5 +71,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Attach photos or videos to your messages with the AI assistant.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take photos or videos to attach to AI chat.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Record video with sound for AI chat attachments.</string>
 </dict>
 </plist>

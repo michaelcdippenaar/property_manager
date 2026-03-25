@@ -4,7 +4,9 @@ import '../../services/maintenance_service.dart';
 import '../../theme/app_colors.dart';
 
 class ReportIssueScreen extends StatefulWidget {
-  const ReportIssueScreen({super.key});
+  const ReportIssueScreen({super.key, this.initialDraft});
+  /// From AI: POST /tenant-portal/conversations/{id}/maintenance-draft/
+  final Map<String, dynamic>? initialDraft;
   @override State<ReportIssueScreen> createState() => _ReportIssueScreenState();
 }
 
@@ -19,6 +21,22 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
 
   static const _categories = ['plumbing', 'electrical', 'roof', 'appliance', 'security', 'pest', 'garden', 'other'];
   static const _priorities = ['low', 'medium', 'high', 'urgent'];
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.initialDraft;
+    if (d != null) {
+      final t = d['title'];
+      if (t is String && t.trim().isNotEmpty) _titleCtrl.text = t.trim();
+      final desc = d['description'];
+      if (desc is String && desc.trim().isNotEmpty) _descCtrl.text = desc.trim();
+      final p = d['priority'];
+      if (p is String && _priorities.contains(p)) _priority = p;
+      final c = d['category'];
+      if (c is String && _categories.contains(c)) _category = c;
+    }
+  }
 
   @override
   void dispose() { _titleCtrl.dispose(); _descCtrl.dispose(); super.dispose(); }
