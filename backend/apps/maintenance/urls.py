@@ -4,6 +4,7 @@ from .views import (
     AgentQuestionViewSet,
     JobDispatchListView,
     MaintenanceRequestViewSet,
+    MaintenanceSkillViewSet,
     SupplierQuoteDeclineView,
     SupplierQuoteView,
     SupplierViewSet,
@@ -22,6 +23,7 @@ from .supplier_views import (
 router = DefaultRouter()
 router.register("suppliers", SupplierViewSet, basename="supplier")
 router.register("agent-questions", AgentQuestionViewSet, basename="agent-question")
+router.register("skills", MaintenanceSkillViewSet, basename="skill")
 router.register("", MaintenanceRequestViewSet, basename="maintenance")
 
 supplier_portal_urls = [

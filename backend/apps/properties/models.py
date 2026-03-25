@@ -51,6 +51,46 @@ class Unit(models.Model):
         return f"{self.property.name} — Unit {self.unit_number}"
 
 
+class UnitInfo(models.Model):
+    class IconType(models.TextChoices):
+        WIFI = "wifi", "WiFi"
+        ALARM = "alarm", "Alarm"
+        GARBAGE = "garbage", "Garbage"
+        PARKING = "parking", "Parking"
+        ELECTRICITY = "electricity", "Electricity"
+        WATER = "water", "Water"
+        GAS = "gas", "Gas"
+        INTERCOM = "intercom", "Intercom"
+        LAUNDRY = "laundry", "Laundry"
+        OTHER = "other", "Other"
+
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="info_items")
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="info_items", null=True, blank=True)
+    icon_type = models.CharField(max_length=20, choices=IconType.choices, default=IconType.OTHER)
+    label = models.CharField(max_length=100)
+    value = models.TextField()
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "label"]
+
+    def __str__(self):
+        return f"{self.label}: {self.value[:50]}"
+
+
+class PropertyAgentConfig(models.Model):
+    property = models.OneToOneField(Property, on_delete=models.CASCADE, related_name="agent_config")
+    maintenance_playbook = models.TextField(blank=True, help_text="Instructions for how the AI agent should handle maintenance requests for this property")
+    ai_notes = models.TextField(blank=True, help_text="Additional context the AI agent should know about this property")
+    is_active = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Agent config for {self.property.name}"
+
+
 class PropertyGroup(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)

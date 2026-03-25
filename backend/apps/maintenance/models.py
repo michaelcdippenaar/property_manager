@@ -250,6 +250,41 @@ class MaintenanceRequest(models.Model):
         return f"{self.title} — {self.unit}"
 
 
+class MaintenanceSkill(models.Model):
+    class Trade(models.TextChoices):
+        PLUMBING = "plumbing", "Plumbing"
+        ELECTRICAL = "electrical", "Electrical"
+        CARPENTRY = "carpentry", "Carpentry"
+        PAINTING = "painting", "Painting"
+        HVAC = "hvac", "HVAC / Air Con"
+        ROOFING = "roofing", "Roofing"
+        GENERAL = "general", "General Maintenance"
+        APPLIANCE = "appliance", "Appliance Repair"
+        PEST = "pest", "Pest Control"
+        OTHER = "other", "Other"
+
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
+
+    name = models.CharField(max_length=200)
+    trade = models.CharField(max_length=20, choices=Trade.choices, default=Trade.GENERAL)
+    difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
+    symptom_phrases = models.JSONField(default=list, help_text="List of phrases that indicate this issue, used for AI matching")
+    steps = models.JSONField(default=list, help_text="Ordered list of resolution steps")
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["trade", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_trade_display()})"
+
+
 class AgentQuestion(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -282,3 +317,32 @@ class AgentQuestion(models.Model):
 
     def __str__(self):
         return f"[{self.get_status_display()}] {self.question[:80]}"
+
+
+class MaintenanceActivity(models.Model):
+    class ActivityType(models.TextChoices):
+        NOTE = "note", "Note"
+        STATUS_CHANGE = "status_change", "Status Change"
+        SUPPLIER_ASSIGNED = "supplier_assigned", "Supplier Assigned"
+        DISPATCH_SENT = "dispatch_sent", "Dispatch Sent"
+        QUOTE_RECEIVED = "quote_received", "Quote Received"
+        JOB_AWARDED = "job_awarded", "Job Awarded"
+        SYSTEM = "system", "System"
+
+    request = models.ForeignKey(
+        MaintenanceRequest, on_delete=models.CASCADE, related_name="activities",
+    )
+    activity_type = models.CharField(max_length=30, choices=ActivityType.choices, default=ActivityType.NOTE)
+    message = models.TextField()
+    metadata = models.JSONField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="maintenance_activities",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        db_table = "maintenance_maintenanceactivity"
+
+    def __str__(self):
+        return f"[{self.activity_type}] {self.message[:60]}"

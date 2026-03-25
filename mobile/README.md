@@ -1,17 +1,52 @@
-# klikk_tenant
+# Klikk tenant (Flutter)
 
-A new Flutter project.
+Tenant mobile app for the Tremly / Klikk property manager stack.
 
-## Getting Started
+## Run (simulator — default API URLs)
 
-This project is a starting point for a Flutter application.
+From this directory:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter devices
+flutter run
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **iOS Simulator** uses `http://127.0.0.1:8000/api/v1` (Django on your Mac).
+- **Android Emulator** uses `http://10.0.2.2:8000/api/v1`.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Start the API first:
+
+```bash
+cd ../backend && source .venv/bin/activate && python manage.py runserver
+```
+
+## Run on a **physical phone** (“could not reach the server”)
+
+On a real device, `localhost` / `127.0.0.1` / `10.0.2.2` point at the **phone**, not your Mac.
+
+1. Put the **phone and Mac on the same Wi‑Fi** (no client isolation).
+2. Find your **Mac’s LAN IP** (e.g. System Settings → Network, or `ipconfig getifaddr en0`).
+3. **Bind Django** so the phone can reach it:
+   ```bash
+   cd ../backend && source .venv/bin/activate && python manage.py runserver 0.0.0.0:8000
+   ```
+4. **ALLOWED_HOSTS** must include that IP. In `.env` (see [`../backend/.env.example`](../backend/.env.example)):
+   ```env
+   ALLOWED_HOSTS=localhost,127.0.0.1,192.168.x.x
+   ```
+   Replace `192.168.x.x` with your Mac’s IP.
+5. **Run Flutter** with an explicit API base (replace the IP):
+   ```bash
+   flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8000/api/v1
+   ```
+6. If it still fails: allow **TCP 8000** through the Mac firewall.
+
+**iOS:** The app enables **local-network HTTP** via `NSAllowsLocalNetworking` in `ios/Runner/Info.plist` for dev.
+
+## Configuration
+
+| `API_BASE_URL` | When |
+|----------------|------|
+| *(unset)* | Simulator / emulator defaults ([`lib/config/api_config.dart`](lib/config/api_config.dart)) |
+| `http://<mac-ip>:8000/api/v1` | Physical iPhone or Android device |

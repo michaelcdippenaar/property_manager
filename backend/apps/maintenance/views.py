@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from .matching import rank_suppliers
 from .models import (
     AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
-    MaintenanceRequest, Supplier, SupplierDocument,
+    MaintenanceActivity, MaintenanceRequest, MaintenanceSkill, Supplier, SupplierDocument,
     SupplierProperty, SupplierTrade,
 )
 from .notifications import notify_supplier
@@ -20,7 +20,9 @@ from .serializers import (
     JobDispatchSerializer,
     JobQuoteRequestSerializer,
     JobQuoteSerializer,
+    MaintenanceActivitySerializer,
     MaintenanceRequestSerializer,
+    MaintenanceSkillSerializer,
     SupplierDocumentSerializer,
     SupplierListSerializer,
     SupplierPropertySerializer,
@@ -105,6 +107,18 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             "sent": sent,
             "dispatch": JobDispatchSerializer(jd).data,
         })
+
+    @action(detail=True, methods=["get", "post"], url_path="activity")
+    def activity(self, request, pk=None):
+        mreq = self.get_object()
+        if request.method == "GET":
+            activities = mreq.activities.select_related("created_by").all()
+            return Response(MaintenanceActivitySerializer(activities, many=True).data)
+
+        serializer = MaintenanceActivitySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(request=mreq, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="dispatch/award")
     def dispatch_award(self, request, pk=None):
@@ -437,3 +451,16 @@ class AgentQuestionViewSet(viewsets.ModelViewSet):
         question.status = AgentQuestion.Status.DISMISSED
         question.save()
         return Response(AgentQuestionSerializer(question).data)
+
+
+class MaintenanceSkillViewSet(viewsets.ModelViewSet):
+    serializer_class = MaintenanceSkillSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ["trade", "difficulty", "is_active"]
+
+    def get_queryset(self):
+        qs = MaintenanceSkill.objects.all()
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(notes__icontains=search))
+        return qs

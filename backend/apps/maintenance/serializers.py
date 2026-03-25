@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
-    MaintenanceRequest, Supplier, SupplierTrade,
+    MaintenanceActivity, MaintenanceRequest, MaintenanceSkill, Supplier, SupplierTrade,
     SupplierDocument, SupplierProperty,
 )
 
@@ -185,3 +185,25 @@ class AgentQuestionSerializer(serializers.ModelSerializer):
             'added_to_context', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'answered_by', 'answered_at', 'added_to_context', 'created_at', 'updated_at']
+
+
+class MaintenanceActivitySerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source="created_by.full_name", read_only=True, default=None)
+
+    class Meta:
+        model = MaintenanceActivity
+        fields = ["id", "activity_type", "message", "metadata", "created_by", "created_by_name", "created_at"]
+        read_only_fields = ["id", "created_by", "created_at"]
+
+
+class MaintenanceSkillSerializer(serializers.ModelSerializer):
+    trade_label = serializers.CharField(source="get_trade_display", read_only=True)
+    difficulty_label = serializers.CharField(source="get_difficulty_display", read_only=True)
+
+    class Meta:
+        model = MaintenanceSkill
+        fields = [
+            'id', 'name', 'trade', 'trade_label', 'difficulty', 'difficulty_label',
+            'symptom_phrases', 'steps', 'notes', 'is_active', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']

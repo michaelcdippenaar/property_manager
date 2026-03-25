@@ -16,9 +16,11 @@ else:
 
 SECRET_KEY = config("SECRET_KEY", default="dev-secret-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5178", "http://127.0.0.1:5178"]
 
 DJANGO_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -28,6 +30,7 @@ DJANGO_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "channels",
     "rest_framework",
     "rest_framework_simplejwt",
     "corsheaders",
@@ -74,6 +77,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+ASGI_APPLICATION = "config.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 DATABASES = {
     "default": {
@@ -135,6 +145,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
 ]
 
 # Anthropic Claude API
