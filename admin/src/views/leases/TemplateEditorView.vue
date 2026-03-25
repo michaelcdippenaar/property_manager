@@ -1851,12 +1851,49 @@ function insertField(fieldName: string) {
   showFieldPicker.value = false
   ac.value.show = false
   recentFields.value = [fieldName, ...recentFields.value.filter(f => f !== fieldName)].slice(0, 15)
-  editorEl.value?.focus()
+
+  const editor = editorEl.value
+  if (!editor) return
+  editor.focus()
+
   const color = selectedActorIdx.value !== null && selectedActorIdx.value >= 0 && selectedActorIdx.value < actors.value.length
     ? actorColor(actors.value[selectedActorIdx.value].type, selectedActorIdx.value)
     : '#b45309'
-  const html = `<span class="tmpl-field" contenteditable="false" draggable="true" data-field="${fieldName}" style="display:inline-block;vertical-align:baseline;font-family:monospace;font-size:11px;line-height:1.4;background:${color}18;color:${color};border:1px solid ${color}44;padding:0 6px;border-radius:4px;margin:0 1px;cursor:grab;white-space:nowrap;">{&thinsp;{&thinsp;${fieldName}&thinsp;}&thinsp;}</span>`
-  document.execCommand('insertHTML', false, html)
+
+  // Build the chip element
+  const chip = document.createElement('span')
+  chip.className = 'tmpl-field'
+  chip.contentEditable = 'false'
+  chip.draggable = true
+  chip.dataset.field = fieldName
+  chip.style.cssText = `display:inline;vertical-align:baseline;font-family:monospace;font-size:11px;line-height:1.4;background:${color}18;color:${color};border:1px solid ${color}44;padding:1px 6px;border-radius:4px;margin:0 1px;cursor:grab;white-space:nowrap;`
+  chip.textContent = `{{ ${fieldName} }}`
+
+  // Zero-width spaces before and after so the cursor can land next to the chip
+  const zwsBefore = document.createTextNode('\u200B')
+  const zwsAfter = document.createTextNode('\u200B')
+
+  const sel = window.getSelection()
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0)
+    range.deleteContents()
+    // Insert: zws + chip + zws
+    range.insertNode(zwsAfter)
+    range.insertNode(chip)
+    range.insertNode(zwsBefore)
+    // Place cursor after the chip
+    const afterRange = document.createRange()
+    afterRange.setStartAfter(zwsAfter)
+    afterRange.collapse(true)
+    sel.removeAllRanges()
+    sel.addRange(afterRange)
+  } else {
+    // Fallback: append at end
+    editor.appendChild(zwsBefore)
+    editor.appendChild(chip)
+    editor.appendChild(zwsAfter)
+  }
+
   onEditorInput()
 }
 
