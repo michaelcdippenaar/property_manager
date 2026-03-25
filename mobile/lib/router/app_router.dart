@@ -4,6 +4,8 @@ import '../screens/auth/login_email_screen.dart';
 import '../screens/auth/login_mobile_screen.dart';
 import '../screens/auth/otp_screen.dart';
 import '../screens/auth/signup_screen.dart';
+import '../screens/home/dashboard_screen.dart';
+import '../screens/home/issues_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -37,6 +39,14 @@ final appRouter = GoRouter(
         mode: OtpMode.signup,
         phone: state.extra as String? ?? '',
       ),
+    ),
+    GoRoute(
+      path: '/dashboard',
+      builder: (context, state) => const DashboardScreen(),
+    ),
+    GoRoute(
+      path: '/issues',
+      builder: (context, state) => const IssuesScreen(),
     ),
   ],
 );
