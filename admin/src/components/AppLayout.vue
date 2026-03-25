@@ -5,9 +5,8 @@
     <header class="bg-navy flex items-center h-14 px-6 flex-shrink-0 z-50 gap-6">
 
       <!-- Logo -->
-      <RouterLink to="/" class="flex items-center gap-1.5 mr-4 flex-shrink-0">
-        <span class="text-white font-bold text-xl leading-none">K<span class="text-pink-brand">.</span></span>
-        <span class="text-white font-bold text-lg leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
+      <RouterLink to="/" class="flex items-center mr-4 flex-shrink-0">
+        <span class="text-white font-bold text-xl leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
       </RouterLink>
 
       <!-- Primary nav items -->
@@ -142,7 +141,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import {
-  LayoutDashboard, Building2, Users, Wrench, FileText,
+  LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature,
   LogOut, Sparkles, BookOpen, Info, ChevronDown, Bot, HelpCircle, Truck,
 } from 'lucide-vue-next'
 
@@ -160,6 +159,7 @@ const primaryNavItems = [
   { to: '/properties', icon: Building2, label: 'Properties' },
   { to: '/tenants', icon: Users, label: 'Tenants' },
   { to: '/leases', icon: FileText, label: 'Leases' },
+  { to: '/leases/templates', icon: FileSignature, label: 'Lease Templates' },
 ]
 
 const maintenanceSubItems = [
@@ -176,7 +176,9 @@ const propertyInfoSubItems = [
 ]
 
 function isActive(to: string) {
-  return to === '/' ? route.path === '/' : route.path === to || route.path.startsWith(`${to}/`)
+  if (to === '/') return route.path === '/'
+  if (to === '/leases') return route.path === '/leases' || (route.path.startsWith('/leases/') && !route.path.startsWith('/leases/templates'))
+  return route.path === to || route.path.startsWith(`${to}/`)
 }
 
 const isPropInfoActive = computed(() =>

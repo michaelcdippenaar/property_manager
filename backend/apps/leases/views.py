@@ -6,11 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.models import Person, User
-from .models import Lease, LeaseDocument, LeaseTenant, LeaseOccupant, LeaseGuarantor
+from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep
 from .serializers import (
-    LeaseSerializer, LeaseDocumentSerializer,
-    LeaseOccupantSerializer, LeaseGuarantorSerializer, PersonSerializer,
+    LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
+    LeaseOccupantSerializer, LeaseGuarantorSerializer, OnboardingStepSerializer, PersonSerializer,
 )
+from .events import generate_lease_events, generate_onboarding_steps
 
 
 class LeaseViewSet(viewsets.ModelViewSet):
@@ -184,3 +185,89 @@ class LeaseViewSet(viewsets.ModelViewSet):
         gua = get_object_or_404(LeaseGuarantor, pk=guarantor_id, lease=lease)
         gua.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # ── Lease Events ──
+
+    @action(detail=True, methods=["get", "post"], url_path="events")
+    def events(self, request, pk=None):
+        lease = self.get_object()
+        if request.method == "GET":
+            qs = lease.events.all()
+            return Response(LeaseEventSerializer(qs, many=True).data)
+        # POST — create custom event
+        serializer = LeaseEventSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(lease=lease, event_type=LeaseEvent.EventType.CUSTOM)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch"], url_path="events/(?P<event_id>[^/.]+)")
+    def update_event(self, request, pk=None, event_id=None):
+        lease = self.get_object()
+        event = get_object_or_404(LeaseEvent, pk=event_id, lease=lease)
+        serializer = LeaseEventSerializer(event, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        if request.data.get("status") == "completed" and not event.completed_at:
+            from django.utils import timezone
+            serializer.save(completed_at=timezone.now(), completed_by=request.user)
+        else:
+            serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="generate-events")
+    def generate_events(self, request, pk=None):
+        """Auto-generate calendar events for this lease."""
+        lease = self.get_object()
+        events = generate_lease_events(lease)
+        onboarding = generate_onboarding_steps(lease)
+        return Response({
+            "events_created": len(events),
+            "onboarding_steps_created": len(onboarding),
+        })
+
+    # ── Onboarding ──
+
+    @action(detail=True, methods=["get"], url_path="onboarding")
+    def onboarding(self, request, pk=None):
+        lease = self.get_object()
+        qs = lease.onboarding_steps.all()
+        return Response(OnboardingStepSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=["patch"], url_path="onboarding/(?P<step_id>[^/.]+)")
+    def update_onboarding(self, request, pk=None, step_id=None):
+        lease = self.get_object()
+        step = get_object_or_404(OnboardingStep, pk=step_id, lease=lease)
+        if request.data.get("is_completed") and not step.completed_at:
+            from django.utils import timezone
+            step.is_completed = True
+            step.completed_at = timezone.now()
+            step.completed_by = request.user
+        elif request.data.get("is_completed") is False:
+            step.is_completed = False
+            step.completed_at = None
+            step.completed_by = None
+        if "notes" in request.data:
+            step.notes = request.data["notes"]
+        step.save()
+        return Response(OnboardingStepSerializer(step).data)
+
+
+class LeaseCalendarView:
+    """Standalone view for calendar across all leases."""
+    pass
+
+
+from rest_framework.views import APIView
+
+
+class LeaseCalendarAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from_date = request.query_params.get("from")
+        to_date = request.query_params.get("to")
+        qs = LeaseEvent.objects.select_related("lease__unit__property", "lease__primary_tenant")
+        if from_date:
+            qs = qs.filter(date__gte=from_date)
+        if to_date:
+            qs = qs.filter(date__lte=to_date)
+        return Response(LeaseEventSerializer(qs, many=True).data)

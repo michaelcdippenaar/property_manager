@@ -1,9 +1,8 @@
 <template>
   <div class="flex flex-col h-screen bg-gray-50 overflow-hidden">
     <header class="bg-navy flex items-center h-14 px-6 flex-shrink-0 z-50 gap-6">
-      <RouterLink to="/jobs" class="flex items-center gap-1.5 mr-4 flex-shrink-0">
-        <span class="text-white font-bold text-xl leading-none">K<span class="text-pink-brand">.</span></span>
-        <span class="text-white font-bold text-lg leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
+      <RouterLink to="/jobs" class="flex items-center mr-4 flex-shrink-0">
+        <span class="text-white font-bold text-xl leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
       </RouterLink>
 
       <nav class="flex items-center gap-1 flex-1 min-w-0">

@@ -1,11 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework import generics, permissions
-from .views import LeaseViewSet
+from .views import LeaseViewSet, LeaseCalendarAPIView
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
-from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView
+from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView
 from .builder_views import LeaseBuilderSessionCreateView, LeaseBuilderChatView, LeaseBuilderFinalizeView
+from .clause_views import ReusableClauseListCreateView, ReusableClauseDestroyView, ReusableClauseUseView, GenerateClauseView, ExtractClausesView
 from .models import LeaseTenant, LeaseOccupant, LeaseGuarantor
 from .serializers import LeaseTenantSerializer, LeaseOccupantSerializer, LeaseGuarantorSerializer
 
@@ -32,6 +33,7 @@ class LeaseGuarantorList(generics.ListCreateAPIView):
 
 
 urlpatterns = [
+    path("calendar/", LeaseCalendarAPIView.as_view(), name="lease-calendar"),
     path("parse-document/", ParseLeaseDocumentView.as_view(), name="lease-parse-document"),
     path("import/", ImportLeaseView.as_view(), name="lease-import"),
     # Lease templates + document generation
@@ -39,11 +41,18 @@ urlpatterns = [
     path("templates/<int:pk>/", LeaseTemplateDetailView.as_view(), name="lease-template-detail"),
     path("templates/<int:pk>/preview/", LeaseTemplatePreviewView.as_view(), name="lease-template-preview"),
     path("templates/<int:pk>/ai-chat/", LeaseTemplateAIChatView.as_view(), name="lease-template-ai-chat"),
+    path("templates/<int:pk>/export.pdf/", ExportTemplatePDFView.as_view(), name="lease-template-export-pdf"),
     path("generate/", GenerateLeaseDocumentView.as_view(), name="lease-generate"),
     # AI conversational lease builder
     path("builder/sessions/", LeaseBuilderSessionCreateView.as_view(), name="builder-session-create"),
     path("builder/sessions/<int:pk>/message/", LeaseBuilderChatView.as_view(), name="builder-session-message"),
     path("builder/sessions/<int:pk>/finalize/", LeaseBuilderFinalizeView.as_view(), name="builder-session-finalize"),
+    # Reusable clause library
+    path("clauses/", ReusableClauseListCreateView.as_view(), name="clauses-list"),
+    path("clauses/generate/", GenerateClauseView.as_view(), name="clauses-generate"),
+    path("clauses/extract/", ExtractClausesView.as_view(), name="clauses-extract"),
+    path("clauses/<int:pk>/", ReusableClauseDestroyView.as_view(), name="clause-destroy"),
+    path("clauses/<int:pk>/use/", ReusableClauseUseView.as_view(), name="clause-use"),
     # Misc lists
     path("co-tenants/", LeaseTenantList.as_view(), name="lease-co-tenants"),
     path("occupants/", LeaseOccupantList.as_view(), name="lease-occupants"),

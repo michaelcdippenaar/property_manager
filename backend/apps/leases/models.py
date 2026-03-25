@@ -62,6 +62,8 @@ class LeaseTemplate(models.Model):
     docx_file = models.FileField(upload_to="lease_templates/")
     fields_schema = models.JSONField(default=list, help_text="List of merge field names in the template")
     content_html = models.TextField(blank=True, default="", help_text="Manually edited HTML content (overrides DOCX render)")
+    header_html  = models.TextField(blank=True, default="", help_text="HTML shown at the top of every page (logo, title, etc.)")
+    footer_html  = models.TextField(blank=True, default="", help_text="HTML shown at the bottom of every page (company name, page number)")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -154,6 +156,119 @@ class LeaseGuarantor(models.Model):
 
     def __str__(self):
         return f"Guarantor: {self.person.full_name} for Lease {self.lease_id}"
+
+
+class ReusableClause(models.Model):
+    """A saved paragraph or clause that can be inserted into any lease template."""
+
+    CATEGORIES = [
+        ("parties",    "Parties"),
+        ("premises",   "Premises"),
+        ("financial",  "Financial"),
+        ("utilities",  "Utilities"),
+        ("legal",      "Legal / Compliance"),
+        ("signatures", "Signatures"),
+        ("general",    "General"),
+    ]
+
+    title = models.CharField(max_length=200)
+    category = models.CharField(max_length=30, choices=CATEGORIES, default="general")
+    html = models.TextField(help_text="HTML content using allowed Tiptap tags")
+    tags = models.JSONField(default=list, blank=True)
+    source_templates = models.ManyToManyField(
+        LeaseTemplate, blank=True, related_name="clauses",
+        help_text="Templates this clause was sourced from or used in"
+    )
+    use_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="clauses"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-use_count", "-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class LeaseEvent(models.Model):
+    """Calendar events auto-generated from lease dates."""
+
+    class EventType(models.TextChoices):
+        CONTRACT_START = "contract_start", "Contract Start"
+        CONTRACT_END = "contract_end", "Contract End"
+        DEPOSIT_DUE = "deposit_due", "Deposit Due"
+        FIRST_RENT = "first_rent", "First Rent Due"
+        RENT_DUE = "rent_due", "Rent Due"
+        INSPECTION_IN = "inspection_in", "Move-in Inspection"
+        INSPECTION_OUT = "inspection_out", "Move-out Inspection"
+        INSPECTION_ROUTINE = "inspection_routine", "Routine Inspection"
+        NOTICE_DEADLINE = "notice_deadline", "Notice Period Deadline"
+        RENEWAL_REVIEW = "renewal_review", "Renewal Review"
+        CUSTOM = "custom", "Custom"
+
+    class Status(models.TextChoices):
+        UPCOMING = "upcoming", "Upcoming"
+        DUE = "due", "Due"
+        COMPLETED = "completed", "Completed"
+        OVERDUE = "overdue", "Overdue"
+        CANCELLED = "cancelled", "Cancelled"
+
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="events")
+    event_type = models.CharField(max_length=25, choices=EventType.choices)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    date = models.DateField()
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.UPCOMING)
+    is_recurring = models.BooleanField(default=False)
+    recurrence_day = models.PositiveSmallIntegerField(
+        null=True, blank=True, help_text="Day of month for recurring events",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["date"]
+
+    def __str__(self):
+        return f"{self.title} — {self.date}"
+
+
+class OnboardingStep(models.Model):
+    """Checklist steps auto-generated when a lease is created."""
+
+    class StepType(models.TextChoices):
+        DEPOSIT_PAYMENT = "deposit_payment", "Deposit Payment"
+        LEASE_SIGNED = "lease_signed", "Lease Signed"
+        ID_VERIFIED = "id_verified", "ID Verified"
+        MOVE_IN_INSPECTION = "move_in_inspection", "Move-in Inspection"
+        KEY_HANDOVER = "key_handover", "Key Handover"
+        INVOICING_SETUP = "invoicing_setup", "Invoicing Setup"
+        TENANT_APP_SETUP = "tenant_app_setup", "Tenant App Setup"
+        WELCOME_SENT = "welcome_sent", "Welcome Message Sent"
+
+    lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="onboarding_steps")
+    step_type = models.CharField(max_length=25, choices=StepType.choices)
+    title = models.CharField(max_length=200)
+    is_completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+    )
+    notes = models.TextField(blank=True)
+    order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["order"]
+
+    def __str__(self):
+        status = "Done" if self.is_completed else "Pending"
+        return f"{self.title} [{status}]"
 
 
 class LeaseDocument(models.Model):
