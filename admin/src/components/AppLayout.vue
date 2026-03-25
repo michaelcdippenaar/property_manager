@@ -24,6 +24,48 @@
           {{ item.label }}
         </RouterLink>
 
+        <!-- Leases dropdown -->
+        <div class="relative" ref="leaseDropRef">
+          <button
+            @click="leaseOpen = !leaseOpen"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+            :class="isLeaseActive
+              ? 'bg-white/15 text-white'
+              : 'text-white/60 hover:text-white hover:bg-white/10'"
+          >
+            <FileText :size="15" class="flex-shrink-0" />
+            Leases
+            <ChevronDown :size="13" class="transition-transform" :class="leaseOpen ? 'rotate-180' : ''" />
+          </button>
+          <Transition
+            enter-active-class="transition ease-out duration-100"
+            enter-from-class="opacity-0 -translate-y-1"
+            enter-to-class="opacity-100 translate-y-0"
+            leave-active-class="transition ease-in duration-75"
+            leave-from-class="opacity-100 translate-y-0"
+            leave-to-class="opacity-0 -translate-y-1"
+          >
+            <div
+              v-if="leaseOpen"
+              class="absolute left-0 top-full mt-1.5 w-48 rounded-xl bg-white shadow-lg ring-1 ring-black/5 py-1.5 z-50"
+            >
+              <RouterLink
+                v-for="item in leaseSubItems"
+                :key="item.to"
+                :to="item.to"
+                @click="leaseOpen = false"
+                class="flex items-center gap-2.5 px-3.5 py-2 text-sm font-medium transition-colors"
+                :class="isActive(item.to)
+                  ? 'text-navy bg-indigo-50'
+                  : 'text-gray-700 hover:bg-gray-50'"
+              >
+                <component :is="item.icon" :size="15" class="flex-shrink-0 text-gray-400" />
+                {{ item.label }}
+              </RouterLink>
+            </div>
+          </Transition>
+        </div>
+
         <!-- Maintenance dropdown -->
         <div class="relative" ref="maintDropRef">
           <button
@@ -141,8 +183,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import {
-  LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature,
-  LogOut, Sparkles, BookOpen, Info, ChevronDown, Bot, HelpCircle, Truck,
+  LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature, Calendar,
+  LogOut, Sparkles, BookOpen, Info, ChevronDown, Bot, HelpCircle, Truck, Hammer,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -153,13 +195,20 @@ const propOpen = ref(false)
 const propDropRef = ref<HTMLElement | null>(null)
 const maintOpen = ref(false)
 const maintDropRef = ref<HTMLElement | null>(null)
+const leaseOpen = ref(false)
+const leaseDropRef = ref<HTMLElement | null>(null)
 
 const primaryNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/properties', icon: Building2, label: 'Properties' },
   { to: '/tenants', icon: Users, label: 'Tenants' },
-  { to: '/leases', icon: FileText, label: 'Leases' },
-  { to: '/leases/templates', icon: FileSignature, label: 'Lease Templates' },
+]
+
+const leaseSubItems = [
+  { to: '/leases', icon: FileText, label: 'All Leases' },
+  { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
+  { to: '/leases/calendar', icon: Calendar, label: 'Calendar' },
+  { to: '/leases/build', icon: Hammer, label: 'Build Lease' },
 ]
 
 const maintenanceSubItems = [
@@ -177,7 +226,7 @@ const propertyInfoSubItems = [
 
 function isActive(to: string) {
   if (to === '/') return route.path === '/'
-  if (to === '/leases') return route.path === '/leases' || (route.path.startsWith('/leases/') && !route.path.startsWith('/leases/templates'))
+  if (to === '/leases') return route.path === '/leases'
   return route.path === to || route.path.startsWith(`${to}/`)
 }
 
@@ -189,6 +238,10 @@ const isMaintActive = computed(() =>
   maintenanceSubItems.some((i) => isActive(i.to))
 )
 
+const isLeaseActive = computed(() =>
+  leaseSubItems.some((i) => isActive(i.to))
+)
+
 // Close dropdowns on outside click
 function onClickOutside(e: MouseEvent) {
   if (propDropRef.value && !propDropRef.value.contains(e.target as Node)) {
@@ -196,6 +249,9 @@ function onClickOutside(e: MouseEvent) {
   }
   if (maintDropRef.value && !maintDropRef.value.contains(e.target as Node)) {
     maintOpen.value = false
+  }
+  if (leaseDropRef.value && !leaseDropRef.value.contains(e.target as Node)) {
+    leaseOpen.value = false
   }
 }
 onMounted(() => document.addEventListener('mousedown', onClickOutside))
