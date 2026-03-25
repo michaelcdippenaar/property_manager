@@ -23,6 +23,11 @@ backend/documents/
 # Node / frontend
 admin/node_modules/
 admin/dist/
+services/**/node_modules/
+
+# Local / tooling (do not commit)
+.claude/
+flutter_logs.txt
 
 # Flutter / Dart
 mobile/.dart_tool/

@@ -18,6 +18,9 @@ Full-stack property management platform for **Klikk (Pty) Ltd** (Tremly). Manage
 # PostgreSQL (Docker or Homebrew)
 docker compose up db          # or: brew services start postgresql@15
 
+# Note: docker compose (as in this repo) runs db, backend, and admin only — not web_app.
+# Start the tenant web app separately (see below).
+
 # Backend
 cd backend
 source .venv/bin/activate
