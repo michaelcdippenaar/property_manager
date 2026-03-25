@@ -57,6 +57,11 @@ const router = createRouter({
           component: () => import('../views/leases/LeasesView.vue'),
         },
         {
+          path: 'leases/calendar',
+          name: 'leases-calendar',
+          component: () => import('../views/leases/LeaseCalendarView.vue'),
+        },
+        {
           path: 'property-info',
           component: () => import('../views/properties/PropertyInfoSection.vue'),
           children: [

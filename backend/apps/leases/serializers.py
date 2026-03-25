@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from apps.accounts.models import Person
-from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession
+from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession, LeaseEvent, OnboardingStep
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -100,6 +100,27 @@ class LeaseTemplateSerializer(serializers.ModelSerializer):
         model = LeaseTemplate
         fields = ["id", "name", "version", "province", "fields_schema", "content_html", "is_active", "created_at", "docx_file"]
         read_only_fields = ["created_at", "docx_file"]
+
+
+class LeaseEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeaseEvent
+        fields = [
+            "id", "event_type", "title", "description", "date",
+            "status", "is_recurring", "recurrence_day",
+            "completed_at", "completed_by", "created_at",
+        ]
+        read_only_fields = ["created_at"]
+
+
+class OnboardingStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OnboardingStep
+        fields = [
+            "id", "step_type", "title", "is_completed",
+            "completed_at", "completed_by", "notes", "order", "created_at",
+        ]
+        read_only_fields = ["created_at"]
 
 
 class LeaseBuilderSessionSerializer(serializers.ModelSerializer):

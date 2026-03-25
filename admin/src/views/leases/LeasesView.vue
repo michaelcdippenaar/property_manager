@@ -224,6 +224,59 @@
               </div>
             </div>
 
+            <!-- Events Timeline -->
+            <div>
+              <div class="flex items-center justify-between mb-2.5">
+                <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Upcoming Events</div>
+                <button @click.stop="generateEvents(lease)" :disabled="generatingEvents === lease.id" class="btn-ghost text-xs px-2 py-1">
+                  <Loader2 v-if="generatingEvents === lease.id" :size="11" class="animate-spin" />
+                  <CalendarDays v-else :size="11" />
+                  Generate
+                </button>
+              </div>
+              <div v-if="leaseEvents[lease.id] === undefined" class="text-xs text-gray-400">
+                Click "Generate" to auto-create calendar events
+              </div>
+              <div v-else-if="!leaseEvents[lease.id]?.length" class="text-xs text-gray-400">No upcoming events</div>
+              <div v-else class="flex flex-col gap-1">
+                <div
+                  v-for="ev in leaseEvents[lease.id].slice(0, 5)"
+                  :key="ev.id"
+                  class="flex items-center gap-3 px-3 py-2 bg-white rounded-xl border border-gray-100 text-xs"
+                >
+                  <div class="w-2 h-2 rounded-full flex-shrink-0" :style="{ background: eventColor(ev.event_type) }"></div>
+                  <div class="flex-1 font-medium text-gray-800">{{ ev.title }}</div>
+                  <div class="text-gray-400 tabular-nums">{{ formatDate(ev.date) }}</div>
+                  <span :class="eventStatusBadge(ev.status)" class="text-[10px]">{{ ev.status }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Onboarding Checklist -->
+            <div v-if="onboardingSteps[lease.id]?.length">
+              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2.5">
+                Onboarding ({{ onboardingSteps[lease.id].filter((s: any) => s.is_completed).length }}/{{ onboardingSteps[lease.id].length }})
+              </div>
+              <div class="grid grid-cols-2 gap-1.5">
+                <div
+                  v-for="step in onboardingSteps[lease.id]"
+                  :key="step.id"
+                  class="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-gray-100 cursor-pointer hover:border-navy/20 transition-colors"
+                  @click.stop="toggleOnboarding(lease, step)"
+                >
+                  <div
+                    class="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 border transition-colors"
+                    :class="step.is_completed ? 'bg-emerald-500 border-emerald-500' : 'border-gray-300'"
+                  >
+                    <Check v-if="step.is_completed" :size="10" class="text-white" />
+                  </div>
+                  <span class="text-xs text-gray-700 leading-tight" :class="step.is_completed ? 'line-through text-gray-400' : ''">
+                    {{ step.title }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <!-- Documents inline -->
             <div>
               <div class="flex items-center justify-between mb-2.5">
@@ -473,7 +526,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
-import { Plus, Paperclip, X, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, AlertCircle } from 'lucide-vue-next'
+import { Plus, Paperclip, X, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, AlertCircle, CalendarDays, Check } from 'lucide-vue-next'
 import ImportLeaseWizard from './ImportLeaseWizard.vue'
 import EditLeaseDrawer from './EditLeaseDrawer.vue'
 import LeaseBuilderView from './LeaseBuilderView.vue'
@@ -522,6 +575,56 @@ const uploadType = ref('signed_lease')
 const uploadDescription = ref('')
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
+// Events & Onboarding
+const leaseEvents = ref<Record<number, any[]>>({})
+const onboardingSteps = ref<Record<number, any[]>>({})
+const generatingEvents = ref<number | null>(null)
+
+const EVENT_COLORS: Record<string, string> = {
+  contract_start: '#1e3a5f', contract_end: '#1e3a5f',
+  deposit_due: '#7c3aed', first_rent: '#2563eb', rent_due: '#2563eb',
+  inspection_in: '#d97706', inspection_out: '#d97706', inspection_routine: '#d97706',
+  notice_deadline: '#dc2626', renewal_review: '#059669', custom: '#6b7280',
+}
+
+function eventColor(type: string) {
+  return EVENT_COLORS[type] ?? '#6b7280'
+}
+
+function eventStatusBadge(s: string) {
+  return { upcoming: 'badge-gray', due: 'badge-amber', completed: 'badge-green', overdue: 'badge-red', cancelled: 'badge-gray' }[s] ?? 'badge-gray'
+}
+
+async function generateEvents(lease: any) {
+  generatingEvents.value = lease.id
+  try {
+    await api.post(`/leases/${lease.id}/generate-events/`)
+    const today = new Date().toISOString().slice(0, 10)
+    const [evRes, obRes] = await Promise.all([
+      api.get(`/leases/${lease.id}/events/`),
+      api.get(`/leases/${lease.id}/onboarding/`),
+    ])
+    leaseEvents.value[lease.id] = (evRes.data as any[]).filter(e => e.date >= today)
+    onboardingSteps.value[lease.id] = obRes.data
+  } catch (e: any) {
+    alert(e?.response?.data?.detail ?? 'Could not generate events.')
+  } finally {
+    generatingEvents.value = null
+  }
+}
+
+async function toggleOnboarding(lease: any, step: any) {
+  const newVal = !step.is_completed
+  try {
+    await api.patch(`/leases/${lease.id}/onboarding/${step.id}/`, { is_completed: newVal })
+    step.is_completed = newVal
+    if (newVal) step.completed_at = new Date().toISOString()
+  } catch {
+    // revert on error
+    step.is_completed = !newVal
+  }
+}
+
 // Manual create
 const createDialog = ref(false)
 const primaryTenantName = ref('')
@@ -553,10 +656,27 @@ async function loadUnits() {
   }))
 }
 
-function toggle(id: number) {
+async function toggle(id: number) {
   const idx = expanded.value.indexOf(id)
-  if (idx === -1) expanded.value.push(id)
-  else expanded.value.splice(idx, 1)
+  if (idx === -1) {
+    expanded.value.push(id)
+    // Load events & onboarding if not already loaded
+    if (leaseEvents.value[id] === undefined) {
+      try {
+        const today = new Date().toISOString().slice(0, 10)
+        const [evRes, obRes] = await Promise.all([
+          api.get(`/leases/${id}/events/`),
+          api.get(`/leases/${id}/onboarding/`),
+        ])
+        leaseEvents.value[id] = (evRes.data as any[]).filter((e: any) => e.date >= today)
+        onboardingSteps.value[id] = obRes.data
+      } catch {
+        // Non-fatal — events just won't show
+      }
+    }
+  } else {
+    expanded.value.splice(idx, 1)
+  }
 }
 
 function openCreateDialog() {
