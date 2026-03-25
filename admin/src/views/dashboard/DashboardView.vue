@@ -1,7 +1,5 @@
 <template>
   <div class="space-y-6">
-    <h1 class="text-lg font-semibold text-gray-900">Dashboard</h1>
-
     <!-- Stat cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <div v-for="stat in stats" :key="stat.label" class="card p-5">

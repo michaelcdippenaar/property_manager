@@ -10,6 +10,8 @@ import '../screens/issues/issue_detail_screen.dart';
 import '../screens/issues/report_issue_screen.dart';
 import '../screens/chat/chat_list_screen.dart';
 import '../screens/chat/chat_detail_screen.dart';
+import '../screens/esigning/docuseal_webview_screen.dart';
+import '../screens/esigning/lease_signing_screen.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',
@@ -52,6 +54,25 @@ final appRouter = GoRouter(
       builder: (ctx, st) {
         final id = int.tryParse(st.pathParameters['id'] ?? '') ?? 0;
         return ChatDetailScreen(conversationId: id);
+      },
+    ),
+    GoRoute(
+      path: '/signing',
+      builder: (ctx, st) => const LeaseSigningScreen(),
+    ),
+    GoRoute(
+      path: '/signing/web',
+      builder: (ctx, st) {
+        final extra = st.extra;
+        if (extra is! Map) {
+          return const LeaseSigningScreen();
+        }
+        final url = extra['embedUrl'] as String?;
+        final sid = extra['submissionId'] as int?;
+        if (url == null || sid == null) {
+          return const LeaseSigningScreen();
+        }
+        return DocusealWebViewScreen(embedUrl: url, submissionId: sid);
       },
     ),
   ],

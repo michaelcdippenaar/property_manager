@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -20,6 +21,9 @@ class ApiClient {
   static const _kAccess = 'access_token';
   static const _kRefresh = 'refresh_token';
 
+  /// Prevents concurrent refresh calls from racing.
+  Completer<bool>? _refreshLock;
+
   Future<String?> get _token => _storage.read(key: _kAccess);
 
   Map<String, String> _headers(String? token) => {
@@ -32,7 +36,7 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: params);
     var res = await http.get(uri, headers: _headers(token));
     if (res.statusCode == 401) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await tryRefresh();
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       final newToken = await _token;
       res = await http.get(uri, headers: _headers(newToken));
@@ -45,7 +49,7 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path').replace(queryParameters: params);
     var res = await http.get(uri, headers: _headers(token));
     if (res.statusCode == 401) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await tryRefresh();
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       final newToken = await _token;
       res = await http.get(uri, headers: _headers(newToken));
@@ -63,7 +67,7 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');
     var res = await http.post(uri, headers: _headers(token), body: jsonEncode(body ?? {}));
     if (res.statusCode == 401) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await tryRefresh();
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       final newToken = await _token;
       res = await http.post(uri, headers: _headers(newToken), body: jsonEncode(body ?? {}));
@@ -97,7 +101,7 @@ class ApiClient {
     var token = await _token;
     var res = await sendOnce(token);
     if (res.statusCode == 401) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await tryRefresh();
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       token = await _token;
       res = await sendOnce(token);
@@ -110,7 +114,7 @@ class ApiClient {
     final uri = Uri.parse('${ApiConfig.baseUrl}$path');
     var res = await http.patch(uri, headers: _headers(token), body: jsonEncode(body ?? {}));
     if (res.statusCode == 401) {
-      final refreshed = await _tryRefresh();
+      final refreshed = await tryRefresh();
       if (!refreshed) throw ApiException('Session expired', statusCode: 401);
       final newToken = await _token;
       res = await http.patch(uri, headers: _headers(newToken), body: jsonEncode(body ?? {}));
@@ -133,10 +137,17 @@ class ApiClient {
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
-  Future<bool> _tryRefresh() async {
-    final refresh = await _storage.read(key: _kRefresh);
-    if (refresh == null) return false;
+  Future<bool> tryRefresh() async {
+    // If a refresh is already in flight, wait for it instead of firing a second one.
+    if (_refreshLock != null) return _refreshLock!.future;
+
+    _refreshLock = Completer<bool>();
     try {
+      final refresh = await _storage.read(key: _kRefresh);
+      if (refresh == null) {
+        _refreshLock!.complete(false);
+        return false;
+      }
       final uri = Uri.parse('${ApiConfig.baseUrl}/auth/token/refresh/');
       final res = await http.post(
         uri,
@@ -146,15 +157,23 @@ class ApiClient {
       if (res.statusCode != 200) {
         await _storage.delete(key: _kAccess);
         await _storage.delete(key: _kRefresh);
+        _refreshLock!.complete(false);
         return false;
       }
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       final access = data['access'] as String?;
-      if (access == null) return false;
+      if (access == null) {
+        _refreshLock!.complete(false);
+        return false;
+      }
       await _storage.write(key: _kAccess, value: access);
+      _refreshLock!.complete(true);
       return true;
     } catch (_) {
+      _refreshLock!.complete(false);
       return false;
+    } finally {
+      _refreshLock = null;
     }
   }
 }

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import base64
-import json
 import mimetypes
+import uuid
 
 import anthropic
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -13,23 +15,23 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.ai.intel import update_tenant_intel
+from apps.ai.models import TenantChatSession
+from apps.ai.parsing import (
+    MAINTENANCE_DRAFT_SYSTEM_PROMPT,
+    parse_maintenance_draft_response,
+    parse_tenant_ai_response,
+)
+from apps.ai.tenant_context import build_tenant_context
 from apps.leases.models import Lease
 from apps.leases.template_views import _get_anthropic_api_key
 from apps.maintenance.models import MaintenanceRequest
 from core.anthropic_web_fetch import (
-    anthropic_web_fetch_enabled,
     build_web_fetch_tools,
     extract_anthropic_assistant_text,
 )
 from core.contract_rag import query_contracts
 from django.conf import settings
-
-from .ai_parsing import (
-    MAINTENANCE_DRAFT_SYSTEM_PROMPT,
-    parse_maintenance_draft_response,
-    parse_tenant_ai_response,
-)
-from .models import TenantAiConversation, TenantAiMessage
 
 AGENT_MODEL = "claude-sonnet-4-6"
 
@@ -38,6 +40,12 @@ TENANT_SYSTEM_PROMPT = """You are Tremly's AI assistant for residential tenants 
 You may receive **retrieved excerpts** from the landlord's document library (lease agreements, house rules, policies). \
 When you use them, mention the **source** path briefly. If excerpts do not answer the question, say so and suggest \
 practical next steps (e.g. log a repair in the app, email the agent, check the signed lease).
+
+**Brevity (important):** For simple FAQs — WiFi password, refuse day, parking rules, pool hours, “where do I find X” — keep the \
+**reply** in the JSON to **2–5 short sentences** (roughly **under ~120 words**). Be direct: say where to look first (welcome pack, \
+house rules, lease annexure, sticker on the router) and who to contact if it’s not there. **Do not** write long essays, full \
+router-admin tutorials, default-gateway explanations, or step-by-step networking guides unless the tenant explicitly asked for \
+that level of technical detail.
 
 **In-app repair form:** After a maintenance issue is recognized in this chat, the app shows a **Report maintenance issue** \
 button below the composer. Tapping it runs a second AI step that turns this conversation into a structured form \
@@ -54,7 +62,7 @@ and asks you to read it. Otherwise ask them to paste an official link if they wa
 **Maintenance tickets (required JSON output)**  
 You must answer in a way that the app can parse. Respond with **ONLY** valid JSON (no markdown fences), shape:
 {
-  "reply": "What you say to the tenant — clear, supportive prose; for emergencies tell them to call SAPS 10111 if a crime is in progress.",
+  "reply": "What you say to the tenant — clear and supportive; stay brief for simple FAQs (see Brevity). For emergencies tell them to call SAPS 10111 if a crime is in progress.",
   "conversation_title": null OR "Very short thread name for the chat list, e.g. Broken window",
   "maintenance_ticket": null OR {
     "title": "Short title for staff (max ~80 chars)",
@@ -129,18 +137,18 @@ def _is_generic_conv_title(title: str) -> bool:
     return (title or "").strip().lower() in ("ai assistant", "new conversation", "")
 
 
-def _maybe_update_conversation_title(
-    conv: TenantAiConversation,
+def _maybe_update_session_title(
+    session: TenantChatSession,
     ai_title: str | None,
     maintenance_ticket: dict | None,
 ) -> None:
     candidate = (ai_title or "").strip()[:200]
     if not candidate and maintenance_ticket:
         candidate = (maintenance_ticket.get("title") or "").strip()[:200]
-    if not candidate or not _is_generic_conv_title(conv.title):
+    if not candidate or not _is_generic_conv_title(session.title):
         return
-    TenantAiConversation.objects.filter(pk=conv.pk).update(title=candidate)
-    conv.title = candidate
+    TenantChatSession.objects.filter(pk=session.pk).update(title=candidate)
+    session.title = candidate
 
 
 def _guess_image_media_type(filename: str) -> str:
@@ -165,15 +173,41 @@ def _classify_upload(f) -> str | None:
     return None
 
 
-def _message_to_claude_user_content(msg: TenantAiMessage):
-    """String or list of blocks for Anthropic messages API."""
-    kind = (msg.attachment_kind or "").strip()
-    text = (msg.content or "").strip()
-    max_img = int(getattr(settings, "TENANT_AI_MAX_IMAGE_BYTES", 12 * 1024 * 1024))
+def _next_message_id(messages: list) -> int:
+    if not messages:
+        return 1
+    return max((int(m.get("id") or 0) for m in messages), default=0) + 1
 
-    if kind == "image" and msg.attachment:
+
+def _append_messages(session: TenantChatSession, *new: dict) -> None:
+    msgs = list(session.messages or [])
+    msgs.extend(new)
+    session.messages = msgs
+    session.save(update_fields=["messages", "updated_at"])
+
+
+def _store_tenant_upload(upload) -> str:
+    raw_name = (getattr(upload, "name", None) or "file").lower()
+    ext = ""
+    if "." in raw_name:
+        ext = "." + raw_name.rsplit(".", 1)[-1][:16]
+    key = f"tenant_ai/{timezone.now():%Y/%m}/{uuid.uuid4().hex}{ext}"
+    default_storage.save(key, ContentFile(upload.read()))
+    return key
+
+
+def _message_to_claude_user_content(msg: dict):
+    """String or list of blocks for Anthropic messages API."""
+    kind = (msg.get("attachment_kind") or "").strip()
+    text = (msg.get("content") or "").strip()
+    max_img = int(getattr(settings, "TENANT_AI_MAX_IMAGE_BYTES", 12 * 1024 * 1024))
+    storage_path = (msg.get("attachment_storage") or "").strip()
+
+    if kind == "image" and storage_path:
+        if not default_storage.exists(storage_path):
+            return text or "[Tenant attached a photo but it could not be read.]"
         try:
-            with msg.attachment.open("rb") as fh:
+            with default_storage.open(storage_path, "rb") as fh:
                 raw = fh.read()
         except OSError:
             return text or "[Tenant attached a photo but it could not be read.]"
@@ -183,7 +217,7 @@ def _message_to_claude_user_content(msg: TenantAiMessage):
                 + "\n\n[Photo too large for AI preview — staff can view the file in the portal.]"
             ).strip()
         b64 = base64.standard_b64encode(raw).decode("ascii")
-        mt = _guess_image_media_type(msg.attachment.name)
+        mt = _guess_image_media_type(storage_path)
         caption = text or "(Tenant attached a photo.)"
         return [
             {
@@ -193,8 +227,8 @@ def _message_to_claude_user_content(msg: TenantAiMessage):
             {"type": "text", "text": caption},
         ]
 
-    if kind == "video" and msg.attachment:
-        name = (msg.attachment.name or "video").split("/")[-1]
+    if kind == "video" and storage_path:
+        name = storage_path.split("/")[-1]
         note = (
             f"\n\n[The tenant attached a video file ({name}). You cannot watch video — "
             f"rely on their message and suggest staff review the recording in the portal if needed.]"
@@ -209,17 +243,23 @@ def _message_to_claude_user_content(msg: TenantAiMessage):
     return text if text else "."
 
 
-def _serialize_message(m: TenantAiMessage, request) -> dict:
-    out = {"id": m.id, "role": m.role, "content": m.content}
-    if m.attachment:
-        url = m.attachment.url
+def _serialize_stored_message(msg: dict, request) -> dict:
+    out = {
+        "id": msg.get("id"),
+        "role": msg.get("role"),
+        "content": msg.get("content") or "",
+    }
+    path = (msg.get("attachment_storage") or "").strip()
+    k = msg.get("attachment_kind") or ""
+    if path:
+        url = default_storage.url(path)
         if request:
             url = request.build_absolute_uri(url)
         out["attachment_url"] = url
-        out["attachment_kind"] = m.attachment_kind or ""
+        out["attachment_kind"] = k
     else:
         out["attachment_url"] = None
-        out["attachment_kind"] = m.attachment_kind or ""
+        out["attachment_kind"] = k
     return out
 
 
@@ -253,27 +293,44 @@ def _create_mr_from_chat(user, ticket: dict, fallback_description: str) -> Maint
     )
 
 
-def _conversation_for_user(request, pk: int) -> TenantAiConversation:
-    return get_object_or_404(TenantAiConversation, pk=pk, user=request.user)
+def _session_for_user(request, pk: int) -> TenantChatSession:
+    return get_object_or_404(TenantChatSession, pk=pk, user=request.user)
 
 
-def _touch_conversation(conv: TenantAiConversation) -> None:
-    TenantAiConversation.objects.filter(pk=conv.pk).update(updated_at=timezone.now())
+def _touch_session(session: TenantChatSession) -> None:
+    TenantChatSession.objects.filter(pk=session.pk).update(updated_at=timezone.now())
+
+
+def _conversation_transcript_for_draft(session: TenantChatSession) -> str:
+    lines = []
+    for m in session.messages or []:
+        label = "Tenant" if m.get("role") == "user" else "Assistant"
+        suffix = ""
+        k = (m.get("attachment_kind") or "").strip()
+        if k == "image":
+            suffix = " [Photo attached]"
+        elif k == "video":
+            suffix = " [Video attached]"
+        text = (m.get("content") or "").strip()
+        lines.append(f"{label}: {text}{suffix}")
+    return "\n".join(lines)
 
 
 class TenantConversationsListCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = TenantAiConversation.objects.filter(user=request.user).order_by("-updated_at")
+        qs = TenantChatSession.objects.filter(user=request.user).order_by("-updated_at")
         out = []
         for c in qs:
-            last = c.messages.order_by("-created_at").first()
+            mlist = c.messages or []
+            last = mlist[-1] if mlist else None
+            last_text = (last.get("content") or "")[:200] if last else ""
             out.append(
                 {
                     "id": c.id,
                     "title": c.title,
-                    "last_message": (last.content[:200] if last else ""),
+                    "last_message": last_text,
                     "updated_at": c.updated_at.isoformat(),
                 }
             )
@@ -281,7 +338,7 @@ class TenantConversationsListCreateView(APIView):
 
     def post(self, request):
         title = (request.data.get("title") or "").strip() or "New conversation"
-        c = TenantAiConversation.objects.create(user=request.user, title=title)
+        c = TenantChatSession.objects.create(user=request.user, title=title, messages=[])
         return Response(
             {
                 "id": c.id,
@@ -297,34 +354,18 @@ class TenantConversationDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk: int):
-        c = _conversation_for_user(request, pk)
-        msgs = [
-            _serialize_message(m, request)
-            for m in c.messages.all()
-        ]
+        c = _session_for_user(request, pk)
+        msgs = [_serialize_stored_message(m, request) for m in (c.messages or [])]
         return Response(
             {
                 "id": c.id,
                 "title": c.title,
                 "maintenance_report_suggested": c.maintenance_report_suggested,
+                "maintenance_request_id": c.maintenance_request_id,
+                "agent_question_id": c.agent_question_id,
                 "messages": msgs,
             }
         )
-
-
-def _conversation_transcript_for_draft(conv: TenantAiConversation) -> str:
-    lines = []
-    for m in conv.messages.order_by("created_at"):
-        label = "Tenant" if m.role == "user" else "Assistant"
-        suffix = ""
-        k = (m.attachment_kind or "").strip()
-        if k == "image":
-            suffix = " [Photo attached]"
-        elif k == "video":
-            suffix = " [Video attached]"
-        text = (m.content or "").strip()
-        lines.append(f"{label}: {text}{suffix}")
-    return "\n".join(lines)
 
 
 class TenantConversationMaintenanceDraftView(APIView):
@@ -333,7 +374,7 @@ class TenantConversationMaintenanceDraftView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk: int):
-        c = _conversation_for_user(request, pk)
+        c = _session_for_user(request, pk)
         if not c.maintenance_report_suggested:
             return Response(
                 {
@@ -415,17 +456,31 @@ class TenantConversationMessageCreateView(APIView):
         if upload and not content:
             content = "(Photo attached)" if kind == "image" else "(Video attached)"
 
-        c = _conversation_for_user(request, pk)
-        user_msg = TenantAiMessage(
-            conversation=c,
-            role="user",
-            content=content,
-            attachment_kind=kind,
-        )
+        session = _session_for_user(request, pk)
+        storage_path = ""
         if upload:
-            user_msg.attachment = upload
-        user_msg.save()
-        _touch_conversation(c)
+            storage_path = _store_tenant_upload(upload)
+
+        now = timezone.now()
+        uid = _next_message_id(session.messages or [])
+        user_msg = {
+            "id": uid,
+            "role": "user",
+            "content": content,
+            "created_at": now.isoformat(),
+            "attachment_kind": kind,
+        }
+        if storage_path:
+            user_msg["attachment_storage"] = storage_path
+        _append_messages(session, user_msg)
+        session.refresh_from_db(fields=["messages", "updated_at"])
+        _touch_session(session)
+
+        def _linked_payload():
+            return {
+                "maintenance_request_id": session.maintenance_request_id,
+                "agent_question_id": session.agent_question_id,
+            }
 
         api_key = _get_anthropic_api_key()
         if not api_key:
@@ -433,44 +488,54 @@ class TenantConversationMessageCreateView(APIView):
                 "The AI assistant is not available right now (server configuration). "
                 "Please try again later or contact your property manager."
             )
-            ai_msg = TenantAiMessage.objects.create(
-                conversation=c, role="assistant", content=sorry
-            )
-            _touch_conversation(c)
+            aid = _next_message_id(session.messages or [])
+            ai_msg = {
+                "id": aid,
+                "role": "assistant",
+                "content": sorry,
+                "created_at": timezone.now().isoformat(),
+                "attachment_kind": "",
+            }
+            _append_messages(session, ai_msg)
+            session.refresh_from_db(fields=["messages", "updated_at"])
+            _touch_session(session)
+            update_tenant_intel(request.user, session)
             return Response(
                 {
-                    "user_message": _serialize_message(user_msg, request),
+                    "user_message": _serialize_stored_message(user_msg, request),
                     "ai_message": {
-                        "id": ai_msg.id,
+                        "id": ai_msg["id"],
                         "role": "assistant",
                         "content": sorry,
                         "attachment_url": None,
                         "attachment_kind": "",
                     },
-                    "conversation": {"id": c.id, "title": c.title},
+                    "conversation": {"id": session.id, "title": session.title},
                     "maintenance_request": None,
-                    "maintenance_report_suggested": c.maintenance_report_suggested,
+                    "maintenance_report_suggested": session.maintenance_report_suggested,
+                    **_linked_payload(),
                 }
             )
 
         n_chunks = int(getattr(settings, "RAG_QUERY_CHUNKS", 8))
-        rag_text = query_contracts(user_msg.content, n_results=n_chunks)
+        rag_text = query_contracts(content, n_results=n_chunks)
         context_block = (
             "--- RETRIEVED DOCUMENT EXCERPTS (vector search) ---\n"
             f"{rag_text or '(No chunks retrieved.)'}\n"
         )
-        system = f"{TENANT_SYSTEM_PROMPT}\n\n{context_block}"
+        tenant_ctx = build_tenant_context(request.user)
+        system = TENANT_SYSTEM_PROMPT
+        if tenant_ctx:
+            system = f"{system}\n\n{tenant_ctx}"
+        system = f"{system}\n\n{context_block}"
 
-        prior = list(
-            c.messages.filter(created_at__lte=user_msg.created_at).order_by(
-                "created_at"
-            )
-        )
         anthropic_messages = []
-        for m in prior:
-            api_role = "assistant" if m.role == "assistant" else "user"
+        for m in session.messages or []:
+            api_role = "assistant" if m.get("role") == "assistant" else "user"
             if api_role == "assistant":
-                anthropic_messages.append({"role": "assistant", "content": m.content})
+                anthropic_messages.append(
+                    {"role": "assistant", "content": (m.get("content") or "").strip()}
+                )
             else:
                 block = _message_to_claude_user_content(m)
                 anthropic_messages.append({"role": "user", "content": block})
@@ -500,10 +565,10 @@ class TenantConversationMessageCreateView(APIView):
             raw_ai
         )
 
-        _maybe_update_conversation_title(c, conv_title, maintenance_ticket)
+        _maybe_update_session_title(session, conv_title, maintenance_ticket)
 
         created_mr: MaintenanceRequest | None = None
-        ticket_context = user_msg.content
+        ticket_context = content
         if json_ok and maintenance_ticket and (maintenance_ticket.get("title") or "").strip():
             created_mr = _create_mr_from_chat(
                 request.user, maintenance_ticket, ticket_context
@@ -520,34 +585,52 @@ class TenantConversationMessageCreateView(APIView):
             )
             if note.strip() not in reply_text:
                 reply_text = reply_text + note
+            TenantChatSession.objects.filter(pk=session.pk).update(
+                maintenance_request_id=created_mr.id
+            )
+            session.maintenance_request_id = created_mr.id
 
         maintenance_issue_identified = bool(created_mr) or (
             json_ok
             and maintenance_ticket is not None
             and bool((maintenance_ticket.get("title") or "").strip())
         )
-        if maintenance_issue_identified and not c.maintenance_report_suggested:
-            TenantAiConversation.objects.filter(pk=c.pk).update(
+        if maintenance_issue_identified and not session.maintenance_report_suggested:
+            TenantChatSession.objects.filter(pk=session.pk).update(
                 maintenance_report_suggested=True
             )
-            c.maintenance_report_suggested = True
-        maintenance_report_suggested = c.maintenance_report_suggested
+            session.maintenance_report_suggested = True
+        maintenance_report_suggested = session.maintenance_report_suggested
 
-        ai_msg = TenantAiMessage.objects.create(
-            conversation=c, role="assistant", content=reply_text
+        aid = _next_message_id(session.messages or [])
+        ai_msg = {
+            "id": aid,
+            "role": "assistant",
+            "content": reply_text,
+            "created_at": timezone.now().isoformat(),
+            "attachment_kind": "",
+        }
+        _append_messages(session, ai_msg)
+        session.refresh_from_db(fields=["messages", "updated_at"])
+        _touch_session(session)
+
+        update_tenant_intel(
+            request.user,
+            session,
+            maintenance_ticket=maintenance_ticket,
+            json_ok=json_ok,
         )
-        _touch_conversation(c)
 
         payload = {
-            "user_message": _serialize_message(user_msg, request),
+            "user_message": _serialize_stored_message(user_msg, request),
             "ai_message": {
-                "id": ai_msg.id,
+                "id": ai_msg["id"],
                 "role": "assistant",
                 "content": reply_text,
                 "attachment_url": None,
                 "attachment_kind": "",
             },
-            "conversation": {"id": c.id, "title": c.title},
+            "conversation": {"id": session.id, "title": session.title},
             "maintenance_request": (
                 {
                     "id": created_mr.id,
@@ -559,5 +642,6 @@ class TenantConversationMessageCreateView(APIView):
                 else None
             ),
             "maintenance_report_suggested": maintenance_report_suggested,
+            **_linked_payload(),
         }
         return Response(payload)

@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
+import '../../widgets/app_header.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -13,52 +17,41 @@ class SettingsScreen extends StatelessWidget {
     final user = auth.user;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       body: Column(
         children: [
-          Container(
-            color: AppColors.primaryNavy,
-            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 24),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 28,
-                  backgroundColor: Colors.white24,
-                  child: Text(
-                    user?.fullName.isNotEmpty == true ? user!.fullName[0].toUpperCase() : '?',
-                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(user?.fullName ?? '—', style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
-                      Text(user?.email ?? '', style: const TextStyle(color: Colors.white60, fontSize: 13)),
-                    ],
-                  ),
-                ),
-              ],
+          AppHeader(
+            title: user?.fullName ?? '—',
+            subtitle: user?.email ?? '',
+            leading: CircleAvatar(
+              radius: 28,
+              backgroundColor: Colors.white24,
+              child: Text(
+                user?.fullName.isNotEmpty == true ? user!.fullName[0].toUpperCase() : '?',
+                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
           Expanded(
             child: ListView(
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.xl),
                 _section('Account', [
                   _tile(Icons.person_outline_rounded, 'Name', user?.fullName ?? '—'),
                   _tile(Icons.email_outlined, 'Email', user?.email ?? '—'),
                   _tile(Icons.badge_outlined, 'Role', user?.role ?? '—'),
                 ]),
-                const SizedBox(height: 20),
+                const SizedBox(height: AppSpacing.xl),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: AppSpacing.screenPadding,
                   child: ListTile(
                     tileColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                    leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-                    title: const Text('Log out', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: AppRadius.cardBorder,
+                      side: const BorderSide(color: AppColors.border),
+                    ),
+                    leading: const Icon(Icons.logout_rounded, color: AppColors.danger500),
+                    title: const Text('Log out', style: TextStyle(color: AppColors.danger500, fontWeight: FontWeight.w600)),
                     onTap: () async {
                       await context.read<AuthProvider>().logout();
                       if (context.mounted) context.go('/login');
@@ -75,18 +68,33 @@ class SettingsScreen extends StatelessWidget {
 
   Widget _section(String title, List<Widget> tiles) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: AppSpacing.screenPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8),
-            child: Text(title.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textSecondary, letterSpacing: 1)),
+            padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
+            child: Text(title.toUpperCase(), style: AppTextStyles.sectionLabel),
           ),
           Material(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            child: Column(children: tiles),
+            borderRadius: AppRadius.cardBorder,
+            clipBehavior: Clip.antiAlias,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: AppRadius.cardBorder,
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < tiles.length; i++) ...[
+                    tiles[i],
+                    if (i < tiles.length - 1)
+                      const Divider(height: 1, indent: 56, color: AppColors.divider),
+                  ],
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -96,8 +104,8 @@ class SettingsScreen extends StatelessWidget {
   Widget _tile(IconData icon, String label, String value) {
     return ListTile(
       leading: Icon(icon, color: AppColors.primaryNavy, size: 20),
-      title: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-      subtitle: Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E))),
+      title: Text(label, style: AppTextStyles.cardLabel),
+      subtitle: Text(value, style: AppTextStyles.cardTitle),
     );
   }
 }

@@ -1,20 +1,8 @@
 <template>
   <div class="space-y-5">
     <div class="flex items-center justify-between">
-      <div class="flex gap-2">
-        <button
-          v-for="f in statusFilters"
-          :key="f.value"
-          @click="activeFilter = f.value; loadSuppliers()"
-          class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
-          :class="activeFilter === f.value
-            ? 'bg-navy text-white'
-            : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-        >
-          {{ f.label }}
-        </button>
-      </div>
-      <div class="flex gap-2">
+      <p class="text-sm text-gray-500">Manage your approved supplier network and trade specialisations.</p>
+      <div class="flex items-center gap-2 flex-shrink-0">
         <label class="btn-ghost cursor-pointer text-sm">
           <Upload :size="14" /> Import Excel
           <input type="file" accept=".xlsx,.xls" class="hidden" @change="importExcel" />
@@ -24,6 +12,8 @@
         </button>
       </div>
     </div>
+
+    <FilterPills v-model="activeFilter" :options="tabOptions" @update:modelValue="loadSuppliers()" />
 
     <!-- Import results banner -->
     <div v-if="importResult" class="card p-4 flex items-center justify-between"
@@ -39,10 +29,7 @@
 
     <div class="card">
       <div class="px-4 pt-4 pb-3 border-b border-gray-100">
-        <div class="relative max-w-xs">
-          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input v-model="search" class="input pl-8" placeholder="Search suppliers…" />
-        </div>
+        <SearchInput v-model="search" placeholder="Search suppliers…" />
       </div>
 
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
@@ -74,7 +61,7 @@
             </td>
             <td>
               <div class="text-sm text-gray-700">{{ s.city || '—' }}</div>
-              <div v-if="s.latitude && s.longitude" class="text-[10px] text-gray-400 mt-0.5 font-mono">
+              <div v-if="s.latitude && s.longitude" class="text-micro text-gray-400 mt-0.5 font-mono">
                 {{ Number(s.latitude).toFixed(4) }}, {{ Number(s.longitude).toFixed(4) }}
               </div>
             </td>
@@ -83,7 +70,7 @@
                 <span
                   v-for="t in s.trades"
                   :key="t.id"
-                  class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700"
+                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-blue-50 text-blue-700"
                 >
                   {{ t.label }}
                 </span>
@@ -102,8 +89,8 @@
               <span v-else class="text-xs text-gray-400">0</span>
             </td>
             <td>
-              <span v-if="s.has_bank_confirmation" class="badge-green text-[10px]">Confirmed</span>
-              <span v-else class="badge-amber text-[10px]">Missing</span>
+              <span v-if="s.has_bank_confirmation" class="badge-green text-micro">Confirmed</span>
+              <span v-else class="badge-amber text-micro">Missing</span>
             </td>
             <td>
               <span :class="s.is_active ? 'badge-green' : 'badge-gray'">
@@ -119,15 +106,8 @@
     </div>
 
     <!-- Create / Edit Dialog -->
-    <Teleport to="body">
-      <div v-if="dialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="dialog = false" />
-        <div class="relative card w-full max-w-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="font-semibold text-gray-900">{{ editing ? 'Edit Supplier' : 'Add Supplier' }}</h2>
-            <button @click="dialog = false" class="text-gray-400 hover:text-gray-600"><X :size="18" /></button>
-          </div>
-
+    <BaseModal :open="dialog" :title="editing ? 'Edit Supplier' : 'Add Supplier'" size="lg" @close="dialog = false">
+          <div class="space-y-4">
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="label">Contact person *</label>
@@ -253,33 +233,30 @@
             <textarea v-model="form.notes" class="input" rows="2" placeholder="Additional notes…"></textarea>
           </div>
 
-          <div class="flex justify-end gap-2 pt-2">
+          </div>
+
+          <template #footer>
             <button class="btn-ghost" @click="dialog = false">Cancel</button>
             <button class="btn-primary" :disabled="saving || !form.name || !form.phone" @click="saveSupplier">
               <Loader2 v-if="saving" :size="14" class="animate-spin" />
               {{ editing ? 'Save Changes' : 'Create Supplier' }}
             </button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+          </template>
+    </BaseModal>
 
     <!-- Detail slide-over (right panel) -->
-    <Teleport to="body">
-      <div v-if="detail" class="fixed inset-0 z-50 flex justify-end">
-        <div class="absolute inset-0 bg-black/30" @click="detail = null" />
-        <div class="relative w-full max-w-xl bg-white shadow-xl overflow-y-auto">
+    <BaseDrawer :open="!!detail" title="Supplier Details" size="xl" @close="detail = null">
           <div class="p-6 space-y-5">
             <!-- Header -->
             <div class="flex items-start justify-between">
               <div>
-                <h2 class="text-lg font-semibold text-gray-900">{{ detail.company_name || detail.name }}</h2>
-                <p v-if="detail.company_name" class="text-sm text-gray-500">{{ detail.name }}</p>
+                <h2 class="text-lg font-semibold text-gray-900">{{ detail?.company_name || detail?.name }}</h2>
+                <p v-if="detail?.company_name" class="text-sm text-gray-500">{{ detail.name }}</p>
                 <div class="flex items-center gap-3 mt-2 text-sm text-gray-600">
-                  <span v-if="detail.phone">{{ detail.phone }}</span>
-                  <span v-if="detail.email">{{ detail.email }}</span>
+                  <span v-if="detail?.phone">{{ detail.phone }}</span>
+                  <span v-if="detail?.email">{{ detail.email }}</span>
                 </div>
-                <a v-if="detail.website" :href="detail.website" target="_blank"
+                <a v-if="detail?.website" :href="detail.website" target="_blank"
                   class="text-xs text-navy hover:underline mt-1 inline-block">
                   {{ detail.website }}
                 </a>
@@ -289,26 +266,25 @@
                   class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100">
                   <Pencil :size="14" />
                 </button>
-                <button @click="detail = null" class="text-gray-400 hover:text-gray-600"><X :size="18" /></button>
               </div>
             </div>
 
             <!-- Trades -->
             <div class="flex flex-wrap gap-1.5">
-              <span v-for="t in detail.trades" :key="t.id"
+              <span v-for="t in detail?.trades" :key="t.id"
                 class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
                 {{ t.label }}
               </span>
             </div>
 
             <!-- Address + Map -->
-            <div v-if="detail.city || detail.address" class="border-t border-gray-100 pt-4">
+            <div v-if="detail?.city || detail?.address" class="border-t border-gray-100 pt-4">
               <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Address</h3>
-              <p class="text-sm text-gray-700">{{ detail.address }}</p>
-              <p class="text-sm text-gray-500">{{ [detail.city, detail.province].filter(Boolean).join(', ') }}</p>
-              <div v-if="detail.latitude && detail.longitude" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-40">
+              <p class="text-sm text-gray-700">{{ detail?.address }}</p>
+              <p class="text-sm text-gray-500">{{ [detail?.city, detail?.province].filter(Boolean).join(', ') }}</p>
+              <div v-if="detail?.latitude && detail?.longitude" class="mt-3 rounded-lg overflow-hidden border border-gray-200 h-40">
                 <iframe
-                  :src="`https://www.google.com/maps?q=${detail.latitude},${detail.longitude}&z=14&output=embed`"
+                  :src="`https://www.google.com/maps?q=${detail?.latitude},${detail?.longitude}&z=14&output=embed`"
                   class="w-full h-full border-0" loading="lazy"
                 ></iframe>
               </div>
@@ -356,15 +332,15 @@
               <div class="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span class="text-gray-400 text-xs">Bank</span>
-                  <p class="text-gray-800">{{ detail.bank_name || '—' }}</p>
+                  <p class="text-gray-800">{{ detail?.bank_name || '—' }}</p>
                 </div>
                 <div>
                   <span class="text-gray-400 text-xs">Account</span>
-                  <p class="text-gray-800">{{ detail.account_number || '—' }}</p>
+                  <p class="text-gray-800">{{ detail?.account_number || '—' }}</p>
                 </div>
               </div>
               <div class="mt-2">
-                <span v-if="detail.has_bank_confirmation" class="badge-green text-xs">Bank confirmation on file</span>
+                <span v-if="detail?.has_bank_confirmation" class="badge-green text-xs">Bank confirmation on file</span>
                 <span v-else class="badge-amber text-xs">No bank confirmation</span>
               </div>
             </div>
@@ -412,7 +388,7 @@
                   <div>
                     <span class="text-sm font-medium text-gray-700">{{ lnk.property_name }}</span>
                     <span class="text-xs text-gray-400 ml-2">{{ lnk.property_city }}</span>
-                    <span v-if="lnk.is_preferred" class="badge-blue text-[10px] ml-2">Preferred</span>
+                    <span v-if="lnk.is_preferred" class="badge-blue text-micro ml-2">Preferred</span>
                   </div>
                   <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
                 </div>
@@ -426,17 +402,17 @@
               <div class="grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <span class="text-gray-400 text-xs">BEE</span>
-                  <p class="text-gray-800">{{ detail.bee_level || '—' }}</p>
+                  <p class="text-gray-800">{{ detail?.bee_level || '—' }}</p>
                 </div>
                 <div>
                   <span class="text-gray-400 text-xs">CIDB</span>
-                  <p class="text-gray-800">{{ detail.cidb_grading || '—' }}</p>
+                  <p class="text-gray-800">{{ detail?.cidb_grading || '—' }}</p>
                 </div>
                 <div>
                   <span class="text-gray-400 text-xs">Rating</span>
                   <p class="text-gray-800 flex items-center gap-1">
-                    <Star v-if="detail.rating" :size="12" class="text-amber-400 fill-amber-400" />
-                    {{ detail.rating ?? '—' }}
+                    <Star v-if="detail?.rating" :size="12" class="text-amber-400 fill-amber-400" />
+                    {{ detail?.rating ?? '—' }}
                   </p>
                 </div>
               </div>
@@ -449,16 +425,11 @@
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    </Teleport>
+    </BaseDrawer>
 
     <!-- Property Group create dialog -->
-    <Teleport to="body">
-      <div v-if="groupDialog" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="groupDialog = false" />
-        <div class="relative card w-full max-w-md p-6 space-y-4">
-          <h2 class="font-semibold text-gray-900">Create Property Group</h2>
+    <BaseModal :open="groupDialog" title="Create Property Group" size="md" @close="groupDialog = false">
+          <div class="space-y-4">
           <div>
             <label class="label">Group name</label>
             <input v-model="newGroup.name" class="input" placeholder="e.g. Welgevonden, Premium >R10m" />
@@ -476,13 +447,12 @@
               </label>
             </div>
           </div>
-          <div class="flex justify-end gap-2 pt-2">
+          </div>
+          <template #footer>
             <button class="btn-ghost" @click="groupDialog = false">Cancel</button>
             <button class="btn-primary" :disabled="!newGroup.name" @click="createGroup">Create Group</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+          </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -490,9 +460,16 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
-  Plus, Search, X, Loader2, Pencil, Star, Trash2, MapPin,
+  Plus, X, Loader2, Pencil, Star, Trash2, MapPin,
   Upload, FileText, ExternalLink, Layers,
 } from 'lucide-vue-next'
+import SearchInput from '../../components/SearchInput.vue'
+import FilterPills from '../../components/FilterPills.vue'
+import BaseDrawer from '../../components/BaseDrawer.vue'
+import BaseModal from '../../components/BaseModal.vue'
+import { useToast } from '../../composables/useToast'
+
+const toast = useToast()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -521,7 +498,7 @@ const propertyGroups = ref<any[]>([])
 const groupDialog = ref(false)
 const newGroup = ref({ name: '', description: '', property_ids: [] as number[] })
 
-const statusFilters = [
+const tabOptions = [
   { label: 'All', value: 'all' },
   { label: 'Active', value: 'active' },
   { label: 'Inactive', value: 'inactive' },
@@ -673,7 +650,10 @@ async function saveSupplier() {
     }
     dialog.value = false
     form.value = emptyForm()
+    toast.success('Supplier saved')
     await loadSuppliers()
+  } catch (err: any) {
+    toast.error(err.response?.data?.detail || 'Failed to save supplier')
   } finally {
     saving.value = false
   }
@@ -766,9 +746,11 @@ async function importExcel(e: Event) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     importResult.value = data
+    toast.success(`Imported ${data.created} suppliers`)
     await loadSuppliers()
   } catch (err: any) {
     importResult.value = { created: 0, errors: [err.response?.data?.detail || 'Import failed'] }
+    toast.error(err.response?.data?.detail || 'Import failed')
   }
   (e.target as HTMLInputElement).value = ''
 }

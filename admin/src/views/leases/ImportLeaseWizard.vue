@@ -223,14 +223,14 @@
               </div>
               <!-- Tenant 1 (primary — first signatory) -->
               <div class="relative border border-navy/20 rounded-xl p-4 bg-navy/5">
-                <span class="absolute top-3 left-4 text-[10px] font-semibold text-navy/50 uppercase tracking-wide">Tenant 1</span>
+                <span class="absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide">Tenant 1</span>
                 <div class="pt-4">
                   <PersonBlock v-model="form.primary_tenant" />
                 </div>
               </div>
               <!-- Tenant 2, 3, 4 -->
               <div v-for="(ct, i) in form.co_tenants" :key="i" class="relative border border-navy/20 rounded-xl p-4 bg-navy/5">
-                <span class="absolute top-3 left-4 text-[10px] font-semibold text-navy/50 uppercase tracking-wide">Tenant {{ i + 2 }}</span>
+                <span class="absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide">Tenant {{ i + 2 }}</span>
                 <button @click="form.co_tenants.splice(i, 1)" class="absolute top-2.5 right-3 text-gray-400 hover:text-red-500"><X :size="14" /></button>
                 <div class="pt-4">
                   <PersonBlock v-model="form.co_tenants[i]" compact />

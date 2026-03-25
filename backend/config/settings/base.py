@@ -43,7 +43,9 @@ LOCAL_APPS = [
     "apps.leases",
     "apps.maintenance",
     "apps.esigning",
+    "apps.ai",
     "apps.tenant_portal",
+    "apps.notifications",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -179,3 +181,35 @@ ANTHROPIC_WEB_FETCH_ENABLED = config(
 DOCUSEAL_API_URL        = config("DOCUSEAL_API_URL", default="https://api.docuseal.com")
 DOCUSEAL_API_KEY        = config("DOCUSEAL_API_KEY", default="")
 DOCUSEAL_WEBHOOK_SECRET = config("DOCUSEAL_WEBHOOK_SECRET", default="")
+# If set, verify webhook with this header == DOCUSEAL_WEBHOOK_SECRET (DocuSeal “Add secret” key/value mode).
+DOCUSEAL_WEBHOOK_HEADER_NAME = config("DOCUSEAL_WEBHOOK_HEADER_NAME", default="").strip()
+# Optional: DocuSeal admin URL to configure webhooks (UI only; DocuSeal POSTs to Tremly, not here).
+DOCUSEAL_HOOK_URL = config("DOCUSEAL_HOOK_URL", default="").strip().rstrip("/")
+# Public URL DocuSeal must call (HTTPS). If empty, staff API falls back to the current request host.
+ESIGNING_WEBHOOK_PUBLIC_URL = config("ESIGNING_WEBHOOK_PUBLIC_URL", default="").strip().rstrip("/")
+
+# Passwordless signing page (admin SPA /sign/<uuid>/) — full URL for SMS/email if set
+ESIGNING_PUBLIC_LINK_EXPIRY_DAYS = config("ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", default=14, cast=int)
+SIGNING_PUBLIC_APP_BASE_URL = config("SIGNING_PUBLIC_APP_BASE_URL", default="").strip().rstrip("/")
+
+# Email (Django) — Gmail: smtp.gmail.com:587 + app password; see apps/notifications/NOTIFICATIONS.md
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = config("EMAIL_HOST", default="localhost")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+
+# SMS / WhatsApp (Twilio)
+TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")
+TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default="")
+TWILIO_SMS_FROM = config("TWILIO_SMS_FROM", default="")
+TWILIO_WHATSAPP_FROM = config("TWILIO_WHATSAPP_FROM", default="")
+
+# apps.notifications — phone normalization when number has leading 0 (e.g. SA)
+NOTIFICATIONS_DEFAULT_DIAL_CODE = config("NOTIFICATIONS_DEFAULT_DIAL_CODE", default="+27")
+NOTIFICATIONS_ENABLE_LOG = config("NOTIFICATIONS_ENABLE_LOG", default=True, cast=bool)

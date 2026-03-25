@@ -1,12 +1,9 @@
 <template>
   <div class="space-y-6">
-    <div>
-      <div class="text-lg font-semibold text-gray-900">Skill Library</div>
-      <p class="text-sm text-gray-500 mt-1">
-        Maintenance skills in the database. Use the agent below to query <strong>vectorized contracts</strong> from
-        <code class="text-xs bg-gray-100 px-1 rounded">backend/documents</code> plus skill context.
-      </p>
-    </div>
+    <p class="text-sm text-gray-500">
+      Maintenance skills in the database. Use the agent below to query <strong>vectorized contracts</strong> from
+      <code class="text-xs bg-gray-100 px-1 rounded">backend/documents</code> plus skill context.
+    </p>
 
     <div class="card p-4 space-y-3">
       <div class="flex flex-wrap items-center justify-between gap-2">

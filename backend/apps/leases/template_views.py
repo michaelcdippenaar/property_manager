@@ -1174,11 +1174,7 @@ class ExportTemplatePDFView(APIView):
     _PDF_CSS = """
         @page {
             size: A4;
-            margin-top: 2.8cm; margin-bottom: 2.2cm; margin-left: 2cm; margin-right: 2cm;
-            @top-left   { content: element(hdr-left);  font-size: 9pt; color: #666; }
-            @top-right  { content: element(hdr-right); font-size: 9pt; color: #222; font-weight: bold; }
-            @bottom-left  { content: element(ftr-left);  font-size: 8pt; color: #888; }
-            @bottom-right { content: counter(page); font-size: 8pt; color: #888; }
+            margin: 2.8cm 2cm 2.2cm 2cm;
         }
         body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #111; }
         h1 { font-size: 14pt; font-weight: bold; text-align: center; margin: 14pt 0 6pt; }
@@ -1193,10 +1189,11 @@ class ExportTemplatePDFView(APIView):
         .merge-field { border-bottom: 1px solid #555; padding: 0 2pt; min-width: 60pt; display: inline-block; color: #333; }
         .ai-comment { background: #fffbe6; border-left: 3px solid #f59e0b; padding: 4pt 8pt; margin: 6pt 0; font-size: 9pt; color: #92400e; }
         [data-page-break] { page-break-after: always; display: block; height: 0; }
-        /* Running header/footer elements (xhtml2pdf) */
-        #pdf-hdr-left  { position: running(hdr-left); }
-        #pdf-hdr-right { position: running(hdr-right); }
-        #pdf-ftr-left  { position: running(ftr-left); }
+        .pdf-header { width: 100%; border-bottom: 1px solid #ddd; padding-bottom: 4pt; margin-bottom: 8pt; overflow: hidden; }
+        .pdf-header-left  { float: left;  font-size: 9pt; color: #666; }
+        .pdf-header-right { float: right; font-size: 9pt; color: #222; font-weight: bold; }
+        .pdf-footer { width: 100%; border-top: 1px solid #ddd; padding-top: 4pt; margin-top: 8pt; overflow: hidden; }
+        .pdf-footer-left  { float: left;  font-size: 8pt; color: #888; }
     """
 
     def get(self, request, pk):
@@ -1230,21 +1227,25 @@ class ExportTemplatePDFView(APIView):
             html_body, flags=re.DOTALL,
         )
 
-        # Build header/footer running elements from template settings
         hdr_left  = tmpl.header_html or tmpl.name
         hdr_right = '<strong style="font-size:14pt;color:#1e3a5f;font-family:Georgia,serif;">k.</strong>'
         ftr_left  = tmpl.footer_html or ""
 
-        running_els = (
-            f'<div id="pdf-hdr-left">{hdr_left}</div>'
-            f'<div id="pdf-hdr-right">{hdr_right}</div>'
-            + (f'<div id="pdf-ftr-left">{ftr_left}</div>' if ftr_left else '')
+        header_div = (
+            '<div class="pdf-header">'
+            f'<span class="pdf-header-left">{hdr_left}</span>'
+            f'<span class="pdf-header-right">{hdr_right}</span>'
+            '</div>'
+        )
+        footer_div = (
+            f'<div class="pdf-footer"><span class="pdf-footer-left">{ftr_left}</span></div>'
+            if ftr_left else ''
         )
 
         full_html = (
             "<!DOCTYPE html><html><head>"
             f'<meta charset="UTF-8"><style>{self._PDF_CSS}</style>'
-            f"</head><body>{running_els}{html_body}</body></html>"
+            f"</head><body>{header_div}{html_body}{footer_div}</body></html>"
         )
 
         try:

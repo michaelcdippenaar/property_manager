@@ -7,40 +7,98 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-DOCUSEAL_API_URL = getattr(settings, 'DOCUSEAL_API_URL', 'https://api.docuseal.com')
-DOCUSEAL_API_KEY = getattr(settings, 'DOCUSEAL_API_KEY', '')
+
+def _docuseal_headers():
+    key = (getattr(settings, 'DOCUSEAL_API_KEY', '') or '').strip()
+    if not key:
+        raise ValueError(
+            'DOCUSEAL_API_KEY is empty. Set it in backend/.env to the API token from your DocuSeal '
+            'instance (same token that works in Postman), then restart Django.'
+        )
+    return {'X-Auth-Token': key, 'Content-Type': 'application/json'}
 
 
-def _headers():
-    return {'X-Auth-Token': DOCUSEAL_API_KEY, 'Content-Type': 'application/json'}
-
-
-def _docuseal_post(path, payload):
-    url = f"{DOCUSEAL_API_URL.rstrip('/')}{path}"
-    resp = requests.post(url, headers=_headers(), json=payload, timeout=30)
+def _docuseal_post(path, payload, *, timeout=30):
+    base = getattr(settings, 'DOCUSEAL_API_URL', 'https://api.docuseal.com').rstrip('/')
+    url = f"{base}{path}"
+    resp = requests.post(url, headers=_docuseal_headers(), json=payload, timeout=timeout)
+    if not resp.ok:
+        body = (resp.text or '')[:2000]
+        logger.error('DocuSeal API error %s %s — %s', resp.status_code, url, body)
     resp.raise_for_status()
     return resp.json()
 
 
-def upload_pdf_template(pdf_bytes: bytes, name: str) -> dict:
-    """Upload a PDF to DocuSeal and get back a template dict."""
+def _count_pdf_pages(pdf_bytes: bytes) -> int:
+    """Best-effort page count from raw PDF bytes (no extra deps)."""
+    try:
+        import re as _re
+        m = _re.search(rb'/Count\s+(\d+)', pdf_bytes)
+        if m:
+            return int(m.group(1))
+    except Exception:
+        pass
+    return 1
+
+
+def upload_pdf_template(pdf_bytes: bytes, name: str, num_signers: int = 1) -> dict:
+    """Upload a PDF to DocuSeal with signature fields so submissions can be created."""
     b64 = base64.b64encode(pdf_bytes).decode()
-    return _docuseal_post('/api/templates', {
+    last_page = _count_pdf_pages(pdf_bytes)
+
+    fields = []
+    for i in range(num_signers):
+        role = 'First Party' if i == 0 else f'Signer {i + 1}'
+        y_offset = 0.82 - (i * 0.10)
+        fields.extend([
+            {
+                'name': f'Signature ({role})',
+                'type': 'signature',
+                'role': role,
+                'required': True,
+                'areas': [{'x': 0.05, 'y': y_offset, 'w': 0.35, 'h': 0.06, 'page': last_page}],
+            },
+            {
+                'name': f'Date ({role})',
+                'type': 'date',
+                'role': role,
+                'required': True,
+                'areas': [{'x': 0.55, 'y': y_offset, 'w': 0.20, 'h': 0.04, 'page': last_page}],
+            },
+        ])
+
+    doc_name = name if not name.endswith('.pdf') else name
+    return _docuseal_post('/templates/pdf', {
         'name': name,
-        'documents': [{'name': f'{name}.pdf', 'file': b64}],
-    })
+        'documents': [{
+            'name': f'{doc_name}.pdf',
+            'file': b64,
+            'fields': fields,
+        }],
+    }, timeout=120)
 
 
-def create_submission(template_id: int, submitters: list) -> dict:
+def create_submission(template_id: int, submitters: list, send_email: bool = True) -> dict:
     """
     Create a DocuSeal submission.
-    submitters = [{'name': '...', 'email': '...', 'role': '...', 'send_email': True}]
+    submitters = [{'name': '...', 'email': '...', 'role': '...', 'send_email': True, 'order': 0}]
+    The 'order' field controls sequential signing: DocuSeal holds back higher-order
+    signers until all lower-order signers have completed.  Omitting 'order' (or giving
+    everyone the same value) makes everyone sign in parallel.
     Returns the submissions list from DocuSeal.
     """
-    return _docuseal_post('/api/submissions', {
+    return _docuseal_post('/submissions', {
         'template_id': template_id,
+        'send_email': send_email,
         'submitters': submitters,
     })
+
+
+def _roles_from_template(template_data: dict) -> list[str]:
+    """DocuSeal `role` on each submitter must match `submitters[].name` on the template."""
+    subs = template_data.get('submitters') or []
+    roles = [s.get('name') for s in subs if s.get('name')]
+    return [r for r in roles if r]
 
 
 def build_lease_context(lease) -> dict:
@@ -142,29 +200,48 @@ def generate_lease_pdf(lease) -> bytes:
     return buf.read()
 
 
-def create_lease_submission(lease, signers: list) -> dict:
+def create_lease_submission(lease, signers: list, signing_mode: str = 'sequential') -> dict:
     """
     High-level function:
     1. Generate lease PDF
     2. Upload to DocuSeal as template
-    3. Create submission with given signers
+    3. Create submission with given signers (respecting signing_mode)
+
+    signing_mode:
+      - 'sequential' (default): signers go in order; each signer's 'order'
+        field is sent to DocuSeal so the next signer is only invited once the
+        previous one completes.  The order is determined by the position in the
+        signers list unless an explicit 'order' key is provided.
+      - 'parallel': everyone signs at once (no 'order' sent).
+
     Returns {'template': {...}, 'submission': [...]}
     """
     pdf_bytes = generate_lease_pdf(lease)
     tenant_name = lease.primary_tenant.full_name if lease.primary_tenant else 'Tenant'
     name = f"Lease - {tenant_name} - {lease.unit.property.name} Unit {lease.unit.unit_number}"
 
-    template_data = upload_pdf_template(pdf_bytes, name)
+    template_data = upload_pdf_template(pdf_bytes, name, num_signers=len(signers))
     template_id = template_data['id']
 
-    submission_data = create_submission(template_id, [
-        {
+    docuseal_roles = _roles_from_template(template_data)
+
+    submitters = []
+    for idx, s in enumerate(signers):
+        if docuseal_roles and idx < len(docuseal_roles):
+            role = docuseal_roles[idx]
+        else:
+            role = s.get('role') or 'First Party'
+        entry = {
             'name': s['name'],
             'email': s['email'],
-            'role': s.get('role', 'Signer'),
+            'role': role,
             'send_email': s.get('send_email', True),
         }
-        for s in signers
-    ])
+        if signing_mode == 'sequential':
+            # Use explicit order if provided, otherwise position in the list
+            entry['order'] = s.get('order', idx)
+        submitters.append(entry)
+
+    submission_data = create_submission(template_id, submitters)
 
     return {'template': template_data, 'submission': submission_data}

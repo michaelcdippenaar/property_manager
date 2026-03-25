@@ -1,29 +1,31 @@
 <template>
   <div class="space-y-5">
+    <!-- Description + month nav -->
     <div class="flex items-center justify-between">
-      <h1 class="text-lg font-semibold text-gray-900">Lease Calendar</h1>
-      <div class="flex items-center gap-2">
+      <p class="text-sm text-gray-500">Track rent due dates, lease start/end, inspections, and key deadlines across all properties.</p>
+      <div class="flex items-center gap-1 flex-shrink-0">
         <button @click="prevMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
           <ChevronLeft :size="18" />
         </button>
-        <span class="text-sm font-medium text-gray-800 min-w-[140px] text-center">{{ monthLabel }}</span>
+        <span class="text-sm font-semibold text-gray-800 min-w-[140px] text-center">{{ monthLabel }}</span>
         <button @click="nextMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
           <ChevronRight :size="18" />
         </button>
       </div>
     </div>
 
-    <!-- Filters -->
-    <div class="flex gap-2 flex-wrap">
+    <!-- Legend + Filters (combined) -->
+    <div class="flex items-center gap-2 flex-wrap">
       <button
         v-for="f in typeFilters"
         :key="f.value"
         @click="toggleFilter(f.value)"
-        class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors border"
+        class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-colors border"
         :class="activeFilters.has(f.value)
           ? `${f.activeClass} border-transparent`
-          : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'"
+          : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300 line-through'"
       >
+        <span class="w-2 h-2 rounded-full flex-shrink-0" :class="f.dotClass"></span>
         {{ f.label }}
       </button>
     </div>
@@ -46,19 +48,19 @@
           <div
             class="text-xs text-right mb-1"
             :class="day.isToday
-              ? 'text-white bg-navy rounded-full w-6 h-6 flex items-center justify-center ml-auto text-[11px] font-bold'
+              ? 'text-white bg-navy rounded-full w-6 h-6 flex items-center justify-center ml-auto text-micro font-bold'
               : day.isCurrentMonth ? 'text-gray-700' : 'text-gray-300'"
           >
             {{ day.date }}
           </div>
           <div v-for="evt in day.events.slice(0, 3)" :key="evt.id"
-            class="mb-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium truncate"
+            class="mb-0.5 px-1.5 py-0.5 rounded text-micro font-medium truncate"
             :class="eventColor(evt.event_type)"
             :title="evt.title"
           >
             {{ evt.title }}
           </div>
-          <div v-if="day.events.length > 3" class="text-[10px] text-gray-400 px-1">
+          <div v-if="day.events.length > 3" class="text-micro text-gray-400 px-1">
             +{{ day.events.length - 3 }} more
           </div>
         </div>
@@ -66,61 +68,46 @@
     </div>
 
     <!-- Day detail panel -->
-    <Teleport to="body">
-      <div v-if="selectedDay && selectedDay.events.length" class="fixed inset-0 z-50 flex justify-end">
-        <div class="absolute inset-0 bg-black/30" @click="selectedDay = null" />
-        <div class="relative w-full max-w-md bg-white shadow-xl overflow-y-auto">
-          <div class="p-6 space-y-4">
-            <div class="flex items-center justify-between">
-              <h2 class="font-semibold text-gray-900">
-                {{ new Date(currentYear, currentMonth, selectedDay.date).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' }) }}
-              </h2>
-              <button @click="selectedDay = null" class="text-gray-400 hover:text-gray-600"><X :size="18" /></button>
+    <BaseDrawer
+      :open="!!(selectedDay && selectedDay.events.length)"
+      :title="selectedDay ? new Date(currentYear, currentMonth, selectedDay.date).toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long' }) : ''"
+      @close="selectedDay = null"
+    >
+      <div v-if="selectedDay" class="p-6 space-y-4">
+        <div v-for="evt in selectedDay.events" :key="evt.id"
+          class="p-3 rounded-lg border border-gray-200 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <span :class="eventColor(evt.event_type)" class="text-xs px-1.5 py-0.5 rounded">
+                {{ evt.type_label }}
+              </span>
+              <div class="font-medium text-gray-900 text-sm mt-1">{{ evt.title }}</div>
             </div>
-
-            <div v-for="evt in selectedDay.events" :key="evt.id"
-              class="p-3 rounded-lg border border-gray-200 space-y-2">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <span :class="eventColor(evt.event_type)" class="text-xs px-1.5 py-0.5 rounded">
-                    {{ evt.type_label }}
-                  </span>
-                  <div class="font-medium text-gray-900 text-sm mt-1">{{ evt.title }}</div>
-                </div>
-                <span :class="statusBadge(evt.status)" class="text-[10px] shrink-0">{{ evt.status }}</span>
-              </div>
-              <p v-if="evt.description" class="text-xs text-gray-500">{{ evt.description }}</p>
-              <div class="text-xs text-gray-400">
-                {{ evt.property_name }} — {{ evt.lease_label }}
-              </div>
-              <button
-                v-if="evt.status !== 'completed' && evt.status !== 'cancelled'"
-                @click="markComplete(evt)"
-                class="text-xs text-navy hover:underline"
-              >
-                Mark complete
-              </button>
-            </div>
+            <span :class="statusBadge(evt.status)" class="text-micro shrink-0">{{ evt.status }}</span>
           </div>
+          <p v-if="evt.description" class="text-xs text-gray-500">{{ evt.description }}</p>
+          <div class="text-xs text-gray-400">
+            {{ evt.property_name }} — {{ evt.lease_label }}
+          </div>
+          <button
+            v-if="evt.status !== 'completed' && evt.status !== 'cancelled'"
+            @click="markComplete(evt)"
+            class="text-xs text-navy hover:underline"
+          >
+            Mark complete
+          </button>
         </div>
       </div>
-    </Teleport>
+    </BaseDrawer>
 
-    <!-- Legend -->
-    <div class="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-navy/80"></span> Contract</span>
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-100"></span> Rent</span>
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-amber-100"></span> Inspection</span>
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-100"></span> Deposit</span>
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-red-100"></span> Deadline</span>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../api'
-import { ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import BaseDrawer from '../../components/BaseDrawer.vue'
 
 const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth())
@@ -135,13 +122,13 @@ const activeFilters = ref(new Set<string>([
 ]))
 
 const typeFilters = [
-  { value: 'rent_due', label: 'Rent', activeClass: 'bg-blue-100 text-blue-800' },
-  { value: 'inspection_routine', label: 'Inspections', activeClass: 'bg-amber-100 text-amber-800' },
-  { value: 'contract_start', label: 'Start', activeClass: 'bg-navy/80 text-white' },
-  { value: 'contract_end', label: 'End', activeClass: 'bg-navy/80 text-white' },
-  { value: 'deposit_due', label: 'Deposit', activeClass: 'bg-green-100 text-green-800' },
-  { value: 'notice_deadline', label: 'Notice', activeClass: 'bg-red-100 text-red-800' },
-  { value: 'renewal_review', label: 'Renewal', activeClass: 'bg-purple-100 text-purple-800' },
+  { value: 'rent_due', label: 'Rent', activeClass: 'bg-blue-100 text-blue-800', dotClass: 'bg-blue-400' },
+  { value: 'inspection_routine', label: 'Inspections', activeClass: 'bg-amber-100 text-amber-800', dotClass: 'bg-amber-400' },
+  { value: 'contract_start', label: 'Start', activeClass: 'bg-navy/80 text-white', dotClass: 'bg-navy' },
+  { value: 'contract_end', label: 'End', activeClass: 'bg-navy/80 text-white', dotClass: 'bg-navy' },
+  { value: 'deposit_due', label: 'Deposit', activeClass: 'bg-green-100 text-green-800', dotClass: 'bg-green-400' },
+  { value: 'notice_deadline', label: 'Notice', activeClass: 'bg-red-100 text-red-800', dotClass: 'bg-red-400' },
+  { value: 'renewal_review', label: 'Renewal', activeClass: 'bg-purple-100 text-purple-800', dotClass: 'bg-purple-400' },
 ]
 
 const monthLabel = computed(() =>

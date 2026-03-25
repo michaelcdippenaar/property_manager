@@ -68,12 +68,37 @@
               <div class="text-sm font-medium text-gray-800">{{ signer.name || signer.email }}</div>
               <div class="text-xs text-gray-400">{{ signer.email }} · {{ signer.role }}</div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap justify-end">
               <span class="text-xs" :class="signerStatusColor(signer.status)">
                 {{ signerStatusLabel(signer.status) }}
               </span>
               <button
+                v-if="signer.id && sub.status !== 'completed' && signer.email"
+                type="button"
+                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
+                :disabled="emailingLinkId === signer.id"
+                title="Email a passwordless signing link to this signer"
+                @click="emailPublicLink(sub.id, signer.id)"
+              >
+                <Loader2 v-if="emailingLinkId === signer.id" :size="11" class="animate-spin" />
+                <Mail v-else :size="11" />
+                Email link
+              </button>
+              <button
                 v-if="signer.id && sub.status !== 'completed'"
+                type="button"
+                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
+                :disabled="copyingLinkId === signer.id"
+                title="Copy signing link to clipboard"
+                @click="copyPublicLink(sub.id, signer.id)"
+              >
+                <Loader2 v-if="copyingLinkId === signer.id" :size="11" class="animate-spin" />
+                <Link2 v-else :size="11" />
+                Copy link
+              </button>
+              <button
+                v-if="signer.id && sub.status !== 'completed'"
+                type="button"
                 class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
                 :disabled="resendingId === signer.id"
                 @click="resend(sub.id, signer.id)"
@@ -104,122 +129,119 @@
       {{ errorMsg }}
     </div>
 
+    <div
+      v-if="linkHint"
+      class="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800"
+    >
+      <CheckCircle2 :size="14" class="flex-shrink-0" />
+      {{ linkHint }}
+    </div>
+
     <!-- Create submission modal -->
-    <Teleport to="body">
-      <div v-if="showModal" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
+    <BaseModal :open="showModal" size="lg" @close="closeModal">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <Send :size="16" class="text-navy" />
+          <span class="font-semibold text-gray-900 text-sm">Send Lease for Signing</span>
+        </div>
+      </template>
 
-          <!-- Modal header -->
-          <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-            <div class="flex items-center gap-2">
-              <Send :size="16" class="text-navy" />
-              <span class="font-semibold text-gray-900 text-sm">Send Lease for Signing</span>
-            </div>
-            <button class="p-1 text-gray-400 hover:text-gray-600 transition-colors" @click="closeModal">
-              <X :size="18" />
-            </button>
-          </div>
+      <div class="space-y-4">
+        <p class="text-xs text-gray-500">
+          Each signer will receive an email with a link to review and sign the lease document.
+        </p>
 
-          <!-- Modal body -->
-          <div class="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-            <p class="text-xs text-gray-500">
-              Each signer will receive an email with a link to review and sign the lease document.
-            </p>
-
-            <!-- Signer list -->
-            <div class="space-y-3">
-              <div
-                v-for="(signer, idx) in draftSigners"
-                :key="idx"
-                class="rounded-xl border p-4 space-y-3"
-                :class="!signer.email ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'"
+        <!-- Signer list -->
+        <div class="space-y-3">
+          <div
+            v-for="(signer, idx) in draftSigners"
+            :key="idx"
+            class="rounded-xl border p-4 space-y-3"
+            :class="!signer.email ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-gray-600">Signer {{ idx + 1 }}</span>
+                <span
+                  v-if="!signer.email"
+                  class="text-micro px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
+                >
+                  Email required
+                </span>
+              </div>
+              <button
+                v-if="draftSigners.length > 1"
+                class="text-xs text-red-400 hover:text-red-600 transition-colors"
+                @click="removeSigner(idx)"
               >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-center gap-2">
-                    <span class="text-xs font-semibold text-gray-600">Signer {{ idx + 1 }}</span>
-                    <span
-                      v-if="!signer.email"
-                      class="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
-                    >
-                      Email required
-                    </span>
-                  </div>
-                  <button
-                    v-if="draftSigners.length > 1"
-                    class="text-xs text-red-400 hover:text-red-600 transition-colors"
-                    @click="removeSigner(idx)"
-                  >
-                    Remove
-                  </button>
-                </div>
+                Remove
+              </button>
+            </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="col-span-2">
-                    <label class="label">Full Name</label>
-                    <input v-model="signer.name" class="input" placeholder="Full legal name" />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="label">Email *</label>
-                    <input
-                      v-model="signer.email"
-                      type="email"
-                      class="input"
-                      :class="!signer.email ? 'border-amber-400 focus:border-amber-500' : ''"
-                      placeholder="signer@example.com"
-                    />
-                  </div>
-                  <div>
-                    <label class="label">Phone</label>
-                    <input v-model="signer.phone" type="tel" class="input" placeholder="+27 …" />
-                  </div>
-                  <div>
-                    <label class="label">Role</label>
-                    <input v-model="signer.role" class="input" placeholder="e.g. Tenant" />
-                  </div>
-                </div>
-
-                <!-- Per-signer options -->
-                <div class="flex flex-wrap items-center gap-4 pt-1">
-                  <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-                    <input type="checkbox" v-model="signer.send_email" class="rounded" />
-                    Send invitation email
-                  </label>
-                  <label
-                    v-if="signer.personId"
-                    class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none"
-                  >
-                    <input type="checkbox" v-model="signer.saveToRecord" class="rounded" />
-                    Save contact to tenant record
-                  </label>
-                </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="col-span-2">
+                <label class="label">Full Name</label>
+                <input v-model="signer.name" class="input" placeholder="Full legal name" />
+              </div>
+              <div class="col-span-2">
+                <label class="label">Email *</label>
+                <input
+                  v-model="signer.email"
+                  type="email"
+                  class="input"
+                  :class="!signer.email ? 'border-amber-400 focus:border-amber-500' : ''"
+                  placeholder="signer@example.com"
+                />
+              </div>
+              <div>
+                <label class="label">Phone</label>
+                <input v-model="signer.phone" type="tel" class="input" placeholder="+27 …" />
+              </div>
+              <div>
+                <label class="label">Role</label>
+                <input v-model="signer.role" class="input" placeholder="e.g. Tenant" />
               </div>
             </div>
 
-            <button
-              class="btn-ghost text-xs flex items-center gap-1.5 w-full justify-center py-2 border-dashed border border-gray-200 rounded-xl"
-              @click="addSigner"
-            >
-              <Plus :size="13" />
-              Add Another Signer
-            </button>
-          </div>
-
-          <!-- Modal footer -->
-          <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-gray-200 flex-shrink-0">
-            <button class="btn-ghost" @click="closeModal">Cancel</button>
-            <button
-              class="btn-primary flex items-center gap-2"
-              :disabled="submitting || !canSubmit"
-              @click="submitSigning"
-            >
-              <Loader2 v-if="submitting" :size="14" class="animate-spin" />
-              <Send v-else :size="14" />
-              Send for Signing
-            </button>
+            <!-- Per-signer options -->
+            <div class="flex flex-wrap items-center gap-4 pt-1">
+              <label class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
+                <input type="checkbox" v-model="signer.send_email" class="rounded" />
+                Send invitation email
+              </label>
+              <label
+                v-if="signer.personId"
+                class="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none"
+              >
+                <input type="checkbox" v-model="signer.saveToRecord" class="rounded" />
+                Save contact to tenant record
+              </label>
+            </div>
           </div>
         </div>
+
+        <button
+          class="btn-ghost text-xs flex items-center gap-1.5 w-full justify-center py-2 border-dashed border border-gray-200 rounded-xl"
+          @click="addSigner"
+        >
+          <Plus :size="13" />
+          Add Another Signer
+        </button>
       </div>
-    </Teleport>
+
+      <template #footer>
+        <button class="btn-ghost" @click="closeModal">Cancel</button>
+        <button
+          class="btn-primary flex items-center gap-2"
+          :disabled="submitting || !canSubmit"
+          @click="submitSigning"
+        >
+          <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+          <Send v-else :size="14" />
+          Send for Signing
+        </button>
+      </template>
+    </BaseModal>
 
   </div>
 </template>
@@ -229,8 +251,9 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
   Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle,
-  Plus, Loader2, FileSignature, RefreshCw, X, Download,
+  Plus, Loader2, FileSignature, RefreshCw, Download, Link2,
 } from 'lucide-vue-next'
+import BaseModal from '../../components/BaseModal.vue'
 
 const props = defineProps<{
   leaseId: number
@@ -246,6 +269,9 @@ const errorMsg    = ref('')
 const showModal   = ref(false)
 const submitting  = ref(false)
 const resendingId = ref<number | string | null>(null)
+const copyingLinkId = ref<number | string | null>(null)
+const emailingLinkId = ref<number | string | null>(null)
+const linkHint = ref('')
 
 interface DraftSigner {
   name: string
@@ -327,15 +353,68 @@ async function resend(submissionId: number, submitterId: number | string) {
   }
 }
 
+async function copyPublicLink(submissionId: number, submitterId: number | string) {
+  copyingLinkId.value = submitterId
+  errorMsg.value = ''
+  linkHint.value = ''
+  try {
+    const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
+      submitter_id: submitterId,
+    })
+    const path = (data.sign_path as string) || `/sign/${data.uuid}/`
+    const full =
+      (data.signing_url as string) || `${window.location.origin}${path}`
+    await navigator.clipboard.writeText(full)
+    linkHint.value = 'Signing link copied. Paste it into an SMS or email to the signer.'
+    window.setTimeout(() => { linkHint.value = '' }, 5000)
+  } catch (e: any) {
+    errorMsg.value =
+      e?.response?.data?.error ??
+      e?.response?.data?.detail ??
+      'Could not create signing link'
+  } finally {
+    copyingLinkId.value = null
+  }
+}
+
+async function emailPublicLink(submissionId: number, submitterId: number | string) {
+  emailingLinkId.value = submitterId
+  errorMsg.value = ''
+  linkHint.value = ''
+  try {
+    const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
+      submitter_id: submitterId,
+      send_email: true,
+      public_app_origin: window.location.origin,
+    })
+    if (data.email_sent) {
+      linkHint.value = 'Signing link emailed to the signer.'
+      window.setTimeout(() => { linkHint.value = '' }, 5000)
+    } else {
+      errorMsg.value =
+        (data.email_error as string) ||
+        'Link was created but the email could not be sent. Use Copy link or check logs.'
+    }
+  } catch (e: any) {
+    errorMsg.value =
+      e?.response?.data?.error ??
+      e?.response?.data?.detail ??
+      'Could not create or email signing link'
+  } finally {
+    emailingLinkId.value = null
+  }
+}
+
 // ── Modal helpers ────────────────────────────────────────────────────── //
 function buildDefaultSigners(): DraftSigner[] {
   const tenants = props.leaseTenants ?? []
+  const fallbackEmail = 'mc@tremly.com'
   if (!tenants.length) {
-    return [{ name: '', email: '', phone: '', role: 'Tenant', send_email: true }]
+    return [{ name: '', email: fallbackEmail, phone: '', role: 'Tenant', send_email: true }]
   }
   return tenants.map((t, i) => ({
     name:         t.person?.full_name ?? t.full_name ?? '',
-    email:        t.person?.email     ?? t.email     ?? '',
+    email:        t.person?.email     ?? t.email     ?? fallbackEmail,
     phone:        t.person?.phone     ?? t.phone     ?? '',
     role:         i === 0 ? 'Tenant' : 'Co-Tenant',
     send_email:   true,
@@ -353,10 +432,11 @@ function closeModal() {
   showModal.value = false
   draftSigners.value = []
   errorMsg.value = ''
+  linkHint.value = ''
 }
 
 function addSigner() {
-  draftSigners.value.push({ name: '', email: '', phone: '', role: 'Signer', send_email: true })
+  draftSigners.value.push({ name: '', email: 'mc@tremly.com', phone: '', role: 'Signer', send_email: true })
 }
 
 function removeSigner(idx: number) {

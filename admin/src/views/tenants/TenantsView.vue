@@ -1,20 +1,16 @@
 <template>
   <div class="space-y-5">
-    <h1 class="text-lg font-semibold text-gray-900">Tenants</h1>
-
+    <p class="text-sm text-gray-500">Browse and manage tenant profiles, contact details, and lease history.</p>
     <div class="card">
       <div class="px-4 pt-4 pb-3 border-b border-gray-100">
-        <div class="relative max-w-xs">
-          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input v-model="search" class="input pl-8" placeholder="Search tenants…" />
-        </div>
+        <SearchInput v-model="search" placeholder="Search tenants…" />
       </div>
 
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
         <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else class="table-wrap">
+      <table v-else-if="filteredTenants.length" class="table-wrap">
         <thead>
           <tr>
             <th>Tenant</th>
@@ -46,20 +42,28 @@
               </span>
             </td>
           </tr>
-          <tr v-if="!filteredTenants.length">
-            <td colspan="5" class="text-center text-gray-400 py-10">No tenants found</td>
-          </tr>
         </tbody>
       </table>
+
+      <EmptyState
+        v-else
+        title="No tenants found"
+        description="Tenants will appear here once they are added to a property."
+        :icon="Users"
+      />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { Users } from 'lucide-vue-next'
 import api from '../../api'
-import { Search } from 'lucide-vue-next'
+import SearchInput from '../../components/SearchInput.vue'
+import EmptyState from '../../components/EmptyState.vue'
+import { useToast } from '../../composables/useToast'
 
+const toast = useToast()
 const loading = ref(true)
 const search = ref('')
 const tenants = ref<any[]>([])
@@ -68,6 +72,8 @@ onMounted(async () => {
   try {
     const { data } = await api.get('/auth/tenants/')
     tenants.value = data.results ?? data
+  } catch {
+    toast.error('Failed to load tenants')
   } finally {
     loading.value = false
   }

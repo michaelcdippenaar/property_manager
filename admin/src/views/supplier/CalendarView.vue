@@ -1,12 +1,9 @@
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-between">
-      <h1 class="text-lg font-semibold text-gray-900">Calendar</h1>
-      <div class="flex items-center gap-2">
-        <button @click="prevMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"><ChevronLeft :size="18" /></button>
-        <span class="text-sm font-medium text-gray-800 min-w-[120px] text-center">{{ monthLabel }}</span>
-        <button @click="nextMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"><ChevronRight :size="18" /></button>
-      </div>
+    <div class="flex items-center justify-end gap-2">
+      <button @click="prevMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"><ChevronLeft :size="18" /></button>
+      <span class="text-sm font-medium text-gray-800 min-w-[120px] text-center">{{ monthLabel }}</span>
+      <button @click="nextMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100"><ChevronRight :size="18" /></button>
     </div>
 
     <!-- Calendar grid -->
@@ -26,7 +23,7 @@
             {{ day.date }}
           </div>
           <div v-for="job in day.jobs" :key="job.id"
-            class="mt-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium truncate cursor-pointer"
+            class="mt-0.5 px-1.5 py-0.5 rounded text-micro font-medium truncate cursor-pointer"
             :class="job.status === 'resolved' || job.status === 'closed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'"
             :title="`${job.title} — ${job.property_name} — R${job.amount}`">
             {{ job.title }}

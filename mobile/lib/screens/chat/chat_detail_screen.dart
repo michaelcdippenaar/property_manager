@@ -7,6 +7,8 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_client.dart' show apiClient, ApiException;
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_text_styles.dart';
 
 class _Message {
   _Message({
@@ -158,10 +160,18 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     );
   }
 
+  static const _maxMessageLength = 5000;
+
   Future<void> _send() async {
     final text = _ctrl.text.trim();
     final pending = _pendingAttachment;
     if ((text.isEmpty && pending == null) || _sending) return;
+    if (text.length > _maxMessageLength) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Message is too long (max 5 000 characters)')),
+      );
+      return;
+    }
 
     final kind = pending != null ? _kindFromMimeOrPath(pending) : null;
     final placeholder = pending != null
@@ -282,7 +292,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   Widget build(BuildContext context) {
     final pending = _pendingAttachment;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
         backgroundColor: AppColors.primaryNavy,
         foregroundColor: Colors.white,
@@ -298,7 +308,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ? const Center(
                         child: Text(
                           'Start the conversation below',
-                          style: TextStyle(color: AppColors.textSecondary),
+                          style: AppTextStyles.emptySubtitle,
                         ),
                       )
                     : ListView.builder(
@@ -328,12 +338,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     child: Row(
                       children: [
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadius.small),
                           child: _pendingIsVideo(pending)
                               ? Container(
                                   width: 56,
                                   height: 56,
-                                  color: const Color(0xFFE5E7EB),
+                                  color: AppColors.border,
                                   child: const Icon(Icons.videocam, color: AppColors.textSecondary),
                                 )
                               : Image.file(
@@ -371,9 +381,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           hintText: 'Type a message…',
                           hintStyle: const TextStyle(color: AppColors.textSecondary),
                           filled: true,
-                          fillColor: const Color(0xFFF5F6FA),
+                          fillColor: AppColors.scaffoldBackground,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(22),
+                            borderRadius: BorderRadius.circular(AppRadius.pill),
                             borderSide: BorderSide.none,
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -399,7 +409,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   ],
                 ),
                 if (_showMaintenanceReportCta) ...[
-                  const Divider(height: 20, thickness: 1, color: Color(0xFFE5E7EB)),
+                  const Divider(height: 20, thickness: 1, color: AppColors.border),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
@@ -414,9 +424,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       label: Text(_openingMaintenanceDraft ? 'Preparing form from chat…' : 'Report maintenance issue'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primaryNavy,
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        side: const BorderSide(color: AppColors.border),
                         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.medium)),
                       ),
                     ),
                   ),
@@ -456,7 +466,7 @@ class _Bubble extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: isUser
               ? const LinearGradient(
-                  colors: [Color(0xFF0F2744), Color(0xFF1B3F6B)],
+                  colors: [AppColors.navyDark, AppColors.navyLight],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
@@ -471,7 +481,7 @@ class _Bubble extends StatelessWidget {
           boxShadow: isUser
               ? null
               : [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 1))],
-          border: isUser ? null : Border.all(color: const Color(0xFFE5E7EB)),
+          border: isUser ? null : Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -479,12 +489,12 @@ class _Bubble extends StatelessWidget {
           children: [
             if (message.localPath != null) ...[
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
                 child: kind == 'video'
                     ? Container(
                         width: double.infinity,
                         constraints: const BoxConstraints(maxHeight: 160),
-                        color: isUser ? Colors.white24 : const Color(0xFFE5E7EB),
+                        color: isUser ? Colors.white24 : AppColors.border,
                         child: Icon(
                           Icons.videocam,
                           size: 48,
@@ -503,13 +513,21 @@ class _Bubble extends StatelessWidget {
               if (!hideCaption) const SizedBox(height: 8),
             ] else if (message.attachmentUrl != null && message.attachmentUrl!.isNotEmpty) ...[
               ClipRRect(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadius.medium),
                 child: kind == 'video'
                     ? Material(
                         color: isUser ? Colors.white24 : const Color(0xFFF3F4F6),
                         child: InkWell(
                           onTap: () async {
-                            final u = Uri.parse(message.attachmentUrl!);
+                            final u = Uri.tryParse(message.attachmentUrl!);
+                            if (u == null || (u.scheme != 'https' && u.scheme != 'http')) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Invalid video URL')),
+                                );
+                              }
+                              return;
+                            }
                             if (!await launchUrl(u, mode: LaunchMode.externalApplication) && context.mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Could not open video')),
@@ -530,7 +548,7 @@ class _Bubble extends StatelessWidget {
                                   child: Text(
                                     'Open video',
                                     style: TextStyle(
-                                      color: isUser ? Colors.white : const Color(0xFF1A1A2E),
+                                      color: isUser ? Colors.white : AppColors.textPrimary,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -562,7 +580,7 @@ class _Bubble extends StatelessWidget {
               Text(
                 message.content,
                 style: TextStyle(
-                  color: isUser ? Colors.white : const Color(0xFF1A1A2E),
+                  color: isUser ? Colors.white : AppColors.textPrimary,
                   fontSize: 14,
                   height: 1.45,
                 ),
@@ -591,7 +609,7 @@ class _TypingIndicator extends StatelessWidget {
             bottomRight: Radius.circular(16),
             bottomLeft: Radius.circular(4),
           ),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          border: Border.all(color: AppColors.border),
         ),
         child: const Row(
           mainAxisSize: MainAxisSize.min,

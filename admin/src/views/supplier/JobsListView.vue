@@ -1,7 +1,5 @@
 <template>
   <div class="space-y-5">
-    <h1 class="text-lg font-semibold text-gray-900">My Jobs</h1>
-
     <!-- Stats row -->
     <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="card p-4">
@@ -23,14 +21,7 @@
     </div>
 
     <!-- Filter tabs -->
-    <div class="flex gap-2 flex-wrap">
-      <button v-for="f in filters" :key="f.value"
-        @click="activeFilter = f.value; loadJobs()"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
-        :class="activeFilter === f.value ? 'bg-navy text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'">
-        {{ f.label }}
-      </button>
-    </div>
+    <FilterPills v-model="activeFilter" :options="filters" @update:model-value="loadJobs()" />
 
     <!-- Two column layout -->
     <div class="grid gap-5" :class="selected ? 'xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]' : ''">
@@ -57,8 +48,8 @@
               <div class="text-xs text-gray-500 mt-0.5">{{ job.property_name }} — {{ job.property_city }}</div>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span :class="priorityBadge(job.job_priority)" class="text-[10px]">{{ job.job_priority }}</span>
-              <span :class="statusBadge(job.status)" class="text-[10px]">{{ job.status }}</span>
+              <span :class="priorityBadge(job.job_priority)" class="text-micro">{{ job.job_priority }}</span>
+              <span :class="statusBadge(job.status)" class="text-micro">{{ job.status }}</span>
             </div>
           </div>
           <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
@@ -163,6 +154,7 @@
 import { ref, onMounted } from 'vue'
 import api from '../../api'
 import { X, Loader2 } from 'lucide-vue-next'
+import FilterPills from '../../components/FilterPills.vue'
 
 const loading = ref(true)
 const submitting = ref(false)

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/maintenance_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
 
 class ReportIssueScreen extends StatefulWidget {
   const ReportIssueScreen({super.key, this.initialDraft});
-  /// From AI: POST /tenant-portal/conversations/{id}/maintenance-draft/
   final Map<String, dynamic>? initialDraft;
   @override State<ReportIssueScreen> createState() => _ReportIssueScreenState();
 }
@@ -52,7 +54,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
         priority: _priority,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Repair request submitted ✓'), backgroundColor: Color(0xFF34D399)));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Repair request submitted ✓'), backgroundColor: AppColors.success500));
         context.pop();
       }
     } catch (e) {
@@ -63,7 +65,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
         backgroundColor: AppColors.primaryNavy,
         foregroundColor: Colors.white,
@@ -73,28 +75,34 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: AppSpacing.listPadding,
           children: [
             _field('What needs fixing?', _titleCtrl, hint: 'e.g. Tap leaking in bathroom'),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _field('Describe the problem', _descCtrl, hint: 'More detail helps the team respond faster…', maxLines: 4),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _label('Category'),
             const SizedBox(height: 6),
             _dropdown(_categories, _category, (v) => setState(() => _category = v!)),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             _label('Priority'),
             const SizedBox(height: 6),
             _dropdown(_priorities, _priority, (v) => setState(() => _priority = v!)),
             if (_error != null) ...[
-              const SizedBox(height: 16),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              const SizedBox(height: AppSpacing.lg),
+              Text(_error!, style: const TextStyle(color: AppColors.danger500)),
             ],
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xxxl),
             FilledButton(
               onPressed: _submitting ? null : _submit,
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accentPink, minimumSize: const Size.fromHeight(52)),
-              child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Submit Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.accentPink,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.pill)),
+              ),
+              child: _submitting
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Submit Request', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             ),
           ],
         ),
@@ -113,11 +121,11 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
           maxLines: maxLines,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+            hintStyle: AppTextStyles.bodySecondary,
             filled: true, fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.inputBorder)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.inputBorder)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primaryNavy, width: 1.5)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.inputBorder)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.inputBorder)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.primaryNavy, width: 1.5)),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           ),
           validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
@@ -126,19 +134,35 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
     );
   }
 
-  Widget _label(String text) => Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary));
+  Widget _label(String text) => Text(text, style: AppTextStyles.cardLabel.copyWith(fontWeight: FontWeight.w600));
 
   Widget _dropdown(List<String> items, String value, void Function(String?) onChanged) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       onChanged: onChanged,
       decoration: InputDecoration(
         filled: true, fillColor: Colors.white,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.inputBorder)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.inputBorder)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.inputBorder)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.medium), borderSide: const BorderSide(color: AppColors.inputBorder)),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
-      items: items.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14)))).toList(),
+      items: items.map((s) => DropdownMenuItem(
+        value: s,
+        child: Row(
+          children: [
+            if (items == _priorities)
+              Container(
+                width: 8, height: 8,
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.priorityColor(s),
+                  shape: BoxShape.circle,
+                ),
+              ),
+            Text(s, style: AppTextStyles.body),
+          ],
+        ),
+      )).toList(),
     );
   }
 }

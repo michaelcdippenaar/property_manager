@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
+import 'app_radius.dart';
 
 class AppTheme {
   AppTheme._();
@@ -12,8 +13,16 @@ class AppTheme {
           secondary: AppColors.accentPink,
           surface: AppColors.cardBackground,
         ),
-        scaffoldBackgroundColor: AppColors.splashBackground,
+        scaffoldBackgroundColor: AppColors.scaffoldBackground,
         fontFamily: 'Inter',
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            side: const BorderSide(color: AppColors.border),
+          ),
+          color: AppColors.cardBackground,
+        ),
         textTheme: const TextTheme(
           headlineLarge: TextStyle(
             fontSize: 28,
@@ -42,18 +51,20 @@ class AppTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: false,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.small),
             borderSide: const BorderSide(color: AppColors.inputBorder),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.small),
             borderSide: const BorderSide(color: AppColors.inputBorder),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.inputBorderActive, width: 2),
+            borderRadius: BorderRadius.circular(AppRadius.small),
+            borderSide:
+                const BorderSide(color: AppColors.inputBorderActive, width: 2),
           ),
           floatingLabelStyle: const TextStyle(
             color: AppColors.primaryNavy,
@@ -66,7 +77,7 @@ class AppTheme {
             foregroundColor: AppColors.textOnPrimary,
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
+              borderRadius: BorderRadius.circular(AppRadius.pill),
             ),
             elevation: 0,
             textStyle: const TextStyle(

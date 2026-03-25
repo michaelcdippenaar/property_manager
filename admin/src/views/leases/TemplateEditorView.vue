@@ -1,11 +1,10 @@
 <template>
-  <!-- Full-screen overlay -->
-  <div class="fixed inset-0 z-50 bg-white flex flex-col">
+  <div class="flex flex-col h-full -m-6 bg-white overflow-hidden">
 
     <!-- ── Header (DocuSeal-style) ──────────────────────────────────────── -->
     <div class="flex items-center h-14 px-4 border-b border-gray-200 bg-white flex-shrink-0 gap-4">
       <div class="flex items-center gap-3 min-w-0 w-56 flex-shrink-0">
-        <button @click="router.push('/leases')" class="p-1.5 rounded hover:bg-gray-100 text-gray-500 flex-shrink-0">
+        <button @click="goBack" class="p-1.5 rounded hover:bg-gray-100 text-gray-500 flex-shrink-0">
           <ChevronLeft :size="18" />
         </button>
         <FileSignature :size="15" class="text-navy flex-shrink-0" />
@@ -15,14 +14,14 @@
       <!-- Step indicator -->
       <div class="flex items-center gap-3 mx-auto">
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-full bg-navy flex items-center justify-center text-white text-[11px] font-bold">1</div>
+          <div class="w-7 h-7 rounded-full bg-navy flex items-center justify-center text-white text-micro font-bold">1</div>
           <span class="text-xs font-semibold text-navy">Add &amp; Prepare Fields</span>
         </div>
         <div class="flex items-center gap-1">
           <div v-for="i in 5" :key="i" class="w-1 h-1 rounded-full" :class="i <= 3 ? 'bg-navy' : 'bg-gray-300'" />
         </div>
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 text-[11px] font-bold">2</div>
+          <div class="w-7 h-7 rounded-full border-2 border-gray-300 flex items-center justify-center text-gray-400 text-micro font-bold">2</div>
           <span class="text-xs text-gray-400">Set Up &amp; Send Invite</span>
         </div>
       </div>
@@ -61,18 +60,17 @@
           </div>
         </div>
         <button
-          class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-navy text-white rounded-lg hover:bg-navy/90 transition-colors disabled:opacity-60"
-          @click="activateTemplate"
-          :disabled="template?.is_active"
+          class="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold bg-navy text-white rounded-lg hover:bg-navy/90 transition-colors"
+          @click="router.push('/leases/build')"
         >
-          <CheckCircle2 :size="12" />
-          {{ template?.is_active ? 'Active ✓' : 'Set Active' }}
+          <Hammer :size="12" />
+          Build Lease
         </button>
       </div>
     </div>
 
     <!-- ── Body ─────────────────────────────────────────────────────────── -->
-    <div class="flex-1 flex overflow-hidden min-h-0">
+    <div class="flex-1 flex overflow-hidden min-h-0 min-w-0">
 
       <!-- ── LEFT PANEL: AI Chat (collapsible) ───────────────────────────── -->
       <div
@@ -86,7 +84,7 @@
           </button>
           <template v-if="!chatCollapsed">
             <span class="text-sm font-semibold text-gray-800 whitespace-nowrap">AI Assistant</span>
-            <span v-if="template" class="text-[10px] text-gray-400 truncate">— {{ template.name }}</span>
+            <span v-if="template" class="text-micro text-gray-400 truncate">— {{ template.name }}</span>
           </template>
         </div>
         <template v-if="!chatCollapsed">
@@ -97,7 +95,7 @@
               class="flex gap-2"
               :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
             >
-              <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold mt-0.5"
+              <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-micro font-bold mt-0.5"
                 :class="msg.role === 'assistant' ? 'bg-navy/10 text-navy' : 'bg-gray-200 text-gray-600'">
                 {{ msg.role === 'assistant' ? 'AI' : 'Me' }}
               </div>
@@ -107,7 +105,7 @@
               </div>
             </div>
             <div v-if="chatThinking" class="flex gap-2">
-              <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[10px] font-bold bg-navy/10 text-navy mt-0.5">AI</div>
+              <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-micro font-bold bg-navy/10 text-navy mt-0.5">AI</div>
               <div class="bg-gray-100 rounded-2xl rounded-tl-sm px-3 py-2.5 flex gap-1">
                 <span v-for="j in 3" :key="j" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" :style="`animation-delay:${(j-1)*0.15}s`" />
               </div>
@@ -139,174 +137,169 @@
       <div class="w-[270px] flex-shrink-0 border-l border-gray-200 flex flex-col bg-white order-last">
 
         <!-- Recipients header -->
-        <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-          <span class="text-sm font-semibold text-gray-800">Recipients: {{ actors.length }}</span>
+        <div class="flex items-center px-3 py-2 border-b border-gray-200 flex-shrink-0">
           <button
-            class="text-xs font-semibold transition-colors"
-            :class="showAddActor ? 'text-gray-500' : 'text-navy hover:text-navy/70'"
-            @click="showAddActor = !showAddActor"
+            class="flex items-center gap-1.5 text-xs font-semibold text-gray-800"
+            @click="recipientsCollapsed = !recipientsCollapsed"
           >
-            {{ showAddActor ? 'Done' : 'Edit' }}
+            <ChevronDown :size="12" class="transition-transform" :class="recipientsCollapsed ? '-rotate-90' : ''" />
+            Recipients: {{ actors.length }}
           </button>
         </div>
 
-        <!-- Add actor (shown when Edit clicked or no actors) -->
-        <div v-if="showAddActor || actors.length === 0" class="px-3 pt-3 pb-2 border-b border-gray-100 space-y-2">
-          <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide px-1">Add recipient</div>
-          <div class="grid grid-cols-3 gap-1.5">
-            <button
-              v-for="type in actorTypes" :key="type.key"
-              class="flex flex-col items-center gap-1 py-2 px-1 border border-dashed rounded-lg text-[11px] font-medium transition-all"
-              :class="type.btnClass"
-              @click="addActor(type.key)"
-            >
-              <component :is="type.icon" :size="15" :class="type.iconClass" />
-              + {{ type.label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Active recipient indicator + colour strip -->
+        <!-- Collapsed: show selected actor sticky bar -->
         <div
-          class="px-3 py-2 border-b flex items-center gap-2 transition-colors"
-          :style="{ borderColor: selectedColor + '33', backgroundColor: selectedColor + '0d' }"
+          class="border-b border-gray-200 flex items-center gap-2 bg-gray-50 transition-all duration-300 ease-in-out overflow-hidden"
+          :style="{ maxHeight: recipientsCollapsed ? '40px' : '0px', opacity: recipientsCollapsed ? 1 : 0, padding: recipientsCollapsed ? '6px 12px' : '0 12px' }"
         >
-          <div
-            class="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-colors"
-            :style="{ backgroundColor: selectedColor }"
-          />
-          <span
-            class="text-[11px] font-semibold truncate transition-colors"
-            :style="{ color: selectedColor }"
-          >
-            {{ selectedActorLabel }}
-          </span>
-          <span class="text-[10px] text-gray-400 ml-auto flex-shrink-0">
-            {{ selectedActorIdx !== null ? 'Adding fields' : 'Select recipient' }}
-          </span>
-        </div>
-
-        <!-- Actor list -->
-        <div class="px-2 py-2 space-y-0.5 border-b border-gray-200">
-          <!-- Me (property manager) -->
-          <button
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors"
-            :class="selectedActorIdx === -1 ? 'bg-navy/10' : 'hover:bg-gray-50'"
-            @click="selectedActorIdx = -1"
-          >
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 text-white"
-              :style="{ background: selectedActorIdx === -1 ? '#1e3a5f' : '#6b7280' }">
-              Me
-            </div>
-            <div class="flex-1 text-left min-w-0">
-              <div class="text-xs font-semibold" :class="selectedActorIdx === -1 ? 'text-navy' : 'text-gray-800'">Me (Fill Out Now)</div>
-              <div class="text-[10px] text-gray-400">Agent / Property Manager</div>
-            </div>
-          </button>
-
-          <!-- Dynamic actors -->
-          <div
-            v-for="(actor, idx) in actors" :key="idx"
-            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors relative group cursor-pointer"
-            :class="selectedActorIdx === idx ? 'bg-opacity-10' : 'hover:bg-gray-50'"
-            :style="selectedActorIdx === idx ? { backgroundColor: actorColor(actor.type, idx) + '18' } : {}"
-            @click="selectedActorIdx = idx"
-          >
-            <div class="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 text-white"
-              :style="{ backgroundColor: actorColor(actor.type, idx) }">
-              {{ actorAvatar(actor, idx) }}
-            </div>
-            <div class="flex-1 text-left min-w-0">
-              <div class="text-xs font-semibold text-gray-800">{{ actor.label }}</div>
-              <div class="text-[10px] text-gray-400">{{ actor.fields.length }} fields</div>
-            </div>
-            <button
-              class="opacity-0 group-hover:opacity-100 p-1 rounded text-gray-300 hover:text-red-400 transition-all"
-              @click.stop="removeActor(idx)"
-              title="Remove"
-            >
-              <X :size="11" />
-            </button>
+          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 text-white"
+            :style="{ backgroundColor: selectedColor }">
+            {{ selectedActorIdx === -1 ? 'Me' : selectedActorIdx !== null && selectedActorIdx < actors.length ? actorAvatar(actors[selectedActorIdx], selectedActorIdx) : '?' }}
           </div>
+          <span class="text-xs font-semibold truncate" :style="{ color: selectedColor }">{{ selectedActorLabel }}</span>
         </div>
 
-        <!-- Field palette instruction -->
-        <div class="px-4 py-2.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100 leading-relaxed">
-          Add fields for this recipient:
-        </div>
-
-        <!-- Tabs -->
-        <div class="flex border-b border-gray-100 flex-shrink-0">
-          <button
-            v-for="tab in ['Favorites', 'All Fields', 'Clauses']" :key="tab"
-            class="flex-1 py-2 text-[11px] font-medium border-b-2 transition-all"
-            :class="activeFieldTab !== tab ? 'border-transparent text-gray-500 hover:text-gray-700' : ''"
-            :style="activeFieldTab === tab ? { borderColor: selectedColor, color: selectedColor } : {}"
-            @click="activeFieldTab = tab; if(tab === 'Clauses') loadClauses()"
-          >
-            {{ tab }}
-          </button>
-        </div>
-
-        <!-- ── FIELDS TABS (Favorites / All Fields) ── -->
-        <template v-if="activeFieldTab !== 'Clauses'">
-          <!-- Field type grid -->
-          <div class="p-2 grid grid-cols-2 gap-1.5">
-            <button
-              v-for="ft in visibleFieldTypes" :key="ft.key"
-              class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all group/field"
-              :class="selectedActorIdx !== null ? 'border-gray-200 text-gray-700 cursor-pointer' : 'border-gray-100 text-gray-400 cursor-not-allowed'"
-              :style="selectedActorIdx !== null ? { '--actor-color': selectedColor } : {}"
-              :draggable="selectedActorIdx !== null"
-              @dragstart="startFieldTypeDrag($event, ft)"
-              @mouseenter="selectedActorIdx !== null && ($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
-              @mouseleave="selectedActorIdx !== null && ($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
-              @click="insertFieldType(ft)"
-              :title="selectedActorIdx === null ? 'Select a recipient first' : `Insert ${ft.label}`"
-            >
-              <component
-                :is="ft.icon" :size="13" class="flex-shrink-0 transition-colors"
-                :style="selectedActorIdx !== null ? { color: selectedColor } : { color: '#d1d5db' }"
-              />
-              <span class="truncate">{{ ft.label }}</span>
-            </button>
-          </div>
-
-          <!-- Personal Data -->
-          <div class="border-t border-gray-100 pb-3">
-            <div class="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Personal Data</div>
-            <div class="px-2 grid grid-cols-2 gap-1.5">
+        <!-- Expanded: add panel + actor list (smooth collapse) -->
+        <div
+          class="overflow-hidden transition-all duration-300 ease-in-out"
+          :style="{ maxHeight: recipientsCollapsed ? '0px' : '400px', opacity: recipientsCollapsed ? 0 : 1 }"
+        >
+          <!-- Add actor -->
+          <div class="px-3 pt-2 pb-2 border-b border-gray-100 space-y-2">
+            <div class="text-micro font-semibold text-gray-400 uppercase tracking-wide px-1">Add recipient</div>
+            <div class="grid grid-cols-3 gap-1.5">
               <button
-                v-for="pd in personalDataFields" :key="pd.key"
-                class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 transition-all text-left cursor-pointer"
-                @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
-                @mouseleave="($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
-                @click="insertFieldType(pd)"
+                v-for="type in actorTypes" :key="type.key"
+                class="flex flex-col items-center gap-1 py-2 px-1 border border-dashed rounded-lg text-micro font-medium transition-all"
+                :class="type.btnClass"
+                @click="addActor(type.key)"
               >
-                <component :is="pd.icon" :size="13" class="flex-shrink-0" :style="{ color: selectedColor }" />
-                <span class="truncate">{{ pd.label }}</span>
+                <component :is="type.icon" :size="15" :class="type.iconClass" />
+                + {{ type.label }}
               </button>
             </div>
           </div>
 
-          <!-- Lease Fields (All Fields tab only) -->
-          <div v-if="activeFieldTab === 'All Fields'" class="border-t border-gray-100 pb-3">
-            <div class="px-4 py-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Lease Fields</div>
-            <div class="px-3 flex flex-wrap gap-1">
-              <span
-                v-for="f in leaseFields" :key="f"
-                class="field-chip field-chip--lease"
-                draggable="true"
-                @dragstart="startFieldDrag($event, f)"
-                @click="insertField(f)"
-                :title="`Drag or click to insert {{ ${f} }}`"
-              >{{ f }}</span>
+          <!-- Actor list -->
+          <div class="px-2 py-1.5 space-y-0.5 border-b border-gray-200">
+            <!-- Me (property manager) -->
+            <button
+              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors"
+              :class="selectedActorIdx === -1 ? 'bg-navy/10' : 'hover:bg-gray-50'"
+              @click="selectedActorIdx = -1"
+            >
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 text-white"
+                :style="{ background: selectedActorIdx === -1 ? '#1e3a5f' : '#6b7280' }">
+                Me
+              </div>
+              <div class="text-xs font-semibold truncate" :class="selectedActorIdx === -1 ? 'text-navy' : 'text-gray-800'">Me (Agent)</div>
+            </button>
+
+            <!-- Dynamic actors -->
+            <div
+              v-for="(actor, idx) in actors" :key="idx"
+              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors relative group cursor-pointer"
+              :class="selectedActorIdx === idx ? 'bg-opacity-10' : 'hover:bg-gray-50'"
+              :style="selectedActorIdx === idx ? { backgroundColor: actorColor(actor.type, idx) + '18' } : {}"
+              @click="selectedActorIdx = idx"
+            >
+              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 text-white"
+                :style="{ backgroundColor: actorColor(actor.type, idx) }">
+                {{ actorAvatar(actor, idx) }}
+              </div>
+              <div class="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">{{ actor.label }}</div>
+              <button
+                class="p-0.5 rounded text-gray-300 hover:text-red-400 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
+                @click.stop="removeActor(idx)"
+                title="Remove"
+              >
+                <X :size="10" />
+              </button>
             </div>
           </div>
-        </template>
+        </div>
 
-        <!-- ── CLAUSES TAB ── -->
-        <div v-else class="flex flex-col flex-1 min-h-0 overflow-hidden">
+        <!-- ── Field palette (scrollable) ── -->
+        <div class="flex-1 overflow-y-auto min-h-0" @scroll="onPaletteScroll">
+
+          <!-- Personal Data -->
+          <div class="px-4 py-2.5 text-micro font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+            Personal Data
+          </div>
+          <div class="p-2 grid grid-cols-2 gap-1.5">
+            <button
+              v-for="pd in personalDataFields" :key="pd.key"
+              class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
+              :style="selectedActorIdx !== null ? { borderColor: selectedColor + '44', backgroundColor: selectedColor + '08' } : {}"
+              draggable="true"
+              @dragstart="startFieldTypeDrag($event, pd)"
+              @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
+              @mouseleave="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedActorIdx !== null ? selectedColor + '44' : '')"
+              @click="insertFieldType(pd)"
+              :title="`Insert ${pd.label}`"
+            >
+              <component :is="pd.icon" :size="13" class="flex-shrink-0 transition-colors"
+                :style="{ color: selectedActorIdx !== null ? selectedColor : '#9ca3af' }" />
+              <span class="truncate" :style="selectedActorIdx !== null ? { color: selectedColor } : {}">{{ pd.label }}</span>
+            </button>
+          </div>
+
+          <!-- Signing Fields -->
+          <div class="px-4 py-2.5 text-micro font-semibold text-gray-500 uppercase tracking-wide border-t-2 border-b border-gray-200">
+            Signing
+          </div>
+          <div class="p-2 grid grid-cols-2 gap-1.5">
+            <button
+              v-for="ft in allFieldTypes" :key="ft.key"
+              class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
+              draggable="true"
+              @dragstart="startFieldTypeDrag($event, ft)"
+              @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
+              @mouseleave="($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
+              @click="insertFieldType(ft)"
+              :title="`Insert ${ft.label}`"
+            >
+              <span class="truncate">{{ ft.label }}</span>
+            </button>
+          </div>
+
+          <!-- Lease Fields (grouped) -->
+          <div v-for="group in leaseFieldGroups" :key="group.label">
+            <div class="px-4 py-2.5 text-micro font-semibold text-gray-500 uppercase tracking-wide border-t border-b border-gray-100">
+              {{ group.label }}
+            </div>
+            <div class="p-2 grid grid-cols-2 gap-1.5">
+              <button
+                v-for="f in group.fields" :key="f.key"
+                class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
+                draggable="true"
+                @dragstart="startFieldDrag($event, f.key)"
+                @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
+                @mouseleave="($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
+                @click="insertField(f.key)"
+                :title="`Insert {{ ${f.key} }}`"
+              >
+                <span class="truncate">{{ f.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Clauses toggle -->
+          <div class="border-t border-gray-100 p-2">
+            <button
+              class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border border-dashed transition-colors"
+              :class="showClausesSection ? 'border-navy/30 text-navy bg-navy/5' : 'border-gray-300 text-gray-500 hover:border-navy/30 hover:text-navy'"
+              @click="showClausesSection = !showClausesSection; if(showClausesSection) loadClauses()"
+            >
+              <Bookmark :size="12" />
+              {{ showClausesSection ? 'Hide Clauses' : 'Clause Library' }}
+            </button>
+          </div>
+
+        </div>
+
+        <!-- ── CLAUSES SECTION (collapsible) ── -->
+        <div v-if="showClausesSection" class="flex flex-col flex-shrink-0 border-t border-gray-200 max-h-[50%] overflow-hidden">
 
           <!-- Clause toolbar -->
           <div class="px-2 pt-2 pb-1.5 space-y-1.5 border-b border-gray-100 flex-shrink-0">
@@ -314,12 +307,12 @@
             <div class="flex gap-1">
               <input
                 v-model="clauseGenerateTopic"
-                class="flex-1 text-[11px] border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-navy/30"
+                class="flex-1 text-micro border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-navy/30"
                 placeholder="Topic e.g. POPIA consent…"
                 @keydown.enter.prevent="generateClauses"
               />
               <button
-                class="px-2.5 py-1.5 text-[11px] font-semibold bg-navy text-white rounded-lg hover:bg-navy/90 flex items-center gap-1 flex-shrink-0 disabled:opacity-60"
+                class="px-2.5 py-1.5 text-micro font-semibold bg-navy text-white rounded-lg hover:bg-navy/90 flex items-center gap-1 flex-shrink-0 disabled:opacity-60"
                 :disabled="clauseGenerating || !clauseGenerateTopic.trim()"
                 @click="generateClauses"
               >
@@ -332,14 +325,14 @@
             <div class="flex items-center gap-1">
               <select
                 v-model="clauseCategory"
-                class="flex-1 text-[10px] border border-gray-200 rounded px-1.5 py-1 focus:outline-none bg-white"
+                class="flex-1 text-micro border border-gray-200 rounded px-1.5 py-1 focus:outline-none bg-white"
                 @change="loadClauses"
               >
                 <option value="">All categories</option>
                 <option v-for="c in clauseCategories" :key="c.key" :value="c.key">{{ c.label }}</option>
               </select>
               <button
-                class="text-[10px] px-2 py-1 border border-gray-200 rounded hover:bg-gray-50 text-gray-600 flex items-center gap-1 flex-shrink-0"
+                class="text-micro px-2 py-1 border border-gray-200 rounded hover:bg-gray-50 text-gray-600 flex items-center gap-1 flex-shrink-0"
                 :disabled="clauseExtracting"
                 @click="extractFromTemplate"
                 title="Extract clauses from this template"
@@ -351,7 +344,7 @@
             </div>
             <!-- Save selection -->
             <button
-              class="w-full text-[10px] border border-dashed border-gray-300 rounded-lg py-1.5 text-gray-500 hover:border-navy/40 hover:text-navy/70 transition-colors flex items-center justify-center gap-1"
+              class="w-full text-micro border border-dashed border-gray-300 rounded-lg py-1.5 text-gray-500 hover:border-navy/40 hover:text-navy/70 transition-colors flex items-center justify-center gap-1"
               @click="saveSelection"
             >
               <Bookmark :size="10" /> Save selected text as clause
@@ -360,19 +353,19 @@
 
           <!-- Generated options (shown before saving) -->
           <div v-if="generatedOptions.length" class="px-2 py-2 space-y-2 border-b border-amber-100 bg-amber-50/40 flex-shrink-0">
-            <div class="text-[10px] font-semibold text-amber-700 uppercase px-1">Generated — click to save &amp; insert</div>
+            <div class="text-micro font-semibold text-amber-700 uppercase px-1">Generated — click to save &amp; insert</div>
             <div
               v-for="(opt, i) in generatedOptions" :key="i"
               class="bg-white border border-amber-200 rounded-lg p-2 cursor-pointer hover:border-amber-400 transition-colors"
               @click="saveGeneratedClause(opt)"
             >
               <div class="flex items-center justify-between gap-1 mb-1">
-                <span class="text-[11px] font-semibold text-gray-800 leading-snug">{{ opt.title }}</span>
-                <span class="text-[9px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">{{ opt.category }}</span>
+                <span class="text-micro font-semibold text-gray-800 leading-snug">{{ opt.title }}</span>
+                <span class="text-micro bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">{{ opt.category }}</span>
               </div>
-              <div class="text-[10px] text-gray-500 line-clamp-2 leading-relaxed" v-html="opt.html" />
+              <div class="text-micro text-gray-500 line-clamp-2 leading-relaxed" v-html="opt.html" />
             </div>
-            <button class="w-full text-[10px] text-gray-400 hover:text-gray-600 py-0.5" @click="generatedOptions = []">Clear</button>
+            <button class="w-full text-micro text-gray-400 hover:text-gray-600 py-0.5" @click="generatedOptions = []">Clear</button>
           </div>
 
           <!-- Saved clauses list -->
@@ -380,7 +373,7 @@
             <div v-if="clausesLoading" class="p-3 space-y-2 animate-pulse">
               <div v-for="i in 3" :key="i" class="h-14 bg-gray-100 rounded-lg" />
             </div>
-            <div v-else-if="!savedClauses.length" class="p-4 text-center text-[11px] text-gray-400">
+            <div v-else-if="!savedClauses.length" class="p-4 text-center text-micro text-gray-400">
               <div class="mb-1">No clauses saved yet.</div>
               <div>Generate some or save a selection from the editor.</div>
             </div>
@@ -391,11 +384,11 @@
               >
                 <div class="flex items-start justify-between gap-1">
                   <div class="flex-1 min-w-0">
-                    <div class="text-[11px] font-semibold text-gray-800 leading-snug truncate">{{ clause.title }}</div>
+                    <div class="text-micro font-semibold text-gray-800 leading-snug truncate">{{ clause.title }}</div>
                     <div class="flex items-center gap-1.5 mt-0.5">
-                      <span class="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ clause.category }}</span>
-                      <span v-if="clause.use_count" class="text-[9px] text-gray-400">used {{ clause.use_count }}×</span>
-                      <span v-if="clause.source_template_names?.length" class="text-[9px] text-gray-400 truncate">from {{ clause.source_template_names.join(', ') }}</span>
+                      <span class="text-micro bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">{{ clause.category }}</span>
+                      <span v-if="clause.use_count" class="text-micro text-gray-400">used {{ clause.use_count }}×</span>
+                      <span v-if="clause.source_template_names?.length" class="text-micro text-gray-400 truncate">from {{ clause.source_template_names.join(', ') }}</span>
                     </div>
                   </div>
                   <div class="flex gap-1 flex-shrink-0">
@@ -423,10 +416,10 @@
         <!-- ── Variables section (bottom of right panel) ────────────────── -->
         <div class="border-t border-gray-200 flex-shrink-0">
           <div class="flex items-center justify-between px-3 py-2">
-            <span class="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Detected Variables</span>
+            <span class="text-micro font-semibold text-gray-500 uppercase tracking-wide">Detected Variables</span>
             <div class="flex items-center gap-1">
-              <span class="text-[9px] text-gray-400">Tenants:</span>
-              <select v-model="tenantCount" class="text-[9px] border border-gray-200 rounded px-0.5 py-0.5 bg-white focus:outline-none">
+              <span class="text-micro text-gray-400">Tenants:</span>
+              <select v-model="tenantCount" class="text-micro border border-gray-200 rounded px-0.5 py-0.5 bg-white focus:outline-none">
                 <option :value="1">1</option>
                 <option :value="2">2</option>
                 <option :value="3">3</option>
@@ -436,7 +429,7 @@
           <div class="max-h-36 overflow-y-auto px-2 pb-2">
             <div v-if="template?.detected_variables && Object.keys(template.detected_variables).length" class="space-y-1.5">
               <details v-for="groupKey in visibleGroupKeys" :key="groupKey" open class="group/acc">
-                <summary class="flex items-center justify-between cursor-pointer list-none text-[10px] font-semibold text-gray-500 py-0.5 hover:text-gray-800">
+                <summary class="flex items-center justify-between cursor-pointer list-none text-micro font-semibold text-gray-500 py-0.5 hover:text-gray-800">
                   <span>{{ groupDisplayName(groupKey) }}</span>
                   <span class="text-gray-300 font-normal">{{ (template.detected_variables![groupKey] || []).length }}</span>
                 </summary>
@@ -458,19 +451,32 @@
                 draggable="true"
                 @dragstart="startFieldDrag($event, f)"
                 @click="insertField(f)" :title="`Drag or click to insert {{ ${f} }}`">{{ f }}</span>
-              <div v-if="!discoveredFields.length" class="text-[10px] text-gray-300 italic">No fields detected.</div>
+              <div v-if="!discoveredFields.length" class="text-micro text-gray-300 italic">No fields detected.</div>
             </div>
           </div>
         </div>
       </div>
 
       <!-- ── CENTER: Document canvas ──────────────────────────────────────── -->
-      <div class="flex-1 flex flex-col overflow-hidden min-h-0 bg-[#e8eaed]">
+      <div class="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 bg-[#e8eaed]">
 
-        <!-- Toolbar (two rows) — hidden for read-only PDF templates -->
+        <!-- Toolbar — hidden for read-only PDF templates -->
         <div v-if="!isPdfTemplate" class="border-b border-gray-300 bg-white flex-shrink-0">
+          <!-- Collapse toggle -->
+          <div v-if="toolbarCollapsed" class="flex items-center px-3 py-1">
+            <button class="text-micro text-gray-400 hover:text-navy transition-colors" @click="toolbarCollapsed = false">
+              Show toolbar ▼
+            </button>
+            <div class="ml-auto flex items-center gap-2">
+              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-amber-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400" /> Unsaved
+              </span>
+              <button class="toolbar-btn" @click="execCmd('undo')" title="Undo"><RotateCcw :size="13" /></button>
+              <button class="toolbar-btn" @click="execCmd('redo')" title="Redo"><RotateCw :size="13" /></button>
+            </div>
+          </div>
           <!-- Row 1: history, paragraph style, font, size -->
-          <div class="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-100 flex-wrap">
+          <div v-show="!toolbarCollapsed" class="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-100 flex-wrap">
             <button class="toolbar-btn" @click="execCmd('undo')" title="Undo"><RotateCcw :size="13" /></button>
             <button class="toolbar-btn" @click="execCmd('redo')" title="Redo"><RotateCw :size="13" /></button>
             <div class="w-px h-5 bg-gray-200 mx-1" />
@@ -523,13 +529,14 @@
               <option value="36">36</option>
             </select>
             <div class="ml-auto flex items-center gap-2">
-              <span v-if="isDirty" class="flex items-center gap-1.5 text-[11px] text-amber-600">
+              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-amber-600">
                 <span class="w-1.5 h-1.5 rounded-full bg-amber-400" /> Unsaved
               </span>
+              <button class="text-micro text-gray-400 hover:text-navy transition-colors" @click="toolbarCollapsed = true" title="Collapse toolbar">▲</button>
             </div>
           </div>
           <!-- Row 2: formatting, lists, align, indent, color, table, field -->
-          <div class="flex items-center gap-0.5 px-3 py-1 flex-wrap">
+          <div v-show="!toolbarCollapsed" class="flex items-center gap-0.5 px-3 py-1 flex-wrap">
             <button class="toolbar-btn" :class="{ 'bg-navy/10 text-navy': tbBold }" @mousedown.prevent="execCmd('bold')" title="Bold"><Bold :size="13" /></button>
             <button class="toolbar-btn" :class="{ 'bg-navy/10 text-navy': tbItalic }" @mousedown.prevent="execCmd('italic')" title="Italic"><Italic :size="13" /></button>
             <button class="toolbar-btn" :class="{ 'bg-navy/10 text-navy': tbUnderline }" @mousedown.prevent="execCmd('underline')" title="Underline"><Underline :size="13" /></button>
@@ -578,7 +585,7 @@
                 <span class="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-sm" :style="{ background: activeBgColor }" />
               </button>
               <div v-if="bgColorPickerOpen" class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-2 w-[168px]">
-                <div class="text-[10px] text-gray-400 mb-1">Cell / highlight color</div>
+                <div class="text-micro text-gray-400 mb-1">Cell / highlight color</div>
                 <div class="grid grid-cols-8 gap-0.5 mb-1.5">
                   <button
                     v-for="c in colorSwatches" :key="c"
@@ -595,25 +602,25 @@
             <!-- Heading styles -->
             <div class="relative">
               <button
-                class="toolbar-btn flex items-center gap-1 font-semibold text-[11px]"
+                class="toolbar-btn flex items-center gap-1 font-semibold text-micro"
                 :class="headingStylesOpen ? 'text-navy bg-navy/10' : ''"
                 @mousedown.prevent="headingStylesOpen = !headingStylesOpen; colorPickerOpen = false; bgColorPickerOpen = false"
                 title="Heading styles"
-              >H<span class="text-[9px] text-gray-400">1–3</span></button>
+              >H<span class="text-micro text-gray-400">1–3</span></button>
               <!-- Panel -->
               <div v-if="headingStylesOpen" class="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-30 w-80 p-3">
-                <div class="text-[11px] font-semibold text-gray-500 uppercase tracking-wide mb-2">Heading Styles</div>
+                <div class="text-micro font-semibold text-gray-500 uppercase tracking-wide mb-2">Heading Styles</div>
                 <div class="space-y-2">
                   <div v-for="lvl in headingLevels" :key="lvl.tag" class="flex items-center gap-2">
                     <!-- Level label (like TOC indent) -->
                     <span
-                      class="w-8 text-[11px] font-bold flex-shrink-0 text-gray-600"
+                      class="w-8 text-micro font-bold flex-shrink-0 text-gray-600"
                       :style="{ marginLeft: lvl.indent + 'px' }"
                     >{{ lvl.label }}</span>
                     <!-- Font family -->
                     <select
                       v-model="lvl.fontFamily"
-                      class="text-[11px] border border-gray-200 rounded px-1 py-0.5 focus:outline-none bg-white w-24 flex-shrink-0"
+                      class="text-micro border border-gray-200 rounded px-1 py-0.5 focus:outline-none bg-white w-24 flex-shrink-0"
                     >
                       <option value="">Default</option>
                       <option v-for="f in fontFamilies" :key="f" :value="f">{{ f }}</option>
@@ -621,14 +628,14 @@
                     <!-- Font size -->
                     <select
                       v-model="lvl.fontSize"
-                      class="text-[11px] border border-gray-200 rounded px-1 py-0.5 focus:outline-none bg-white w-14 flex-shrink-0"
+                      class="text-micro border border-gray-200 rounded px-1 py-0.5 focus:outline-none bg-white w-14 flex-shrink-0"
                     >
                       <option value="">Auto</option>
                       <option v-for="s in [8,9,10,11,12,14,16,18,20,24,28,32,36]" :key="s" :value="String(s)">{{ s }}</option>
                     </select>
                     <!-- Bold -->
                     <button
-                      class="w-6 h-6 rounded border text-[11px] font-bold flex-shrink-0 transition-colors"
+                      class="w-6 h-6 rounded border text-micro font-bold flex-shrink-0 transition-colors"
                       :class="lvl.bold ? 'bg-navy text-white border-navy' : 'border-gray-200 text-gray-400'"
                       @click="lvl.bold = !lvl.bold"
                     >B</button>
@@ -652,12 +659,12 @@
                     </div>
                     <!-- Apply -->
                     <button
-                      class="ml-auto text-[10px] px-2 py-0.5 bg-navy text-white rounded hover:bg-navy/90 flex-shrink-0"
+                      class="ml-auto text-micro px-2 py-0.5 bg-navy text-white rounded hover:bg-navy/90 flex-shrink-0"
                       @click="applyHeadingStyle(lvl)"
                     >Apply</button>
                   </div>
                 </div>
-                <button class="mt-3 w-full text-[11px] py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold"
+                <button class="mt-3 w-full text-micro py-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-semibold"
                   @click="applyAllHeadingStyles">Apply All</button>
               </div>
             </div>
@@ -690,7 +697,7 @@
                 <Braces :size="12" /> Insert field
               </button>
               <div v-if="showFieldPicker" class="absolute top-full left-0 mt-1 w-56 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-2 max-h-48 overflow-y-auto">
-                <div class="text-[10px] font-semibold text-gray-400 uppercase px-1 mb-1">Click to insert</div>
+                <div class="text-micro font-semibold text-gray-400 uppercase px-1 mb-1">Click to insert</div>
                 <button
                   v-for="f in allFields" :key="f"
                   class="w-full text-left font-mono text-xs px-2 py-1 hover:bg-amber-50 rounded text-amber-700"
@@ -726,17 +733,12 @@
 
           <!-- A4 document page -->
           <div class="relative max-w-[680px] mx-auto overflow-x-hidden" v-if="!loadingPreview && !isPdfTemplate">
-            <!-- Page header overlay (non-editable, shown on every page) -->
-            <div v-if="showHeader" class="page-header-overlay">
-              <span class="page-header-left">{{ headerLeft }}</span>
-              <span class="page-header-right">{{ headerRight }}</span>
-            </div>
             <div
               ref="editorEl"
               contenteditable="true"
-              class="w-full bg-white shadow-md px-14 min-h-[961px] focus:outline-none document-editor leading-relaxed relative"
-              :class="{ 'ring-2 ring-navy/30': isDraggingField, 'show-page-numbers': showPageNumbers }"
-              :style="{ paddingTop: showHeader ? '3.5rem' : '3rem', paddingBottom: showFooter ? '3.5rem' : '3rem' }"
+              class="w-full bg-white shadow-md px-14 min-h-[1061px] focus:outline-none document-editor leading-relaxed relative"
+              :class="{ 'ring-2 ring-navy/30': isDraggingField }"
+              :style="{ paddingTop: showHeader ? '3.5rem' : '3rem', paddingBottom: '3rem' }"
               @input="onEditorInput"
               @keydown="onEditorKeydown"
               @dragstart="onEditorDragStart"
@@ -745,18 +747,19 @@
               @drop.prevent="onEditorDrop"
               v-html="editorHtml"
             />
-            <!-- Page number overlays (rendered outside contenteditable) -->
-            <template v-if="showPageNumbers">
-              <div
-                v-for="(_, pi) in pageCount" :key="pi"
-                class="page-number-overlay"
-                :style="{ top: pageNumberTop(pi) + 'px' }"
-              >Page {{ pi + 1 }} of {{ pageCount }}</div>
-            </template>
-            <!-- Page footer overlay -->
-            <div v-if="showFooter" class="page-footer-overlay">
-              <span class="page-footer-left">{{ footerLeft }}</span>
-              <span class="page-footer-right">1</span>
+            <!-- Last-page footer overlay (auto-break divs handle intermediate page footers) -->
+            <div
+              v-if="showFooter"
+              class="page-footer-bar"
+              :style="{ bottom: '8px' }"
+            >
+              <span class="text-gray-400">{{ footerLeft }}</span>
+              <span class="text-gray-500">Page {{ pageCount }} of {{ pageCount }}</span>
+            </div>
+            <!-- Page header overlay (non-editable, shown on every page) -->
+            <div v-if="showHeader" class="page-header-overlay">
+              <span class="page-header-left">{{ headerLeft }}</span>
+              <span class="page-header-right">{{ headerRight }}</span>
             </div>
             <!-- Header/footer config panel -->
             <div v-if="headerFooterPanelOpen" class="absolute top-10 left-0 right-0 mx-auto w-80 bg-white border border-gray-200 rounded-xl shadow-xl z-40 p-3 text-xs" @click.stop>
@@ -785,7 +788,7 @@
             </div>
           </div>
 
-          <div class="text-center text-[11px] text-gray-400 mt-3">Page {{ pageCount > 1 ? '1–' + pageCount : '1' }} of {{ pageCount }} · Click to edit · Select a recipient then click field types to insert</div>
+          <div class="text-center text-micro text-gray-400 mt-3">Page {{ pageCount > 1 ? '1–' + pageCount : '1' }} of {{ pageCount }} · Click to edit · Select a recipient then click field types to insert</div>
         </div>
       </div>
 
@@ -801,16 +804,16 @@
       >
         <div class="flex border-b border-gray-100">
           <button v-for="tab in ['Recent','All']" :key="tab"
-            class="flex-1 py-1.5 text-[11px] font-semibold transition-colors"
+            class="flex-1 py-1.5 text-micro font-semibold transition-colors"
             :class="ac.tab === tab ? 'text-teal-600 border-b-2 border-teal-500' : 'text-gray-400 hover:text-gray-600'"
             @click="ac.tab = tab; ac.selectedIdx = 0">{{ tab }}
           </button>
         </div>
         <div class="max-h-52 overflow-y-auto py-1">
-          <div v-if="!acFields.length" class="px-3 py-2 text-[11px] text-gray-400 italic">No matches</div>
+          <div v-if="!acFields.length" class="px-3 py-2 text-micro text-gray-400 italic">No matches</div>
           <button
             v-for="(f, idx) in acFields" :key="f"
-            class="w-full text-left px-3 py-1.5 text-[11px] font-mono transition-colors"
+            class="w-full text-left px-3 py-1.5 text-micro font-mono transition-colors"
             :class="idx === ac.selectedIdx ? 'bg-teal-50 text-teal-700' : 'text-gray-700 hover:bg-gray-50'"
             @click="acInsert(f)"
           >{{ f }}</button>
@@ -831,7 +834,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick, markRaw } from 'vue'
+import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, markRaw } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import {
   X, FileSignature, FileText, Sparkles, Send, Download, Save, CheckCircle2,
@@ -841,13 +844,18 @@ import {
   RotateCcw, RotateCw,
   Users, User, UserCheck, Building2,
   Hash, Calendar, CheckSquare, Phone, Mail, Type, Pen, StickyNote,
-  Scissors, FileDigit, LayoutTemplate,
+  Scissors, FileDigit, LayoutTemplate, Hammer,
 } from 'lucide-vue-next'
 import api from '../../api'
 
 const route = useRoute()
 const router = useRouter()
 const templateId = computed(() => Number(route.params.id))
+
+function goBack() {
+  if (window.history.length > 1) router.back()
+  else router.push('/leases/templates')
+}
 
 // ── Template data ─────────────────────────────────────────────────────────
 interface TemplateInfo {
@@ -882,11 +890,9 @@ const isDirty    = ref(false)
 const showFieldPicker = ref(false)
 const showPageNumbers = ref(false)
 
-// Page count — one more than the number of page-break markers in the HTML
-const pageCount = computed(() => {
-  const matches = (editorHtml.value || '').match(/data-page-break/g)
-  return matches ? matches.length + 1 : 1
-})
+// Page count — based on editor height (1061px per A4 page)
+const editorHeight = ref(1061)
+const pageCount = computed(() => Math.max(1, Math.ceil(editorHeight.value / 1061)))
 
 // Y-offset (px) for the page number overlay of page `pi` (0-indexed).
 // We measure the height of page-break divs in the live DOM.
@@ -995,7 +1001,8 @@ function updateToolbarState() {
 }
 
 // ── UI state ──────────────────────────────────────────────────────────────
-const chatCollapsed  = ref(false)
+const chatCollapsed  = ref(window.innerWidth < 1200)
+const toolbarCollapsed = ref(false)
 const isDraggingField = ref(false)
 const colorPickerOpen = ref(false)
 const activeTextColor = ref('#111111')
@@ -1038,7 +1045,18 @@ function applyAllHeadingStyles() {
 }
 
 const showAddActor   = ref(false)
-const activeFieldTab = ref('All Fields')
+const recipientsCollapsed = ref(false)
+let lastPaletteScroll = 0
+function onPaletteScroll(e: Event) {
+  const el = e.target as HTMLElement
+  if (el.scrollTop > 30 && el.scrollTop > lastPaletteScroll) {
+    recipientsCollapsed.value = true
+  } else if (el.scrollTop < 10) {
+    recipientsCollapsed.value = false
+  }
+  lastPaletteScroll = el.scrollTop
+}
+const showClausesSection = ref(false)
 const selectedActorIdx = ref<number | null>(null)   // -1 = Me, 0+ = actors[]
 const fieldNotice    = ref('')
 const actionFeedback = ref('')
@@ -1183,7 +1201,6 @@ function addActor(type: ActorType) {
   const label = type === 'landlord' ? 'Landlord / Owner' : `${actorTypeMap[type].label} ${count}`
   actors.value.push({ type, number: count, label, fields: actorFields(type, count), expanded: true })
   selectedActorIdx.value = actors.value.length - 1
-  showAddActor.value = false
 }
 
 function removeActor(idx: number) {
@@ -1203,8 +1220,6 @@ function removeActor(idx: number) {
 
 // ── Field type palette ────────────────────────────────────────────────────
 const allFieldTypes = [
-  { key: 'signature', label: 'Signature',    icon: markRaw(Pen),         favorite: true },
-  { key: 'initials',  label: 'Initials',      icon: markRaw(Type),        favorite: true },
   { key: 'text',      label: 'Text',          icon: markRaw(StickyNote),  favorite: true },
   { key: 'number',    label: 'Number',        icon: markRaw(Hash),        favorite: false },
   { key: 'date',      label: 'Date',          icon: markRaw(Calendar),    favorite: true },
@@ -1212,16 +1227,15 @@ const allFieldTypes = [
 ]
 
 const personalDataFields = [
-  { key: 'name',   label: 'Full Name',    icon: markRaw(User) },
-  { key: 'phone',  label: 'Phone Number', icon: markRaw(Phone) },
-  { key: 'email',  label: 'Email',        icon: markRaw(Mail) },
+  { key: 'name',      label: 'Full Name',    icon: markRaw(User) },
+  { key: 'id',        label: 'ID Number',    icon: markRaw(Hash) },
+  { key: 'phone',     label: 'Phone Number', icon: markRaw(Phone) },
+  { key: 'email',     label: 'Email',        icon: markRaw(Mail) },
+  { key: 'signature', label: 'Signature',    icon: markRaw(Pen) },
+  { key: 'initials',  label: 'Initials',     icon: markRaw(Type) },
 ]
 
-const visibleFieldTypes = computed(() =>
-  activeFieldTab.value === 'Favorites'
-    ? allFieldTypes.filter(f => f.favorite)
-    : allFieldTypes
-)
+const visibleFieldTypes = computed(() => allFieldTypes)
 
 function insertFieldType(ft: { key: string }) {
   let fieldName: string
@@ -1262,6 +1276,52 @@ const leaseFields = [
   'page_number', 'total_pages',
 ]
 
+const leaseFieldGroups = [
+  {
+    label: 'Property',
+    fields: [
+      { key: 'property_address', label: 'Address' },
+      { key: 'unit_number', label: 'Unit Number' },
+      { key: 'city', label: 'City' },
+      { key: 'province', label: 'Province' },
+    ],
+  },
+  {
+    label: 'Lease Dates',
+    fields: [
+      { key: 'lease_start', label: 'Start Date' },
+      { key: 'lease_end', label: 'End Date' },
+      { key: 'notice_period_days', label: 'Notice Period' },
+    ],
+  },
+  {
+    label: 'Financial',
+    fields: [
+      { key: 'monthly_rent', label: 'Monthly Rent' },
+      { key: 'deposit', label: 'Deposit' },
+      { key: 'escalation_percent', label: 'Escalation %' },
+      { key: 'payment_reference', label: 'Payment Ref' },
+      { key: 'receipt_number', label: 'Receipt' },
+    ],
+  },
+  {
+    label: 'Rules & Utilities',
+    fields: [
+      { key: 'max_occupants', label: 'Max Occupants' },
+      { key: 'pets_allowed', label: 'Pets Allowed' },
+      { key: 'water_included', label: 'Water Included' },
+      { key: 'electricity_prepaid', label: 'Electricity Prepaid' },
+    ],
+  },
+  {
+    label: 'Document',
+    fields: [
+      { key: 'page_number', label: 'Page Number' },
+      { key: 'total_pages', label: 'Total Pages' },
+    ],
+  },
+]
+
 // ── Computed ──────────────────────────────────────────────────────────────
 const isPdfTemplate = computed(() => preview.value?.type === 'pdf' && !editorHtml.value)
 const pdfUrl = computed(() => preview.value?.pdf_url ?? null)
@@ -1294,6 +1354,11 @@ onMounted(async () => {
   }
 })
 
+// Re-inject page breaks when KeepAlive reactivates the component
+onActivated(() => {
+  nextTick(() => schedulePageBreaks())
+})
+
 async function loadTemplate() {
   try {
     const { data } = await api.get(`/leases/templates/${templateId.value}/`)
@@ -1321,9 +1386,22 @@ async function loadPreview() {
       isDirty.value    = false
       await api.patch(`/leases/templates/${templateId.value}/`, { content_html: html })
       if (template.value) template.value.content_html = html
+    } else {
+      // No content at all — initialize with a starter template
+      const name = template.value?.name ?? 'Lease Agreement'
+      const starter = `<h1 style="text-align:center">${name}</h1><p><br></p><p>Start editing your lease template here. Use the toolbar above to format text, and the field palette on the right to insert merge fields.</p><p><br></p>`
+      editorHtml.value = starter
+      savedHtml.value  = ''
+      isDirty.value    = true
     }
   } catch { /* ignore */ }
-  finally { loadingPreview.value = false }
+  finally {
+    loadingPreview.value = false
+    nextTick(() => {
+      if (editorEl.value) editorHeight.value = editorEl.value.scrollHeight
+      schedulePageBreaks()
+    })
+  }
 }
 
 // Clear editor state when leaving so next visit loads fresh from DB
@@ -1450,16 +1528,109 @@ function simulateIndent(outdent: boolean) {
   }
 }
 
+// ── A4 page break injection ───────────────────────────────────────────────
+const A4_PAGE_HEIGHT = 1061        // px – matches the min-h-[1061px] on the editor
+const PAGE_GAP       = 16         // px – gap between pages (user: "much smaller")
+const PAGE_PAD_TOP   = 24         // px – padding at top of each new page
+let _updatingBreaks = false
+let _breakRafId: number | null = null
+
+function getCleanHtml(): string {
+  if (!editorEl.value) return ''
+  const clone = editorEl.value.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('[data-auto-page-break]').forEach(el => el.remove())
+  return clone.innerHTML
+}
+
+function schedulePageBreaks() {
+  if (_breakRafId) cancelAnimationFrame(_breakRafId)
+  _breakRafId = requestAnimationFrame(updatePageBreaks)
+}
+
+function updatePageBreaks() {
+  _breakRafId = null
+  if (!editorEl.value || _updatingBreaks) return
+  _updatingBreaks = true
+
+  // 1. Remove existing auto breaks
+  editorEl.value.querySelectorAll('[data-auto-page-break]').forEach(el => el.remove())
+
+  // 2. Measure children
+  const children = Array.from(editorEl.value.children) as HTMLElement[]
+  if (children.length === 0) { _updatingBreaks = false; return }
+
+  const padTop = parseFloat(getComputedStyle(editorEl.value).paddingTop) || 0
+
+  // 3. Find page-break insertion points
+  const breaks: { idx: number; spacer: number }[] = []
+  let used = padTop
+
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i]
+    if (child.hasAttribute('data-page-break')) {
+      used = padTop
+      continue
+    }
+    const h = child.offsetHeight
+    if (h === 0) continue  // skip zero-height elements
+    const cs = getComputedStyle(child)
+    const mt = parseFloat(cs.marginTop) || 0
+    const mb = parseFloat(cs.marginBottom) || 0
+    const total = h + mt + mb
+
+    // Don't break if this is the first real content on the page
+    if (used <= padTop + 60) {
+      used += total
+      // Wrap tall elements spanning multiple pages
+      while (used > A4_PAGE_HEIGHT) used -= (A4_PAGE_HEIGHT - padTop)
+      if (used < padTop) used = padTop
+      continue
+    }
+
+    if (used + total > A4_PAGE_HEIGHT) {
+      const remaining = Math.max(0, A4_PAGE_HEIGHT - used)
+      breaks.push({ idx: i, spacer: remaining + PAGE_GAP + PAGE_PAD_TOP })
+      // Start new page with this element
+      used = padTop + total
+      // Wrap tall elements spanning multiple pages
+      while (used > A4_PAGE_HEIGHT) used -= (A4_PAGE_HEIGHT - padTop)
+      if (used < padTop) used = padTop
+    } else {
+      used += total
+    }
+  }
+
+  // 4. Insert spacer divs (reverse order keeps indices valid)
+  const totalPages = breaks.length + 1
+  for (let b = breaks.length - 1; b >= 0; b--) {
+    const { idx, spacer } = breaks[b]
+    const pageNum = b + 1  // page that just ended
+    const child = children[idx]
+    const div = document.createElement('div')
+    div.setAttribute('data-auto-page-break', 'true')
+    div.setAttribute('contenteditable', 'false')
+    div.style.height = `${spacer}px`
+    div.innerHTML = `<span class="apb-left">${footerLeft.value || ''}</span><span class="apb-right">Page ${pageNum} of ${totalPages}</span>`
+    child.parentNode!.insertBefore(div, child)
+  }
+
+  editorHeight.value = editorEl.value.scrollHeight
+  _updatingBreaks = false
+}
+
 // ── Editor ────────────────────────────────────────────────────────────────
 function onEditorInput() {
-  isDirty.value = (editorEl.value?.innerHTML ?? '') !== savedHtml.value
+  if (_updatingBreaks) return  // skip events fired by page-break injection
+  isDirty.value = getCleanHtml() !== savedHtml.value
+  if (editorEl.value) editorHeight.value = editorEl.value.scrollHeight
   _checkAutocomplete()
+  schedulePageBreaks()
 }
 
 async function saveContent() {
   if (!editorEl.value) return
   saving.value = true
-  const html = editorEl.value.innerHTML
+  const html = getCleanHtml()
   try {
     await api.patch(`/leases/templates/${templateId.value}/`, {
       content_html: html,
@@ -1813,6 +1984,7 @@ async function sendMessage() {
       isDirty.value    = false
       if (template.value) template.value.content_html = data.document_update.html
       showToast(`Document updated: ${data.document_update.summary}`)
+      nextTick(() => schedulePageBreaks())
       // Refresh template so detected_variables reflect new content
       await loadTemplate()
     }
@@ -2122,6 +2294,68 @@ async function extractFromTemplate() {
   font-family: ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
   user-select: none;
+}
+
+/* Page footer bar — last page footer positioned at bottom of editor */
+.page-footer-bar {
+  position: absolute;
+  left: 3.5rem;
+  right: 3.5rem;
+  display: flex;
+  justify-content: space-between;
+  font-size: 8px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  color: #9ca3af;
+  pointer-events: none;
+  user-select: none;
+  z-index: 2;
+}
+
+/* A4 auto page break — injected by updatePageBreaks() */
+.document-editor :deep([data-auto-page-break]) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 0 -3.5rem;
+  padding: 0 3.5rem 4px;
+  background:
+    linear-gradient(to bottom, #fff 0%, #fff calc(100% - 16px), #e8eaed calc(100% - 16px), #e8eaed 100%);
+  border-bottom: none;
+  position: relative;
+  user-select: none;
+  pointer-events: none;
+  cursor: default;
+  box-sizing: border-box;
+}
+/* Top shadow line at the bottom of each page */
+.document-editor :deep([data-auto-page-break])::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 16px;
+  height: 1px;
+  background: #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+/* Bottom edge: subtle line at top of next page */
+.document-editor :deep([data-auto-page-break])::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: 1px;
+  background: #e5e7eb;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
+}
+/* Footer text inside the break */
+.document-editor :deep([data-auto-page-break]) .apb-left,
+.document-editor :deep([data-auto-page-break]) .apb-right {
+  font-size: 8px;
+  color: #9ca3af;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  position: relative;
+  z-index: 1;
+  bottom: 18px; /* sit just above the gap */
 }
 
 /* Comment block */

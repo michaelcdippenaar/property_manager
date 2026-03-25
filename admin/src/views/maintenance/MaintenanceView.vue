@@ -1,7 +1,5 @@
 <template>
   <div class="space-y-5">
-    <h1 class="text-lg font-semibold text-gray-900">Maintenance Requests</h1>
-
     <!-- Filter pills -->
     <div class="flex gap-2 flex-wrap">
       <button

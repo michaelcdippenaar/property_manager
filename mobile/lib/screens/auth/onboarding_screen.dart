@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import '../../theme/app_colors.dart';
 
 class _Stage {
   const _Stage({required this.icon, required this.color, required this.title, required this.subtitle, required this.step});
@@ -12,14 +13,14 @@ class _Stage {
   final int step;
 }
 
-const _stages = [
-  _Stage(icon: Icons.search_rounded, color: Color(0xFF60A5FA), step: 1, title: 'Find Your Home', subtitle: 'Browse available properties and book a viewing — all from your phone.'),
-  _Stage(icon: Icons.assignment_turned_in_rounded, color: Color(0xFFA78BFA), step: 2, title: 'Apply Online', subtitle: 'Submit your application and credit check without printing a single page.'),
-  _Stage(icon: Icons.draw_rounded, color: Color(0xFFEC4899), step: 3, title: 'Sign Your Lease', subtitle: 'Review every clause and sign digitally. Your lease is stored safely forever.'),
-  _Stage(icon: Icons.vpn_key_rounded, color: Color(0xFF34D399), step: 4, title: 'Keys & Move In', subtitle: 'Your agent walks you through the ingoing inspection. Everything is on record.'),
-  _Stage(icon: Icons.auto_awesome_rounded, color: Color(0xFFFBBF24), step: 5, title: '24/7 AI Support', subtitle: 'Log repairs, ask about your WiFi code, or report an emergency — AI is always on.'),
-  _Stage(icon: Icons.event_available_rounded, color: Color(0xFF38BDF8), step: 6, title: 'Renewal Reminders', subtitle: 'Get notified before your lease expires. Renew, renegotiate, or serve notice in minutes.'),
-  _Stage(icon: Icons.inventory_2_rounded, color: Color(0xFFF97316), step: 7, title: 'Clean Exit', subtitle: 'Outgoing inspection, deposit reconciliation, and final settlement. Transparent and fair.'),
+final _stages = [
+  const _Stage(icon: Icons.search_rounded, color: AppColors.info500, step: 1, title: 'Find Your Home', subtitle: 'Browse available properties and book a viewing — all from your phone.'),
+  const _Stage(icon: Icons.assignment_turned_in_rounded, color: Color(0xFFA78BFA), step: 2, title: 'Apply Online', subtitle: 'Submit your application and credit check without printing a single page.'),
+  const _Stage(icon: Icons.draw_rounded, color: Color(0xFFEC4899), step: 3, title: 'Sign Your Lease', subtitle: 'Review every clause and sign digitally. Your lease is stored safely forever.'),
+  const _Stage(icon: Icons.vpn_key_rounded, color: AppColors.success500, step: 4, title: 'Keys & Move In', subtitle: 'Your agent walks you through the ingoing inspection. Everything is on record.'),
+  const _Stage(icon: Icons.auto_awesome_rounded, color: AppColors.warning500, step: 5, title: '24/7 AI Support', subtitle: 'Log repairs, ask about your WiFi code, or report an emergency — AI is always on.'),
+  const _Stage(icon: Icons.event_available_rounded, color: AppColors.info500, step: 6, title: 'Renewal Reminders', subtitle: 'Get notified before your lease expires. Renew, renegotiate, or serve notice in minutes.'),
+  const _Stage(icon: Icons.inventory_2_rounded, color: AppColors.warning600, step: 7, title: 'Clean Exit', subtitle: 'Outgoing inspection, deposit reconciliation, and final settlement. Transparent and fair.'),
 ];
 
 class OnboardingScreen extends StatefulWidget {
@@ -103,7 +104,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
             child: AnimatedBuilder(
               animation: _iconCtrl,
               builder: (_, __) => CustomPaint(
-                painter: _GlowPainter(color: stage.color.withOpacity(0.2), scale: _iconCtrl.value),
+                painter: _GlowPainter(color: stage.color.withValues(alpha:0.2), scale: _iconCtrl.value),
               ),
             ),
           ),
@@ -133,8 +134,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: const Color(0xFF0D1E30),
-                          border: Border.all(color: stage.color.withOpacity(0.25), width: 1.5),
-                          boxShadow: [BoxShadow(color: stage.color.withOpacity(0.2), blurRadius: 40, spreadRadius: 8)],
+                          border: Border.all(color: stage.color.withValues(alpha:0.25), width: 1.5),
+                          boxShadow: [BoxShadow(color: stage.color.withValues(alpha:0.2), blurRadius: 40, spreadRadius: 8)],
                         ),
                         child: Icon(stage.icon, color: stage.color, size: 56),
                       ),
@@ -150,9 +151,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                         decoration: BoxDecoration(
-                          color: stage.color.withOpacity(0.15),
+                          color: stage.color.withValues(alpha:0.15),
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: stage.color.withOpacity(0.3)),
+                          border: Border.all(color: stage.color.withValues(alpha:0.3)),
                         ),
                         child: Text(
                           '${stage.step.toString().padLeft(2, '0')} / ${_stages.length.toString().padLeft(2, '0')}',

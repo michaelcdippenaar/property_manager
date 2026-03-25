@@ -1,0 +1,1580 @@
+{
+  "version": 3,
+  "description": "Tenant AI training & regression: chat JSON (maintenance_ticket), maintenance-draft JSON, parser edge cases, and property_info FAQs (estate rules, amenities, lease facts — no ticket). Re-run: python backend/apps/ai/fixtures/generate_tenant_ai_training_cases.py",
+  "endpoints": {
+    "chat_message": "POST /api/v1/tenant-portal/conversations/{id}/messages/",
+    "maintenance_draft": "POST /api/v1/tenant-portal/conversations/{id}/maintenance-draft/"
+  },
+  "commands": {
+    "validate": "python manage.py tenant_ai_training --parse-check"
+  },
+  "cases": [
+    {
+      "id": "plumbing_kitchen_tap_drip",
+      "summary": "Dripping mixer tap — ticket + plumbing draft.",
+      "sample_transcript": "Tenant: The kitchen mixer tap won't stop dripping.\nAssistant: Thanks — I'll note that for a plumber visit.",
+      "tags": [
+        "plumbing",
+        "leak"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "plumbing"
+      },
+      "sample_chat_assistant_raw": "{\"reply\": \"I've flagged a leaking kitchen tap for the maintenance team.\", \"conversation_title\": \"Kitchen tap leak\", \"maintenance_ticket\": {\"title\": \"Kitchen mixer tap dripping\", \"description\": \"Tenant reports continuous drip from kitchen mixer tap.\", \"priority\": \"medium\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_priority": "medium",
+        "ticket_title_contains": "tap"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Kitchen mixer tap dripping\", \"description\": \"Continuous drip; tenant requests plumber.\", \"priority\": \"medium\", \"category\": \"plumbing\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "plumbing",
+        "title_contains": "tap"
+      }
+    },
+    {
+      "id": "plumbing_toilet_running",
+      "summary": "Running toilet cistern.",
+      "sample_transcript": "Tenant: The toilet keeps running after flush.\nAssistant: That's usually a faulty float or seal — worth logging.",
+      "tags": [
+        "plumbing"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Please log this so we can send someone to check the cistern.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Toilet cistern runs continuously\", \"description\": \"Water runs after flush; possible seal or float issue.\", \"priority\": \"medium\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_title_contains": "toilet"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Toilet cistern running\", \"description\": \"Continuous water noise after flush.\", \"priority\": \"medium\", \"category\": \"plumbing\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "plumbing"
+      }
+    },
+    {
+      "id": "plumbing_burst_pipe_urgent",
+      "summary": "Burst pipe / major leak — urgent.",
+      "sample_transcript": "Tenant: Water is gushing from under the bathroom basin pipe!\nAssistant: Turn off the stopcock if you can; this is urgent.",
+      "tags": [
+        "plumbing",
+        "urgent"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Turn off the main stopcock if safe. We're logging this as urgent.\", \"conversation_title\": \"Burst pipe\", \"maintenance_ticket\": {\"title\": \"Burst pipe under bathroom basin\", \"description\": \"Active water escape; tenant to isolate if possible.\", \"priority\": \"urgent\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_priority": "urgent"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Burst pipe bathroom basin\", \"description\": \"Gushing water; stopcock advice given.\", \"priority\": \"urgent\", \"category\": \"plumbing\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "priority": "urgent",
+        "category": "plumbing"
+      }
+    },
+    {
+      "id": "plumbing_blocked_drain",
+      "summary": "Blocked kitchen drain.",
+      "sample_transcript": "Tenant: Kitchen sink won't drain at all.\nAssistant: I'll add a drain blockage job.",
+      "tags": [
+        "plumbing"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Logged for drainage clearance.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Blocked kitchen sink drain\", \"description\": \"No drainage from kitchen sink.\", \"priority\": \"high\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_priority": "high"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Kitchen sink blocked\", \"description\": \"Standing water; full blockage.\", \"priority\": \"high\", \"category\": \"plumbing\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "plumbing"
+      }
+    },
+    {
+      "id": "plumbing_geyser_drip",
+      "summary": "Geyser / hot water drip (SA).",
+      "sample_transcript": "Tenant: There's water dripping from the geyser outlet pipe in the ceiling cavity.\nAssistant: That needs a plumber urgently — possible geyser failure.",
+      "tags": [
+        "plumbing",
+        "geyser"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true,
+        "priority_urgent_or_high": true
+      },
+      "expected_draft_fields": {
+        "category": "plumbing",
+        "priority_in": [
+          "high",
+          "urgent"
+        ]
+      }
+    },
+    {
+      "id": "electrical_db_tripping",
+      "summary": "DB tripping repeatedly.",
+      "sample_transcript": "Tenant: The earth leakage keeps tripping when we use the kettle.\nAssistant: Unplug devices and we'll log an electrician.",
+      "tags": [
+        "electrical"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Safety first — unplug the kettle. Logging electrical fault.\", \"conversation_title\": \"DB tripping\", \"maintenance_ticket\": {\"title\": \"Earth leakage trips with kettle\", \"description\": \"DB trips; tenant suspects kettle circuit.\", \"priority\": \"high\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_priority": "high"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Earth leakage tripping\", \"description\": \"Trips when kettle used; advise unplug.\", \"priority\": \"high\", \"category\": \"electrical\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "electrical"
+      }
+    },
+    {
+      "id": "electrical_no_power_unit",
+      "summary": "No power whole unit.",
+      "sample_transcript": "Tenant: We have no electricity at all in the flat since this morning.\nAssistant: Check prepaid — if not that, we'll escalate.",
+      "tags": [
+        "electrical",
+        "urgent"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"If prepaid is fine, this is urgent — logging now.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Total loss of power to unit\", \"description\": \"No electricity; prepaid ruled out by tenant.\", \"priority\": \"urgent\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "ticket_priority": "urgent"
+      },
+      "sample_draft_model_raw": "{\"title\": \"No power to unit\", \"description\": \"Complete outage; prepaid not cause.\", \"priority\": \"urgent\", \"category\": \"electrical\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "priority": "urgent"
+      }
+    },
+    {
+      "id": "electrical_sparking_socket",
+      "summary": "Socket sparking — urgent.",
+      "sample_transcript": "Tenant: The lounge wall socket sparked when I plugged in the TV.\nAssistant: Do not use that socket. Logging urgent electrical.",
+      "tags": [
+        "electrical",
+        "safety"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "electrical"
+      }
+    },
+    {
+      "id": "roof_ceiling_stain_rain",
+      "summary": "Ceiling stain after rain.",
+      "sample_transcript": "Tenant: Brown stain on bedroom ceiling after last night's storm.\nAssistant: Sounds like roof or waterproofing — we'll inspect.",
+      "tags": [
+        "roof",
+        "water"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Logged for roof/ceiling inspection after storm damage report.\", \"conversation_title\": \"Ceiling stain\", \"maintenance_ticket\": {\"title\": \"Ceiling water stain after storm\", \"description\": \"Bedroom ceiling stain following heavy rain.\", \"priority\": \"high\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true
+      },
+      "sample_draft_model_raw": "{\"title\": \"Ceiling stain after storm\", \"description\": \"Bedroom; post-rain ingress suspected.\", \"priority\": \"high\", \"category\": \"roof\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": {
+          "one_of": [
+            "roof",
+            "plumbing",
+            "other"
+          ]
+        }
+      }
+    },
+    {
+      "id": "appliance_oven_not_heating",
+      "summary": "Oven not heating.",
+      "sample_transcript": "Tenant: The built-in oven doesn't heat up.\nAssistant: I'll log appliance repair.",
+      "tags": [
+        "appliance"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Maintenance will arrange appliance inspection.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Built-in oven not heating\", \"description\": \"Oven powers on but no heat.\", \"priority\": \"medium\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true
+      },
+      "sample_draft_model_raw": "{\"title\": \"Oven not heating\", \"description\": \"Built-in oven; no heat.\", \"priority\": \"medium\", \"category\": \"appliance\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "appliance"
+      }
+    },
+    {
+      "id": "appliance_dishwasher_leak",
+      "summary": "Dishwasher leaking.",
+      "sample_transcript": "Tenant: Water pools in front of the dishwasher.\nAssistant: Don't run cycles until checked.",
+      "tags": [
+        "appliance",
+        "plumbing"
+      ],
+      "sample_draft_model_raw": "{\"title\": \"Dishwasher leaking\", \"description\": \"Dishwasher — water pools in front of unit; stop use.\", \"priority\": \"medium\", \"category\": \"appliance\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "appliance",
+        "description_contains": "dishwasher"
+      }
+    },
+    {
+      "id": "security_break_in",
+      "summary": "Break-in — urgent + security.",
+      "sample_transcript": "Tenant: Someone broke into our flat last night through the kitchen door.\nAssistant: Call SAPS 10111 if needed; logging urgent security.",
+      "tags": [
+        "security",
+        "urgent"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"I'm very sorry. If in danger call 10111. We've logged urgent security repairs.\", \"conversation_title\": \"Break-in\", \"maintenance_ticket\": {\"title\": \"Forced entry — door damage\", \"description\": \"Break-in via kitchen door; secure premises.\", \"priority\": \"urgent\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "ticket_priority": "urgent",
+        "ticket_title_contains": "door"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Break-in door damage\", \"description\": \"Forced entry kitchen door; police advice given.\", \"priority\": \"urgent\", \"category\": \"security\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "security",
+        "priority": "urgent"
+      }
+    },
+    {
+      "id": "security_deadlock_jammed",
+      "summary": "Front door lock jammed.",
+      "sample_transcript": "Tenant: I can't lock the front door — cylinder turns but bolt won't throw.\nAssistant: High priority — you need a locksmith path.",
+      "tags": [
+        "security"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Logging faulty door lock as high priority.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Front door lock not engaging\", \"description\": \"Cylinder turns; bolt won't throw.\", \"priority\": \"high\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "ticket_priority": "high"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Front door lock jammed\", \"description\": \"Bolt won't throw.\", \"priority\": \"high\", \"category\": \"security\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "security"
+      }
+    },
+    {
+      "id": "security_gate_motor",
+      "summary": "Complex gate / intercom (often security).",
+      "sample_transcript": "Tenant: The estate gate motor beeps but won't open my tag.\nAssistant: I'll log access control for the estate.",
+      "tags": [
+        "security"
+      ],
+      "expected_draft_fields": {
+        "category_one_of": [
+          "security",
+          "other"
+        ]
+      }
+    },
+    {
+      "id": "pest_cockroaches",
+      "summary": "Cockroach infestation.",
+      "sample_transcript": "Tenant: We're seeing cockroaches every night in the kitchen.\nAssistant: I'll schedule pest control.",
+      "tags": [
+        "pest"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Logged for pest treatment.\", \"conversation_title\": \"Pests\", \"maintenance_ticket\": {\"title\": \"Cockroaches in kitchen\", \"description\": \"Nightly activity in kitchen.\", \"priority\": \"medium\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true
+      },
+      "sample_draft_model_raw": "{\"title\": \"Cockroaches kitchen\", \"description\": \"Nightly sightings; treatment needed.\", \"priority\": \"medium\", \"category\": \"pest\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "pest"
+      }
+    },
+    {
+      "id": "pest_rodents",
+      "summary": "Rodents in roof.",
+      "sample_transcript": "Tenant: Scratching noises in the ceiling — think it's rats.\nAssistant: Pest control needed.",
+      "tags": [
+        "pest"
+      ],
+      "sample_draft_model_raw": "{\"title\": \"Rodents in ceiling void\", \"description\": \"Scratching; possible rats.\", \"priority\": \"high\", \"category\": \"pest\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "pest"
+      }
+    },
+    {
+      "id": "garden_irrigation_broken",
+      "summary": "Broken irrigation / communal garden.",
+      "sample_transcript": "Tenant: The sprinkler in our small garden zone is shooting water onto the wall.\nAssistant: I'll log landscaping irrigation.",
+      "tags": [
+        "garden"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Logged irrigation repair.\", \"conversation_title\": null, \"maintenance_ticket\": {\"title\": \"Irrigation sprinkler misdirected\", \"description\": \"Water hitting wall; adjust or repair head.\", \"priority\": \"low\"}}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "ticket_priority": "low"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Sprinkler hitting wall\", \"description\": \"Irrigation misaligned.\", \"priority\": \"low\", \"category\": \"garden\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "garden"
+      }
+    },
+    {
+      "id": "garden_tree_branch",
+      "summary": "Overhanging branch concern.",
+      "sample_transcript": "Tenant: A big branch from the complex tree is scraping our bedroom window.\nAssistant: I'll log for arborist/estate team.",
+      "tags": [
+        "garden"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "urgent_gas_smell",
+      "summary": "Gas smell — urgent.",
+      "sample_transcript": "Tenant: I smell gas near the stove when it's off.\nAssistant: Open windows, no flames, call emergency gas line if strong.",
+      "tags": [
+        "urgent",
+        "safety"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Ventilate and avoid sparks. Logging urgent gas check.\", \"conversation_title\": \"Gas smell\", \"maintenance_ticket\": {\"title\": \"Suspected gas leak near stove\", \"description\": \"Odor when stove off; safety advice given.\", \"priority\": \"urgent\"}}",
+      "expect_chat_parse": {
+        "ticket_priority": "urgent"
+      },
+      "sample_draft_model_raw": "{\"title\": \"Gas smell at stove\", \"description\": \"Ventilation advised; urgent inspection.\", \"priority\": \"urgent\", \"category\": \"other\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "priority": "urgent"
+      }
+    },
+    {
+      "id": "urgent_minor_fire_kitchen",
+      "summary": "Small fire extinguished — damage.",
+      "sample_transcript": "Tenant: We had a small pan fire, extinguished, but ceiling is black above stove.\nAssistant: Glad you're safe — logging fire/smoke damage.",
+      "tags": [
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "no_ticket_rubbish_schedule",
+      "summary": "Rubbish collection info — no ticket.",
+      "sample_transcript": "Tenant: What day is refuse collected?\nAssistant: Check your house rules PDF for estate schedule.",
+      "tags": [
+        "faq"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Collection days are in your house rules — usually under refuse.\", \"conversation_title\": null, \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "no_ticket_wifi_password",
+      "summary": "WiFi password question.",
+      "sample_transcript": "Tenant: What's the WiFi password for the complex guest network?\nAssistant: That's usually in your welcome pack — I don't have live credentials.",
+      "tags": [
+        "faq"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Check welcome pack or ask your agent.\", \"conversation_title\": null, \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "no_ticket_deposit",
+      "summary": "Deposit dispute — not a repair ticket.",
+      "sample_transcript": "Tenant: When will I get my deposit back?\nAssistant: That's an accounts/agent question per your lease notice period.",
+      "tags": [
+        "rent",
+        "legal_adjacent"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Deposit timing follows lease and inspection — contact your agent.\", \"conversation_title\": \"Deposit question\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true,
+        "conversation_title_non_null": true
+      }
+    },
+    {
+      "id": "no_ticket_parking_rules",
+      "summary": "Parking rules.",
+      "sample_transcript": "Tenant: Can I park a second car in visitor bays overnight?\nAssistant: House rules usually limit that — check annexure.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "no_ticket_greeting",
+      "summary": "Pure greeting.",
+      "sample_transcript": "Tenant: Hi there!\nAssistant: Hi — how can I help today?",
+      "tags": [
+        "chit_chat"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Hello! What do you need?\", \"conversation_title\": null, \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "maintenance_ticket_null": true,
+        "reply_nonempty": true
+      }
+    },
+    {
+      "id": "prop_info_pool_hours",
+      "summary": "Communal pool hours.",
+      "sample_transcript": "Tenant: What time does the estate pool close in summer?\nAssistant: Check house rules or the notice at the pool gate.",
+      "tags": [
+        "property_info",
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      },
+      "sample_chat_assistant_raw": "{\"reply\": \"Pool hours are in your house rules or on signage at the pool. Ask the estate office if unsure.\", \"conversation_title\": \"Pool hours\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true,
+        "conversation_title_non_null": true
+      }
+    },
+    {
+      "id": "prop_info_gym_access",
+      "summary": "Gym or clubhouse access.",
+      "sample_transcript": "Tenant: How do I get into the estate gym?\nAssistant: Access method is in house rules — tag, code, or office registration.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      },
+      "sample_chat_assistant_raw": "{\"reply\": \"Gym access is set out in house rules (tag, PIN, or sign-up at the office). Your agent can confirm if missing.\", \"conversation_title\": \"Gym access\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_braai_lapa_booking",
+      "summary": "Communal braai / lapa booking.",
+      "sample_transcript": "Tenant: Do I need to book the lapa for Saturday?\nAssistant: Estate rules cover communal facilities — check house rules.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Lapa or braai booking rules are in your house rules or estate app. Contact the estate manager to book if required.\", \"conversation_title\": null, \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_recycling_bins",
+      "summary": "Recycling location / day.",
+      "sample_transcript": "Tenant: Where are the recycling bins and which day is recycling?\nAssistant: Estate refuse guide in house rules.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Recycling location and collection day are in house rules or the refuse notice. Estate office can confirm.\", \"conversation_title\": \"Recycling info\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true,
+        "conversation_title_non_null": true
+      }
+    },
+    {
+      "id": "prop_info_quiet_hours",
+      "summary": "Noise / quiet hours in complex.",
+      "sample_transcript": "Tenant: What are the quiet hours in this estate?\nAssistant: Usually in house rules under conduct or noise.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Quiet hours are in your house rules (noise / conduct section). If unclear, ask your property manager.\", \"conversation_title\": \"Quiet hours\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_storage_locker",
+      "summary": "Storeroom / locker allocation.",
+      "sample_transcript": "Tenant: Is there a storage locker with our unit and where is it?\nAssistant: Lease or inventory may list it — house rules for common storage.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Check your lease, ingoing inventory, or house rules for storage allocation. Your agent can confirm the locker number and location.\", \"conversation_title\": \"Storage locker\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_unit_bedrooms_lease",
+      "summary": "How many bedrooms / floor plan.",
+      "sample_transcript": "Tenant: The ad said 3 beds but I only count 2 — what does the lease say?\nAssistant: Signed lease and annexures are definitive.",
+      "tags": [
+        "property_info",
+        "lease"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Your signed lease and floor plan annexure define the premises. Compare with the agent if it doesn't match what you viewed.\", \"conversation_title\": \"Unit layout question\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_included_services",
+      "summary": "What’s included (garden, DSTV, fibre).",
+      "sample_transcript": "Tenant: Is garden service included in our rent for this stand?\nAssistant: Lease schedule usually lists inclusions.",
+      "tags": [
+        "property_info",
+        "lease"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Inclusions like garden service are in your lease and rent schedule. If not listed, confirm with your agent.\", \"conversation_title\": \"What's included in rent\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_municipal_vs_landlord_electricity",
+      "summary": "Who bills electricity / prepaid.",
+      "sample_transcript": "Tenant: Do I buy prepaid from the municipality or does the landlord send a bill?\nAssistant: Lease payment clause explains.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"How electricity is billed (prepaid meter, landlord sub-meter, or municipal account) is in your lease. Ask the agent if the meter setup is unclear.\", \"conversation_title\": \"Electricity billing\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_estate_speed_limit",
+      "summary": "Internal roads / speed limit.",
+      "sample_transcript": "Tenant: What's the speed limit inside the estate?\nAssistant: Estate traffic rules in house rules or entrance signage.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_intercom_visitor",
+      "summary": "How visitors enter / intercom.",
+      "sample_transcript": "Tenant: How do I buzz a visitor in at the gate?\nAssistant: Intercom instructions vary — house rules or welcome letter.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Gate and intercom steps are in your welcome pack or house rules. Estate security can show you once if you're new.\", \"conversation_title\": \"Visitor access\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_complex_amenities_list",
+      "summary": "What facilities exist on site.",
+      "sample_transcript": "Tenant: What amenities does this complex have — kids' play area?\nAssistant: Marketing may differ; house rules list official facilities.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Official communal facilities are listed in house rules and estate notices (pool, playground, etc.). Your agent can send the current amenity list.\", \"conversation_title\": \"Estate amenities\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_water_tank_backup",
+      "summary": "Estate water backup / loadshedding water.",
+      "sample_transcript": "Tenant: Is there a JoJo or backup water when municipal cuts?\nAssistant: Estate infrastructure in rules or notice to owners.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_satellite_dish_rules",
+      "summary": "DSTV dish / aerial installation rules.",
+      "sample_transcript": "Tenant: Can I mount a dish on the wall facing the street?\nAssistant: Aesthetics rules in house rules / body corporate.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Satellite dish placement is usually restricted by house rules or body corporate guidelines. Get written approval before installing.\", \"conversation_title\": \"Satellite dish rules\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_emergency_estate_number",
+      "summary": "Estate security after-hours number.",
+      "sample_transcript": "Tenant: What's the estate security number for after hours?\nAssistant: Welcome pack, gate house, or house rules.",
+      "tags": [
+        "property_info"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"After-hours security numbers are in your welcome pack, on the access letter, or house rules. Use SAPS 10111 for crimes in progress.\", \"conversation_title\": \"Security contact\", \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_erf_stand_number",
+      "summary": "Property / erf reference on documents.",
+      "sample_transcript": "Tenant: What is the erf number for our unit for municipality forms?\nAssistant: Rates account or lease annexure.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "no_ticket_mention_maintenance_generically",
+      "summary": "Mentions maintenance in passing, no current issue.",
+      "sample_transcript": "Tenant: Last year we had a leak but it's fixed now — just asking about rent increase.\nAssistant: For rent, see your lease escalation clause.",
+      "tags": [
+        "edge"
+      ],
+      "sample_chat_assistant_raw": "{\"reply\": \"Rent increases are per lease terms.\", \"conversation_title\": null, \"maintenance_ticket\": null}",
+      "expect_chat_parse": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "multiturn_damp_escalation",
+      "summary": "Damp patch grows — multi-turn.",
+      "sample_transcript": "Tenant: Damp spot on wall.\nAssistant: Which room?\nTenant: Main bedroom, north wall, bigger than last week.\nAssistant: Logging for inspection.",
+      "tags": [
+        "multi_turn",
+        "plumbing"
+      ],
+      "expected_draft_fields": {
+        "description_mentions": [
+          "bedroom",
+          "wall"
+        ]
+      }
+    },
+    {
+      "id": "multiturn_photo_then_detail",
+      "summary": "Photo marker then text detail.",
+      "sample_transcript": "Tenant: (Photo attached) [Photo attached]\nAssistant: I see water damage on skirting.\nTenant: Yes, after upstairs geyser burst.\nAssistant: Logging urgent water damage.",
+      "tags": [
+        "multi_turn",
+        "photo"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "parse_chat_markdown_fence",
+      "summary": "Model wrongly wraps JSON in fence — parser must strip.",
+      "sample_transcript": "Tenant: Window cracked.\nAssistant: Logging.",
+      "tags": [
+        "parse_regression"
+      ],
+      "sample_chat_assistant_raw": "```json\n{\"reply\": \"Logged.\", \"conversation_title\": \"Window\", \"maintenance_ticket\": {\"title\": \"Cracked window\", \"description\": \"Glass crack\", \"priority\": \"medium\"}}\n```",
+      "expect_chat_parse": {
+        "json_ok": true,
+        "maintenance_ticket_non_null": true,
+        "ticket_title_contains": "window"
+      }
+    },
+    {
+      "id": "parse_draft_empty_title",
+      "summary": "Draft model returns empty title — parser returns null.",
+      "sample_transcript": "N/A",
+      "tags": [
+        "parse_regression"
+      ],
+      "sample_draft_model_raw": "{\"title\": \"\", \"description\": \"x\", \"priority\": \"low\", \"category\": \"other\"}",
+      "expect_draft_parse": {
+        "null": true
+      }
+    },
+    {
+      "id": "parse_draft_bad_category_normalized",
+      "summary": "Unknown category maps to other.",
+      "sample_transcript": "N/A",
+      "tags": [
+        "parse_regression"
+      ],
+      "sample_draft_model_raw": "{\"title\": \"Something weird\", \"description\": \"Unknown system beeping\", \"priority\": \"low\", \"category\": \"alien_technology\"}",
+      "expect_draft_parse": {
+        "non_null": true,
+        "category": "other"
+      }
+    },
+    {
+      "id": "parse_chat_invalid_json",
+      "summary": "Non-JSON assistant output.",
+      "sample_transcript": "Tenant: Help\nAssistant: Sure thing!",
+      "tags": [
+        "parse_regression"
+      ],
+      "sample_chat_assistant_raw": "Here is my answer without JSON sorry",
+      "expect_chat_parse": {
+        "json_ok": false,
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "afrikaans_lekkende_kraan",
+      "summary": "Afrikaans leak report (human prompt tuning).",
+      "sample_transcript": "Tenant: Die kraan in die badkamer lek die hele nag.\nAssistant: Ek sal dit vir loodgieter aanmeld.",
+      "tags": [
+        "afrikaans",
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "plumbing"
+      }
+    },
+    {
+      "id": "mixed_english_afrikaans",
+      "summary": "Mixed language.",
+      "sample_transcript": "Tenant: No power in kitchen plugs maar bedroom is fine.\nAssistant: Likely circuit issue — logging electrician.",
+      "tags": [
+        "mixed",
+        "electrical"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "hvac_ac_not_cooling",
+      "summary": "Air con not cooling",
+      "sample_transcript": "Tenant: The bedroom aircon runs but blows warm.\nAssistant: I'll log HVAC service.",
+      "tags": [
+        "hvac"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category_one_of": [
+          "appliance",
+          "other"
+        ]
+      }
+    },
+    {
+      "id": "windows_broken_latch",
+      "summary": "Window won't close",
+      "sample_transcript": "Tenant: Bedroom window latch broken — won't stay shut.\nAssistant: Logging carpentry/glazing.",
+      "tags": [
+        "windows"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "other"
+      }
+    },
+    {
+      "id": "mould_bathroom",
+      "summary": "Mould growth",
+      "sample_transcript": "Tenant: Black mould on bathroom ceiling corners.\nAssistant: Ventilation + treatment job.",
+      "tags": [
+        "health",
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "noise_neighbor_not_ticket",
+      "summary": "Neighbor noise — not property repair",
+      "sample_transcript": "Tenant: Upstairs stomping at 2am.\nAssistant: That's a neighbor conduct issue — contact estate manager.",
+      "tags": [
+        "edge"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "keys_lost_locksmith",
+      "summary": "Lost keys",
+      "sample_transcript": "Tenant: I lost my keys — need lock change.\nAssistant: Logging locksmith for security.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "security"
+      }
+    },
+    {
+      "id": "garage_door_remote",
+      "summary": "Garage remote",
+      "sample_transcript": "Tenant: Garage motor remote not working.\nAssistant: Battery or motor — logging.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "smoke_alarm_chirp",
+      "summary": "Smoke alarm chirping",
+      "sample_transcript": "Tenant: Smoke alarm chirps every minute.\nAssistant: Likely battery — still log check.",
+      "tags": [
+        "safety"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "fence_panel_wind",
+      "summary": "Fence panel down",
+      "sample_transcript": "Tenant: Back fence panel blew down in wind.\nAssistant: Estate perimeter repair.",
+      "tags": [
+        "garden"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category": "garden"
+      }
+    },
+    {
+      "id": "pool_pump_noise",
+      "summary": "Communal pool pump",
+      "sample_transcript": "Tenant: Pool pump grinding noise all day.\nAssistant: Logging estate maintenance.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "lift_stuck_not_unit",
+      "summary": "Lift stuck — common property",
+      "sample_transcript": "Tenant: Lift stuck between floors with me inside — I'm out now.\nAssistant: Escalate to body corporate urgently.",
+      "tags": [
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "balcony_railing_loose",
+      "summary": "Loose railing",
+      "sample_transcript": "Tenant: Balcony railing moves when leaned on.\nAssistant: Safety issue — high priority.",
+      "tags": [
+        "safety"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "priority_in": [
+          "high",
+          "urgent"
+        ]
+      }
+    },
+    {
+      "id": "extractor_fan_dead",
+      "summary": "Extractor not working",
+      "sample_transcript": "Tenant: Kitchen extractor fan dead.\nAssistant: Appliance/electrical check.",
+      "tags": [
+        "appliance"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "shower_pressure_low",
+      "summary": "Low pressure",
+      "sample_transcript": "Tenant: Shower pressure dropped to a trickle.\nAssistant: Possible blockage or municipal — log inspection.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "tile_cracked_floor",
+      "summary": "Cracked tile trip hazard",
+      "sample_transcript": "Tenant: Kitchen floor tile cracked and sharp edge.\nAssistant: Trip hazard — medium priority.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "intercom_static",
+      "summary": "Intercom static",
+      "sample_transcript": "Tenant: Can't hear visitors on intercom.\nAssistant: Log access comms repair.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "mailbox_broken",
+      "summary": "Mailbox damaged",
+      "sample_transcript": "Tenant: Mailbox door fell off.\nAssistant: Minor — logging.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "stairwell_light_out",
+      "summary": "Common stair light",
+      "sample_transcript": "Tenant: Stairwell light bulb out — dark at night.\nAssistant: Common area — log.",
+      "tags": [
+        "electrical"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "water_heater_pilot",
+      "summary": "Gas geyser pilot",
+      "sample_transcript": "Tenant: Gas geyser pilot won't stay lit.\nAssistant: Gas technician required.",
+      "tags": [
+        "plumbing",
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "rent_increase_question",
+      "summary": "Rent question",
+      "sample_transcript": "Tenant: Can landlord increase mid-lease?\nAssistant: General info only — not legal advice.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "tribunal_mention",
+      "summary": "RHT mention",
+      "sample_transcript": "Tenant: Should I go to Rental Housing Tribunal?\nAssistant: For disputes that's an option — suggest qualified advice.",
+      "tags": [
+        "legal_adjacent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "pet_policy",
+      "summary": "Pet policy",
+      "sample_transcript": "Tenant: Can I get a cat?\nAssistant: Check lease pet clause and agent approval.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "parking_scratch_claim",
+      "summary": "Damage claim narrative",
+      "sample_transcript": "Tenant: Someone scratched my car in the bay — CCTV?\nAssistant: Estate security query — not a unit repair ticket.",
+      "tags": [
+        "edge"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "leak_upstairs_neighbor",
+      "summary": "Upstream neighbor leak",
+      "sample_transcript": "Tenant: Water dripping from our ceiling — flat above.\nAssistant: Log leak + possible common pipe issue.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "vacant_possession_clean",
+      "summary": "End of lease clean",
+      "sample_transcript": "Tenant: Do I need professional clean?\nAssistant: Per lease handover clause.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "smart_meter_error",
+      "summary": "Prepaid meter error",
+      "sample_transcript": "Tenant: Prepaid meter shows error E04.\nAssistant: Municipality or landlord meter contractor.",
+      "tags": [
+        "electrical"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "borehole_water_smell",
+      "summary": "Water smell (estate)",
+      "sample_transcript": "Tenant: Tap water smells earthy this week.\nAssistant: Could be estate borehole — log water quality check.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "ceiling_fan_wobble",
+      "summary": "Ceiling fan wobbling",
+      "sample_transcript": "Tenant: Bedroom ceiling fan wobbles badly on high speed.\nAssistant: Safety risk — log to secure or replace.",
+      "tags": [
+        "electrical"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "gutter_overflow",
+      "summary": "Gutter overflowing",
+      "sample_transcript": "Tenant: Gutters overflow in heavy rain onto patio.\nAssistant: Blocked downpipe likely — log.",
+      "tags": [
+        "roof"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "category_one_of": [
+          "roof",
+          "garden",
+          "other"
+        ]
+      }
+    },
+    {
+      "id": "sagging_gate_estate",
+      "summary": "Pedestrian gate sagging",
+      "sample_transcript": "Tenant: Estate pedestrian gate scrapes ground when opening.\nAssistant: Log estate maintenance.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "balcony_drain_blocked",
+      "summary": "Balcony drain blocked",
+      "sample_transcript": "Tenant: Balcony doesn't drain after rain — puddles for days.\nAssistant: Clear drain outlet — log.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "mirror_cabinet_loose",
+      "summary": "Bathroom cabinet loose",
+      "sample_transcript": "Tenant: Medicine cabinet pulling off wall.\nAssistant: Re-secure — medium priority.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "underfloor_heating_fault",
+      "summary": "Underfloor heating cold",
+      "sample_transcript": "Tenant: Underfloor heating not warming lounge tiles.\nAssistant: Electrician/UFH specialist.",
+      "tags": [
+        "electrical"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "solar_geyser_pump",
+      "summary": "Solar pump noise",
+      "sample_transcript": "Tenant: Solar geyser circulation pump grinding.\nAssistant: Log plumber/solar tech.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "boundary_wall_crack",
+      "summary": "Boundary wall crack",
+      "sample_transcript": "Tenant: Large crack appeared in rear boundary wall after rains.\nAssistant: Structural inspection — log.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "carport_roof_sheet",
+      "summary": "Carport sheet loose",
+      "sample_transcript": "Tenant: Corrugated sheet on carport lifting in wind.\nAssistant: Urgent secure — safety.",
+      "tags": [
+        "roof"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      },
+      "expected_draft_fields": {
+        "priority_in": [
+          "high",
+          "urgent"
+        ]
+      }
+    },
+    {
+      "id": "septic_smell",
+      "summary": "Drain smell in yard",
+      "sample_transcript": "Tenant: Sewer smell near manhole in garden.\nAssistant: Possible septic/drainage — log urgent if strong.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "electric_fence_click",
+      "summary": "Electric fence clicking",
+      "sample_transcript": "Tenant: Perimeter fence clicks constantly at night.\nAssistant: Estate security electrics.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "sliding_door_track",
+      "summary": "Sliding door stuck",
+      "sample_transcript": "Tenant: Patio sliding door jumps off track.\nAssistant: Hardware repair — log.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "skylight_leak",
+      "summary": "Skylight drip",
+      "sample_transcript": "Tenant: Dripping through skylight in stairwell when it rains.\nAssistant: Seal or replace — roof.",
+      "tags": [
+        "roof"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "heat_pump_error",
+      "summary": "Heat pump error code",
+      "sample_transcript": "Tenant: Outdoor heat pump shows E3 and stops.\nAssistant: HVAC technician.",
+      "tags": [
+        "appliance"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "termite_mud_tubes",
+      "summary": "Termite tubes",
+      "sample_transcript": "Tenant: Mud tubes on garage wall — worried about termites.\nAssistant: Pest inspection urgent.",
+      "tags": [
+        "pest"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "bird_nest_extract",
+      "summary": "Birds in vent",
+      "sample_transcript": "Tenant: Birds nesting in bathroom vent outlet.\nAssistant: Clear humanely + mesh — log.",
+      "tags": [
+        "pest"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "sump_pump_alarm",
+      "summary": "Sump pump beeping",
+      "sample_transcript": "Tenant: Basement sump pump alarm won't stop.\nAssistant: If flooding risk — urgent.",
+      "tags": [
+        "plumbing",
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "led_downlight_flicker",
+      "summary": "Lights flicker whole unit",
+      "sample_transcript": "Tenant: All LED downlights flicker together.\nAssistant: Possible neutral fault — urgent electrical.",
+      "tags": [
+        "electrical",
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "insurance_claim_question",
+      "summary": "Insurance question",
+      "sample_transcript": "Tenant: Does landlord insure my contents?\nAssistant: Usually tenant contents are separate — check lease.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "subletting_question",
+      "summary": "Sublet question",
+      "sample_transcript": "Tenant: Can I Airbnb my spare room?\nAssistant: Lease/subletting clause — ask agent.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "noise_after_hours_work",
+      "summary": "After hours construction noise",
+      "sample_transcript": "Tenant: Renovation noise from neighbor unit after 8pm.\nAssistant: Body corporate rules / estate manager.",
+      "tags": [
+        "edge"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "visitor_parking_fine",
+      "summary": "Parking fine dispute",
+      "sample_transcript": "Tenant: Got fined for parking in visitor bay.\nAssistant: Estate office — not a repair ticket.",
+      "tags": [
+        "edge"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "load_shedding_schedule",
+      "summary": "Loadshedding info",
+      "sample_transcript": "Tenant: What stage is loadshedding today?\nAssistant: Check Eskom/municipality app — not property repair.",
+      "tags": [
+        "faq"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "water_outage_area",
+      "summary": "Area outage",
+      "sample_transcript": "Tenant: No water in whole street — neighbors too.\nAssistant: Likely municipal outage — check city alerts.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "keys_locked_inside",
+      "summary": "Locked out",
+      "sample_transcript": "Tenant: I locked keys inside — need access.\nAssistant: Locksmith/estate security — may be billable.",
+      "tags": [
+        "security"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "paint_peeling_bathroom",
+      "summary": "Peeling paint steam",
+      "sample_transcript": "Tenant: Bathroom ceiling paint peeling from steam.\nAssistant: Ventilation + repaint — log.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "wardrobe_rail_collapsed",
+      "summary": "Built-in rail collapsed",
+      "sample_transcript": "Tenant: Built-in cupboard rail snapped under weight.\nAssistant: Carpentry repair.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "jacuzzi_jets_weak",
+      "summary": "Jacuzzi weak jets",
+      "sample_transcript": "Tenant: Spa bath jets very weak.\nAssistant: Pump or blockage — log.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "steam_shower_fault",
+      "summary": "Steam shower error",
+      "sample_transcript": "Tenant: Steam shower shows error and won't start.\nAssistant: Specialist appliance.",
+      "tags": [
+        "appliance"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "borehole_pump_cycling",
+      "summary": "Pump short cycling",
+      "sample_transcript": "Tenant: Estate water pump cycles every minute — noisy at night.\nAssistant: Log estate infrastructure.",
+      "tags": [
+        "plumbing"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "copper_theft_lines",
+      "summary": "Stolen aircon pipes",
+      "sample_transcript": "Tenant: Copper pipes stripped from outdoor unit overnight.\nAssistant: Crime + insurance — urgent security repair.",
+      "tags": [
+        "security",
+        "urgent"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "vandalism_graffiti_common",
+      "summary": "Graffiti common wall",
+      "sample_transcript": "Tenant: Graffiti appeared on passage wall near my door.\nAssistant: Estate cleanup — log.",
+      "tags": [
+        "other"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_non_null": true
+      }
+    },
+    {
+      "id": "prop_info_laundry_room",
+      "summary": "Communal laundry",
+      "sample_transcript": "Tenant: Is there a shared laundry room and is it coin-operated?\nAssistant: House rules or welcome pack describe laundry facilities.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_fibre_isp",
+      "summary": "Fibre / internet in unit",
+      "sample_transcript": "Tenant: Which fibre provider is pre-installed in the estate?\nAssistant: Estate fibre agreement varies — check welcome letter or agent.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_tennis_court_booking",
+      "summary": "Tennis court",
+      "sample_transcript": "Tenant: How do I book the tennis court?\nAssistant: Estate app or office — in house rules.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_playground_age",
+      "summary": "Kids playground rules",
+      "sample_transcript": "Tenant: Is the playground for under-12 only?\nAssistant: House rules for play areas.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_postal_address",
+      "summary": "Postal address for deliveries",
+      "sample_transcript": "Tenant: What address should I use for online shopping delivery?\nAssistant: Unit number + estate street address as on lease; gate protocol in rules.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_sectional_title_levy",
+      "summary": "Who pays levy",
+      "sample_transcript": "Tenant: Do tenants pay body corporate levy or only the owner?\nAssistant: Typically owner — but check lease for recovery; not legal advice.",
+      "tags": [
+        "property_info",
+        "lease"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_generator_estate",
+      "summary": "Estate backup generator",
+      "sample_transcript": "Tenant: Does the estate generator cover all units during loadshedding?\nAssistant: Estate notice or house rules describe common-area vs unit backup.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_hoa_architectural",
+      "summary": "Alterations approval",
+      "sample_transcript": "Tenant: Can I paint the front door a different colour?\nAssistant: Architectural / aesthetic rules need body corporate or landlord approval.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_move_truck_access",
+      "summary": "Moving truck / large vehicle gate",
+      "sample_transcript": "Tenant: Can a removals truck come through the estate gate?\nAssistant: Estate access rules — book gate or time slot if required.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_domestic_quarters",
+      "summary": "Staff quarters on property",
+      "sample_transcript": "Tenant: Is the outside room included in our lease as domestic quarters?\nAssistant: Lease premises description and inventory define included spaces.",
+      "tags": [
+        "property_info",
+        "lease"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_parking_bay_number",
+      "summary": "Allocated bay number",
+      "sample_transcript": "Tenant: Which parking bay is allocated to unit 12B?\nAssistant: Lease schedule, parking plan annexure, or agent allocation letter.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    },
+    {
+      "id": "prop_info_water_restriction",
+      "summary": "Municipal water restrictions",
+      "sample_transcript": "Tenant: Are we on level X water restrictions here?\nAssistant: Municipality publishes restrictions; estate may add rules in notices.",
+      "tags": [
+        "property_info"
+      ],
+      "expected_chat_json": {
+        "maintenance_ticket_null": true
+      }
+    }
+  ]
+}

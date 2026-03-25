@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/maintenance_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/status_badge.dart';
 
 class IssueDetailScreen extends StatefulWidget {
   const IssueDetailScreen({super.key, required this.issueId});
   final int issueId;
-  @override State<IssueDetailScreen> createState() => _IssueDetailScreenState();
+  @override
+  State<IssueDetailScreen> createState() => _IssueDetailScreenState();
 }
 
 class _IssueDetailScreenState extends State<IssueDetailScreen> {
@@ -15,10 +21,16 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   String? _error;
 
   @override
-  void initState() { super.initState(); _load(); }
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final issue = await maintenanceService.getIssue(widget.issueId);
       if (mounted) setState(() { _issue = issue; _loading = false; });
@@ -30,82 +42,129 @@ class _IssueDetailScreenState extends State<IssueDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       appBar: AppBar(
         backgroundColor: AppColors.primaryNavy,
         foregroundColor: Colors.white,
-        title: Text(_issue?.ticketRef.isNotEmpty == true ? _issue!.ticketRef : 'Repair Request'),
-        leading: IconButton(icon: const Icon(Icons.arrow_back_rounded), onPressed: () => context.pop()),
+        title: Text(_issue?.ticketRef.isNotEmpty == true
+            ? _issue!.ticketRef
+            : 'Repair Request'),
+        leading: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded),
+            onPressed: () => context.pop()),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingView()
           : _error != null
-              ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.textSecondary)))
+              ? ErrorView(message: _error!, onRetry: _load)
               : _buildBody(),
     );
   }
 
   Widget _buildBody() {
     final issue = _issue!;
-    final statusColor = _statusColor(issue.status);
 
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: AppSpacing.listPadding,
       children: [
-        // Status banner
+        // Status + Priority badges
+        Row(
+          children: [
+            StatusBadge.status(issue.status),
+            const SizedBox(width: AppSpacing.sm),
+            StatusBadge.priority(issue.priority),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+
+        // Title
+        Text(issue.title,
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textPrimary)),
+        const SizedBox(height: AppSpacing.xl),
+
+        // Metadata card
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(color: statusColor.withOpacity(0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: statusColor.withOpacity(0.25))),
-          child: Row(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.cardBackground,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
             children: [
-              Icon(Icons.circle, color: statusColor, size: 10),
-              const SizedBox(width: 10),
-              Text(issue.status.replaceAll('_', ' ').toUpperCase(), style: TextStyle(color: statusColor, fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5)),
+              _DetailRow(label: 'Category', value: issue.category),
+              _DetailRow(label: 'Priority', value: issue.priority),
+              if (issue.ticketRef.isNotEmpty)
+                _DetailRow(label: 'Reference', value: issue.ticketRef),
+              _DetailRow(
+                label: 'Logged',
+                value: issue.createdAt.isNotEmpty
+                    ? issue.createdAt.substring(0, 10)
+                    : '—',
+                showDivider: false,
+              ),
             ],
           ),
         ),
-        const SizedBox(height: 20),
-        Text(issue.title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
-        const SizedBox(height: 16),
-        _DetailRow(label: 'Category', value: issue.category),
-        _DetailRow(label: 'Priority', value: issue.priority),
-        if (issue.ticketRef.isNotEmpty) _DetailRow(label: 'Reference', value: issue.ticketRef),
-        _DetailRow(label: 'Logged', value: issue.createdAt.isNotEmpty ? issue.createdAt.substring(0, 10) : '—'),
+
+        // Description card
         if (issue.description.isNotEmpty) ...[
-          const SizedBox(height: 20),
-          const Text('Description', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-          const SizedBox(height: 8),
-          Text(issue.description, style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A2E), height: 1.5)),
+          const SizedBox(height: AppSpacing.lg),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              color: AppColors.cardBackground,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Description',
+                    style: AppTextStyles.cardLabel
+                        .copyWith(fontWeight: FontWeight.w600)),
+                const SizedBox(height: AppSpacing.sm),
+                Text(issue.description, style: AppTextStyles.body),
+              ],
+            ),
+          ),
         ],
       ],
     );
   }
-
-  Color _statusColor(String s) {
-    switch (s) {
-      case 'open': return const Color(0xFF3B82F6);
-      case 'in_progress': return const Color(0xFFF97316);
-      case 'resolved': return const Color(0xFF34D399);
-      default: return const Color(0xFF9CA3AF);
-    }
-  }
 }
 
 class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
+  const _DetailRow({
+    required this.label,
+    required this.value,
+    this.showDivider = true,
+  });
   final String label;
   final String value;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          SizedBox(width: 90, child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500))),
-          Expanded(child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)))),
-        ],
-      ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+          child: Row(
+            children: [
+              SizedBox(
+                  width: 90,
+                  child: Text(label, style: AppTextStyles.cardLabel)),
+              Expanded(child: Text(value, style: AppTextStyles.cardValue)),
+            ],
+          ),
+        ),
+        if (showDivider) const Divider(height: 1, color: AppColors.divider),
+      ],
     );
   }
 }

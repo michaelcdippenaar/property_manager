@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/api_client.dart' show apiClient, ApiException;
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/state_views.dart';
 
 class _Conversation {
   _Conversation({required this.id, required this.title, required this.lastMessage, required this.updatedAt});
@@ -88,23 +93,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       body: Column(
         children: [
-          Container(
-            color: AppColors.primaryNavy,
-            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 20),
-            child: const Row(
-              children: [
-                Icon(Icons.auto_awesome_rounded, color: Colors.white70, size: 18),
-                SizedBox(width: 10),
-                Text('AI Assistant', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-              ],
-            ),
+          const AppHeader(
+            title: 'AI Assistant',
+            leading: Icon(Icons.auto_awesome_rounded, color: Colors.white70, size: 18),
           ),
           Expanded(
             child: _loading
-                ? const Center(child: CircularProgressIndicator())
+                ? const LoadingView()
                 : RefreshIndicator(
                     onRefresh: _load,
                     child: _convos.isEmpty
@@ -112,51 +110,52 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: const [
                               SizedBox(height: 80),
-                              Icon(Icons.chat_bubble_outline_rounded, size: 56, color: AppColors.textSecondary),
-                              SizedBox(height: 16),
-                              Center(
-                                child: Text('No conversations yet', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
-                              ),
-                              SizedBox(height: 8),
-                              Center(
-                                child: Text('Tap + to chat with the AI assistant', style: TextStyle(color: AppColors.textSecondary)),
+                              EmptyView(
+                                icon: Icons.chat_bubble_outline_rounded,
+                                title: 'No conversations yet',
+                                subtitle: 'Tap + to chat with the AI assistant',
                               ),
                             ],
                           )
                         : ListView.separated(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
+                        padding: AppSpacing.listPadding,
                         itemCount: _convos.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                         itemBuilder: (ctx, i) {
                           final c = _convos[i];
                           return Material(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
+                            borderRadius: AppRadius.cardBorder,
+                            clipBehavior: Clip.antiAlias,
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: AppRadius.cardBorder,
                               onTap: () => _openChat(c.id),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
+                              child: Container(
+                                padding: AppSpacing.cardPadding,
+                                decoration: BoxDecoration(
+                                  borderRadius: AppRadius.cardBorder,
+                                  border: Border.all(color: AppColors.border),
+                                ),
                                 child: Row(
                                   children: [
                                     const CircleAvatar(
                                       radius: 22,
-                                      backgroundColor: Color(0xFFEEF2FF),
+                                      backgroundColor: AppColors.info50,
                                       child: Icon(Icons.auto_awesome_rounded, color: AppColors.primaryNavy, size: 20),
                                     ),
-                                    const SizedBox(width: 14),
+                                    const SizedBox(width: AppSpacing.lg),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(c.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                                          Text(c.title, style: AppTextStyles.cardTitle),
                                           if (c.lastMessage.isNotEmpty)
-                                            Text(c.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                                            Text(c.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.cardSubtitle),
                                         ],
                                       ),
                                     ),
-                                    const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+                                    const Icon(Icons.chevron_right, color: AppColors.textSecondary, size: 20),
                                   ],
                                 ),
                               ),
@@ -170,7 +169,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _newChat,
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.accentPink,
         child: const Icon(Icons.add_rounded, color: Colors.white),
       ),
     );

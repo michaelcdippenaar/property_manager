@@ -26,12 +26,12 @@ class _LoginEmailScreenState extends State<LoginEmailScreen> {
   @override
   void initState() {
     super.initState();
-    // Debug/profile only: credentials omitted in release (assert stripped).
-    assert(() {
-      _emailController.text = 'mc@tremly.com';
-      _passwordController.text = 'Number55dip';
-      return true;
-    }());
+    // To pre-fill dev credentials, run:
+    // flutter run --dart-define=DEV_EMAIL=you@example.com --dart-define=DEV_PASS=yourpass
+    const devEmail = String.fromEnvironment('DEV_EMAIL');
+    const devPass = String.fromEnvironment('DEV_PASS');
+    if (devEmail.isNotEmpty) _emailController.text = devEmail;
+    if (devPass.isNotEmpty) _passwordController.text = devPass;
   }
 
   @override

@@ -1,31 +1,28 @@
 <template>
   <div class="space-y-5">
     <div class="flex items-center justify-between">
-      <h1 class="text-lg font-semibold text-gray-900">Properties</h1>
-      <button class="btn-primary" @click="dialog = true">
+      <p class="text-sm text-gray-500">Manage your property portfolio, units, and occupancy.</p>
+      <button class="btn-primary flex-shrink-0" @click="dialog = true">
         <Plus :size="15" /> Add Property
       </button>
     </div>
 
     <div class="card">
       <div class="px-4 pt-4 pb-3 border-b border-gray-100">
-        <div class="relative max-w-xs">
-          <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input v-model="search" class="input pl-8" placeholder="Search properties…" />
-        </div>
+        <SearchInput v-model="search" placeholder="Search properties…" />
       </div>
 
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
         <div v-for="i in 4" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else class="table-wrap">
+      <table v-else-if="filteredProperties.length" class="table-wrap">
         <thead>
           <tr>
             <th>Property</th>
             <th>Type</th>
             <th>City</th>
-            <th>Units</th>
+            <th class="text-right">Units</th>
             <th>Occupancy</th>
           </tr>
         </thead>
@@ -37,82 +34,87 @@
             </td>
             <td><span class="badge-gray capitalize">{{ p.property_type }}</span></td>
             <td class="text-gray-600">{{ p.city }}</td>
-            <td class="text-gray-600">{{ p.unit_count ?? 0 }}</td>
-            <td class="min-w-[100px]">
+            <td class="text-right text-gray-600">{{ p.unit_count ?? 0 }}</td>
+            <td class="min-w-[120px]">
               <div class="flex items-center gap-2">
-                <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div class="h-full bg-navy rounded-full" :style="`width:${occupancyPercent(p)}%`" />
+                <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-navy rounded-full transition-all" :style="`width:${occupancyPercent(p)}%`" />
                 </div>
-                <span class="text-xs text-gray-400">{{ occupancyPercent(p) }}%</span>
+                <span class="text-xs text-gray-500 w-8 text-right">{{ occupancyPercent(p) }}%</span>
               </div>
             </td>
           </tr>
-          <tr v-if="!filteredProperties.length">
-            <td colspan="5" class="text-center text-gray-400 py-10">No properties found</td>
-          </tr>
         </tbody>
       </table>
+
+      <EmptyState
+        v-else
+        title="No properties found"
+        description="Add your first property to get started managing your portfolio."
+        :icon="Building2"
+      >
+        <button class="btn-primary btn-sm" @click="dialog = true">
+          <Plus :size="14" /> Add Property
+        </button>
+      </EmptyState>
     </div>
 
     <!-- Add Property Dialog -->
-    <Teleport to="body">
-      <div v-if="dialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="dialog = false" />
-        <div class="relative card w-full max-w-md p-6 space-y-4">
-          <div class="flex items-center justify-between mb-2">
-            <h2 class="font-semibold text-gray-900">Add Property</h2>
-            <button @click="dialog = false" class="text-gray-400 hover:text-gray-600"><X :size="18" /></button>
-          </div>
-
+    <BaseModal :open="dialog" title="Add Property" @close="dialog = false">
+      <div class="space-y-4">
+        <div>
+          <label class="label">Property name <span class="text-danger-500">*</span></label>
+          <input v-model="newProperty.name" class="input" placeholder="18 Irene Park" required />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="label">Property name</label>
-            <input v-model="newProperty.name" class="input" placeholder="18 Irene Park" required />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="label">Type</label>
-              <select v-model="newProperty.property_type" class="input">
-                <option v-for="t in propertyTypes" :key="t" :value="t">{{ t }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="label">City</label>
-              <input v-model="newProperty.city" class="input" placeholder="Stellenbosch" />
-            </div>
+            <label class="label">Type</label>
+            <select v-model="newProperty.property_type" class="input">
+              <option v-for="t in propertyTypes" :key="t" :value="t">{{ t }}</option>
+            </select>
           </div>
           <div>
-            <label class="label">Address</label>
-            <input v-model="newProperty.address" class="input" placeholder="18 Irene Park Road, La Colline" />
+            <label class="label">City</label>
+            <input v-model="newProperty.city" class="input" placeholder="Stellenbosch" />
           </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="label">Province</label>
-              <input v-model="newProperty.province" class="input" placeholder="Western Cape" />
-            </div>
-            <div>
-              <label class="label">Postal code</label>
-              <input v-model="newProperty.postal_code" class="input" placeholder="7600" />
-            </div>
+        </div>
+        <div>
+          <label class="label">Address</label>
+          <input v-model="newProperty.address" class="input" placeholder="18 Irene Park Road, La Colline" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Province</label>
+            <input v-model="newProperty.province" class="input" placeholder="Western Cape" />
           </div>
-
-          <div class="flex justify-end gap-2 pt-2">
-            <button class="btn-ghost" @click="dialog = false">Cancel</button>
-            <button class="btn-primary" :disabled="saving" @click="createProperty">
-              <Loader2 v-if="saving" :size="14" class="animate-spin" />
-              Save Property
-            </button>
+          <div>
+            <label class="label">Postal code</label>
+            <input v-model="newProperty.postal_code" class="input" placeholder="7600" />
           </div>
         </div>
       </div>
-    </Teleport>
+
+      <template #footer>
+        <button class="btn-ghost" @click="dialog = false">Cancel</button>
+        <button class="btn-primary" :disabled="saving || !newProperty.name" @click="createProperty">
+          <Loader2 v-if="saving" :size="14" class="animate-spin" />
+          Save Property
+        </button>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
-import { Plus, Search, X, Loader2 } from 'lucide-vue-next'
+import { useToast } from '../../composables/useToast'
+import BaseModal from '../../components/BaseModal.vue'
+import SearchInput from '../../components/SearchInput.vue'
+import EmptyState from '../../components/EmptyState.vue'
+import { Plus, Building2, Loader2 } from 'lucide-vue-next'
 
+const toast = useToast()
 const loading = ref(true)
 const saving = ref(false)
 const search = ref('')
@@ -140,7 +142,10 @@ async function createProperty() {
     await api.post('/properties/', newProperty.value)
     dialog.value = false
     newProperty.value = { name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' }
+    toast.success('Property created successfully')
     await loadProperties()
+  } catch {
+    toast.error('Failed to create property')
   } finally {
     saving.value = false
   }

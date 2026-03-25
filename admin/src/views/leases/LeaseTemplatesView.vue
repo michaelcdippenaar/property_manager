@@ -1,18 +1,10 @@
 <template>
-  <div class="p-6 max-w-4xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900">Lease Templates</h1>
-        <p class="text-sm text-gray-500 mt-0.5">Build and manage reusable lease document templates</p>
-      </div>
-      <div class="flex items-center gap-2">
-        <button
-          class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium bg-navy text-white rounded-lg hover:bg-navy/90 transition-colors"
-          @click="showUpload = true"
-        >
-          <Plus :size="14" /> New Template
-        </button>
-      </div>
+  <div class="max-w-4xl mx-auto space-y-5">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p class="text-sm text-gray-500">Build and manage reusable lease document templates. Templates are not property-specific — one template can be used across all properties.</p>
+      <button class="btn-primary flex-shrink-0" @click="showCreate = true">
+        <Plus :size="15" /> New Template
+      </button>
     </div>
 
     <!-- Template grid -->
@@ -20,32 +12,34 @@
       <div v-for="i in 4" :key="i" class="h-28 bg-gray-100 rounded-xl animate-pulse" />
     </div>
 
-    <div v-else-if="!templates.length" class="text-center py-20 text-gray-400">
-      <FileSignature :size="40" class="mx-auto mb-3 opacity-30" />
-      <p class="font-medium">No templates yet</p>
-      <p class="text-sm mt-1">Upload a DOCX or start from scratch</p>
-    </div>
+    <EmptyState
+      v-else-if="!templates.length"
+      title="No templates yet"
+      description="Create your first lease template to get started."
+      :icon="FileSignature"
+    />
 
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div
         v-for="tmpl in templates" :key="tmpl.id"
-        class="bg-white border border-gray-200 rounded-xl p-4 hover:border-navy/40 hover:shadow-sm transition-all cursor-pointer group"
+        class="card p-4 hover:border-navy/40 hover:shadow-sm transition-all cursor-pointer group"
         @click="router.push({ name: 'lease-template-edit', params: { id: tmpl.id } })"
       >
-        <div class="flex items-start justify-between">
-          <div class="flex items-center gap-2">
-            <FileText :size="18" class="text-navy flex-shrink-0" />
-            <div>
-              <div class="font-semibold text-sm text-gray-900">{{ tmpl.name }}</div>
-              <div class="text-xs text-gray-400 mt-0.5">v{{ tmpl.version }}{{ tmpl.province ? ` · ${tmpl.province}` : '' }}</div>
-            </div>
-          </div>
+        <!-- Status badge — top right, own row -->
+        <div class="flex items-center justify-between mb-3">
+          <FileText :size="18" class="text-navy flex-shrink-0" />
           <span
-            class="text-[10px] px-2 py-0.5 rounded-full font-medium"
-            :class="tmpl.is_active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400'"
+            class="badge"
+            :class="tmpl.is_active ? 'badge-green' : 'badge-gray'"
           >{{ tmpl.is_active ? 'Active' : 'Inactive' }}</span>
         </div>
-        <div class="mt-3 flex items-center gap-2 text-xs text-gray-500">
+
+        <!-- Name + version -->
+        <div class="font-semibold text-sm text-gray-900 truncate" :title="tmpl.name">{{ tmpl.name }}</div>
+        <div class="text-xs text-gray-400 mt-0.5">v{{ tmpl.version }}{{ tmpl.province ? ` · ${tmpl.province}` : '' }}</div>
+
+        <!-- Footer meta -->
+        <div class="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
           <span>{{ tmpl.fields_schema?.length ?? 0 }} fields</span>
           <span v-if="tmpl.content_html" class="text-teal-600">· HTML content</span>
           <span class="ml-auto text-gray-300 group-hover:text-navy transition-colors">Edit →</span>
@@ -53,68 +47,141 @@
       </div>
     </div>
 
-    <!-- Upload / create modal -->
-    <div v-if="showUpload" class="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" @click.self="showUpload = false">
-      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-        <div class="flex items-center justify-between mb-4">
-          <h2 class="font-bold text-gray-900">New Lease Template</h2>
-          <button class="text-gray-400 hover:text-gray-600" @click="showUpload = false"><X :size="16" /></button>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium text-gray-600 block mb-1">Template name *</label>
-            <input v-model="form.name" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-navy" placeholder="SA Standard Residential Lease" />
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="text-xs font-medium text-gray-600 block mb-1">Version</label>
-              <input v-model="form.version" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-navy" placeholder="1.0" />
-            </div>
-            <div>
-              <label class="text-xs font-medium text-gray-600 block mb-1">Province (optional)</label>
-              <input v-model="form.province" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-navy" placeholder="Western Cape" />
-            </div>
-          </div>
-          <div>
-            <label class="text-xs font-medium text-gray-600 block mb-1">Upload DOCX or PDF (optional)</label>
-            <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-navy/40 transition-colors text-xs text-gray-400 gap-1">
-              <Upload :size="16" />
-              <span>{{ form.file ? form.file.name : 'Click to choose file' }}</span>
-              <input type="file" class="hidden" accept=".docx,.pdf" @change="onFileChange" />
-            </label>
-          </div>
-        </div>
-
-        <div class="mt-5 flex justify-end gap-2">
-          <button class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700" @click="showUpload = false">Cancel</button>
+    <!-- Create template modal — choose source -->
+    <BaseModal :open="showCreate" title="New Lease Template" @close="showCreate = false">
+      <!-- Step 1: choose source -->
+      <div v-if="createStep === 'choose'" class="space-y-3">
+        <p class="text-xs text-gray-500">How would you like to start?</p>
+        <div class="grid grid-cols-1 gap-2">
           <button
-            class="px-4 py-2 text-sm font-medium bg-navy text-white rounded-lg hover:bg-navy/90 disabled:opacity-50 transition-colors"
-            :disabled="!form.name || creating"
-            @click="createTemplate"
+            class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl text-left hover:border-navy/40 hover:bg-navy/5 transition-all"
+            @click="createStep = 'details'; createSource = 'blank'"
           >
-            <Loader2 v-if="creating" :size="13" class="inline animate-spin mr-1" />
-            {{ creating ? 'Creating…' : 'Create & Open Editor' }}
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <FilePlus :size="18" class="text-gray-500" />
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-gray-800">Blank Template</div>
+              <div class="text-xs text-gray-400">Start from scratch with an empty document</div>
+            </div>
+          </button>
+          <button
+            class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl text-left hover:border-navy/40 hover:bg-navy/5 transition-all"
+            @click="createStep = 'details'; createSource = 'upload'"
+          >
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Upload :size="18" class="text-gray-500" />
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-gray-800">Upload Contract</div>
+              <div class="text-xs text-gray-400">Import an existing DOCX or PDF document</div>
+            </div>
+          </button>
+          <button
+            v-if="templates.length"
+            class="flex items-center gap-3 p-4 border border-gray-200 rounded-xl text-left hover:border-navy/40 hover:bg-navy/5 transition-all"
+            @click="createStep = 'pick'; createSource = 'duplicate'"
+          >
+            <div class="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <Copy :size="18" class="text-gray-500" />
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-gray-800">From Existing Template</div>
+              <div class="text-xs text-gray-400">Duplicate and edit an existing template</div>
+            </div>
           </button>
         </div>
       </div>
-    </div>
+
+      <!-- Step 1b: pick existing template to duplicate -->
+      <div v-else-if="createStep === 'pick'" class="space-y-3">
+        <p class="text-xs text-gray-500">Select a template to duplicate:</p>
+        <div class="space-y-1.5 max-h-48 overflow-y-auto">
+          <button
+            v-for="tmpl in templates" :key="tmpl.id"
+            class="w-full flex items-center gap-3 p-3 border rounded-lg text-left transition-all"
+            :class="form.duplicateId === tmpl.id ? 'border-navy bg-navy/5' : 'border-gray-200 hover:border-navy/40'"
+            @click="form.duplicateId = tmpl.id; form.name = tmpl.name + ' (Copy)'"
+          >
+            <FileText :size="15" class="text-navy flex-shrink-0" />
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-800 truncate">{{ tmpl.name }}</div>
+              <div class="text-micro text-gray-400">v{{ tmpl.version }}</div>
+            </div>
+          </button>
+        </div>
+        <button
+          class="btn-primary w-full"
+          :disabled="!form.duplicateId"
+          @click="createStep = 'details'"
+        >
+          Continue
+        </button>
+      </div>
+
+      <!-- Step 2: name + details -->
+      <div v-else-if="createStep === 'details'" class="space-y-3">
+        <div>
+          <label class="label">Template name <span class="text-danger-500">*</span></label>
+          <input v-model="form.name" class="input" placeholder="e.g. Standard Residential Lease" />
+          <p class="text-micro text-gray-400 mt-1">Use a generic name — this template will be reusable across all properties.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Version</label>
+            <input v-model="form.version" class="input" placeholder="1.0" />
+          </div>
+          <div>
+            <label class="label">Province (optional)</label>
+            <input v-model="form.province" class="input" placeholder="Western Cape" />
+          </div>
+        </div>
+        <div v-if="createSource === 'upload'">
+          <label class="label">Upload DOCX or PDF</label>
+          <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-navy/40 transition-colors text-xs text-gray-400 gap-1">
+            <Upload :size="16" />
+            <span>{{ form.file ? form.file.name : 'Click to choose file' }}</span>
+            <input type="file" class="hidden" accept=".docx,.pdf" @change="onFileChange" />
+          </label>
+        </div>
+      </div>
+
+      <template #footer>
+        <button v-if="createStep !== 'choose'" class="btn-ghost" @click="createStep = 'choose'">Back</button>
+        <button v-else class="btn-ghost" @click="showCreate = false">Cancel</button>
+        <button
+          v-if="createStep === 'details'"
+          class="btn-primary"
+          :disabled="!form.name || creating"
+          @click="createTemplate"
+        >
+          <Loader2 v-if="creating" :size="15" class="animate-spin" />
+          {{ creating ? 'Creating…' : 'Create & Open Editor' }}
+        </button>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FileSignature, FileText, Plus, X, Upload, Loader2 } from 'lucide-vue-next'
+import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2 } from 'lucide-vue-next'
 import api from '../../api'
+import BaseModal from '../../components/BaseModal.vue'
+import EmptyState from '../../components/EmptyState.vue'
+import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
+const toast = useToast()
 const loading   = ref(true)
 const templates = ref<any[]>([])
-const showUpload = ref(false)
+const showCreate = ref(false)
 const creating  = ref(false)
+const createStep = ref<'choose' | 'pick' | 'details'>('choose')
+const createSource = ref<'blank' | 'upload' | 'duplicate'>('blank')
 
-const form = ref({ name: '', version: '1.0', province: '', file: null as File | null })
+const form = ref({ name: '', version: '1.0', province: '', file: null as File | null, duplicateId: null as number | null })
 
 onMounted(async () => {
   try {
@@ -136,15 +203,23 @@ async function createTemplate() {
     fd.append('name', form.value.name)
     fd.append('version', form.value.version || '1.0')
     if (form.value.province) fd.append('province', form.value.province)
-    if (form.value.file) fd.append('template_file', form.value.file)
-    else {
-      // Create without file — upload a minimal placeholder docx
+
+    if (createSource.value === 'upload' && form.value.file) {
+      fd.append('template_file', form.value.file)
+    } else if (createSource.value === 'duplicate' && form.value.duplicateId) {
+      fd.append('duplicate_from', String(form.value.duplicateId))
+    } else {
       fd.append('template_file', new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'blank.docx')
     }
+
     const { data } = await api.post('/leases/templates/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    showCreate.value = false
+    createStep.value = 'choose'
+    form.value = { name: '', version: '1.0', province: '', file: null, duplicateId: null }
+    toast.success('Template created')
     router.push({ name: 'lease-template-edit', params: { id: data.id } })
   } catch (e: any) {
-    alert(e?.response?.data?.error || 'Failed to create template')
+    toast.error(e?.response?.data?.error || 'Failed to create template')
   } finally {
     creating.value = false
   }

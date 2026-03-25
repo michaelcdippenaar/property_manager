@@ -10,6 +10,12 @@ const router = createRouter({
       component: () => import('../views/auth/LoginView.vue'),
       meta: { public: true },
     },
+    {
+      path: '/sign/:token',
+      name: 'public-sign',
+      component: () => import('../views/signing/PublicSignView.vue'),
+      meta: { public: true, allowWhenAuthenticated: true },
+    },
 
     // ── Agent / Admin layout ──
     {
@@ -51,6 +57,11 @@ const router = createRouter({
           path: 'leases/build',
           name: 'lease-builder',
           component: () => import('../views/leases/LeaseBuilderView.vue'),
+        },
+        {
+          path: 'leases/submit',
+          name: 'lease-submit',
+          component: () => import('../views/leases/SubmitLeaseView.vue'),
         },
         {
           path: 'property-info',
@@ -112,9 +123,10 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
-  // Public routes
+  // Public routes (e.g. login, passwordless /sign/:token)
   if (to.meta.public) {
-    if (auth.isAuthenticated) {
+    const allowWhenAuthed = to.meta.allowWhenAuthenticated === true
+    if (auth.isAuthenticated && !allowWhenAuthed) {
       if (!auth.user) {
         try { await auth.fetchMe() } catch { auth.logout(); return { name: 'login' } }
       }

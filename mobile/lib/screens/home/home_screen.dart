@@ -5,10 +5,19 @@ import '../../providers/auth_provider.dart';
 import '../../services/maintenance_service.dart';
 import '../../services/info_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
+import '../../utils/icon_mapper.dart';
+import '../../widgets/accent_card.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/state_views.dart';
+import '../../widgets/status_badge.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-  @override State<HomeScreen> createState() => _HomeScreenState();
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
@@ -25,13 +34,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final issues = await maintenanceService.listIssues();
+      final issues = await maintenanceService.listIssues(
+          params: {'status': 'open,in_progress'});
       final info = await infoService.listUnitInfo();
-      if (mounted) setState(() {
-        _issues = issues.where((i) => i.status == 'open' || i.status == 'in_progress').toList();
-        _info = info.take(3).toList();
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _issues = issues;
+          _info = info.take(3).toList();
+          _loading = false;
+        });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -40,64 +52,55 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final firstName = (auth.user?.fullName.trim().split(' ').firstOrNull) ?? 'there';
+    final firstName =
+        (auth.user?.fullName.trim().split(' ').firstOrNull) ?? 'there';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       body: RefreshIndicator(
         onRefresh: _load,
         child: CustomScrollView(
           slivers: [
-            // Header
             SliverToBoxAdapter(
-              child: Container(
-                color: AppColors.primaryNavy,
-                padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 24),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Hi, $firstName 👋', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 4),
-                          const Text('Welcome home', style: TextStyle(color: Colors.white60, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: Colors.white24,
-                      child: Text(
-                        firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
+              child: AppHeader(
+                title: 'Hi, $firstName 👋',
+                subtitle: 'Welcome home',
+                trailing: CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.white24,
+                  child: Text(
+                    firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
             ),
-
             if (_loading)
-              const SliverToBoxAdapter(
-                child: Padding(
-                  padding: EdgeInsets.only(top: 80),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              )
+              const SliverToBoxAdapter(child: LoadingView())
             else ...[
               // Active repairs section
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 12),
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.screenH,
+                      AppSpacing.xxl, AppSpacing.screenH, AppSpacing.sectionGap),
                   child: Row(
                     children: [
-                      const Text('Active Repairs', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+                      const Text('Active Repairs',
+                          style: AppTextStyles.sectionTitle),
                       const Spacer(),
                       if (_issues.isNotEmpty)
                         TextButton(
-                          onPressed: () {}, // handled by bottom nav
-                          child: const Text('See all', style: TextStyle(fontSize: 13)),
+                          onPressed: () {
+                            // Navigate to Repairs tab (index 1 in shell)
+                            final shell = context
+                                .findAncestorStateOfType<State>();
+                            if (shell != null) {
+                              context.go('/issues');
+                            }
+                          },
+                          child: const Text('See all',
+                              style: TextStyle(fontSize: 13)),
                         ),
                     ],
                   ),
@@ -106,11 +109,11 @@ class _HomeScreenState extends State<HomeScreen> {
               if (_issues.isEmpty)
                 const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 20),
+                    padding: AppSpacing.screenPadding,
                     child: _EmptyCard(
                       icon: Icons.check_circle_outline_rounded,
                       text: 'No active repairs',
-                      color: Color(0xFF34D399),
+                      color: AppColors.success500,
                     ),
                   ),
                 )
@@ -118,19 +121,63 @@ class _HomeScreenState extends State<HomeScreen> {
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, i) => Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.screenH, 0,
+                          AppSpacing.screenH, AppSpacing.listGap),
                       child: _IssueCard(issue: _issues[i]),
                     ),
                     childCount: _issues.length.clamp(0, 3),
                   ),
                 ),
 
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screenH,
+                    AppSpacing.md,
+                    AppSpacing.screenH,
+                    0,
+                  ),
+                  child: AccentCard(
+                    accentColor: AppColors.info500,
+                    onTap: () => context.push('/signing'),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.draw_rounded,
+                            color: AppColors.primaryNavy, size: 22),
+                        const SizedBox(width: AppSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Lease signing',
+                                  style: AppTextStyles.cardTitle),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Review and sign your lease in the app',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right,
+                            color: AppColors.textSecondary, size: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
               // Unit info section
               if (_info.isNotEmpty) ...[
                 const SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
-                    child: Text('Property Info', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
+                    padding: EdgeInsets.fromLTRB(AppSpacing.screenH,
+                        AppSpacing.xl, AppSpacing.screenH, AppSpacing.sectionGap),
+                    child:
+                        Text('Property Info', style: AppTextStyles.sectionTitle),
                   ),
                 ),
                 SliverToBoxAdapter(
@@ -138,10 +185,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 100,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      padding: AppSpacing.screenPadding,
                       itemCount: _info.length,
                       itemBuilder: (ctx, i) => Padding(
-                        padding: const EdgeInsets.only(right: 12),
+                        padding: const EdgeInsets.only(right: AppSpacing.md),
                         child: _InfoCard(item: _info[i]),
                       ),
                     ),
@@ -156,10 +203,14 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/chat'),
-        backgroundColor: AppColors.primaryNavy,
+        backgroundColor: AppColors.accentPink,
         foregroundColor: Colors.white,
         elevation: 4,
-        label: const Text('AI', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+        label: const Text('AI',
+            style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5)),
         icon: const Icon(Icons.auto_awesome_rounded, size: 20),
       ),
     );
@@ -170,46 +221,32 @@ class _IssueCard extends StatelessWidget {
   const _IssueCard({required this.issue});
   final MaintenanceIssue issue;
 
-  Color get _priorityColor {
-    switch (issue.priority) {
-      case 'urgent': return const Color(0xFFEF4444);
-      case 'high': return const Color(0xFFF97316);
-      case 'medium': return const Color(0xFF3B82F6);
-      default: return const Color(0xFF6B7280);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 4, height: 40,
-              decoration: BoxDecoration(color: _priorityColor, borderRadius: BorderRadius.circular(2)),
+    return AccentCard(
+      accentColor: AppColors.priorityColor(issue.priority),
+      onTap: () => context.push('/issues/${issue.id}'),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(issue.title, style: AppTextStyles.cardTitle),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    StatusBadge.status(issue.status),
+                    const SizedBox(width: AppSpacing.sm),
+                    StatusBadge.priority(issue.priority),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(issue.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Color(0xFF1A1A2E))),
-                  const SizedBox(height: 4),
-                  Text(
-                    issue.status.replaceAll('_', ' ').toUpperCase(),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _priorityColor),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: Color(0xFF9CA3AF), size: 20),
-          ],
-        ),
+          ),
+          const Icon(Icons.chevron_right,
+              color: AppColors.textSecondary, size: 20),
+        ],
       ),
     );
   }
@@ -219,34 +256,27 @@ class _InfoCard extends StatelessWidget {
   const _InfoCard({required this.item});
   final UnitInfoItem item;
 
-  IconData get _icon {
-    switch (item.iconType) {
-      case 'wifi': return Icons.wifi_rounded;
-      case 'alarm': return Icons.security_rounded;
-      case 'garbage': return Icons.delete_outline_rounded;
-      case 'parking': return Icons.local_parking_rounded;
-      case 'electricity': return Icons.bolt_rounded;
-      case 'water': return Icons.water_drop_outlined;
-      default: return Icons.info_outline_rounded;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 140,
-      padding: const EdgeInsets.all(14),
+      padding: AppSpacing.cardPadding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(_icon, color: AppColors.primaryNavy, size: 22),
-          const SizedBox(height: 8),
-          Text(item.label, style: const TextStyle(fontSize: 11, color: Color(0xFF6B7280), fontWeight: FontWeight.w500)),
-          Text(item.value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1A1A2E)), maxLines: 1, overflow: TextOverflow.ellipsis),
+          Icon(IconMapper.fromType(item.iconType),
+              color: AppColors.primaryNavy, size: 22),
+          const SizedBox(height: AppSpacing.sm),
+          Text(item.label, style: AppTextStyles.cardLabel),
+          Text(item.value,
+              style: AppTextStyles.cardValue,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
         ],
       ),
     );
@@ -254,7 +284,8 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _EmptyCard extends StatelessWidget {
-  const _EmptyCard({required this.icon, required this.text, required this.color});
+  const _EmptyCard(
+      {required this.icon, required this.text, required this.color});
   final IconData icon;
   final String text;
   final Color color;
@@ -262,13 +293,19 @@ class _EmptyCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.2))),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
       child: Row(
         children: [
           Icon(icon, color: color, size: 22),
-          const SizedBox(width: 12),
-          Text(text, style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 14)),
+          const SizedBox(width: AppSpacing.md),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontWeight: FontWeight.w600, fontSize: 14)),
         ],
       ),
     );

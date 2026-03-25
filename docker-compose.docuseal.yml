@@ -1,0 +1,43 @@
+# DocuSeal (self-hosted) — separate Postgres, does not touch Tremly’s klikk_db.
+#
+# Start:
+#   docker compose -f docker-compose.docuseal.yml up -d
+#
+# Open http://localhost:3000 → create the first admin user → Settings → API → create token.
+#
+# Point Tremly’s backend at it (backend/.env):
+#   DOCUSEAL_API_URL=http://127.0.0.1:3000/api
+#   DOCUSEAL_API_KEY=<token from DocuSeal>
+#
+# If port 3000 is busy, change the left side only, e.g. "3001:3000", and use that port in DOCUSEAL_API_URL.
+
+services:
+  docuseal:
+    image: docuseal/docuseal:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - docuseal_app_data:/data/docuseal
+    environment:
+      DATABASE_URL: postgresql://docuseal:docuseal@docuseal-db:5432/docuseal
+    depends_on:
+      docuseal-db:
+        condition: service_healthy
+
+  docuseal-db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: docuseal
+      POSTGRES_PASSWORD: docuseal
+      POSTGRES_DB: docuseal
+    volumes:
+      - docuseal_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docuseal -d docuseal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  docuseal_app_data:
+  docuseal_pg_data:

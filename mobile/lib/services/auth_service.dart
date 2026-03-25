@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class AuthUser {
   AuthUser({
@@ -114,23 +115,6 @@ class AuthService {
     return AuthUser.fromJson(data);
   }
 
-  Future<bool> tryRefresh() async {
-    final refresh = await _storage.read(key: _kRefresh);
-    if (refresh == null) return false;
-    final uri = Uri.parse('${ApiConfig.baseUrl}/auth/token/refresh/');
-    final res = await http.post(
-      uri,
-      headers: const {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh': refresh}),
-    );
-    if (res.statusCode != 200) {
-      await clearTokens();
-      return false;
-    }
-    final data = jsonDecode(res.body) as Map<String, dynamic>;
-    final access = data['access'] as String?;
-    if (access == null) return false;
-    await _storage.write(key: _kAccess, value: access);
-    return true;
-  }
+  /// Delegates to [ApiClient] to avoid duplicate refresh logic.
+  Future<bool> tryRefresh() => apiClient.tryRefresh();
 }

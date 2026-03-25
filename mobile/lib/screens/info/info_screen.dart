@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../services/info_service.dart';
 import '../../theme/app_colors.dart';
+import '../../theme/app_radius.dart';
+import '../../theme/app_spacing.dart';
+import '../../theme/app_text_styles.dart';
+import '../../utils/icon_mapper.dart';
+import '../../widgets/app_header.dart';
+import '../../widgets/state_views.dart';
 
 class InfoScreen extends StatefulWidget {
   const InfoScreen({super.key});
@@ -28,31 +34,26 @@ class _InfoScreenState extends State<InfoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F6FA),
+      backgroundColor: AppColors.scaffoldBackground,
       body: Column(
         children: [
-          Container(
-            color: AppColors.primaryNavy,
-            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 20, 20, 20),
-            child: const Row(
-              children: [
-                Text('Property Info', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-              ],
-            ),
-          ),
+          const AppHeader(title: 'Property Info'),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _load,
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const LoadingView()
                   : _error != null
-                      ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.textSecondary)))
+                      ? ErrorView(message: _error!, onRetry: _load)
                       : _items.isEmpty
-                          ? const Center(child: Text('No info available yet.', style: TextStyle(color: AppColors.textSecondary)))
+                          ? const EmptyView(
+                              icon: Icons.info_outline_rounded,
+                              title: 'No info available yet',
+                            )
                           : ListView.separated(
-                              padding: const EdgeInsets.all(16),
+                              padding: AppSpacing.listPadding,
                               itemCount: _items.length,
-                              separatorBuilder: (_, __) => const SizedBox(height: 10),
+                              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.listGap),
                               itemBuilder: (ctx, i) => _InfoTile(item: _items[i]),
                             ),
             ),
@@ -63,59 +64,72 @@ class _InfoScreenState extends State<InfoScreen> {
   }
 }
 
-class _InfoTile extends StatelessWidget {
+class _InfoTile extends StatefulWidget {
   const _InfoTile({required this.item});
   final UnitInfoItem item;
+  @override
+  State<_InfoTile> createState() => _InfoTileState();
+}
 
-  IconData get _icon {
-    switch (item.iconType) {
-      case 'wifi': return Icons.wifi_rounded;
-      case 'alarm': return Icons.security_rounded;
-      case 'garbage': return Icons.delete_outline_rounded;
-      case 'parking': return Icons.local_parking_rounded;
-      case 'electricity': return Icons.bolt_rounded;
-      case 'water': return Icons.water_drop_outlined;
-      case 'rules': return Icons.gavel_rounded;
-      default: return Icons.info_outline_rounded;
-    }
-  }
+class _InfoTileState extends State<_InfoTile> {
+  bool _revealed = false;
 
-  Color get _color {
-    switch (item.iconType) {
-      case 'wifi': return const Color(0xFF3B82F6);
-      case 'alarm': return const Color(0xFFEF4444);
-      case 'electricity': return const Color(0xFFFBBF24);
-      case 'water': return const Color(0xFF38BDF8);
+  UnitInfoItem get item => widget.item;
+
+  Color _iconColor(String iconType) {
+    switch (iconType) {
+      case 'wifi': return AppColors.info500;
+      case 'alarm': return AppColors.danger500;
+      case 'electricity': return AppColors.warning500;
+      case 'water': return AppColors.info500;
       default: return AppColors.primaryNavy;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final color = _iconColor(item.iconType);
+    final sensitive = IconMapper.isSensitive(item.iconType);
+    final displayValue = sensitive && !_revealed ? '\u2022' * 8 : item.value;
     return Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: _color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-              child: Icon(_icon, color: _color, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(item.label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-                  const SizedBox(height: 2),
-                  Text(item.value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1A1A2E))),
-                ],
+      borderRadius: AppRadius.cardBorder,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        borderRadius: AppRadius.cardBorder,
+        onTap: sensitive ? () => setState(() => _revealed = !_revealed) : null,
+        child: Container(
+          padding: AppSpacing.cardPadding,
+          decoration: BoxDecoration(
+            borderRadius: AppRadius.cardBorder,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppRadius.medium)),
+                child: Icon(IconMapper.fromType(item.iconType), color: color, size: 22),
               ),
-            ),
-          ],
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.label, style: AppTextStyles.cardLabel),
+                    const SizedBox(height: 2),
+                    Text(displayValue, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  ],
+                ),
+              ),
+              if (sensitive)
+                Icon(
+                  _revealed ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: AppColors.textSecondary,
+                  size: 20,
+                ),
+            ],
+          ),
         ),
       ),
     );

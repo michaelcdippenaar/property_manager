@@ -1,7 +1,5 @@
 <template>
   <div class="space-y-5 max-w-3xl">
-    <h1 class="text-lg font-semibold text-gray-900">My Profile</h1>
-
     <div v-if="loading" class="space-y-4">
       <div v-for="i in 3" :key="i" class="card p-5 animate-pulse space-y-3">
         <div class="h-4 bg-gray-100 rounded w-1/3"></div>

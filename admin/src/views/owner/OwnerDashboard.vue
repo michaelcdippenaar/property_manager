@@ -1,6 +1,5 @@
 <template>
   <div class="space-y-5">
-    <h1 class="text-lg font-semibold text-gray-900">Owner Dashboard</h1>
     <div v-if="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div class="card p-4">
         <div class="text-xs text-gray-400 uppercase tracking-wide">Properties</div>

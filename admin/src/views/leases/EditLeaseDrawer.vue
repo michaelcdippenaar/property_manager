@@ -38,7 +38,7 @@
 
           <!-- ── Section: Property & Unit ── -->
           <section>
-            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Property &amp; Unit</div>
+            <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest mb-3">Property &amp; Unit</div>
             <div class="card p-5 grid grid-cols-2 gap-4">
               <div>
                 <label class="label">Property</label>
@@ -59,7 +59,7 @@
 
           <!-- ── Section: Lease Details ── -->
           <section>
-            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lease Details</div>
+            <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest mb-3">Lease Details</div>
             <div class="card p-5 grid grid-cols-2 gap-4">
               <div>
                 <label class="label">Lease Number</label>
@@ -99,7 +99,7 @@
 
           <!-- ── Section: Terms ── -->
           <section>
-            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Terms &amp; Utilities</div>
+            <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest mb-3">Terms &amp; Utilities</div>
             <div class="card p-5 grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
                 <label class="label">Max Occupants</label>
@@ -141,7 +141,7 @@
           <!-- ── Section: Tenants ── -->
           <section>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Tenants — jointly &amp; severally liable</div>
+              <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest">Tenants — jointly &amp; severally liable</div>
               <button @click="showAddTenant = !showAddTenant" class="btn-ghost text-xs">
                 <Plus :size="12" /> Add Tenant
               </button>
@@ -229,7 +229,7 @@
           <!-- ── Section: Occupants ── -->
           <section>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Occupants</div>
+              <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest">Occupants</div>
               <button @click="showAddOccupant = !showAddOccupant" class="btn-ghost text-xs">
                 <Plus :size="12" /> Add Occupant
               </button>
@@ -279,7 +279,7 @@
           <!-- ── Section: Guarantors ── -->
           <section>
             <div class="flex items-center justify-between mb-3">
-              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Guarantors / Sureties</div>
+              <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest">Guarantors / Sureties</div>
               <button @click="showAddGuarantor = !showAddGuarantor" class="btn-ghost text-xs">
                 <Plus :size="12" /> Add Guarantor
               </button>
@@ -340,7 +340,7 @@
           <!-- ── Section: Documents ── -->
           <section class="pb-12">
             <div class="flex items-center justify-between mb-3">
-              <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Documents ({{ docList.length }})</div>
+              <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest">Documents ({{ docList.length }})</div>
             </div>
 
             <!-- Existing docs -->
@@ -407,7 +407,7 @@
 
           <!-- ── Section: E-Signing ── -->
           <section>
-            <div class="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">E-Signing</div>
+            <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest mb-3">E-Signing</div>
             <div class="card p-5">
               <ESigningPanel
                 :lease-id="lease.id"

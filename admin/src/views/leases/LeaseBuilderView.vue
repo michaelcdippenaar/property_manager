@@ -1,6 +1,5 @@
 <template>
-  <Teleport to="body">
-    <div class="fixed inset-0 z-50 flex flex-col bg-white overflow-hidden">
+  <div class="flex flex-col h-full -m-6 bg-white overflow-hidden">
 
       <!-- ── Header ── -->
       <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
@@ -24,13 +23,10 @@
                 {{ t.name }} v{{ t.version }}
               </option>
             </select>
-            <button class="btn-ghost text-xs py-1 px-2" @click="router.push('/leases/templates')">
+            <button class="btn-ghost btn-xs" @click="router.push('/leases/templates')">
               <Plus :size="12" /> New
             </button>
           </div>
-          <button @click="router.push('/leases')" class="text-gray-400 hover:text-gray-600 ml-2">
-            <X :size="18" />
-          </button>
         </div>
       </div>
 
@@ -132,8 +128,7 @@
         </div>
       </div>
 
-    </div>
-  </Teleport>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -141,7 +136,7 @@ import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import {
-  X, FileSignature, AlertCircle, Loader2, CheckCircle2, Plus,
+  FileSignature, AlertCircle, Loader2, CheckCircle2, Plus,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -324,12 +319,12 @@ const LeaseFormFields = defineComponent({
               : null,
           ]),
           h('div', { class: 'relative border border-navy/20 rounded-xl p-4 bg-navy/5' }, [
-            h('span', { class: 'absolute top-3 left-4 text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
+            h('span', { class: 'absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
             h('div', { class: 'pt-4' }, [h(PersonBlock, { modelValue: f.primary_tenant, 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) })]),
           ]),
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>
             h('div', { key: i, class: 'relative border border-navy/20 rounded-xl p-4 bg-navy/5' }, [
-              h('span', { class: 'absolute top-3 left-4 text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
+              h('span', { class: 'absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
               h('button', {
                 class: 'absolute top-2.5 right-3 text-gray-400 hover:text-red-500',
                 onClick: () => updForm('co_tenants', f.co_tenants.filter((_: any, j: number) => j !== i)),

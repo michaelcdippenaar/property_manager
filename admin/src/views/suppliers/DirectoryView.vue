@@ -74,7 +74,7 @@
             </td>
             <td>
               <div class="text-sm text-gray-700">{{ s.city || '—' }}</div>
-              <div v-if="s.latitude && s.longitude" class="text-[10px] text-gray-400 mt-0.5 font-mono">
+              <div v-if="s.latitude && s.longitude" class="text-micro text-gray-400 mt-0.5 font-mono">
                 {{ Number(s.latitude).toFixed(4) }}, {{ Number(s.longitude).toFixed(4) }}
               </div>
             </td>
@@ -83,7 +83,7 @@
                 <span
                   v-for="t in s.trades"
                   :key="t.id"
-                  class="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700"
+                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-blue-50 text-blue-700"
                 >
                   {{ t.label }}
                 </span>
@@ -102,8 +102,8 @@
               <span v-else class="text-xs text-gray-400">0</span>
             </td>
             <td>
-              <span v-if="s.has_bank_confirmation" class="badge-green text-[10px]">Confirmed</span>
-              <span v-else class="badge-amber text-[10px]">Missing</span>
+              <span v-if="s.has_bank_confirmation" class="badge-green text-micro">Confirmed</span>
+              <span v-else class="badge-amber text-micro">Missing</span>
             </td>
             <td>
               <span :class="s.is_active ? 'badge-green' : 'badge-gray'">
@@ -412,7 +412,7 @@
                   <div>
                     <span class="text-sm font-medium text-gray-700">{{ lnk.property_name }}</span>
                     <span class="text-xs text-gray-400 ml-2">{{ lnk.property_city }}</span>
-                    <span v-if="lnk.is_preferred" class="badge-blue text-[10px] ml-2">Preferred</span>
+                    <span v-if="lnk.is_preferred" class="badge-blue text-micro ml-2">Preferred</span>
                   </div>
                   <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
                 </div>

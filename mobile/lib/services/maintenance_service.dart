@@ -34,8 +34,8 @@ class MaintenanceIssue {
 }
 
 class MaintenanceService {
-  Future<List<MaintenanceIssue>> listIssues() async {
-    final data = await apiClient.getList('/maintenance/');
+  Future<List<MaintenanceIssue>> listIssues({Map<String, String>? params}) async {
+    final data = await apiClient.getList('/maintenance/', params: params);
     return (data as List).map((e) => MaintenanceIssue.fromJson(e as Map<String, dynamic>)).toList();
   }
 

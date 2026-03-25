@@ -1,21 +1,12 @@
 <template>
   <div class="space-y-5">
-    <h1 class="text-lg font-semibold text-gray-900">Maintenance Requests</h1>
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+      <p class="text-sm text-gray-500">Track, assign, and resolve maintenance requests across all properties.</p>
+    </div>
 
     <!-- Filter pills -->
-    <div class="flex gap-2 flex-wrap">
-      <button
-        v-for="f in filters"
-        :key="f.value"
-        @click="activeFilter = f.value; loadRequests()"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
-        :class="activeFilter === f.value
-          ? 'bg-navy text-white'
-          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-      >
-        {{ f.label }}
-      </button>
-    </div>
+    <FilterPills v-model="activeFilter" :options="filterOptions" @update:modelValue="loadRequests()" />
 
     <!-- Loading skeletons -->
     <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -27,7 +18,7 @@
     </div>
 
     <!-- Two-column layout: list + detail panel -->
-    <div v-else class="grid gap-5" :class="selected ? 'xl:grid-cols-[minmax(0,1.15fr)_minmax(420px,0.85fr)]' : ''">
+    <div v-else class="grid gap-5" :class="selected ? 'xl:grid-cols-[minmax(0,0.75fr)_minmax(420px,1.25fr)]' : ''">
 
       <!-- Left: request cards -->
       <div class="space-y-3 min-w-0">
@@ -48,8 +39,8 @@
               <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ req.description }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
-              <span :class="priorityBadge(req.priority)" class="text-[10px]">{{ req.priority }}</span>
-              <span :class="statusBadge(req.status)" class="text-[10px]">{{ req.status?.replace('_', ' ') }}</span>
+              <span :class="priorityBadge(req.priority)" class="text-micro">{{ req.priority }}</span>
+              <span :class="statusBadge(req.status)" class="text-micro">{{ req.status?.replace('_', ' ') }}</span>
             </div>
           </div>
           <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
@@ -154,7 +145,7 @@
                   :class="qr.status === 'awarded' ? 'bg-green-50 border-green-200' : ''">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-800">{{ qr.supplier_name }}</span>
-                    <span :class="quoteStatusBadge(qr.status)" class="text-[10px]">{{ qr.status }}</span>
+                    <span :class="quoteStatusBadge(qr.status)" class="text-micro">{{ qr.status }}</span>
                   </div>
                   <div v-if="qr.quote" class="flex items-center gap-4 text-sm">
                     <span class="font-medium text-gray-900">R{{ Number(qr.quote.amount).toLocaleString() }}</span>
@@ -180,73 +171,67 @@
     </div>
 
     <!-- Dispatch dialog — ranked suppliers + select & send -->
-    <Teleport to="body">
-      <div v-if="dispatchDialog" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="dispatchDialog = false" />
-        <div class="relative card w-full max-w-2xl p-6 space-y-4 max-h-[85vh] overflow-y-auto">
-          <div class="flex items-center justify-between mb-2">
-            <div>
-              <h2 class="font-semibold text-gray-900">Get Quotes — {{ selected?.title }}</h2>
-              <p class="text-xs text-gray-500 mt-0.5">Select suppliers to send quote requests to</p>
-            </div>
-            <button @click="dispatchDialog = false" class="text-gray-400 hover:text-gray-600"><X :size="18" /></button>
-          </div>
+    <BaseModal :open="dispatchDialog" title="Dispatch to Suppliers" size="lg" @close="dispatchDialog = false">
+      <template #header>
+        <div>
+          <h2 class="font-semibold text-gray-900">Get Quotes — {{ selected?.title }}</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Select suppliers to send quote requests to</p>
+        </div>
+      </template>
 
-          <!-- Supplier ranking -->
-          <div class="space-y-2">
-            <div v-for="(s, idx) in suggestions" :key="s.supplier_id"
-              class="flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer"
-              :class="selectedSupplierIds.has(s.supplier_id)
-                ? 'border-navy bg-navy/5'
-                : 'border-gray-200 hover:border-gray-300'"
-              @click="toggleSupplierSelection(s.supplier_id)"
-            >
-              <input type="checkbox" :checked="selectedSupplierIds.has(s.supplier_id)"
-                class="rounded" @click.stop="toggleSupplierSelection(s.supplier_id)" />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2">
-                  <span class="font-medium text-gray-900 text-sm">{{ s.supplier_name }}</span>
-                  <span class="text-xs text-gray-400">{{ s.supplier_city }}</span>
-                  <span v-if="idx === 0" class="badge-green text-[10px]">Best match</span>
-                </div>
-                <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                  <span v-if="s.reasons?.proximity?.distance_km" class="flex items-center gap-1">
-                    <MapPin :size="10" /> {{ s.reasons.proximity.distance_km }}km
-                  </span>
-                  <span v-for="t in s.trades?.slice(0, 3)" :key="t"
-                    class="px-1 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px]">
-                    {{ t }}
-                  </span>
-                </div>
-              </div>
-              <div class="text-right">
-                <div class="text-sm font-mono font-medium text-navy">{{ s.score }}</div>
-                <div class="text-[10px] text-gray-400">score</div>
-              </div>
+      <!-- Supplier ranking -->
+      <div class="space-y-2">
+        <div v-for="(s, idx) in suggestions" :key="s.supplier_id"
+          class="flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer"
+          :class="selectedSupplierIds.has(s.supplier_id)
+            ? 'border-navy bg-navy/5'
+            : 'border-gray-200 hover:border-gray-300'"
+          @click="toggleSupplierSelection(s.supplier_id)"
+        >
+          <input type="checkbox" :checked="selectedSupplierIds.has(s.supplier_id)"
+            class="rounded" @click.stop="toggleSupplierSelection(s.supplier_id)" />
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="font-medium text-gray-900 text-sm">{{ s.supplier_name }}</span>
+              <span class="text-xs text-gray-400">{{ s.supplier_city }}</span>
+              <span v-if="idx === 0" class="badge-green text-micro">Best match</span>
+            </div>
+            <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
+              <span v-if="s.reasons?.proximity?.distance_km" class="flex items-center gap-1">
+                <MapPin :size="10" /> {{ s.reasons.proximity.distance_km }}km
+              </span>
+              <span v-for="t in s.trades?.slice(0, 3)" :key="t"
+                class="px-1 py-0.5 bg-blue-50 text-blue-700 rounded text-micro">
+                {{ t }}
+              </span>
             </div>
           </div>
-
-          <div v-if="!suggestions.length" class="text-center text-gray-400 py-8">
-            No active suppliers found
-          </div>
-
-          <div>
-            <label class="label">Notes to suppliers (optional)</label>
-            <textarea v-model="dispatchNotes" class="input" rows="2" placeholder="Access instructions, urgency details…"></textarea>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2">
-            <button class="btn-ghost" @click="dispatchDialog = false">Cancel</button>
-            <button class="btn-primary" :disabled="!selectedSupplierIds.size || sending"
-              @click="sendDispatch">
-              <Loader2 v-if="sending" :size="14" class="animate-spin" />
-              <Send v-else :size="14" />
-              Send to {{ selectedSupplierIds.size }} supplier(s)
-            </button>
+          <div class="text-right">
+            <div class="text-sm font-mono font-medium text-navy">{{ s.score }}</div>
+            <div class="text-micro text-gray-400">score</div>
           </div>
         </div>
       </div>
-    </Teleport>
+
+      <div v-if="!suggestions.length" class="text-center text-gray-400 py-8">
+        No active suppliers found
+      </div>
+
+      <div class="mt-4">
+        <label class="label">Notes to suppliers (optional)</label>
+        <textarea v-model="dispatchNotes" class="input" rows="2" placeholder="Access instructions, urgency details…"></textarea>
+      </div>
+
+      <template #footer>
+        <button class="btn-ghost" @click="dispatchDialog = false">Cancel</button>
+        <button class="btn-primary" :disabled="!selectedSupplierIds.size || sending"
+          @click="sendDispatch">
+          <Loader2 v-if="sending" :size="14" class="animate-spin" />
+          <Send v-else :size="14" />
+          Send to {{ selectedSupplierIds.size }} supplier(s)
+        </button>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
@@ -254,6 +239,11 @@
 import { ref, onMounted } from 'vue'
 import api from '../../api'
 import { Clock, Truck, Send, X, Loader2, MapPin } from 'lucide-vue-next'
+import FilterPills from '../../components/FilterPills.vue'
+import BaseModal from '../../components/BaseModal.vue'
+import { useToast } from '../../composables/useToast'
+
+const toast = useToast()
 
 const loading = ref(true)
 const activeFilter = ref('all')
@@ -271,7 +261,7 @@ const selectedSupplierIds = ref(new Set<number>())
 const dispatchNotes = ref('')
 const sending = ref(false)
 
-const filters = [
+const filterOptions = [
   { label: 'All', value: 'all' },
   { label: 'Open', value: 'open' },
   { label: 'In Progress', value: 'in_progress' },
@@ -363,6 +353,9 @@ async function sendDispatch() {
     })
     dispatchData.value = data.dispatch
     dispatchDialog.value = false
+    toast.success('Dispatch sent successfully')
+  } catch {
+    toast.error('Failed to dispatch')
   } finally {
     sending.value = false
   }
