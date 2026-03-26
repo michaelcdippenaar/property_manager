@@ -842,14 +842,56 @@ def _build_toc_html(html: str, title: str = "TABLE OF CONTENTS") -> str:
     return f'<div data-block-comment="toc"><strong>{title}</strong><ol>{items}</ol></div>'
 
 
-def _renumber_h2(html: str, style: str = "number_dot") -> str:
-    counter = [0]
+def _renumber_headings(html: str, style: str = "number_dot", levels: str = "h2_h3_h4") -> str:
+    """
+    Multi-level heading renumbering.
+
+    levels:
+      "h2"          — only h2:  1. 2. 3.
+      "h2_h3"       — h2+h3:   1. / 1.1 / 1.2
+      "h2_h3_h4"    — all:     1. / 1.1 / 1.1.1
+
+    style:
+      "number_dot"  — "1. ", "1.1 ", "1.1.1 "
+      "number_only" — "1 ", "1.1 ", "1.1.1 "
+    """
+    # Strip any existing leading number prefix like "1.", "1.1.", "1.1.1 " etc.
+    _NUM_PREFIX = re.compile(r'^[\d]+(?:\.[\d]+)*\.?\s*')
+
+    target_tags = {"h2"}
+    if levels in ("h2_h3", "h2_h3_h4"):
+        target_tags.add("h3")
+    if levels == "h2_h3_h4":
+        target_tags.add("h4")
+
+    counters = [0, 0, 0]  # h2, h3, h4
+
     def repl(m):
-        counter[0] += 1
-        text = re.sub(r'^\d+[\.\s]+', '', m.group(1).strip())
+        tag = m.group(1).lower()
+        inner = m.group(2).strip()
+        text = _NUM_PREFIX.sub('', inner).strip()
+
+        if tag not in target_tags:
+            return m.group(0)  # leave untouched
+
         sep = ". " if style == "number_dot" else " "
-        return f'<h2>{counter[0]}{sep}{text}</h2>'
-    return re.sub(r'<h2[^>]*>(.*?)</h2>', repl, html, flags=re.DOTALL)
+
+        if tag == "h2":
+            counters[0] += 1
+            counters[1] = 0
+            counters[2] = 0
+            prefix = f"{counters[0]}"
+        elif tag == "h3":
+            counters[1] += 1
+            counters[2] = 0
+            prefix = f"{counters[0]}.{counters[1]}"
+        else:  # h4
+            counters[2] += 1
+            prefix = f"{counters[0]}.{counters[1]}.{counters[2]}"
+
+        return f"<{tag}>{prefix}{sep}{text}</{tag}>"
+
+    return re.sub(r'<(h[234])[^>]*>(.*?)</\1>', repl, html, flags=re.DOTALL | re.IGNORECASE)
 
 
 def _insert_comment_html(html: str, comment: str, position: str, after_heading: str = "") -> str:
@@ -1079,11 +1121,17 @@ _TEMPLATE_TOOLS = [
     },
     {
         "name": "renumber_sections",
-        "description": "Renumber all h2 section headings sequentially.",
+        "description": (
+            "Renumber headings with multi-level numbering. "
+            "Supports h2-only (1. 2. 3.), h2+h3 (1. / 1.1), or h2+h3+h4 (1. / 1.1 / 1.1.1). "
+            "Strips existing number prefixes first, then applies fresh sequential numbering. "
+            "Use the template's existing numbering depth — if h3 sub-sections are numbered, use h2_h3 or h2_h3_h4."
+        ),
         "input_schema": {
             "type": "object",
             "properties": {
-                "style": {"type": "string", "enum": ["number_dot", "number_only"]}
+                "style": {"type": "string", "enum": ["number_dot", "number_only"], "description": "Separator after number. Default: number_dot"},
+                "levels": {"type": "string", "enum": ["h2", "h2_h3", "h2_h3_h4"], "description": "Which heading levels to number. Default: h2_h3_h4"}
             },
             "required": []
         }
@@ -1227,7 +1275,7 @@ class LeaseTemplateAIChatView(APIView):
             "- **update_all** — rewrite the entire document (only for large restructures)\n"
             "- **apply_formatting** — change font, size, color, alignment, bold etc on lines by index WITHOUT changing text\n"
             "- **insert_toc** — insert a table of contents from h2 headings\n"
-            "- **renumber_sections** — renumber h2 headings sequentially\n"
+            "- **renumber_sections** — multi-level heading renumbering (h2, h2+h3, or h2+h3+h4). Preserves the template's numbering depth.\n"
             "- **add_comment** — insert an annotation block\n"
             "- **highlight_fields** — flag specific merge field variables\n\n"
             "### Skill Tools\n"
@@ -1381,14 +1429,16 @@ class LeaseTemplateAIChatView(APIView):
                         reply_parts.append(document_update["summary"] if document_update else "No headings found.")
 
                 elif name == "renumber_sections":
-                    new_html = _renumber_h2(current_html, inp.get("style", "number_dot"))
+                    levels = inp.get("levels", "h2_h3_h4")
+                    style = inp.get("style", "number_dot")
+                    new_html = _renumber_headings(current_html, style=style, levels=levels)
                     tmpl.content_html = new_html
                     tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": "Sections renumbered."}
+                    document_update = {"html": new_html, "summary": f"Headings renumbered ({levels})."}
                     current_html = new_html
-                    tools_used.append({"name": "renumber_sections", "detail": inp.get("style", "number_dot"), "type": "tool"})
+                    tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
                     if not reply_parts:
-                        reply_parts.append("All h2 sections have been renumbered.")
+                        reply_parts.append(f"All headings renumbered with multi-level numbering ({levels}).")
 
                 elif name == "apply_formatting":
                     from_i   = int(inp.get("from_index", 0))

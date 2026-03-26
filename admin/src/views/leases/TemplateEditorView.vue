@@ -1600,10 +1600,10 @@ async function saveContent() {
     if (compliance) {
       const { pass_count, total_checks, sections_missing, clauses_missing } = compliance
       if (pass_count === total_checks) {
-        showToast(`Saved — RHA compliant (${pass_count}/${total_checks} ✓)`)
+        showToast(`Saved ✓ RHA compliant (${pass_count}/${total_checks})`)
       } else {
         const missing = [...(sections_missing || []), ...(clauses_missing || [])]
-        showToast(`Saved — RHA: ${pass_count}/${total_checks} passed. Missing: ${missing.join(', ')}`, 'warn')
+        showToast(`Saved — RHA: ${pass_count}/${total_checks}. Missing: ${missing.slice(0, 3).join(', ')}`)
       }
     } else {
       showToast('Saved')

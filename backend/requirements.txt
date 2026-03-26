@@ -24,3 +24,5 @@ chromadb>=0.5.0
 python-docx>=1.1.0
 # MCP server for tenant chat context (used by Cursor / external agents)
 fastmcp>=2.0.0
+# GraphQL API (co-exists with DRF for flexible lease/template queries)
+graphene-django>=3.2.0

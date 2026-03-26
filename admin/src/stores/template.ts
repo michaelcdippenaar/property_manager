@@ -120,14 +120,14 @@ export const useTemplateStore = defineStore('template', () => {
     saving.value = true
     try {
       const json = JSON.stringify(document.value)
-      await api.patch(`/leases/templates/${template.value.id}/`, {
+      const { data } = await api.patch(`/leases/templates/${template.value.id}/`, {
         content_html: json,
         header_html: headerHtml.value,
         footer_html: footerHtml.value,
       })
       savedDocument.value = { ...document.value, fields: [...document.value.fields] }
       if (template.value) template.value.content_html = json
-      return true
+      return data || true
     } catch {
       return false
     } finally {
