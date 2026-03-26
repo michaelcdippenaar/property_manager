@@ -658,6 +658,7 @@ class ESigningSubmitSignatureView(APIView):
             return error_resp
 
         fields_input = request.data.get("fields", [])
+        signature_svg = request.data.get("signature_svg", "")
         if not fields_input:
             return Response(
                 {"error": "At least one field is required (signature)."},
@@ -681,6 +682,11 @@ class ESigningSubmitSignatureView(APIView):
                 {"error": "No valid fields provided."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Store vector signature on the signer record for future re-rendering
+        if signature_svg and isinstance(signature_svg, str):
+            signer["signature_svg"] = signature_svg
+            sub.save(update_fields=["signers", "updated_at"])
 
         try:
             result = services.submit_signature(int(signer["id"]), docuseal_fields)

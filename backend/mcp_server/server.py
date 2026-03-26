@@ -32,17 +32,16 @@ from django.db.models import Q  # noqa: E402
 
 from apps.accounts.models import User  # noqa: E402
 from apps.ai.models import TenantChatSession, TenantIntelligence  # noqa: E402
-from apps.leases.models import Lease  # noqa: E402
+from apps.leases.models import Lease, LeaseTemplate  # noqa: E402
 
 from fastmcp import FastMCP  # noqa: E402
 
 mcp = FastMCP(
-    name="tremly-tenant-context",
+    name="tremly-property-manager",
     instructions=(
-        "Tremly Tenant Context server. Provides read-only access to tenant "
-        "AI chat history and intelligence profiles for South African rental "
-        "property management. Use these tools to understand tenant behaviour, "
-        "review past conversations, and get cross-chat context."
+        "Tremly Property Manager MCP server. Provides access to tenant "
+        "AI chat history, intelligence profiles, and lease template management "
+        "for South African rental property management."
     ),
 )
 
@@ -254,6 +253,164 @@ def list_property_chats(property_id: int, limit: int = 30) -> str:
 
 
 # ──────────────────────────────────────────────
+#  Lease Template Tools
+# ──────────────────────────────────────────────
+
+def _serialize_template_summary(t: LeaseTemplate) -> dict:
+    fields_count = 0
+    if t.content_html:
+        try:
+            content = json.loads(t.content_html)
+            fields_count = len(content.get("fields", []))
+        except (json.JSONDecodeError, TypeError):
+            fields_count = len(t.fields_schema or [])
+    else:
+        fields_count = len(t.fields_schema or [])
+    return {
+        "id": t.id,
+        "name": t.name,
+        "version": t.version,
+        "province": t.province,
+        "is_active": t.is_active,
+        "fields_count": fields_count,
+        "has_html": bool(t.content_html),
+        "has_docx": bool(t.docx_file),
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+    }
+
+
+def _serialize_template_full(t: LeaseTemplate) -> dict:
+    data = _serialize_template_summary(t)
+    # Parse content_html JSON envelope
+    if t.content_html:
+        try:
+            content = json.loads(t.content_html)
+            data["html"] = content.get("html", "")
+            data["fields"] = content.get("fields", [])
+        except (json.JSONDecodeError, TypeError):
+            data["html"] = t.content_html
+            data["fields"] = t.fields_schema or []
+    else:
+        data["html"] = ""
+        data["fields"] = t.fields_schema or []
+    data["header_html"] = t.header_html
+    data["footer_html"] = t.footer_html
+    return data
+
+
+@mcp.tool
+def list_lease_templates(include_inactive: bool = False) -> str:
+    """List all lease templates with summary info (id, name, version, field count)."""
+    qs = LeaseTemplate.objects.all()
+    if not include_inactive:
+        qs = qs.filter(is_active=True)
+    return json.dumps([_serialize_template_summary(t) for t in qs], ensure_ascii=False)
+
+
+@mcp.tool
+def get_lease_template(template_id: int) -> str:
+    """
+    Get full lease template details including HTML content and fields schema.
+
+    Returns the template's HTML body, merge fields list, header/footer HTML,
+    and metadata.
+    """
+    try:
+        t = LeaseTemplate.objects.get(pk=template_id)
+    except LeaseTemplate.DoesNotExist:
+        return json.dumps({"error": f"Template {template_id} not found."})
+    return json.dumps(_serialize_template_full(t), ensure_ascii=False)
+
+
+@mcp.tool
+def update_lease_template(
+    template_id: int,
+    html: str | None = None,
+    fields: list[dict] | None = None,
+    name: str | None = None,
+    version: str | None = None,
+    province: str | None = None,
+    header_html: str | None = None,
+    footer_html: str | None = None,
+) -> str:
+    """
+    Update a lease template's content, fields, or metadata.
+
+    Parameters
+    ----------
+    template_id : ID of the template to update
+    html : New HTML body content (the document text with merge field spans)
+    fields : New fields schema list, e.g. [{"ref": "tenant_name", "label": "Tenant Name", "type": "text"}, ...]
+    name : New template name
+    version : New version string
+    province : New province
+    header_html : Header HTML shown at top of every page
+    footer_html : Footer HTML shown at bottom of every page
+    """
+    try:
+        t = LeaseTemplate.objects.get(pk=template_id)
+    except LeaseTemplate.DoesNotExist:
+        return json.dumps({"error": f"Template {template_id} not found."})
+
+    # Update content_html JSON envelope
+    if html is not None or fields is not None:
+        current = {"v": 1, "html": "", "fields": []}
+        if t.content_html:
+            try:
+                current = json.loads(t.content_html)
+            except (json.JSONDecodeError, TypeError):
+                current["html"] = t.content_html
+        if html is not None:
+            current["html"] = html
+        if fields is not None:
+            current["fields"] = fields
+        t.content_html = json.dumps(current)
+
+    if name is not None:
+        t.name = name
+    if version is not None:
+        t.version = version
+    if province is not None:
+        t.province = province
+    if header_html is not None:
+        t.header_html = header_html
+    if footer_html is not None:
+        t.footer_html = footer_html
+
+    t.save()
+    return json.dumps({"ok": True, **_serialize_template_full(t)}, ensure_ascii=False)
+
+
+@mcp.tool
+def create_lease_template(
+    name: str,
+    html: str = "",
+    fields: list[dict] | None = None,
+    version: str = "1.0",
+    province: str = "",
+) -> str:
+    """
+    Create a new lease template.
+
+    Parameters
+    ----------
+    name : Template name, e.g. "Standard Residential Lease"
+    html : Initial HTML body content
+    fields : Fields schema list
+    version : Version string (default "1.0")
+    province : Province (optional, leave blank for national)
+    """
+    content = json.dumps({"v": 1, "html": html, "fields": fields or []})
+    t = LeaseTemplate.objects.create(
+        name=name,
+        version=version,
+        province=province,
+        content_html=content,
+    )
+    return json.dumps({"ok": True, **_serialize_template_full(t)}, ensure_ascii=False)
+
+
+# ──────────────────────────────────────────────
 #  Resources
 # ──────────────────────────────────────────────
 
@@ -294,6 +451,23 @@ def property_chats_resource(property_id: int) -> str:
         [_serialize_session_summary(s) for s in sessions],
         ensure_ascii=False,
     )
+
+
+@mcp.resource("template://lease/{template_id}")
+def lease_template_resource(template_id: int) -> str:
+    """Full lease template content and fields."""
+    try:
+        t = LeaseTemplate.objects.get(pk=int(template_id))
+    except LeaseTemplate.DoesNotExist:
+        return json.dumps({"error": f"Template {template_id} not found."})
+    return json.dumps(_serialize_template_full(t), ensure_ascii=False)
+
+
+@mcp.resource("template://lease/list")
+def lease_templates_list_resource() -> str:
+    """All active lease templates (summary)."""
+    templates = LeaseTemplate.objects.filter(is_active=True)
+    return json.dumps([_serialize_template_summary(t) for t in templates], ensure_ascii=False)
 
 
 # ──────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import re
 from django.http import HttpResponse
@@ -6,6 +7,21 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status, generics
+
+
+def _extract_html(content_html: str) -> str:
+    """Extract HTML from content_html field — handles JSON (v1) and legacy HTML."""
+    raw = (content_html or "").strip()
+    if not raw:
+        return ""
+    if raw.startswith("{"):
+        try:
+            doc = json.loads(raw)
+            if isinstance(doc, dict) and doc.get("v") == 1 and isinstance(doc.get("html"), str):
+                return doc["html"]
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return raw
 
 
 def _get_anthropic_api_key() -> str:
@@ -62,11 +78,38 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
         if not name:
             return Response({"error": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Accept either field name for the file
+        # ── Duplicate from existing template ──────────────────────────────
+        duplicate_from = request.data.get("duplicate_from")
+        if duplicate_from:
+            try:
+                source = LeaseTemplate.objects.get(pk=int(duplicate_from))
+            except (LeaseTemplate.DoesNotExist, ValueError, TypeError):
+                return Response({"error": "Source template not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            tmpl = LeaseTemplate.objects.create(
+                name=name,
+                version=request.data.get("version") or "1.0",
+                province=request.data.get("province") or source.province or "",
+                content_html=source.content_html,
+                header_html=source.header_html,
+                footer_html=source.footer_html,
+                fields_schema=source.fields_schema or [],
+            )
+            serializer = LeaseTemplateSerializer(tmpl, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # ── Blank template (no file) ──────────────────────────────────────
         uploaded_file = request.FILES.get("docx_file") or request.FILES.get("template_file")
         if not uploaded_file:
-            return Response({"error": "template_file (or docx_file) is required."}, status=status.HTTP_400_BAD_REQUEST)
+            tmpl = LeaseTemplate.objects.create(
+                name=name,
+                version=request.data.get("version") or "1.0",
+                province=request.data.get("province") or "",
+            )
+            serializer = LeaseTemplateSerializer(tmpl, context={"request": request})
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+        # ── File upload (DOCX / PDF) ──────────────────────────────────────
         lower_name = uploaded_file.name.lower()
         is_docx = lower_name.endswith(".docx")
         is_pdf = lower_name.endswith(".pdf")
@@ -97,12 +140,38 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
 class LeaseTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
     """
     GET    /api/v1/leases/templates/{id}/ — retrieve
-    PATCH  /api/v1/leases/templates/{id}/ — update (e.g. set is_active=True)
+    PATCH  /api/v1/leases/templates/{id}/ — update (supports multipart docx_file upload)
     DELETE /api/v1/leases/templates/{id}/ — delete
     """
     serializer_class = LeaseTemplateSerializer
     permission_classes = [IsAuthenticated]
     queryset = LeaseTemplate.objects.all()
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        # Re-discover merge fields when a new DOCX file is uploaded
+        if "docx_file" in self.request.FILES and instance.docx_file:
+            lower = instance.docx_file.name.lower()
+            if lower.endswith(".docx") and DocxTemplate is not None:
+                try:
+                    doc = DocxTemplate(instance.docx_file.path)
+                    variables = list(doc.get_undeclared_template_variables())
+                    instance.fields_schema = variables
+                    instance.save(update_fields=["fields_schema"])
+                except Exception:
+                    pass  # field discovery is best-effort
+
+        # Run RHA compliance check on save and attach to response
+        html = _extract_html(instance.content_html)
+        if html:
+            self._compliance_report = _check_rha_compliance(html)
+
+    def update(self, request, *args, **kwargs):
+        self._compliance_report = None
+        response = super().update(request, *args, **kwargs)
+        if self._compliance_report and response.status_code == 200:
+            response.data["compliance"] = self._compliance_report
+        return response
 
 
 class GenerateLeaseDocumentView(APIView):
@@ -253,7 +322,7 @@ class LeaseTemplatePreviewView(APIView):
             "name": tmpl.name,
             "fields": tmpl.fields_schema,
             "paragraphs": paragraphs,
-            "content_html": tmpl.content_html or "",
+            "content_html": _extract_html(tmpl.content_html),
             "header_html": tmpl.header_html or "",
             "footer_html": tmpl.footer_html or "",
         })
@@ -794,6 +863,137 @@ def _insert_comment_html(html: str, comment: str, position: str, after_heading: 
     return html + block
 
 
+# ── Skill helpers ─────────────────────────────────────────────────────────
+
+_SA_STANDARD_SECTIONS = [
+    ("PARTIES", ["parties", "landlord", "tenant", "lessor", "lessee"]),
+    ("PREMISES", ["premises", "property", "address"]),
+    ("LEASE PERIOD", ["lease period", "term", "duration", "commencement"]),
+    ("RENTAL AND DEPOSIT", ["rent", "deposit", "payment", "banking"]),
+    ("UTILITIES", ["utilities", "water", "electricity", "municipal"]),
+    ("OCCUPANCY", ["occupancy", "occupant", "household"]),
+    ("MAINTENANCE AND REPAIRS", ["maintenance", "repair"]),
+    ("INSPECTIONS", ["inspection", "ingoing", "outgoing"]),
+    ("NOTICE AND TERMINATION", ["notice", "termination", "cancellation", "breach"]),
+    ("CONSUMER PROTECTION ACT", ["consumer protection", "cpa"]),
+    ("PROTECTION OF PERSONAL INFORMATION", ["popia", "personal information", "data protection"]),
+    ("DISPUTE RESOLUTION", ["dispute", "tribunal", "mediation", "arbitration"]),
+    ("SIGNATURES", ["signature", "witness", "signatory"]),
+]
+
+_RHA_MANDATORY_KEYWORDS = [
+    ("Deposit in interest-bearing account", ["interest-bearing", "interest bearing"]),
+    ("Deposit refund within 14 days", ["14 days", "fourteen days", "refund"]),
+    ("Minimum notice period", ["notice period", "calendar month", "20 business days"]),
+    ("Habitable premises obligation", ["habitable", "fit for habitation"]),
+    ("CPA fixed-term compliance", ["consumer protection", "cpa", "act 68"]),
+    ("POPIA data consent", ["popia", "personal information", "act 4 of 2013"]),
+    ("Rental Housing Tribunal", ["tribunal", "rental housing act"]),
+]
+
+
+def _check_rha_compliance(html: str) -> dict:
+    """Check template HTML against SA Rental Housing Act requirements."""
+    html_lower = html.lower()
+
+    # Extract h2/h3 headings
+    headings = [m.group(1).lower() for m in re.finditer(r'<h[23][^>]*>(.*?)</h[23]>', html, re.I)]
+    headings_text = " ".join(headings)
+
+    # Check standard sections
+    sections_found = []
+    sections_missing = []
+    for section_name, keywords in _SA_STANDARD_SECTIONS:
+        found = any(kw in headings_text for kw in keywords)
+        if found:
+            sections_found.append(section_name)
+        else:
+            sections_missing.append(section_name)
+
+    # Check mandatory clauses in full body
+    clauses_found = []
+    clauses_missing = []
+    for clause_name, keywords in _RHA_MANDATORY_KEYWORDS:
+        found = any(kw in html_lower for kw in keywords)
+        if found:
+            clauses_found.append(clause_name)
+        else:
+            clauses_missing.append(clause_name)
+
+    total = len(_SA_STANDARD_SECTIONS) + len(_RHA_MANDATORY_KEYWORDS)
+    passed = len(sections_found) + len(clauses_found)
+
+    # Build summary
+    lines = [f"RHA Compliance: {passed}/{total} checks passed.\n"]
+    if sections_missing:
+        lines.append(f"Missing sections: {', '.join(sections_missing)}")
+    if clauses_missing:
+        lines.append(f"Missing clauses: {', '.join(clauses_missing)}")
+    if not sections_missing and not clauses_missing:
+        lines.append("All standard sections and mandatory clauses are present.")
+
+    return {
+        "pass_count": passed,
+        "total_checks": total,
+        "sections_found": sections_found,
+        "sections_missing": sections_missing,
+        "clauses_found": clauses_found,
+        "clauses_missing": clauses_missing,
+        "summary": "\n".join(lines),
+    }
+
+
+def _format_sa_standard(html: str, add_missing: bool = True, preserve_custom: bool = True) -> str:
+    """Add missing standard SA lease sections without reordering existing content.
+
+    Preserves the original document order and only appends missing
+    standard sections before the final Signatures/Signatories section.
+    """
+    # Split into sections by h2
+    parts = re.split(r'(?=<h2[^>]*>)', html, flags=re.I)
+    preamble = parts[0] if parts else ""
+    sections = parts[1:] if len(parts) > 1 else []
+
+    # Identify which standard sections already exist
+    present: set[str] = set()
+    for section_html in sections:
+        heading_match = re.search(r'<h2[^>]*>(.*?)</h2>', section_html, re.I)
+        if not heading_match:
+            continue
+        heading_text = heading_match.group(1).lower()
+        for standard_name, keywords in _SA_STANDARD_SECTIONS:
+            if any(kw in heading_text for kw in keywords):
+                present.add(standard_name)
+                break
+
+    if not add_missing:
+        return html
+
+    # Build list of missing sections
+    missing_sections = []
+    for standard_name, _ in _SA_STANDARD_SECTIONS:
+        if standard_name not in present:
+            missing_sections.append(
+                f'<h2>{standard_name}</h2>\n'
+                f'<p><em>[This section needs to be completed]</em></p>\n'
+            )
+
+    if not missing_sections:
+        return html
+
+    # Insert missing sections before the last section if it's Signatures/Signatories
+    if sections:
+        last_heading = re.search(r'<h2[^>]*>(.*?)</h2>', sections[-1], re.I)
+        last_text = (last_heading.group(1).lower() if last_heading else "")
+        if any(kw in last_text for kw in ["signature", "signatory", "signatories"]):
+            result_parts = [preamble] + sections[:-1] + missing_sections + [sections[-1]]
+            return "\n".join(result_parts)
+
+    # Otherwise append at end
+    result_parts = [preamble] + sections + missing_sections
+    return "\n".join(result_parts)
+
+
 # ── Tool definitions for document editing ─────────────────────────────────
 _TEMPLATE_TOOLS = [
     {
@@ -932,7 +1132,46 @@ _TEMPLATE_TOOLS = [
             },
             "required": ["from_index", "to_index", "style", "summary"]
         }
-    }
+    },
+    # ── Skill-based tools ──
+    {
+        "name": "check_rha_compliance",
+        "description": (
+            "Audit the current template for South African Rental Housing Act compliance. "
+            "Checks for 13 standard sections and 7 mandatory clauses (deposit terms, notice period, "
+            "POPIA, CPA, dispute resolution, habitable premises, Rental Housing Tribunal). "
+            "Returns a compliance report. Use when the user asks about compliance, legality, "
+            "missing clauses, or 'is this lease valid'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {},
+            "required": []
+        }
+    },
+    {
+        "name": "format_sa_standard",
+        "description": (
+            "Restructure the entire template to match the standard 13-section South African lease format. "
+            "Reorders existing sections to the standard order, adds placeholder sections for any missing "
+            "standard sections, and preserves custom sections at the end. "
+            "Use when asked to 'format as standard SA lease', 'restructure', or 'add missing sections'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "add_missing_sections": {
+                    "type": "boolean",
+                    "description": "If true, add placeholder sections for any missing standard sections. Default true."
+                },
+                "preserve_custom_sections": {
+                    "type": "boolean",
+                    "description": "If true, keep non-standard sections at the end. Default true."
+                }
+            },
+            "required": []
+        }
+    },
 ]
 
 
@@ -964,7 +1203,7 @@ class LeaseTemplateAIChatView(APIView):
         # On subsequent messages it already contains the document context.
         api_history = request.data.get("api_history") or []
 
-        current_html = (tmpl.content_html or "").strip()
+        current_html = _extract_html(tmpl.content_html)
         detected = _detect_fields_from_html(current_html)
         fields_info = ", ".join(detected) if detected else ", ".join(tmpl.fields_schema) if tmpl.fields_schema else "none yet"
 
@@ -982,7 +1221,8 @@ class LeaseTemplateAIChatView(APIView):
             "Line numbers are the `i` index you use when calling edit tools.\n"
             "Merge fields appear as {{ field_name }} — preserve them exactly.\n"
             "Formatting (font, size, colour) is stored separately — do NOT include HTML in text.\n\n"
-            "## Tools — pick the right one\n"
+            "## Tools — pick the right one\n\n"
+            "### Editing Tools\n"
             "- **edit_lines** — replace text in a range of lines (preferred for targeted edits)\n"
             "- **update_all** — rewrite the entire document (only for large restructures)\n"
             "- **apply_formatting** — change font, size, color, alignment, bold etc on lines by index WITHOUT changing text\n"
@@ -990,13 +1230,32 @@ class LeaseTemplateAIChatView(APIView):
             "- **renumber_sections** — renumber h2 headings sequentially\n"
             "- **add_comment** — insert an annotation block\n"
             "- **highlight_fields** — flag specific merge field variables\n\n"
+            "### Skill Tools\n"
+            "- **check_rha_compliance** — audit this template against SA Rental Housing Act requirements (13 standard sections + 7 mandatory clauses)\n"
+            "- **format_sa_standard** — restructure the entire template to the standard 13-section SA lease format\n\n"
+            "### External Skills (mention to user when relevant)\n"
+            "- **Parse Lease Contract** — import a PDF/DOCX contract as a template. Direct user to the Import wizard on the Templates page.\n"
+            "- **E-Signing (DocuSeal)** — send for signing, manage signers, track status. Direct user to the lease detail page.\n\n"
+            "## SA Rental Law Quick Reference\n"
+            "Mandatory clauses per RHA 50/1999, CPA 68/2008, POPIA 4/2013:\n"
+            "- Deposit in interest-bearing account (s5(3)(f) RHA)\n"
+            "- Deposit refund within 14 days of termination (s5(3)(h) RHA)\n"
+            "- Minimum notice: one calendar month / 20 business days (s5(3)(c) RHA)\n"
+            "- Landlord must maintain habitable premises (s5A RHA)\n"
+            "- CPA s14 compliance for fixed-term agreements\n"
+            "- POPIA data processing consent clause\n"
+            "- Dispute resolution via Rental Housing Tribunal (s13 RHA)\n\n"
+            "Standard 13-section structure: PARTIES · PREMISES · LEASE PERIOD · RENTAL AND DEPOSIT · "
+            "UTILITIES · OCCUPANCY · MAINTENANCE AND REPAIRS · INSPECTIONS · NOTICE AND TERMINATION · "
+            "CONSUMER PROTECTION ACT · POPIA · DISPUTE RESOLUTION · SIGNATURES\n\n"
             "Rules:\n"
             "- Always call a tool for any edit/format request — never just describe changes\n"
             "- Text content only in edit_lines/update_all: plain text + {{ field_name }}, no HTML tags\n"
             "- For formatting requests (bold, font size, color, alignment): use apply_formatting with line indices\n"
             "- For tables use tag='table', text = pipe-delimited markdown rows\n"
             "- Prefer edit_lines over update_all unless moving/adding/removing many sections\n"
-            "- Keep conversational replies ≤ 3 sentences"
+            "- Keep conversational replies ≤ 3 sentences\n"
+            "- When mentioning which tools you used, be specific about what each tool did"
         )
 
         if api_history:
@@ -1042,6 +1301,7 @@ class LeaseTemplateAIChatView(APIView):
         reply_parts = []
         document_update = None
         field_highlight = None
+        tools_used = []
 
         for block in response.content:
             if block.type == "text" and block.text.strip():
@@ -1075,6 +1335,7 @@ class LeaseTemplateAIChatView(APIView):
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": summary}
                     current_html = new_html
+                    tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(summary)
 
@@ -1088,6 +1349,7 @@ class LeaseTemplateAIChatView(APIView):
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": summary}
                     current_html = new_html
+                    tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(summary)
 
@@ -1102,6 +1364,7 @@ class LeaseTemplateAIChatView(APIView):
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": f"Comment added."}
                     current_html = new_html
+                    tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(document_update["summary"])
 
@@ -1113,6 +1376,7 @@ class LeaseTemplateAIChatView(APIView):
                         tmpl.save(update_fields=["content_html"])
                         document_update = {"html": new_html, "summary": "Table of contents inserted."}
                         current_html = new_html
+                    tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(document_update["summary"] if document_update else "No headings found.")
 
@@ -1122,6 +1386,7 @@ class LeaseTemplateAIChatView(APIView):
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": "Sections renumbered."}
                     current_html = new_html
+                    tools_used.append({"name": "renumber_sections", "detail": inp.get("style", "number_dot"), "type": "tool"})
                     if not reply_parts:
                         reply_parts.append("All h2 sections have been renumbered.")
 
@@ -1135,6 +1400,7 @@ class LeaseTemplateAIChatView(APIView):
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": summary}
                     current_html = new_html
+                    tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(summary)
 
@@ -1143,8 +1409,30 @@ class LeaseTemplateAIChatView(APIView):
                         "field_names": inp.get("field_names", []),
                         "message":     inp.get("message", ""),
                     }
+                    tools_used.append({"name": "highlight_fields", "detail": ", ".join(inp.get("field_names", [])[:3]), "type": "tool"})
                     if not reply_parts:
                         reply_parts.append(inp.get("message", "Fields highlighted."))
+
+                elif name == "check_rha_compliance":
+                    report = _check_rha_compliance(current_html)
+                    tools_used.append({
+                        "name": "check_rha_compliance",
+                        "detail": f"{report['pass_count']}/{report['total_checks']} passed",
+                        "type": "skill",
+                    })
+                    reply_parts.append(report["summary"])
+
+                elif name == "format_sa_standard":
+                    add_missing = inp.get("add_missing_sections", True)
+                    preserve_custom = inp.get("preserve_custom_sections", True)
+                    new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
+                    tmpl.content_html = new_html
+                    tmpl.save(update_fields=["content_html"])
+                    document_update = {"html": new_html, "summary": "Template restructured to standard SA lease format."}
+                    current_html = new_html
+                    tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
+                    if not reply_parts:
+                        reply_parts.append("Template restructured to standard SA lease format.")
 
         reply = " ".join(reply_parts) or "Done."
 
@@ -1158,6 +1446,8 @@ class LeaseTemplateAIChatView(APIView):
             result["document_update"] = document_update
         if field_highlight:
             result["field_highlight"] = field_highlight
+        if tools_used:
+            result["tools_used"] = tools_used
         return Response(result)
 
 
@@ -1202,7 +1492,7 @@ class ExportTemplatePDFView(APIView):
         except LeaseTemplate.DoesNotExist:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        html_body = (tmpl.content_html or "").strip()
+        html_body = _extract_html(tmpl.content_html)
         if not html_body:
             return Response({"error": "Template has no content. Build it in the editor first."}, status=status.HTTP_400_BAD_REQUEST)
 

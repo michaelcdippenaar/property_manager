@@ -94,38 +94,44 @@
         </div>
 
         <!-- Right: Template preview -->
-        <div class="flex-1 bg-[#e8eaed] overflow-y-auto flex flex-col items-center py-8 px-6 min-h-0">
-
-          <!-- No template -->
-          <div v-if="!selectedTemplateId && !loadingTemplates" class="text-center text-gray-400 mt-24">
-            <FileSignature :size="36" class="mx-auto mb-3 opacity-30" />
-            <p class="font-medium text-sm">No template selected</p>
-            <p class="text-xs mt-1">Pick a template in the header to preview it here</p>
+        <template v-if="!selectedTemplateId && !loadingTemplates">
+          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+            <div class="text-center text-gray-400">
+              <FileSignature :size="36" class="mx-auto mb-3 opacity-30" />
+              <p class="font-medium text-sm">No template selected</p>
+              <p class="text-xs mt-1">Pick a template in the header to preview it here</p>
+            </div>
           </div>
+        </template>
 
-          <!-- Loading -->
-          <div v-else-if="loadingContent" class="flex items-center gap-2 text-gray-400 text-sm mt-24">
-            <Loader2 :size="16" class="animate-spin" /> Loading template…
+        <template v-else-if="loadingContent">
+          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+            <div class="flex items-center gap-2 text-gray-400 text-sm">
+              <Loader2 :size="16" class="animate-spin" /> Loading template…
+            </div>
           </div>
+        </template>
 
-          <!-- No HTML content -->
-          <div v-else-if="selectedTemplateId && !templateHtml" class="text-center text-gray-400 mt-24 space-y-3">
-            <p class="text-sm">This template has no content yet.</p>
-            <button
-              class="btn-ghost text-xs"
-              @click="router.push(`/leases/templates/${selectedTemplateId}/edit`)"
-            >
-              Open in template editor →
-            </button>
+        <template v-else-if="selectedTemplateId && !templateHtml">
+          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+            <div class="text-center text-gray-400 space-y-3">
+              <p class="text-sm">This template has no content yet.</p>
+              <button
+                class="btn-ghost text-xs"
+                @click="router.push(`/leases/templates/${selectedTemplateId}/edit`)"
+              >
+                Open in template editor →
+              </button>
+            </div>
           </div>
+        </template>
 
-          <!-- Preview page -->
-          <div
-            v-else-if="templateHtml"
-            class="w-[680px] bg-white shadow-lg rounded-sm lease-preview-page"
-            v-html="previewHtml"
-          />
-        </div>
+        <DocumentPage
+          v-else-if="templateHtml"
+          :html="previewHtml"
+          show-footer
+          :footer-left="selectedTemplateName"
+        />
       </div>
 
   </div>
@@ -135,6 +141,7 @@
 import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
+import DocumentPage from '../../components/DocumentPage.vue'
 import {
   FileSignature, AlertCircle, Loader2, CheckCircle2, Plus,
 } from 'lucide-vue-next'
@@ -430,6 +437,9 @@ const templates = ref<any[]>([])
 const loadingTemplates = ref(false)
 const loadingContent = ref(false)
 const selectedTemplateId = ref<number | null>(null)
+const selectedTemplateName = computed(() =>
+  templates.value.find(t => t.id === selectedTemplateId.value)?.name || ''
+)
 const templateHtml = ref('')
 
 async function loadTemplates() {
@@ -451,7 +461,18 @@ async function fetchTemplateContent(id: number) {
   templateHtml.value = ''
   try {
     const { data } = await api.get(`/leases/templates/${id}/`)
-    templateHtml.value = data.content_html ?? ''
+    const raw = data.content_html ?? ''
+    // Parse JSON format (v1) or fall back to legacy HTML
+    try {
+      const doc = JSON.parse(raw)
+      if (doc.v === 1 && typeof doc.html === 'string') {
+        templateHtml.value = doc.html
+      } else {
+        templateHtml.value = raw
+      }
+    } catch {
+      templateHtml.value = raw
+    }
   } catch { /* non-fatal */ }
   finally { loadingContent.value = false }
 }
@@ -613,74 +634,25 @@ function reset() {
 </script>
 
 <style scoped>
-.lease-preview-page {
-  padding: 54px;
-  font-size: 13px;
-  line-height: 1.7;
-  color: #1a1a1a;
-  min-height: 961px;
-}
-
-/* Filled merge field */
-.lease-preview-page :deep(.pf-filled) {
-  background: #dbeafe55;
-  color: #1e3a5f;
-  font-weight: 500;
-  border-bottom: 1px solid #93c5fd;
-  padding: 0 2px;
-  border-radius: 2px;
-}
-
-/* Empty / unfilled merge field */
-.lease-preview-page :deep(.pf-empty) {
-  background: #fef9c3;
-  color: #92400e;
-  font-size: 0.82em;
-  padding: 0 4px;
-  border-radius: 3px;
-  font-family: ui-monospace, monospace;
-  border: 1px dashed #fcd34d;
-}
-
 /* Additional terms block */
-.lease-preview-page :deep(.pf-additional-terms) {
+:deep(.pf-additional-terms) {
   margin-top: 2rem;
   padding-top: 1.5rem;
   border-top: 1px solid #e5e7eb;
   font-size: 0.9em;
 }
-.lease-preview-page :deep(.pf-terms-body) {
+:deep(.pf-terms-body) {
   margin-top: 0.5rem;
   white-space: pre-wrap;
   color: #374151;
 }
 
-/* Page break visual */
-.lease-preview-page :deep([data-page-break]) {
-  display: block;
-  height: 0;
-  position: relative;
-  margin: 0;
-  page-break-after: always;
-}
-.lease-preview-page :deep([data-page-break])::before {
-  content: '— page break —';
-  position: absolute;
-  top: 0; left: -54px; right: -54px;
-  height: 32px; margin-top: -16px;
-  background: #e8eaed;
-  border-top: 1px dashed #c8cdd5;
-  border-bottom: 1px dashed #c8cdd5;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 9px; color: #9ca3af; letter-spacing: 0.1em;
-}
-
 /* Table styles */
-.lease-preview-page :deep(table) {
+:deep(table) {
   width: 100%; border-collapse: collapse; margin: 0.75rem 0;
 }
-.lease-preview-page :deep(td),
-.lease-preview-page :deep(th) {
+:deep(td),
+:deep(th) {
   border: 1px solid #e5e7eb; padding: 6px 10px; font-size: 12px;
 }
 .lease-preview-page :deep(th) {

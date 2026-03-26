@@ -152,7 +152,7 @@
       <!-- Page content -->
       <main class="flex-1 overflow-y-auto p-6">
         <RouterView v-slot="{ Component }">
-          <KeepAlive>
+          <KeepAlive exclude="TemplateEditorView">
             <component :is="Component" />
           </KeepAlive>
         </RouterView>
@@ -186,8 +186,8 @@ const primaryNavItems = [
 ]
 
 const leaseSubItems = [
-  { to: '/leases', icon: FileText, label: 'All Leases' },
-  { to: '/leases/templates', icon: FileSignature, label: 'Create Template' },
+  { to: '/leases', icon: FileText, label: 'Leases' },
+  { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
   { to: '/leases/build', icon: Hammer, label: 'Build Lease' },
   { to: '/leases/submit', icon: Send, label: 'Submit Lease' },
 ]

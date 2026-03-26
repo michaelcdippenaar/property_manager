@@ -88,6 +88,47 @@
           </template>
         </div>
         <template v-if="!chatCollapsed">
+          <!-- Capabilities disclosure -->
+          <div class="px-3 py-2 border-b border-gray-100">
+            <button @click="showCapabilities = !showCapabilities"
+              class="flex items-center gap-1 text-gray-400 hover:text-gray-600 w-full"
+              style="font-size: 10px;">
+              <ChevronRight :size="10" class="transition-transform flex-shrink-0" :class="showCapabilities ? 'rotate-90' : ''" />
+              <span>{{ showCapabilities ? 'Hide' : 'Show' }} capabilities</span>
+            </button>
+            <div v-if="showCapabilities" class="mt-1.5 space-y-1.5">
+              <div>
+                <div class="text-gray-400 mb-0.5" style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Editing Tools</div>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="tool in editingTools" :key="tool"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700"
+                    style="font-size: 9px;">
+                    <Wrench :size="8" /> {{ tool }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="text-gray-400 mb-0.5" style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Skills</div>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="skill in skillTools" :key="skill"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-purple-50 border border-purple-200 text-purple-700"
+                    style="font-size: 9px;">
+                    <Zap :size="8" /> {{ skill }}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <div class="text-gray-400 mb-0.5" style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;">External</div>
+                <div class="flex flex-wrap gap-1">
+                  <span v-for="skill in externalSkills" :key="skill"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-gray-50 border border-gray-200 text-gray-500"
+                    style="font-size: 9px;">
+                    <ExternalLink :size="8" /> {{ skill }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Messages -->
           <div ref="chatScrollEl" class="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
             <div
@@ -99,9 +140,25 @@
                 :class="msg.role === 'assistant' ? 'bg-navy/10 text-navy' : 'bg-gray-200 text-gray-600'">
                 {{ msg.role === 'assistant' ? 'AI' : 'Me' }}
               </div>
-              <div class="max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap"
-                :class="msg.role === 'user' ? 'bg-navy text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm'">
-                {{ msg.content }}
+              <div class="max-w-[85%]">
+                <div class="rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap"
+                  :class="msg.role === 'user' ? 'bg-navy text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm'">
+                  {{ msg.content }}
+                </div>
+                <div v-if="msg.tools_used?.length" class="flex flex-wrap gap-1 mt-1 ml-0.5">
+                  <span
+                    v-for="(tool, ti) in msg.tools_used" :key="ti"
+                    class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md"
+                    :class="(tool.type === 'skill' || isSkillTool(tool.name))
+                      ? 'bg-purple-50 border border-purple-200 text-purple-700'
+                      : 'bg-amber-50 border border-amber-200 text-amber-700'"
+                    style="font-size: 9px; line-height: 1.2;"
+                  >
+                    <component :is="(tool.type === 'skill' || isSkillTool(tool.name)) ? Zap : Wrench" :size="8" class="flex-shrink-0" />
+                    <span class="font-medium">{{ tool.name }}</span>
+                    <span :class="(tool.type === 'skill' || isSkillTool(tool.name)) ? 'text-purple-500' : 'text-amber-500'">{{ tool.detail }}</span>
+                  </span>
+                </div>
               </div>
             </div>
             <div v-if="chatThinking" class="flex gap-2">
@@ -132,95 +189,27 @@
         </template>
       </div>
 
-      <!-- ── RIGHT PANEL: Recipients + Field Palette (~270px) ─────────────
+      <!-- ── RIGHT PANEL: Field Palette (~270px, collapsible) ─────────────
            order-last pushes this after the center column in flex layout     -->
-      <div class="w-[270px] flex-shrink-0 border-l border-gray-200 flex flex-col bg-white order-last">
+      <div
+        class="flex-shrink-0 border-l border-gray-200 flex flex-col bg-white order-last transition-all duration-200"
+        :style="{ width: rightCollapsed ? '44px' : '270px' }"
+      >
 
-        <!-- Recipients header -->
-        <div class="flex items-center px-3 py-2 border-b border-gray-200 flex-shrink-0">
+        <!-- Right panel header with collapse toggle -->
+        <div class="flex items-center gap-2 px-3 py-2 border-b border-gray-200 flex-shrink-0">
           <button
-            class="flex items-center gap-1.5 text-xs font-semibold text-gray-800"
-            @click="recipientsCollapsed = !recipientsCollapsed"
+            class="p-1 rounded hover:bg-gray-100 text-gray-500 flex-shrink-0"
+            @click="rightCollapsed = !rightCollapsed"
+            :title="rightCollapsed ? 'Open field palette' : 'Collapse'"
           >
-            <ChevronDown :size="12" class="transition-transform" :class="recipientsCollapsed ? '-rotate-90' : ''" />
-            Recipients: {{ actors.length }}
+            <component :is="rightCollapsed ? ChevronsLeft : ChevronsRight" :size="14" />
           </button>
-        </div>
-
-        <!-- Collapsed: show selected actor sticky bar -->
-        <div
-          class="border-b border-gray-200 flex items-center gap-2 bg-gray-50 transition-all duration-300 ease-in-out overflow-hidden"
-          :style="{ maxHeight: recipientsCollapsed ? '40px' : '0px', opacity: recipientsCollapsed ? 1 : 0, padding: recipientsCollapsed ? '6px 12px' : '0 12px' }"
-        >
-          <div class="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold flex-shrink-0 text-white"
-            :style="{ backgroundColor: selectedColor }">
-            {{ selectedActorIdx === -1 ? 'Me' : selectedActorIdx !== null && selectedActorIdx < actors.length ? actorAvatar(actors[selectedActorIdx], selectedActorIdx) : '?' }}
-          </div>
-          <span class="text-xs font-semibold truncate" :style="{ color: selectedColor }">{{ selectedActorLabel }}</span>
-        </div>
-
-        <!-- Expanded: add panel + actor list (smooth collapse) -->
-        <div
-          class="overflow-hidden transition-all duration-300 ease-in-out"
-          :style="{ maxHeight: recipientsCollapsed ? '0px' : '400px', opacity: recipientsCollapsed ? 0 : 1 }"
-        >
-          <!-- Add actor -->
-          <div class="px-3 pt-2 pb-2 border-b border-gray-100 space-y-2">
-            <div class="text-micro font-semibold text-gray-400 uppercase tracking-wide px-1">Add recipient</div>
-            <div class="grid grid-cols-3 gap-1.5">
-              <button
-                v-for="type in actorTypes" :key="type.key"
-                class="flex flex-col items-center gap-1 py-2 px-1 border border-dashed rounded-lg text-micro font-medium transition-all"
-                :class="type.btnClass"
-                @click="addActor(type.key)"
-              >
-                <component :is="type.icon" :size="15" :class="type.iconClass" />
-                + {{ type.label }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Actor list -->
-          <div class="px-2 py-1.5 space-y-0.5 border-b border-gray-200">
-            <!-- Me (property manager) -->
-            <button
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors"
-              :class="selectedActorIdx === -1 ? 'bg-navy/10' : 'hover:bg-gray-50'"
-              @click="selectedActorIdx = -1"
-            >
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 text-white"
-                :style="{ background: selectedActorIdx === -1 ? '#1e3a5f' : '#6b7280' }">
-                Me
-              </div>
-              <div class="text-xs font-semibold truncate" :class="selectedActorIdx === -1 ? 'text-navy' : 'text-gray-800'">Me (Agent)</div>
-            </button>
-
-            <!-- Dynamic actors -->
-            <div
-              v-for="(actor, idx) in actors" :key="idx"
-              class="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-sm transition-colors relative group cursor-pointer"
-              :class="selectedActorIdx === idx ? 'bg-opacity-10' : 'hover:bg-gray-50'"
-              :style="selectedActorIdx === idx ? { backgroundColor: actorColor(actor.type, idx) + '18' } : {}"
-              @click="selectedActorIdx = idx"
-            >
-              <div class="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 text-white"
-                :style="{ backgroundColor: actorColor(actor.type, idx) }">
-                {{ actorAvatar(actor, idx) }}
-              </div>
-              <div class="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">{{ actor.label }}</div>
-              <button
-                class="p-0.5 rounded text-gray-300 hover:text-red-400 transition-all flex-shrink-0 opacity-0 group-hover:opacity-100"
-                @click.stop="removeActor(idx)"
-                title="Remove"
-              >
-                <X :size="10" />
-              </button>
-            </div>
-          </div>
+          <span v-if="!rightCollapsed" class="text-xs font-semibold text-gray-800 whitespace-nowrap">Field Palette</span>
         </div>
 
         <!-- ── Field palette (scrollable) ── -->
-        <div class="flex-1 overflow-y-auto min-h-0" @scroll="onPaletteScroll">
+        <div v-if="!rightCollapsed" class="flex-1 overflow-y-auto min-h-0">
 
           <!-- Personal Data -->
           <div class="px-4 py-2.5 text-micro font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
@@ -231,8 +220,7 @@
               v-for="pd in personalDataFields" :key="pd.key"
               class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
               :style="selectedActorIdx !== null ? { borderColor: selectedColor + '44', backgroundColor: selectedColor + '08' } : {}"
-              draggable="true"
-              @dragstart="startFieldTypeDrag($event, pd)"
+              @mousedown.prevent="startFieldTypePlace(pd)"
               @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
               @mouseleave="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedActorIdx !== null ? selectedColor + '44' : '')"
               @click="insertFieldType(pd)"
@@ -252,8 +240,7 @@
             <button
               v-for="ft in allFieldTypes" :key="ft.key"
               class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
-              draggable="true"
-              @dragstart="startFieldTypeDrag($event, ft)"
+              @mousedown.prevent="startFieldTypePlace(ft)"
               @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
               @mouseleave="($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
               @click="insertFieldType(ft)"
@@ -272,8 +259,7 @@
               <button
                 v-for="f in group.fields" :key="f.key"
                 class="flex items-center gap-2 px-2.5 py-2.5 rounded-lg border text-xs font-medium text-left transition-all border-gray-200 text-gray-700 cursor-pointer"
-                draggable="true"
-                @dragstart="startFieldDrag($event, f.key)"
+                @mousedown.prevent="startFieldPlace(f.key)"
                 @mouseenter="($event.currentTarget as HTMLElement).style.setProperty('border-color', selectedColor + '66')"
                 @mouseleave="($event.currentTarget as HTMLElement).style.removeProperty('border-color')"
                 @click="insertField(f.key)"
@@ -299,7 +285,7 @@
         </div>
 
         <!-- ── CLAUSES SECTION (collapsible) ── -->
-        <div v-if="showClausesSection" class="flex flex-col flex-shrink-0 border-t border-gray-200 max-h-[50%] overflow-hidden">
+        <div v-if="showClausesSection && !rightCollapsed" class="flex flex-col flex-shrink-0 border-t border-gray-200 max-h-[50%] overflow-hidden">
 
           <!-- Clause toolbar -->
           <div class="px-2 pt-2 pb-1.5 space-y-1.5 border-b border-gray-100 flex-shrink-0">
@@ -414,7 +400,7 @@
         </div>
 
         <!-- ── Variables section (bottom of right panel) ────────────────── -->
-        <div class="border-t border-gray-200 flex-shrink-0">
+        <div v-if="!rightCollapsed" class="border-t border-gray-200 flex-shrink-0">
           <div class="flex items-center justify-between px-3 py-2">
             <span class="text-micro font-semibold text-gray-500 uppercase tracking-wide">Detected Variables</span>
             <div class="flex items-center gap-1">
@@ -438,9 +424,8 @@
                     v-for="field in (template.detected_variables![groupKey] || [])" :key="field"
                     class="field-chip"
                     :class="groupChipClass(groupKey)"
-                    draggable="true"
-                    @dragstart="startFieldDrag($event, field)"
-                    @click="insertField(field)" :title="`Drag or click to insert {{ ${field} }}`"
+                    @mousedown.prevent="startFieldPlace(field)"
+                    :title="`Click or drag to insert {{ ${field} }}`"
                   >{{ field }}</span>
                 </div>
               </details>
@@ -448,9 +433,8 @@
             <div v-else class="flex flex-wrap gap-1">
               <span v-for="f in discoveredFields" :key="f"
                 class="field-chip field-chip--lease"
-                draggable="true"
-                @dragstart="startFieldDrag($event, f)"
-                @click="insertField(f)" :title="`Drag or click to insert {{ ${f} }}`">{{ f }}</span>
+                @mousedown.prevent="startFieldPlace(f)"
+                :title="`Click or drag to insert {{ ${f} }}`">{{ f }}</span>
               <div v-if="!discoveredFields.length" class="text-micro text-gray-300 italic">No fields detected.</div>
             </div>
           </div>
@@ -741,10 +725,6 @@
               :style="{ paddingTop: showHeader ? '3.5rem' : '3rem', paddingBottom: '3rem' }"
               @input="onEditorInput"
               @keydown="onEditorKeydown"
-              @dragstart="onEditorDragStart"
-              @dragover.prevent="onEditorDragOver"
-              @dragleave="isDraggingField = false"
-              @drop.prevent="onEditorDrop"
               v-html="editorHtml"
             />
             <!-- Last-page footer overlay (auto-break divs handle intermediate page footers) -->
@@ -833,6 +813,10 @@
   </div>
 </template>
 
+<script lang="ts">
+export default { name: 'TemplateEditorView' }
+</script>
+
 <script setup lang="ts">
 import { ref, computed, onMounted, onActivated, onBeforeUnmount, nextTick, markRaw } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
@@ -845,32 +829,25 @@ import {
   Users, User, UserCheck, Building2,
   Hash, Calendar, CheckSquare, Phone, Mail, Type, Pen, StickyNote,
   Scissors, FileDigit, LayoutTemplate, Hammer,
+  ChevronsLeft, ChevronsRight, Wrench, Zap, ExternalLink, ChevronRight,
 } from 'lucide-vue-next'
 import api from '../../api'
+import { useTemplateStore } from '../../stores/template'
+import type { DocJson, DocField } from '../../stores/template'
+import { usePageBreaks } from '../../composables/usePageBreaks'
 
 const route = useRoute()
 const router = useRouter()
 const templateId = computed(() => Number(route.params.id))
+const store = useTemplateStore()
 
 function goBack() {
-  if (window.history.length > 1) router.back()
-  else router.push('/leases/templates')
+  router.push('/leases/templates')
 }
 
-// ── Template data ─────────────────────────────────────────────────────────
-interface TemplateInfo {
-  id: number; name: string; version: string; is_active: boolean
-  fields_schema: string[]; content_html: string; docx_file: string | null
-  detected_variables?: Record<string, string[]>
-}
-interface PreviewData {
-  type: 'docx' | 'pdf'; name: string; fields: string[]
-  paragraphs: { style: string; text: string }[]; content_html: string
-  pdf_url?: string
-}
-
-const template = ref<TemplateInfo | null>(null)
-const preview  = ref<PreviewData | null>(null)
+// ── Template data (from Pinia store) ──────────────────────────────────────
+const template = computed(() => store.template)
+const preview  = computed(() => store.preview)
 const loadingPreview = ref(true)
 
 // ── Editor state ──────────────────────────────────────────────────────────
@@ -879,20 +856,21 @@ const editorHtml = ref('')
 const savedHtml  = ref('')
 
 // ── Header / footer config ─────────────────────────────────────────────────
-const headerLeft  = ref('')   // document title / company name top-left
+const headerLeft  = computed({ get: () => store.headerHtml, set: v => { store.headerHtml = v } })
 const headerRight = ref('k.') // logo / brand top-right
-const footerLeft  = ref('')   // company name bottom-left
+const footerLeft  = computed({ get: () => store.footerHtml, set: v => { store.footerHtml = v } })
 const showHeader  = ref(true)
 const showFooter  = ref(true)
 const headerFooterPanelOpen = ref(false)
-const saving     = ref(false)
+const saving     = computed(() => store.saving)
 const isDirty    = ref(false)
 const showFieldPicker = ref(false)
 const showPageNumbers = ref(false)
 
-// Page count — based on editor height (1061px per A4 page)
-const editorHeight = ref(1061)
-const pageCount = computed(() => Math.max(1, Math.ceil(editorHeight.value / 1061)))
+// Page breaks — shared composable
+const { pageCount, schedule: schedulePageBreaks, isUpdating: isPageBreakUpdating, destroy: destroyPageBreaks } = usePageBreaks(editorEl, {
+  footerLeft,
+})
 
 // Y-offset (px) for the page number overlay of page `pi` (0-indexed).
 // We measure the height of page-break divs in the live DOM.
@@ -1004,6 +982,8 @@ function updateToolbarState() {
 const chatCollapsed  = ref(window.innerWidth < 1200)
 const toolbarCollapsed = ref(false)
 const isDraggingField = ref(false)
+// "Place mode": user mousedowns on a field button, moves over editor, releases to place
+const placingField = ref<string | null>(null)
 const colorPickerOpen = ref(false)
 const activeTextColor = ref('#111111')
 const bgColorPickerOpen = ref(false)
@@ -1045,17 +1025,7 @@ function applyAllHeadingStyles() {
 }
 
 const showAddActor   = ref(false)
-const recipientsCollapsed = ref(false)
-let lastPaletteScroll = 0
-function onPaletteScroll(e: Event) {
-  const el = e.target as HTMLElement
-  if (el.scrollTop > 30 && el.scrollTop > lastPaletteScroll) {
-    recipientsCollapsed.value = true
-  } else if (el.scrollTop < 10) {
-    recipientsCollapsed.value = false
-  }
-  lastPaletteScroll = el.scrollTop
-}
+const rightCollapsed = ref(false)
 const showClausesSection = ref(false)
 const selectedActorIdx = ref<number | null>(null)   // -1 = Me, 0+ = actors[]
 const fieldNotice    = ref('')
@@ -1082,7 +1052,12 @@ const selectedActorLabel = computed<string>(() => {
 })
 
 // ── Chat state ────────────────────────────────────────────────────────────
-const chatMessages = ref<{ role: 'user' | 'assistant'; content: string }[]>([])
+const chatMessages = ref<{ role: 'user' | 'assistant'; content: string; tools_used?: { name: string; detail: string; type?: string }[] }[]>([])
+const showCapabilities = ref(false)
+const editingTools = ['edit_lines', 'update_all', 'apply_formatting', 'insert_toc', 'renumber_sections', 'add_comment', 'highlight_fields']
+const skillTools = ['check_rha_compliance', 'format_sa_standard']
+const externalSkills = ['parse-lease-contract', 'docuseal']
+function isSkillTool(name: string): boolean { return skillTools.includes(name) }
 const chatInput    = ref('')
 const chatThinking = ref(false)
 const chatScrollEl = ref<HTMLDivElement | null>(null)
@@ -1231,9 +1206,12 @@ const personalDataFields = [
   { key: 'id',        label: 'ID Number',    icon: markRaw(Hash) },
   { key: 'phone',     label: 'Phone Number', icon: markRaw(Phone) },
   { key: 'email',     label: 'Email',        icon: markRaw(Mail) },
-  { key: 'signature', label: 'Signature',    icon: markRaw(Pen) },
-  { key: 'initials',  label: 'Initials',     icon: markRaw(Type) },
+  { key: 'signature', label: 'Signature',    icon: markRaw(Pen),  block: true },
+  { key: 'initials',  label: 'Initials',     icon: markRaw(Type), block: true },
 ]
+
+// Field keys that render as block placeholders (signature boxes) instead of inline chips
+const BLOCK_FIELD_TYPES = new Set(['signature', 'initials'])
 
 const visibleFieldTypes = computed(() => allFieldTypes)
 
@@ -1341,15 +1319,16 @@ const allFields = computed<string[]>(() =>
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 onMounted(async () => {
   document.addEventListener('selectionchange', _trackSelection)
-  await Promise.all([loadTemplate(), loadPreview()])
+  await loadTemplate()
+  await loadPreview()
   // Restore persisted chat history; if none, show greeting
   _loadChatHistory()
   if (!chatMessages.value.length) {
     chatMessages.value = [{
       role: 'assistant',
       content: template.value
-        ? `Hi! I can help you work on "${template.value.name}". I can explain clauses, suggest additions, generate new clause text, or advise on signing fields. What would you like to do?`
-        : 'Hi! I can help you improve this lease template. What would you like to work on?',
+        ? `Hi! I can help you work on "${template.value.name}".\n\nI can: edit clauses, format text, check RHA compliance, restructure to standard SA format, manage merge fields, and more.\n\nTap "Show capabilities" above to see all my tools and skills.`
+        : 'Hi! I can help you improve this lease template. Tap "Show capabilities" above to see what I can do.',
     }]
   }
 })
@@ -1360,34 +1339,29 @@ onActivated(() => {
 })
 
 async function loadTemplate() {
-  try {
-    const { data } = await api.get(`/leases/templates/${templateId.value}/`)
-    template.value = data
-  } catch { /* ignore */ }
+  await store.loadTemplate(templateId.value)
 }
 
 async function loadPreview() {
   loadingPreview.value = true
   try {
-    const { data } = await api.get(`/leases/templates/${templateId.value}/preview/`)
-    preview.value = data
-    // Restore header/footer config
-    if (data.header_html) headerLeft.value = data.header_html
-    else if (template.value?.name) headerLeft.value = template.value.name
-    if (data.footer_html) footerLeft.value = data.footer_html
-    if (data.content_html) {
-      editorHtml.value = data.content_html
-      savedHtml.value  = data.content_html
-    } else if (data.paragraphs?.length) {
-      // Build HTML from DOCX paragraphs and immediately persist it so the AI can see it
+    // If store already has content_html (from loadTemplate), use it directly
+    if (store.document.html) {
+      editorHtml.value = decodeDocument(store.document)
+      return
+    }
+
+    // Otherwise try the DOCX preview endpoint
+    const data = await store.loadPreview(templateId.value)
+    if (data?.paragraphs?.length) {
+      // Build HTML from DOCX paragraphs and immediately persist
       const html = buildHtmlFromParagraphs(data.paragraphs)
       editorHtml.value = html
-      savedHtml.value  = html
-      isDirty.value    = false
-      await api.patch(`/leases/templates/${templateId.value}/`, { content_html: html })
-      if (template.value) template.value.content_html = html
+      store.updateHtml(html)
+      isDirty.value = false
+      await store.save()
     } else {
-      // No content at all — initialize with a starter template
+      // No content — starter template
       const name = template.value?.name ?? 'Lease Agreement'
       const starter = `<h1 style="text-align:center">${name}</h1><p><br></p><p>Start editing your lease template here. Use the toolbar above to format text, and the field palette on the right to insert merge fields.</p><p><br></p>`
       editorHtml.value = starter
@@ -1398,7 +1372,9 @@ async function loadPreview() {
   finally {
     loadingPreview.value = false
     nextTick(() => {
-      if (editorEl.value) editorHeight.value = editorEl.value.scrollHeight
+      _hydrateFieldChips()
+      savedHtml.value = getCleanHtml()
+      isDirty.value = false
       schedulePageBreaks()
     })
   }
@@ -1406,7 +1382,9 @@ async function loadPreview() {
 
 // Clear editor state when leaving so next visit loads fresh from DB
 onBeforeUnmount(() => {
+  destroyPageBreaks()
   document.removeEventListener('selectionchange', _trackSelection)
+  store.$reset()
   editorHtml.value = ''
   savedHtml.value  = ''
   isDirty.value    = false
@@ -1528,123 +1506,110 @@ function simulateIndent(outdent: boolean) {
   }
 }
 
-// ── A4 page break injection ───────────────────────────────────────────────
-const A4_PAGE_HEIGHT = 1061        // px – matches the min-h-[1061px] on the editor
-const PAGE_GAP       = 16         // px – gap between pages (user: "much smaller")
-const PAGE_PAD_TOP   = 24         // px – padding at top of each new page
-let _updatingBreaks = false
-let _breakRafId: number | null = null
+// ── A4 page break injection (uses shared composable) ─────────────────────
 
-function getCleanHtml(): string {
-  if (!editorEl.value) return ''
+// ── Document Encoder/Decoder (types from store) ──────────────────────────
+
+function encodeDocument(): DocJson {
+  if (!editorEl.value) return { v: 1, html: '', fields: [] }
   const clone = editorEl.value.cloneNode(true) as HTMLElement
   clone.querySelectorAll('[data-auto-page-break]').forEach(el => el.remove())
-  return clone.innerHTML
-}
 
-function schedulePageBreaks() {
-  if (_breakRafId) cancelAnimationFrame(_breakRafId)
-  _breakRafId = requestAnimationFrame(updatePageBreaks)
-}
+  const fields: DocField[] = []
 
-function updatePageBreaks() {
-  _breakRafId = null
-  if (!editorEl.value || _updatingBreaks) return
-  _updatingBreaks = true
+  clone.querySelectorAll('[data-field]').forEach(el => {
+    const name = el.getAttribute('data-field') || ''
+    const fieldTypeAttr = el.getAttribute('data-field-type')
 
-  // 1. Remove existing auto breaks
-  editorEl.value.querySelectorAll('[data-auto-page-break]').forEach(el => el.remove())
-
-  // 2. Measure children
-  const children = Array.from(editorEl.value.children) as HTMLElement[]
-  if (children.length === 0) { _updatingBreaks = false; return }
-
-  const padTop = parseFloat(getComputedStyle(editorEl.value).paddingTop) || 0
-
-  // 3. Find page-break insertion points
-  const breaks: { idx: number; spacer: number }[] = []
-  let used = padTop
-
-  for (let i = 0; i < children.length; i++) {
-    const child = children[i]
-    if (child.hasAttribute('data-page-break')) {
-      used = padTop
-      continue
-    }
-    const h = child.offsetHeight
-    if (h === 0) continue  // skip zero-height elements
-    const cs = getComputedStyle(child)
-    const mt = parseFloat(cs.marginTop) || 0
-    const mb = parseFloat(cs.marginBottom) || 0
-    const total = h + mt + mb
-
-    // Don't break if this is the first real content on the page
-    if (used <= padTop + 60) {
-      used += total
-      // Wrap tall elements spanning multiple pages
-      while (used > A4_PAGE_HEIGHT) used -= (A4_PAGE_HEIGHT - padTop)
-      if (used < padTop) used = padTop
-      continue
-    }
-
-    if (used + total > A4_PAGE_HEIGHT) {
-      const remaining = Math.max(0, A4_PAGE_HEIGHT - used)
-      breaks.push({ idx: i, spacer: remaining + PAGE_GAP + PAGE_PAD_TOP })
-      // Start new page with this element
-      used = padTop + total
-      // Wrap tall elements spanning multiple pages
-      while (used > A4_PAGE_HEIGHT) used -= (A4_PAGE_HEIGHT - padTop)
-      if (used < padTop) used = padTop
+    if (fieldTypeAttr) {
+      // Block field — extract full metadata
+      const s = (el as HTMLElement).style
+      fields.push({
+        name,
+        type: fieldTypeAttr,
+        party: (el as HTMLElement).dataset.party || _deriveParty(name),
+        position: {
+          top: s.top || '0px',
+          left: s.left || '0px',
+          width: s.width || '240px',
+          height: s.height || '70px',
+        },
+      })
     } else {
-      used += total
+      // Inline field — derive type from suffix
+      const suffix = name.replace(/^.*_/, '').toLowerCase()
+      const typeMap: Record<string, string> = {
+        date: 'date', email: 'email', phone: 'text', number: 'number',
+        signature: 'signature', initials: 'initials',
+      }
+      fields.push({ name, type: typeMap[suffix] || 'text' })
     }
-  }
 
-  // 4. Insert spacer divs (reverse order keeps indices valid)
-  const totalPages = breaks.length + 1
-  for (let b = breaks.length - 1; b >= 0; b--) {
-    const { idx, spacer } = breaks[b]
-    const pageNum = b + 1  // page that just ended
-    const child = children[idx]
-    const div = document.createElement('div')
-    div.setAttribute('data-auto-page-break', 'true')
-    div.setAttribute('contenteditable', 'false')
-    div.style.height = `${spacer}px`
-    div.innerHTML = `<span class="apb-left">${footerLeft.value || ''}</span><span class="apb-right">Page ${pageNum} of ${totalPages}</span>`
-    child.parentNode!.insertBefore(div, child)
-  }
+    // Replace element with {{ref}} text marker
+    el.replaceWith(document.createTextNode(`{{${name}}}`))
+  })
 
-  editorHeight.value = editorEl.value.scrollHeight
-  _updatingBreaks = false
+  let html = clone.innerHTML.replace(/\u200B/g, '')
+  return { v: 1, html, fields }
 }
+
+function decodeDocument(doc: DocJson): string {
+  // Build a lookup of block fields by name for position injection
+  const blockFields = new Map<string, DocField>()
+  for (const f of doc.fields) {
+    if (f.position) blockFields.set(f.name, f)
+  }
+
+  // Replace {{ref}} markers with the right HTML elements
+  return doc.html.replace(/\{\{([^}]+?)\}\}/g, (_, name) => {
+    const trimmed = name.trim()
+    const bf = blockFields.get(trimmed)
+    if (bf) {
+      const p = bf.position!
+      return `<div data-field="${trimmed}" data-field-type="${bf.type}" data-party="${bf.party || ''}" style="top:${p.top};left:${p.left};width:${p.width};height:${p.height}">${trimmed}</div>`
+    }
+    return `<span data-field="${trimmed}">${trimmed}</span>`
+  })
+}
+
+// For dirty checking — quick encode without field extraction
+function getCleanHtml(): string {
+  return encodeDocument().html
+}
+
 
 // ── Editor ────────────────────────────────────────────────────────────────
 function onEditorInput() {
-  if (_updatingBreaks) return  // skip events fired by page-break injection
+  if (isPageBreakUpdating()) return  // skip events fired by page-break injection
   isDirty.value = getCleanHtml() !== savedHtml.value
-  if (editorEl.value) editorHeight.value = editorEl.value.scrollHeight
   _checkAutocomplete()
   schedulePageBreaks()
 }
 
 async function saveContent() {
   if (!editorEl.value) return
-  saving.value = true
-  const html = getCleanHtml()
-  try {
-    await api.patch(`/leases/templates/${templateId.value}/`, {
-      content_html: html,
-      header_html: headerLeft.value,
-      footer_html: footerLeft.value,
-    })
-    savedHtml.value = html
-    isDirty.value   = false
-    if (template.value) template.value.content_html = html
-    showToast('Saved')
-  } catch {
+  // Update store with current editor state, then persist
+  const doc = encodeDocument()
+  store.updateDocument(doc)
+  const result = await store.save()
+  if (result) {
+    savedHtml.value = doc.html
+    isDirty.value = false
+    // Show compliance results if available
+    const compliance = (result as any)?.compliance
+    if (compliance) {
+      const { pass_count, total_checks, sections_missing, clauses_missing } = compliance
+      if (pass_count === total_checks) {
+        showToast(`Saved — RHA compliant (${pass_count}/${total_checks} ✓)`)
+      } else {
+        const missing = [...(sections_missing || []), ...(clauses_missing || [])]
+        showToast(`Saved — RHA: ${pass_count}/${total_checks} passed. Missing: ${missing.join(', ')}`, 'warn')
+      }
+    } else {
+      showToast('Saved')
+    }
+  } else {
     showToast('Save failed')
-  } finally {
-    saving.value = false
   }
 }
 
@@ -1736,27 +1701,9 @@ function insertTable() {
   onEditorInput()
 }
 
-// ── Drag-and-drop field insertion ─────────────────────────────────────────
-// Tracks a chip being moved within the editor (null = drag from sidebar)
-let _draggedChipEl: HTMLElement | null = null
-
-function onEditorDragStart(event: DragEvent) {
-  // Delegate: only handle drags that start on a .tmpl-field chip
-  const chip = (event.target as HTMLElement).closest('[data-field]') as HTMLElement | null
-  if (!chip) return
-  _draggedChipEl = chip
-  const fieldName = chip.dataset.field!
-  event.dataTransfer!.effectAllowed = 'move'
-  event.dataTransfer!.setData('text/x-field', fieldName)
-  event.dataTransfer!.setData('text/x-chip-move', '1')
-  // Teal pill ghost
-  const ghost = document.createElement('span')
-  ghost.textContent = `{{ ${fieldName} }}`
-  ghost.style.cssText = 'position:fixed;top:-999px;background:#0d9488;color:#fff;padding:2px 10px;border-radius:9999px;font:500 11px monospace'
-  document.body.appendChild(ghost)
-  event.dataTransfer!.setDragImage(ghost, ghost.offsetWidth / 2, 12)
-  setTimeout(() => ghost.remove(), 0)
-}
+// ── Place-mode field insertion ────────────────────────────────────────────
+// Mousedown on a field button → move mouse over editor → release to place chip.
+// No HTML5 drag API — just mouse events + caretRangeFromPoint.
 
 function _fieldNameForType(ft: { key: string }): string | null {
   if (selectedActorIdx.value === -1) {
@@ -1779,72 +1726,312 @@ function _fieldNameForType(ft: { key: string }): string | null {
   return null
 }
 
-function startFieldTypeDrag(event: DragEvent, ft: { key: string }) {
-  const fieldName = _fieldNameForType(ft)
-  if (!fieldName) { event.preventDefault(); return }
-  startFieldDrag(event, fieldName)
-}
-
-function startFieldDrag(event: DragEvent, fieldName: string) {
-  isDraggingField.value = true
-  event.dataTransfer!.effectAllowed = 'copy'
-  event.dataTransfer!.setData('text/x-field', fieldName)
-  // Ghost label
-  const ghost = document.createElement('span')
-  ghost.textContent = `{{ ${fieldName} }}`
-  ghost.style.cssText = 'position:fixed;top:-999px;background:#0d9488;color:#fff;padding:2px 10px;border-radius:9999px;font:500 11px monospace'
-  document.body.appendChild(ghost)
-  event.dataTransfer!.setDragImage(ghost, ghost.offsetWidth / 2, 12)
-  setTimeout(() => ghost.remove(), 0)
-}
-
-function onEditorDragOver(event: DragEvent) {
-  isDraggingField.value = true
-  event.dataTransfer!.dropEffect = 'copy'
-}
-
-function onEditorDrop(event: DragEvent) {
-  isDraggingField.value = false
-  const fieldName = event.dataTransfer?.getData('text/x-field')
-  if (!fieldName) return
-
-  const isMove = event.dataTransfer?.getData('text/x-chip-move') === '1'
-  const sourceChip = isMove ? _draggedChipEl : null
-  _draggedChipEl = null
-
-  // Place caret at exact drop coordinates
-  let range: Range | null = null
+function _caretRangeFromXY(x: number, y: number): Range | null {
   if ((document as any).caretRangeFromPoint) {
-    range = (document as any).caretRangeFromPoint(event.clientX, event.clientY)
-  } else if ((document as any).caretPositionFromPoint) {
-    const pos = (document as any).caretPositionFromPoint(event.clientX, event.clientY)
+    return (document as any).caretRangeFromPoint(x, y)
+  }
+  if ((document as any).caretPositionFromPoint) {
+    const pos = (document as any).caretPositionFromPoint(x, y)
     if (pos) {
-      range = document.createRange()
-      range.setStart(pos.offsetNode, pos.offset)
+      const r = document.createRange()
+      r.setStart(pos.offsetNode, pos.offset)
+      return r
+    }
+  }
+  return null
+}
+
+function startFieldPlace(fieldName: string) {
+  placingField.value = fieldName
+  isDraggingField.value = true
+  document.body.style.cursor = 'crosshair'
+
+  const fieldType = fieldName.replace(/^.*_/, '')
+  const isBlock = BLOCK_FIELD_TYPES.has(fieldType)
+
+  // Floating ghost that follows the cursor
+  const ghost = document.createElement('div')
+  ghost.textContent = isBlock ? `✍ ${fieldName}` : `{{ ${fieldName} }}`
+  ghost.style.cssText = `
+    position:fixed; z-index:9999; pointer-events:none;
+    font:500 11px ui-monospace,monospace; white-space:nowrap;
+    padding:${isBlock ? '8px 16px' : '2px 10px'};
+    border-radius:${isBlock ? '6px' : '9999px'};
+    border:${isBlock ? '2px dashed #fbbf24' : 'none'};
+    background:${isBlock ? '#fffbeb' : '#0d9488'}; color:${isBlock ? '#b45309' : '#fff'};
+    opacity:0.9; transform:translate(12px, 12px);
+  `
+  document.body.appendChild(ghost)
+
+  function onMouseMove(e: MouseEvent) {
+    ghost.style.left = `${e.clientX}px`
+    ghost.style.top = `${e.clientY}px`
+
+    // Show caret at mouse position for inline fields
+    if (!isBlock && editorEl.value) {
+      const rect = editorEl.value.getBoundingClientRect()
+      if (e.clientX >= rect.left && e.clientX <= rect.right &&
+          e.clientY >= rect.top && e.clientY <= rect.bottom) {
+        const range = _caretRangeFromXY(e.clientX, e.clientY)
+        if (range) {
+          const sel = window.getSelection()!
+          sel.removeAllRanges()
+          sel.addRange(range)
+        }
+      }
     }
   }
 
-  // Don't allow dropping onto itself
-  if (sourceChip && range && sourceChip.contains(range.startContainer)) return
+  function onMouseUp(e: MouseEvent) {
+    document.removeEventListener('mousemove', onMouseMove)
+    document.removeEventListener('mouseup', onMouseUp)
+    document.body.style.cursor = ''
+    ghost.remove()
+    isDraggingField.value = false
 
-  // Insert new chip at drop position first, then remove source
-  if (range) {
-    const sel = window.getSelection()!
-    sel.removeAllRanges()
-    sel.addRange(range)
-  }
-  insertField(fieldName)
+    const field = placingField.value
+    placingField.value = null
+    if (!field || !editorEl.value) return
 
-  // Remove the original chip (it was a move, not a copy)
-  if (sourceChip && sourceChip.parentNode) {
-    // Also clean up any trailing &nbsp; that was inserted alongside it
-    const next = sourceChip.nextSibling
-    sourceChip.remove()
-    if (next && next.nodeType === Node.TEXT_NODE && next.textContent === '\u00a0') {
-      next.remove()
+    // Check if mouse is over the editor
+    const rect = editorEl.value.getBoundingClientRect()
+    if (e.clientX < rect.left || e.clientX > rect.right ||
+        e.clientY < rect.top || e.clientY > rect.bottom) return
+
+    // Resolve caret position and insert chip
+    const range = _caretRangeFromXY(e.clientX, e.clientY)
+    if (!range) return
+
+    const chip = _createFieldChip(field)
+    const isBlock = chip.tagName === 'DIV'
+
+    if (isBlock) {
+      // Block fields (signature/initials): absolutely positioned at mouse coordinates
+      const editorRect = editorEl.value!.getBoundingClientRect()
+      const scrollTop = editorEl.value!.scrollTop || 0
+      const scrollLeft = editorEl.value!.scrollLeft || 0
+      chip.style.top = `${e.clientY - editorRect.top + scrollTop}px`
+      chip.style.left = `${e.clientX - editorRect.left + scrollLeft}px`
+      editorEl.value!.appendChild(chip)
+      _makeBlockDraggable(chip as HTMLDivElement)
+    } else {
+      // Inline fields: insert at exact caret position
+      const zwsBefore = document.createTextNode('\u200B')
+      const zwsAfter = document.createTextNode('\u200B')
+
+      range.collapse(true)
+      range.insertNode(zwsAfter)
+      range.insertNode(chip)
+      range.insertNode(zwsBefore)
+
+      const afterRange = document.createRange()
+      afterRange.setStartAfter(zwsAfter)
+      afterRange.collapse(true)
+      const sel = window.getSelection()!
+      sel.removeAllRanges()
+      sel.addRange(afterRange)
     }
+
+    recentFields.value = [field, ...recentFields.value.filter(f => f !== field)].slice(0, 15)
     onEditorInput()
   }
+
+  document.addEventListener('mousemove', onMouseMove)
+  document.addEventListener('mouseup', onMouseUp)
+}
+
+function startFieldTypePlace(ft: { key: string }) {
+  const fieldName = _fieldNameForType(ft)
+  if (fieldName) startFieldPlace(fieldName)
+}
+
+/** Make a block field (signature/initials) movable, resizable, and deletable. */
+function _makeBlockDraggable(box: HTMLDivElement) {
+  // Add delete button
+  const delBtn = document.createElement('button')
+  delBtn.className = 'block-field-delete'
+  delBtn.textContent = '✕'
+  delBtn.contentEditable = 'false'
+  delBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    box.remove()
+    onEditorInput()
+  })
+  box.appendChild(delBtn)
+
+  box.addEventListener('mousedown', (e: MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!editorEl.value) return
+
+    const boxRect = box.getBoundingClientRect()
+    const isResize = (e.clientX > boxRect.right - 16) && (e.clientY > boxRect.bottom - 16)
+
+    const startX = e.clientX
+    const startY = e.clientY
+
+    if (isResize) {
+      // Resize mode
+      const startW = box.offsetWidth
+      const startH = box.offsetHeight
+      document.body.style.cursor = 'nwse-resize'
+
+      function onMove(ev: MouseEvent) {
+        box.style.width = `${Math.max(80, startW + (ev.clientX - startX))}px`
+        box.style.height = `${Math.max(30, startH + (ev.clientY - startY))}px`
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        document.body.style.cursor = ''
+        onEditorInput()
+      }
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    } else {
+      // Move mode
+      const startTop = parseInt(box.style.top || '0', 10)
+      const startLeft = parseInt(box.style.left || '0', 10)
+
+      function onMove(ev: MouseEvent) {
+        box.style.top = `${startTop + (ev.clientY - startY)}px`
+        box.style.left = `${startLeft + (ev.clientX - startX)}px`
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove)
+        document.removeEventListener('mouseup', onUp)
+        onEditorInput()
+      }
+      document.addEventListener('mousemove', onMove)
+      document.addEventListener('mouseup', onUp)
+    }
+  })
+}
+
+/** Build a minimal inline field chip: <span data-field="x">x</span>
+ *  CSS handles all visual rendering via ::before pseudo-element. */
+function _createFieldChip(fieldName: string): HTMLElement {
+  // Detect if this is a block-type field (signature, initials)
+  const fieldType = fieldName.replace(/^.*_/, '')  // e.g. tenant_1_signature → signature
+  if (BLOCK_FIELD_TYPES.has(fieldType)) {
+    return _createBlockFieldChip(fieldName, fieldType)
+  }
+  const chip = document.createElement('span')
+  chip.contentEditable = 'false'
+  chip.dataset.field = fieldName
+  chip.textContent = fieldName
+  return chip
+}
+
+/** Build an absolutely-positioned field placeholder (signature/initials box).
+ *  Position is set via style.top / style.left relative to the editor. */
+function _deriveParty(fieldName: string): string {
+  // "landlord_signature" → "Landlord", "tenant_initials" → "Tenant", "witness_signature" → "Witness"
+  const prefix = fieldName.replace(/_(signature|initials)$/i, '')
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1).replace(/_/g, ' ')
+}
+
+function _createBlockFieldChip(fieldName: string, fieldType: string): HTMLDivElement {
+  const box = document.createElement('div')
+  box.contentEditable = 'false'
+  box.dataset.field = fieldName
+  box.dataset.fieldType = fieldType
+  box.dataset.party = _deriveParty(fieldName)
+  box.textContent = fieldName
+  // Default position and size — caller sets top/left
+  box.style.top = '0px'
+  box.style.left = '0px'
+  if (fieldType === 'signature') {
+    box.style.width = '240px'
+    box.style.height = '70px'
+  } else {
+    box.style.width = '120px'
+    box.style.height = '44px'
+  }
+  return box
+}
+
+/** Re-apply runtime attributes to field elements after loading HTML from backend. */
+function _hydrateFieldChips() {
+  if (!editorEl.value) return
+
+  // Walk text nodes to find {{ref}} markers and replace with interactive elements
+  const walker = document.createTreeWalker(editorEl.value, NodeFilter.SHOW_TEXT)
+  const replacements: { node: Text; matches: RegExpExecArray[] }[] = []
+  // Regex: {{fieldName}} or {{fieldName|top:0px;left:0px;width:240px;height:70px}}
+  const refPattern = /\{\{([^|}]+?)(?:\|([^}]+?))?\}\}/g
+
+  let textNode: Text | null
+  while ((textNode = walker.nextNode() as Text | null)) {
+    const text = textNode.textContent || ''
+    const matches: RegExpExecArray[] = []
+    let match: RegExpExecArray | null
+    refPattern.lastIndex = 0
+    while ((match = refPattern.exec(text))) {
+      matches.push({ ...match } as any)
+      // Copy match properties since exec reuses the array
+      matches[matches.length - 1] = Object.assign([], match, { index: match.index, input: match.input })
+    }
+    if (matches.length) replacements.push({ node: textNode, matches })
+  }
+
+  for (const { node, matches } of replacements) {
+    const frag = document.createDocumentFragment()
+    let lastIdx = 0
+    const text = node.textContent || ''
+
+    for (const m of matches) {
+      // Text before the match
+      if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)))
+
+      const fieldName = m[1].trim()
+      const meta = m[2] // e.g. "type:signature;party:Landlord;top:0px;left:0px;width:240px;height:70px"
+
+      // Parse metadata into key-value map
+      const metaMap: Record<string, string> = {}
+      if (meta) {
+        meta.split(';').forEach(pair => {
+          const idx = pair.indexOf(':')
+          if (idx > 0) metaMap[pair.slice(0, idx).trim()] = pair.slice(idx + 1).trim()
+        })
+      }
+
+      const fieldType = metaMap.type || fieldName.replace(/^.*_/, '')
+
+      if (BLOCK_FIELD_TYPES.has(fieldType)) {
+        const box = _createBlockFieldChip(fieldName, fieldType)
+        // Apply saved party
+        if (metaMap.party) box.dataset.party = metaMap.party
+        // Apply saved position/size
+        if (metaMap.top) box.style.top = metaMap.top
+        if (metaMap.left) box.style.left = metaMap.left
+        if (metaMap.width) box.style.width = metaMap.width
+        if (metaMap.height) box.style.height = metaMap.height
+        _makeBlockDraggable(box)
+        frag.appendChild(box)
+      } else {
+        const chip = _createFieldChip(fieldName)
+        frag.appendChild(chip)
+      }
+      lastIdx = m.index + m[0].length
+    }
+    // Remaining text after last match
+    if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)))
+    node.replaceWith(frag)
+  }
+
+  // Also hydrate any pre-existing [data-field] elements (e.g. from AI document updates)
+  editorEl.value.querySelectorAll('[data-field]').forEach(el => {
+    ;(el as HTMLElement).contentEditable = 'false'
+    const field = el.getAttribute('data-field') || ''
+    if (el.textContent !== field) el.textContent = field
+    const fieldType = field.replace(/^.*_/, '')
+    if (BLOCK_FIELD_TYPES.has(fieldType)) {
+      if (!el.getAttribute('data-field-type')) el.setAttribute('data-field-type', fieldType)
+      _makeBlockDraggable(el as HTMLDivElement)
+    }
+  })
 }
 
 function insertField(fieldName: string) {
@@ -1854,44 +2041,45 @@ function insertField(fieldName: string) {
 
   const editor = editorEl.value
   if (!editor) return
-  editor.focus()
+  restoreEditorSelection()
 
-  const color = selectedActorIdx.value !== null && selectedActorIdx.value >= 0 && selectedActorIdx.value < actors.value.length
-    ? actorColor(actors.value[selectedActorIdx.value].type, selectedActorIdx.value)
-    : '#b45309'
+  const chip = _createFieldChip(fieldName)
+  const isBlock = chip.tagName === 'DIV'
 
-  // Build the chip element
-  const chip = document.createElement('span')
-  chip.className = 'tmpl-field'
-  chip.contentEditable = 'false'
-  chip.draggable = true
-  chip.dataset.field = fieldName
-  chip.style.cssText = `display:inline;vertical-align:baseline;font-family:monospace;font-size:11px;line-height:1.4;background:${color}18;color:${color};border:1px solid ${color}44;padding:1px 6px;border-radius:4px;margin:0 1px;cursor:grab;white-space:nowrap;`
-  chip.textContent = `{{ ${fieldName} }}`
-
-  // Zero-width spaces before and after so the cursor can land next to the chip
-  const zwsBefore = document.createTextNode('\u200B')
-  const zwsAfter = document.createTextNode('\u200B')
-
-  const sel = window.getSelection()
-  if (sel && sel.rangeCount > 0) {
-    const range = sel.getRangeAt(0)
-    range.deleteContents()
-    // Insert: zws + chip + zws
-    range.insertNode(zwsAfter)
-    range.insertNode(chip)
-    range.insertNode(zwsBefore)
-    // Place cursor after the chip
-    const afterRange = document.createRange()
-    afterRange.setStartAfter(zwsAfter)
-    afterRange.collapse(true)
-    sel.removeAllRanges()
-    sel.addRange(afterRange)
-  } else {
-    // Fallback: append at end
-    editor.appendChild(zwsBefore)
+  if (isBlock) {
+    // Block field: absolutely positioned — place near the current selection
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      const caretRect = sel.getRangeAt(0).getBoundingClientRect()
+      const editorRect = editor.getBoundingClientRect()
+      const scrollTop = editor.scrollTop || 0
+      chip.style.top = `${caretRect.top - editorRect.top + scrollTop + 20}px`
+      chip.style.left = `${caretRect.left - editorRect.left}px`
+    }
     editor.appendChild(chip)
-    editor.appendChild(zwsAfter)
+    _makeBlockDraggable(chip as HTMLDivElement)
+  } else {
+    // Inline field: insert at caret
+    const zwsBefore = document.createTextNode('\u200B')
+    const zwsAfter = document.createTextNode('\u200B')
+
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0)
+      range.deleteContents()
+      range.insertNode(zwsAfter)
+      range.insertNode(chip)
+      range.insertNode(zwsBefore)
+      const afterRange = document.createRange()
+      afterRange.setStartAfter(zwsAfter)
+      afterRange.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(afterRange)
+    } else {
+      editor.appendChild(zwsBefore)
+      editor.appendChild(chip)
+      editor.appendChild(zwsAfter)
+    }
   }
 
   onEditorInput()
@@ -1913,9 +2101,8 @@ function buildHtmlFromParagraphs(paras: DocxParagraph[]): string {
   return paras.map(p => {
     const s    = (p.style || '').toLowerCase()
     const text = p.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    const highlighted = text.replace(/\{\{\s*(.+?)\s*\}\}/g, (_, field) =>
-      `<span class="tmpl-field" contenteditable="false" data-field="${field}" style="display:inline-block;vertical-align:baseline;font-family:monospace;font-size:11px;line-height:1.4;background:#fffbeb;color:#b45309;border:1px solid #fcd34d;padding:0 6px;border-radius:4px;margin:0 1px;white-space:nowrap;cursor:default;">{{ ${field} }}</span>`
-    )
+    // Leave {{refs}} as plain text — _hydrateFieldChips() will convert them to interactive elements
+    const highlighted = text
     // Build inline style from DOCX run-level formatting
     const css: string[] = []
     if (p.font_size_pt) css.push(`font-size:${p.font_size_pt}pt`)
@@ -2010,7 +2197,7 @@ async function sendMessage() {
     })
     // Store updated history so next call skips re-sending the document
     if (data.api_history) apiHistory.value = data.api_history
-    chatMessages.value.push({ role: 'assistant', content: data.reply })
+    chatMessages.value.push({ role: 'assistant', content: data.reply, tools_used: data.tools_used || undefined })
     _saveChatHistory()   // persist chat + api_history to localStorage
 
     // Handle document_update (update_document / add_comment / insert_toc / renumber_sections)
@@ -2019,9 +2206,9 @@ async function sendMessage() {
       editorHtml.value = data.document_update.html
       savedHtml.value  = data.document_update.html
       isDirty.value    = false
-      if (template.value) template.value.content_html = data.document_update.html
+      store.updateHtml(data.document_update.html)
       showToast(`Document updated: ${data.document_update.summary}`)
-      nextTick(() => schedulePageBreaks())
+      nextTick(() => { _hydrateFieldChips(); schedulePageBreaks() })
       // Refresh template so detected_variables reflect new content
       await loadTemplate()
     }
@@ -2229,20 +2416,103 @@ async function extractFromTemplate() {
 .document-editor :deep(td), .document-editor :deep(th) { border: 1px solid #e5e7eb; padding: 0.375rem 0.5rem; }
 .document-editor :deep(th) { background: #f9fafb; font-weight: 600; }
 
-/* In-document merge field chips */
+/* In-document merge field chips — rendered purely via CSS.
+   HTML stores only <span data-field="field_name">field_name</span>.
+   The raw text is hidden; ::before renders the visual chip. */
 .document-editor :deep(span[data-merge-field]),
 .document-editor :deep(span[data-field]) {
-  display: inline-block;
+  display: inline;
+  font-size: 0;
+  line-height: 0;
   vertical-align: baseline;
+  white-space: nowrap;
+}
+.document-editor :deep(span[data-merge-field])::before,
+.document-editor :deep(span[data-field])::before {
+  content: '{{ ' attr(data-field) ' }}';
   font-size: 0.72rem;
   font-family: ui-monospace, monospace;
   font-weight: 500;
   line-height: 1.4;
-  padding: 0 6px;
+  padding: 1px 6px;
   border-radius: 4px;
-  white-space: nowrap;
-  user-select: none;
   margin: 0 1px;
+  white-space: nowrap;
+  background: #b4530918;
+  color: #b45309;
+  border: 1px solid #b4530944;
+  cursor: grab;
+}
+
+/* Block-level field placeholders (signature, initials) — absolutely positioned, resizable */
+.document-editor :deep(div[data-field-type]) {
+  position: absolute;
+  font-size: 0;
+  line-height: 0;
+  user-select: none;
+  z-index: 2;
+  cursor: move;
+  background: #fffbeb;
+  border: 2px dashed #fbbf24;
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+.document-editor :deep(div[data-field-type])::before {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-family: ui-monospace, monospace;
+  font-weight: 500;
+  line-height: 1;
+  color: #b45309;
+  text-align: center;
+  white-space: nowrap;
+}
+/* Resize handle in bottom-right corner */
+.document-editor :deep(div[data-field-type])::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, #fbbf24 50%);
+  border-radius: 0 0 4px 0;
+}
+.document-editor :deep(div[data-field-type="signature"])::before {
+  content: '✍  ' attr(data-party) ' Signature';
+}
+.document-editor :deep(div[data-field-type="initials"])::before {
+  content: '✎  ' attr(data-party) ' Initials';
+}
+/* Delete button on block fields */
+.document-editor :deep(.block-field-delete) {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  line-height: 18px;
+  text-align: center;
+  border: 2px solid #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: auto;
+  padding: 0;
+  z-index: 5;
+}
+.document-editor :deep(div[data-field-type]:hover .block-field-delete) {
+  opacity: 1;
 }
 
 /* Page break — simulates the gap between two A4 sheets.

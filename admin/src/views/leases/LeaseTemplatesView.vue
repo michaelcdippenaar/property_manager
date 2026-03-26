@@ -22,20 +22,60 @@
     <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div
         v-for="tmpl in templates" :key="tmpl.id"
-        class="card p-4 hover:border-navy/40 hover:shadow-sm transition-all cursor-pointer group"
-        @click="router.push({ name: 'lease-template-edit', params: { id: tmpl.id } })"
+        class="card p-4 hover:border-navy/40 hover:shadow-sm transition-all cursor-pointer group relative"
+        @click="renameId !== tmpl.id && router.push({ name: 'lease-template-edit', params: { id: tmpl.id } })"
       >
-        <!-- Status badge — top right, own row -->
+        <!-- Status badge + menu — top right -->
         <div class="flex items-center justify-between mb-3">
           <FileText :size="18" class="text-navy flex-shrink-0" />
-          <span
-            class="badge"
-            :class="tmpl.is_active ? 'badge-green' : 'badge-gray'"
-          >{{ tmpl.is_active ? 'Active' : 'Inactive' }}</span>
+          <div class="flex items-center gap-1.5">
+            <span
+              class="badge"
+              :class="tmpl.is_active ? 'badge-green' : 'badge-gray'"
+            >{{ tmpl.is_active ? 'Active' : 'Inactive' }}</span>
+            <!-- Context menu trigger -->
+            <div class="relative">
+              <button
+                class="p-1 rounded hover:bg-gray-100 text-gray-300 hover:text-gray-600 transition-colors"
+                @click="toggleMenu($event, tmpl.id)"
+              >
+                <MoreVertical :size="14" />
+              </button>
+              <div v-if="menuOpenId === tmpl.id" class="fixed inset-0 z-30" @click.stop="menuOpenId = null" />
+              <div
+                v-if="menuOpenId === tmpl.id"
+                class="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-40 py-1"
+              >
+                <button
+                  class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                  @click.stop="startRename(tmpl)"
+                >
+                  <Pencil :size="12" /> Rename
+                </button>
+                <button
+                  class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-red-500"
+                  @click="archiveTemplate($event, tmpl)"
+                >
+                  <Archive :size="12" /> Archive
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <!-- Name + version -->
-        <div class="font-semibold text-sm text-gray-900 truncate" :title="tmpl.name">{{ tmpl.name }}</div>
+        <!-- Name (inline rename) -->
+        <div v-if="renameId === tmpl.id" class="flex items-center gap-1.5" @click.stop>
+          <input
+            v-model="renameName"
+            class="flex-1 text-sm font-semibold border border-navy/40 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-navy/30"
+            @keydown.enter="submitRename(tmpl)"
+            @keydown.escape="renameId = null"
+            @vue:mounted="({ el }: any) => el.focus()"
+          />
+          <button class="text-xs text-navy font-semibold px-2 py-1 hover:bg-navy/10 rounded" @click.stop="submitRename(tmpl)">Save</button>
+          <button class="text-xs text-gray-400 px-1 py-1 hover:text-gray-600" @click.stop="renameId = null">✕</button>
+        </div>
+        <div v-else class="font-semibold text-sm text-gray-900 truncate" :title="tmpl.name">{{ tmpl.name }}</div>
         <div class="text-xs text-gray-400 mt-0.5">v{{ tmpl.version }}{{ tmpl.province ? ` · ${tmpl.province}` : '' }}</div>
 
         <!-- Footer meta -->
@@ -166,7 +206,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2 } from 'lucide-vue-next'
+import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2, MoreVertical, Pencil, Archive } from 'lucide-vue-next'
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import EmptyState from '../../components/EmptyState.vue'
@@ -182,6 +222,43 @@ const createStep = ref<'choose' | 'pick' | 'details'>('choose')
 const createSource = ref<'blank' | 'upload' | 'duplicate'>('blank')
 
 const form = ref({ name: '', version: '1.0', province: '', file: null as File | null, duplicateId: null as number | null })
+
+// ── Context menu (rename / archive) ──────────────────────────────────────
+const menuOpenId = ref<number | null>(null)
+const renameId = ref<number | null>(null)
+const renameName = ref('')
+
+function toggleMenu(e: Event, id: number) {
+  e.stopPropagation()
+  menuOpenId.value = menuOpenId.value === id ? null : id
+}
+
+function startRename(tmpl: any) {
+  renameId.value = tmpl.id
+  renameName.value = tmpl.name
+  menuOpenId.value = null
+}
+
+async function submitRename(tmpl: any) {
+  const newName = renameName.value.trim()
+  if (!newName || newName === tmpl.name) { renameId.value = null; return }
+  try {
+    await api.patch(`/leases/templates/${tmpl.id}/`, { name: newName })
+    tmpl.name = newName
+    toast.success('Renamed')
+  } catch { toast.error('Failed to rename') }
+  renameId.value = null
+}
+
+async function archiveTemplate(e: Event, tmpl: any) {
+  e.stopPropagation()
+  menuOpenId.value = null
+  try {
+    await api.patch(`/leases/templates/${tmpl.id}/`, { is_active: false })
+    templates.value = templates.value.filter((t: any) => t.id !== tmpl.id)
+    toast.success('Template archived')
+  } catch { toast.error('Failed to archive') }
+}
 
 onMounted(async () => {
   try {
@@ -208,9 +285,8 @@ async function createTemplate() {
       fd.append('template_file', form.value.file)
     } else if (createSource.value === 'duplicate' && form.value.duplicateId) {
       fd.append('duplicate_from', String(form.value.duplicateId))
-    } else {
-      fd.append('template_file', new Blob([''], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'blank.docx')
     }
+    // blank template — no file needed, backend handles it
 
     const { data } = await api.post('/leases/templates/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     showCreate.value = false

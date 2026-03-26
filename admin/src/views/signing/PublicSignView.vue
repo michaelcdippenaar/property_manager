@@ -345,11 +345,36 @@ function clearSignature() {
   signatureDrawn.value = false
 }
 
+// Convert SVG string to a PNG data URL via an offscreen canvas
+function svgToPngDataUrl(svg: string, width: number, height: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = width * 2   // 2x for crisp output
+      canvas.height = height * 2
+      const ctx = canvas.getContext('2d')!
+      ctx.scale(2, 2)
+      ctx.drawImage(img, 0, 0, width, height)
+      URL.revokeObjectURL(url)
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('SVG render failed')) }
+    img.src = url
+  })
+}
+
 async function submitSignature() {
   if (!canSubmit.value || submitting.value || !signaturePad) return
   submitting.value = true
 
-  const sigDataUrl = signaturePad.toDataURL('image/png')
+  // Capture signature as SVG (vector — source of truth)
+  const sigSvg = signaturePad.toSVG()
+  // Convert to PNG for DocuSeal submission
+  const canvas = sigCanvas.value!
+  const sigPng = await svgToPngDataUrl(sigSvg, canvas.offsetWidth, canvas.offsetHeight)
 
   // Build field submissions matching the DocuSeal field names
   const sigField = fields.value.find((f: any) => f.type === 'signature')
@@ -357,7 +382,7 @@ async function submitSignature() {
 
   const submitFields: { name: string; value: string }[] = []
   if (sigField) {
-    submitFields.push({ name: sigField.name, value: sigDataUrl })
+    submitFields.push({ name: sigField.name, value: sigPng })
   }
   if (dateField) {
     submitFields.push({ name: dateField.name, value: signDate.value })
@@ -367,7 +392,7 @@ async function submitSignature() {
   if (!sigField) {
     submitFields.push({
       name: `Signature (${signerRole.value || 'First Party'})`,
-      value: sigDataUrl,
+      value: sigPng,
     })
   }
   if (!dateField) {
@@ -380,7 +405,10 @@ async function submitSignature() {
   try {
     await axios.post(
       `${apiBase}/esigning/public-sign/${token.value}/submit/`,
-      { fields: submitFields },
+      {
+        fields: submitFields,
+        signature_svg: sigSvg,  // vector source of truth for our DB
+      },
       { headers: { 'Content-Type': 'application/json' } },
     )
     submitted.value = true
