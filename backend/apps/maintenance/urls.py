@@ -2,6 +2,12 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .agent_assist_views import AgentAssistChatView, AgentAssistRagStatusView
+from .monitor_views import (
+    AgentHealthCheckView,
+    AgentMonitorDashboardView,
+    AgentTokenLogView,
+    ProgressiveTestView,
+)
 from .views import (
     AgentQuestionViewSet,
     JobDispatchListView,
@@ -46,6 +52,11 @@ urlpatterns = [
         AgentAssistRagStatusView.as_view(),
         name="agent-assist-rag-status",
     ),
+    # Agent Monitor endpoints
+    path("monitor/dashboard/", AgentMonitorDashboardView.as_view(), name="agent-monitor-dashboard"),
+    path("monitor/token-logs/", AgentTokenLogView.as_view(), name="agent-monitor-tokens"),
+    path("monitor/health/", AgentHealthCheckView.as_view(), name="agent-monitor-health"),
+    path("monitor/tests/", ProgressiveTestView.as_view(), name="agent-monitor-tests"),
     # Supplier portal (authenticated supplier users)
     path("supplier/", include(supplier_portal_urls)),
     # Token-based quote pages (no auth)

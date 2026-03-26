@@ -186,6 +186,57 @@ ANTHROPIC_WEB_FETCH_ENABLED = config(
     "ANTHROPIC_WEB_FETCH_ENABLED", default=False, cast=bool
 )
 
+# ── Logging ──
+# Maintenance chat log file for review and training data extraction
+MAINTENANCE_CHAT_LOG = config(
+    "MAINTENANCE_CHAT_LOG", default=str(BASE_DIR / "logs" / "maintenance_chat.jsonl")
+)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+        "jsonl": {
+            "format": "{message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "maintenance_chat_file": {
+            "class": "logging.FileHandler",
+            "filename": MAINTENANCE_CHAT_LOG,
+            "formatter": "jsonl",
+        },
+    },
+    "loggers": {
+        "apps.maintenance": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "apps.ai": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "apps.tenant_portal": {
+            "handlers": ["console"],
+            "level": "INFO",
+        },
+        "maintenance_chat": {
+            "handlers": ["maintenance_chat_file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 # DocuSeal e-signing
 DOCUSEAL_API_URL        = config("DOCUSEAL_API_URL", default="https://api.docuseal.com")
 DOCUSEAL_API_KEY        = config("DOCUSEAL_API_KEY", default="")

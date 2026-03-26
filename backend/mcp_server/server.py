@@ -471,6 +471,166 @@ def lease_templates_list_resource() -> str:
 
 
 # ──────────────────────────────────────────────
+#  Maintenance Chat Tools
+# ──────────────────────────────────────────────
+
+def _serialize_activity(activity) -> dict:
+    return {
+        "id": activity.id,
+        "activity_type": activity.activity_type,
+        "message": activity.message,
+        "metadata": activity.metadata,
+        "created_by": {
+            "id": activity.created_by_id,
+            "name": activity.created_by.full_name if activity.created_by else None,
+            "role": activity.created_by.role if activity.created_by else "system",
+        } if activity.created_by_id else {"id": None, "name": "AI Agent", "role": "ai"},
+        "created_at": activity.created_at.isoformat() if activity.created_at else None,
+    }
+
+
+@mcp.tool
+def get_maintenance_chat(request_id: int, limit: int = 50) -> str:
+    """
+    Get the chat/activity history for a maintenance request.
+
+    This is the per-issue conversation thread shared between tenants,
+    agents/admins, and AI. Use this to monitor issue progress and
+    understand context before responding.
+
+    Parameters
+    ----------
+    request_id : MaintenanceRequest ID
+    limit : max messages to return (default 50)
+    """
+    from apps.maintenance.models import MaintenanceActivity, MaintenanceRequest
+
+    try:
+        req = MaintenanceRequest.objects.select_related(
+            "unit__property", "tenant", "supplier"
+        ).get(pk=request_id)
+    except MaintenanceRequest.DoesNotExist:
+        return json.dumps({"error": f"Maintenance request {request_id} not found."})
+
+    activities = (
+        MaintenanceActivity.objects.filter(request=req)
+        .select_related("created_by")
+        .order_by("-created_at")[:limit]
+    )
+
+    return json.dumps({
+        "request": {
+            "id": req.pk,
+            "title": req.title,
+            "description": req.description,
+            "priority": req.priority,
+            "category": req.category,
+            "status": req.status,
+            "unit": f"{req.unit.unit_number} — {req.unit.property.name}" if req.unit else None,
+            "tenant": req.tenant.full_name if req.tenant else None,
+            "supplier": req.supplier.display_name if req.supplier else None,
+        },
+        "messages": [_serialize_activity(a) for a in reversed(list(activities))],
+    }, ensure_ascii=False)
+
+
+@mcp.tool
+def post_maintenance_chat(
+    request_id: int,
+    message: str,
+    activity_type: str = "note",
+) -> str:
+    """
+    Post a message to a maintenance request chat thread.
+
+    Use this to contribute to the per-issue conversation as an external
+    agent. Messages posted here are visible to tenants (mobile app),
+    agents/admins (admin dashboard), and other connected agents.
+
+    Parameters
+    ----------
+    request_id : MaintenanceRequest ID
+    message : message text to post
+    activity_type : one of "note", "system" (default "note")
+    """
+    from apps.maintenance.models import MaintenanceActivity, MaintenanceRequest
+
+    try:
+        req = MaintenanceRequest.objects.get(pk=request_id)
+    except MaintenanceRequest.DoesNotExist:
+        return json.dumps({"error": f"Maintenance request {request_id} not found."})
+
+    activity = MaintenanceActivity.objects.create(
+        request=req,
+        activity_type=activity_type,
+        message=message.strip(),
+        created_by=None,
+        metadata={"source": "mcp_agent"},
+    )
+    return json.dumps({
+        "ok": True,
+        **_serialize_activity(activity),
+    }, ensure_ascii=False)
+
+
+@mcp.tool
+def list_maintenance_requests(
+    status: str | None = None,
+    limit: int = 20,
+) -> str:
+    """
+    List maintenance requests with summary info.
+
+    Parameters
+    ----------
+    status : filter by status (open, in_progress, resolved, closed)
+    limit : max results (default 20)
+    """
+    from apps.maintenance.models import MaintenanceRequest
+
+    qs = MaintenanceRequest.objects.select_related(
+        "unit__property", "tenant", "supplier"
+    ).order_by("-created_at")
+    if status:
+        qs = qs.filter(status=status)
+    qs = qs[:limit]
+
+    results = []
+    for req in qs:
+        results.append({
+            "id": req.pk,
+            "title": req.title,
+            "priority": req.priority,
+            "category": req.category,
+            "status": req.status,
+            "unit": f"{req.unit.unit_number} — {req.unit.property.name}" if req.unit else None,
+            "tenant": req.tenant.full_name if req.tenant else None,
+            "supplier": req.supplier.display_name if req.supplier else None,
+            "created_at": req.created_at.isoformat() if req.created_at else None,
+        })
+    return json.dumps(results, ensure_ascii=False)
+
+
+# ──────────────────────────────────────────────
+#  Maintenance Chat Resources
+# ──────────────────────────────────────────────
+
+@mcp.resource("maintenance://request/{request_id}/chat")
+def maintenance_chat_resource(request_id: int) -> str:
+    """Full chat history for a maintenance request."""
+    from apps.maintenance.models import MaintenanceActivity
+    activities = (
+        MaintenanceActivity.objects.filter(request_id=int(request_id))
+        .select_related("created_by")
+        .order_by("created_at")[:100]
+    )
+    return json.dumps(
+        [_serialize_activity(a) for a in activities],
+        ensure_ascii=False,
+    )
+
+
+# ──────────────────────────────────────────────
 #  Entry point
 # ──────────────────────────────────────────────
 

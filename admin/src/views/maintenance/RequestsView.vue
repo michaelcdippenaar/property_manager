@@ -119,6 +119,62 @@
               </div>
             </div>
 
+            <!-- Issue Chat -->
+            <div class="border-t border-gray-100 pt-4">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Chat</h3>
+                <span class="text-xs text-gray-400">Type @agent to invoke AI</span>
+              </div>
+              <div
+                ref="chatContainer"
+                class="max-h-60 overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50 mb-3"
+              >
+                <div v-if="chatLoading" class="text-xs text-gray-400 text-center py-4">Loading chat…</div>
+                <div v-else-if="!chatMessages.length" class="text-xs text-gray-400 text-center py-4">
+                  No messages yet. Start the conversation below.
+                </div>
+                <div
+                  v-for="msg in chatMessages"
+                  :key="msg.id"
+                  class="text-sm rounded-lg p-2"
+                  :class="msg.metadata?.source === 'ai_agent'
+                    ? 'bg-indigo-50 text-indigo-900 mr-4 border border-indigo-200'
+                    : msg.created_by_role === 'tenant'
+                      ? 'bg-blue-50 text-blue-900 ml-4'
+                      : 'bg-white text-gray-800 border border-gray-200'"
+                >
+                  <div class="text-xs font-semibold mb-0.5"
+                    :class="msg.metadata?.source === 'ai_agent'
+                      ? 'text-indigo-600'
+                      : msg.created_by_role === 'tenant'
+                        ? 'text-blue-600'
+                        : 'text-gray-500'">
+                    {{ msg.metadata?.source === 'ai_agent' ? 'AI Agent' : (msg.created_by_name || 'System') }}
+                    <span class="font-normal text-gray-400 ml-1">{{ formatTime(msg.created_at) }}</span>
+                  </div>
+                  <div class="whitespace-pre-wrap">{{ msg.message }}</div>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <input
+                  v-model="chatInput"
+                  type="text"
+                  class="input flex-1 text-sm"
+                  placeholder="Type a message… (use @agent to invoke AI)"
+                  :disabled="chatSending"
+                  @keydown.enter="sendChatMessage"
+                />
+                <button
+                  type="button"
+                  class="btn-primary text-sm px-3"
+                  :disabled="chatSending || !chatInput.trim()"
+                  @click="sendChatMessage"
+                >
+                  <Send :size="14" />
+                </button>
+              </div>
+            </div>
+
             <!-- Get Quotes section -->
             <div class="border-t border-gray-100 pt-4">
               <div class="flex items-center justify-between mb-3">
@@ -236,7 +292,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import api from '../../api'
 import { Clock, Truck, Send, X, Loader2, MapPin } from 'lucide-vue-next'
 import FilterPills from '../../components/FilterPills.vue'
@@ -260,6 +316,14 @@ const suggestions = ref<any[]>([])
 const selectedSupplierIds = ref(new Set<number>())
 const dispatchNotes = ref('')
 const sending = ref(false)
+
+// Issue chat state
+const chatMessages = ref<any[]>([])
+const chatLoading = ref(false)
+const chatSending = ref(false)
+const chatInput = ref('')
+const chatContainer = ref<HTMLElement | null>(null)
+let chatSocket: WebSocket | null = null
 
 const filterOptions = [
   { label: 'All', value: 'all' },
@@ -298,7 +362,112 @@ async function selectRequest(req: any) {
     const { data } = await api.get(`/maintenance/${req.id}/dispatch/`)
     dispatchData.value = data
   } catch { /* no dispatch yet */ }
+  // Load and connect to issue chat
+  await loadChat(req.id)
+  connectChatSocket(req.id)
 }
+
+async function loadChat(requestId: number) {
+  chatLoading.value = true
+  chatMessages.value = []
+  try {
+    const { data } = await api.get(`/maintenance/${requestId}/activity/`)
+    chatMessages.value = Array.isArray(data) ? data : data.results ?? []
+  } catch { /* no activities yet */ }
+  chatLoading.value = false
+  scrollChatToBottom()
+}
+
+function connectChatSocket(requestId: number) {
+  disconnectChatSocket()
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`
+  const token = localStorage.getItem('access_token') || ''
+  chatSocket = new WebSocket(`${host}/ws/maintenance/${requestId}/activity/?token=${token}`)
+
+  chatSocket.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.type === 'history') {
+      chatMessages.value = data.activities || []
+      scrollChatToBottom()
+    } else if (data.type === 'activity' && data.activity) {
+      // Avoid duplicates
+      if (!chatMessages.value.some((m: any) => m.id === data.activity.id)) {
+        chatMessages.value.push(data.activity)
+        scrollChatToBottom()
+      }
+    }
+  }
+
+  chatSocket.onerror = () => {
+    // Fall back to REST polling if WebSocket fails
+    console.warn('WebSocket connection failed, using REST fallback')
+  }
+}
+
+function disconnectChatSocket() {
+  if (chatSocket) {
+    chatSocket.close()
+    chatSocket = null
+  }
+}
+
+async function sendChatMessage() {
+  const msg = chatInput.value.trim()
+  if (!msg || chatSending.value || !selected.value) return
+
+  chatSending.value = true
+  chatInput.value = ''
+
+  // Try WebSocket first
+  if (chatSocket && chatSocket.readyState === WebSocket.OPEN) {
+    chatSocket.send(JSON.stringify({ message: msg, activity_type: 'note' }))
+    chatSending.value = false
+    return
+  }
+
+  // Fall back to REST
+  try {
+    const { data } = await api.post(`/maintenance/${selected.value.id}/activity/`, {
+      message: msg,
+      activity_type: 'note',
+    })
+    chatMessages.value.push(data)
+    scrollChatToBottom()
+  } catch (e: any) {
+    toast.error('Failed to send message')
+    chatInput.value = msg // Restore
+  } finally {
+    chatSending.value = false
+  }
+}
+
+function scrollChatToBottom() {
+  nextTick(() => {
+    if (chatContainer.value) {
+      chatContainer.value.scrollTop = chatContainer.value.scrollHeight
+    }
+  })
+}
+
+function formatTime(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+    + ' ' + d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+}
+
+// Clean up WebSocket on unmount
+onUnmounted(() => {
+  disconnectChatSocket()
+})
+
+// Reconnect when selected request changes
+watch(() => selected.value?.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    disconnectChatSocket()
+  }
+})
 
 async function updateStatus(req: any, newStatus: string) {
   await api.patch(`/maintenance/${req.id}/`, { status: newStatus })

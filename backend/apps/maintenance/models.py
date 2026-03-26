@@ -357,3 +357,70 @@ class MaintenanceActivity(models.Model):
 
     def __str__(self):
         return f"[{self.activity_type}] {self.message[:60]}"
+
+
+class AgentTokenLog(models.Model):
+    """
+    Log every LLM API call for token usage monitoring and cost analysis.
+
+    Tracks input/output tokens, latency, endpoint, model, and optional
+    metadata (e.g. maintenance_request_id, session_id).
+    """
+    endpoint = models.CharField(max_length=100, db_index=True)
+    model = models.CharField(max_length=80, default="claude-sonnet-4-6")
+    input_tokens = models.IntegerField(default=0)
+    output_tokens = models.IntegerField(default=0)
+    latency_ms = models.IntegerField(default=0, help_text="Round-trip latency in ms")
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="token_logs",
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["endpoint", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"TokenLog({self.endpoint}, in={self.input_tokens}, out={self.output_tokens})"
+
+    @classmethod
+    def log_call(
+        cls,
+        endpoint: str,
+        response,
+        user=None,
+        latency_ms: int = 0,
+        metadata: dict | None = None,
+    ):
+        """
+        Log an Anthropic API response's token usage.
+
+        Args:
+            endpoint: identifier like "tenant_chat" or "agent_assist"
+            response: Anthropic message response with .usage
+            user: Django user who triggered the call
+            latency_ms: measured round-trip time
+            metadata: extra context (request_id, session_id, etc.)
+        """
+        try:
+            usage = getattr(response, "usage", None)
+            input_tokens = getattr(usage, "input_tokens", 0) if usage else 0
+            output_tokens = getattr(usage, "output_tokens", 0) if usage else 0
+            model_name = getattr(response, "model", "unknown")
+
+            cls.objects.create(
+                endpoint=endpoint,
+                model=model_name,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                latency_ms=latency_ms,
+                user=user,
+                metadata=metadata or {},
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to log token usage: %s", e)

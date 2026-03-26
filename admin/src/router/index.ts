@@ -38,6 +38,11 @@ const router = createRouter({
           component: () => import('../views/maintenance/SuppliersView.vue'),
         },
         {
+          path: 'maintenance/questions',
+          name: 'maintenance-questions',
+          component: () => import('../views/maintenance/QuestionsView.vue'),
+        },
+        {
           path: 'suppliers',
           component: () => import('../views/suppliers/SuppliersLayout.vue'),
           children: [

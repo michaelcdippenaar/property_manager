@@ -31,6 +31,8 @@ from core.anthropic_web_fetch import (
 )
 from core.contract_rag import query_agent_qa, query_contracts, rag_collection_stats
 
+import time as _time
+
 logger = logging.getLogger(__name__)
 
 AGENT_MODEL = "claude-sonnet-4-6"
@@ -234,11 +236,23 @@ class AgentAssistChatView(APIView):
             kwargs["tools"] = tools
 
         client = anthropic.Anthropic(api_key=api_key, max_retries=2)
+        t0 = _time.monotonic()
         try:
             response = client.messages.create(**kwargs)
         except Exception as e:
             logger.error("Agent assist AI error: %s", e)
             return Response({"error": f"AI error: {e}"}, status=502)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+
+        # Log token usage for monitoring
+        from apps.maintenance.models import AgentTokenLog
+        AgentTokenLog.log_call(
+            endpoint="agent_assist",
+            response=response,
+            user=request.user,
+            latency_ms=latency_ms,
+            metadata={"maintenance_request_id": maintenance_request_id},
+        )
 
         reply = extract_anthropic_assistant_text(response).strip()
         if not reply:

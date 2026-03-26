@@ -614,7 +614,9 @@ class TenantConversationMaintenanceDraftView(APIView):
                 status=503,
             )
 
+        import time as _time
         client = anthropic.Anthropic(api_key=api_key, max_retries=2)
+        t0 = _time.monotonic()
         try:
             response = client.messages.create(
                 model=AGENT_MODEL,
@@ -630,6 +632,15 @@ class TenantConversationMaintenanceDraftView(APIView):
         except Exception as e:
             logger.error("Maintenance draft AI error for session #%s: %s", pk, e)
             return Response({"error": f"AI error: {e}"}, status=502)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+        from apps.maintenance.models import AgentTokenLog
+        AgentTokenLog.log_call(
+            endpoint="maintenance_draft",
+            response=response,
+            user=request.user,
+            latency_ms=latency_ms,
+            metadata={"session_id": pk},
+        )
 
         raw = extract_anthropic_assistant_text(response).strip()
         draft = parse_maintenance_draft_response(raw)
@@ -798,12 +809,25 @@ class TenantConversationMessageCreateView(APIView):
             kwargs["tools"] = tools
 
         # ── Call Claude with retry ──
+        import time as _time
         client = anthropic.Anthropic(api_key=api_key, max_retries=2)
+        t0 = _time.monotonic()
         try:
             response = client.messages.create(**kwargs)
         except Exception as e:
             logger.error("Tenant chat AI error for session #%s: %s", pk, e)
             return Response({"error": f"AI error: {e}"}, status=502)
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+
+        # Log token usage for monitoring
+        from apps.maintenance.models import AgentTokenLog
+        AgentTokenLog.log_call(
+            endpoint="tenant_chat",
+            response=response,
+            user=request.user,
+            latency_ms=latency_ms,
+            metadata={"session_id": pk},
+        )
 
         raw_ai = extract_anthropic_assistant_text(response).strip()
         if not raw_ai:

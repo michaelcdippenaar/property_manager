@@ -1,0 +1,4 @@
+{"request_id": 1, "activity_id": 1, "type": "note", "message": "Contacted supplier", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-03-26T08:14:24.659354+00:00"}
+{"request_id": 2, "activity_id": 2, "type": "note", "message": "Test note", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-03-26T08:14:25.130383+00:00"}
+{"request_id": 1, "activity_id": 1, "type": "note", "message": "Contacted supplier", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-03-26T08:16:54.591586+00:00"}
+{"request_id": 2, "activity_id": 2, "type": "note", "message": "Test note", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-03-26T08:16:54.905473+00:00"}
