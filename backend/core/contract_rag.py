@@ -1,15 +1,23 @@
 """
 ChromaDB vector store for files under CONTRACT_DOCUMENTS_ROOT (PDF, DOCX, TXT, MD).
+
+Uses nomic-embed-text via sentence-transformers for high-quality embeddings
+aligned with modern LLM retrieval patterns.
 """
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 from pathlib import Path
 
 from django.conf import settings
 
+logger = logging.getLogger(__name__)
+
 COLLECTION_NAME = "contracts"
+AGENT_QA_COLLECTION = "agent_qa"
+CHAT_KNOWLEDGE_COLLECTION = "chat_knowledge"
 
 
 def _root() -> Path:
@@ -26,6 +34,29 @@ def _chroma_path() -> Path:
     return Path(p)
 
 
+def _embedding_model() -> str:
+    return getattr(settings, "RAG_EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1.5")
+
+
+_cached_ef = None
+
+
+def get_embedding_function():
+    """Return a SentenceTransformerEmbeddingFunction using nomic-embed-text."""
+    global _cached_ef
+    if _cached_ef is not None:
+        return _cached_ef
+    from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+    model_name = _embedding_model()
+    _cached_ef = SentenceTransformerEmbeddingFunction(
+        model_name=model_name,
+        trust_remote_code=True,
+    )
+    logger.info("RAG embedding model loaded: %s", model_name)
+    return _cached_ef
+
+
 def get_chroma_client():
     import chromadb
 
@@ -39,6 +70,27 @@ def get_contracts_collection():
     return client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"description": "Leases, house rules, contracts"},
+        embedding_function=get_embedding_function(),
+    )
+
+
+def get_agent_qa_collection():
+    """Collection for answered AgentQuestion Q&A pairs."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=AGENT_QA_COLLECTION,
+        metadata={"description": "Staff-answered Q&A for agent knowledge"},
+        embedding_function=get_embedding_function(),
+    )
+
+
+def get_chat_knowledge_collection():
+    """Collection for knowledge extracted from successful chat interactions."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=CHAT_KNOWLEDGE_COLLECTION,
+        metadata={"description": "Self-training knowledge from resolved chats"},
+        embedding_function=get_embedding_function(),
     )
 
 
@@ -121,10 +173,15 @@ def iter_ingest_files(root: Path):
 
 
 def ingest_contract_documents(
-    *, reset: bool = False, max_files: int | None = None, batch_size: int = 64
+    *,
+    reset: bool = False,
+    max_files: int | None = None,
+    batch_size: int = 64,
+    property_id: int | None = None,
 ) -> dict:
     """
     Walk CONTRACT_DOCUMENTS_ROOT, chunk text, upsert into Chroma (batched for speed).
+    Optionally tag all chunks with a property_id for scoped queries.
     """
     root = _root()
     if not root.is_dir():
@@ -172,7 +229,10 @@ def ingest_contract_documents(
             cid = hashlib.sha256(f"{rel}|{idx}|{chunk[:120]}".encode()).hexdigest()
             batch_ids.append(cid)
             batch_docs.append(chunk)
-            batch_meta.append({"source": rel, "chunk": idx})
+            meta = {"source": rel, "chunk": idx}
+            if property_id is not None:
+                meta["property_id"] = property_id
+            batch_meta.append(meta)
             if len(batch_ids) >= batch_size:
                 flush_batch()
     flush_batch()
@@ -181,13 +241,21 @@ def ingest_contract_documents(
         "ok": True,
         "root": str(root),
         "chroma_path": str(_chroma_path()),
+        "embedding_model": _embedding_model(),
         "files": files_done,
         "chunks": chunks_added,
         "errors": errors[:20],
     }
 
 
-def query_contracts(query: str, n_results: int = 8) -> str:
+def query_contracts(
+    query: str,
+    n_results: int = 8,
+    property_id: int | None = None,
+) -> str:
+    """
+    Query the contracts collection. Optionally scope to a specific property.
+    """
     if not (query or "").strip():
         return ""
     try:
@@ -198,9 +266,22 @@ def query_contracts(query: str, n_results: int = 8) -> str:
     except Exception:
         return ""
     try:
-        res = col.query(query_texts=[query.strip()], n_results=min(n_results, max(1, n)))
+        kwargs: dict = {
+            "query_texts": [query.strip()],
+            "n_results": min(n_results, max(1, n)),
+        }
+        if property_id is not None:
+            kwargs["where"] = {"property_id": property_id}
+        res = col.query(**kwargs)
     except Exception:
-        return ""
+        # Fall back without property filter if metadata doesn't exist yet
+        try:
+            res = col.query(
+                query_texts=[query.strip()],
+                n_results=min(n_results, max(1, n)),
+            )
+        except Exception:
+            return ""
     docs = (res.get("documents") or [[]])[0]
     metas = (res.get("metadatas") or [[]])[0]
     parts: list[str] = []
@@ -214,10 +295,114 @@ def query_contracts(query: str, n_results: int = 8) -> str:
     return "\n\n".join(parts)
 
 
+def query_agent_qa(query: str, n_results: int = 5) -> str:
+    """Query the agent Q&A knowledge base."""
+    if not (query or "").strip():
+        return ""
+    try:
+        col = get_agent_qa_collection()
+        n = col.count()
+        if n == 0:
+            return ""
+    except Exception:
+        return ""
+    try:
+        res = col.query(
+            query_texts=[query.strip()],
+            n_results=min(n_results, max(1, n)),
+        )
+    except Exception:
+        return ""
+    docs = (res.get("documents") or [[]])[0]
+    metas = (res.get("metadatas") or [[]])[0]
+    parts: list[str] = []
+    for i, doc in enumerate(docs):
+        if not doc:
+            continue
+        meta = metas[i] if i < len(metas) else {}
+        cat = meta.get("category", "?") if isinstance(meta, dict) else "?"
+        parts.append(f"--- staff answer [{cat}] ---\n{doc}")
+    return "\n\n".join(parts)
+
+
+def ingest_agent_question(question_id: int, question: str, answer: str, category: str = "", property_id: int | None = None) -> bool:
+    """Ingest a single answered AgentQuestion into the Q&A collection."""
+    try:
+        col = get_agent_qa_collection()
+        doc = f"Q: {question.strip()}\nA: {answer.strip()}"
+        cid = hashlib.sha256(f"aq|{question_id}".encode()).hexdigest()
+        meta: dict = {"question_id": question_id, "category": category}
+        if property_id is not None:
+            meta["property_id"] = property_id
+        col.upsert(ids=[cid], documents=[doc], metadatas=[meta])
+        return True
+    except Exception as e:
+        logger.error("Failed to ingest AgentQuestion %s: %s", question_id, e)
+        return False
+
+
+def ingest_chat_knowledge(session_id: int, summary: str, category: str = "", property_id: int | None = None) -> bool:
+    """Ingest a resolved chat summary into the self-training collection."""
+    try:
+        col = get_chat_knowledge_collection()
+        cid = hashlib.sha256(f"chat|{session_id}".encode()).hexdigest()
+        meta: dict = {"session_id": session_id, "category": category}
+        if property_id is not None:
+            meta["property_id"] = property_id
+        col.upsert(ids=[cid], documents=[summary], metadatas=[meta])
+        return True
+    except Exception as e:
+        logger.error("Failed to ingest chat knowledge %s: %s", session_id, e)
+        return False
+
+
+def query_chat_knowledge(query: str, n_results: int = 3) -> str:
+    """Query the self-training knowledge base."""
+    if not (query or "").strip():
+        return ""
+    try:
+        col = get_chat_knowledge_collection()
+        n = col.count()
+        if n == 0:
+            return ""
+    except Exception:
+        return ""
+    try:
+        res = col.query(
+            query_texts=[query.strip()],
+            n_results=min(n_results, max(1, n)),
+        )
+    except Exception:
+        return ""
+    docs = (res.get("documents") or [[]])[0]
+    parts: list[str] = []
+    for doc in docs:
+        if doc:
+            parts.append(f"--- learned from past interactions ---\n{doc}")
+    return "\n\n".join(parts)
+
+
 def rag_collection_stats() -> dict:
     try:
         col = get_contracts_collection()
         n = col.count()
-        return {"collection": COLLECTION_NAME, "chunks": n, "chroma_path": str(_chroma_path())}
+        stats = {
+            "collection": COLLECTION_NAME,
+            "chunks": n,
+            "chroma_path": str(_chroma_path()),
+            "embedding_model": _embedding_model(),
+        }
+        # Also report Q&A and chat knowledge counts
+        try:
+            qa_col = get_agent_qa_collection()
+            stats["agent_qa_chunks"] = qa_col.count()
+        except Exception:
+            stats["agent_qa_chunks"] = 0
+        try:
+            ck_col = get_chat_knowledge_collection()
+            stats["chat_knowledge_chunks"] = ck_col.count()
+        except Exception:
+            stats["chat_knowledge_chunks"] = 0
+        return stats
     except Exception as e:
         return {"collection": COLLECTION_NAME, "chunks": 0, "error": str(e)}

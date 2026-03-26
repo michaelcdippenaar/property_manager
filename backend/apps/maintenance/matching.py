@@ -1,13 +1,32 @@
 """
 Supplier matching algorithm for maintenance requests.
-Ranks suppliers by proximity, skills, price history, owner preference, and rating.
+
+Ranks suppliers by:
+  1. Proximity (30%) — haversine distance vs service radius
+  2. Skills match (25%) — supplier trades vs request category
+  3. Price history (15%) — average quote vs global average
+  4. Owner preference (20%) — preferred/linked to property
+  5. Rating & reliability (10%) — average rating out of 5
 """
 import math
 from decimal import Decimal
 
 from django.db.models import Avg
 
-from .models import JobQuote, Supplier, SupplierProperty
+from .models import JobQuote, MaintenanceRequest, Supplier, SupplierProperty
+
+# Map MaintenanceRequest.Category → relevant Supplier.Trade values.
+# A supplier scores higher when their trade matches the request category.
+CATEGORY_TO_TRADES: dict[str, set[str]] = {
+    "plumbing": {"plumbing"},
+    "electrical": {"electrical"},
+    "roof": {"roofing", "general"},
+    "appliance": {"appliance", "electrical"},
+    "security": {"security", "locksmith"},
+    "pest": {"pest_control"},
+    "garden": {"landscaping"},
+    "other": {"general", "other"},
+}
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -23,11 +42,21 @@ def haversine_km(lat1, lon1, lat2, lon2):
 def rank_suppliers(maintenance_request, top_n=10):
     """
     Rank active suppliers for a maintenance request.
-    Returns list of dicts: [{supplier, score, reasons}] sorted by score desc.
+
+    Returns list of dicts sorted by score descending:
+        [{supplier_id, supplier_name, supplier_phone, supplier_city,
+          trades, score, reasons}]
+
+    Scoring weights:
+        Proximity: 30  |  Skills: 25  |  Price: 15  |  Preference: 20  |  Rating: 10
     """
     prop = maintenance_request.unit.property
     prop_lat = prop.latitude if hasattr(prop, "latitude") else None
     prop_lon = prop.longitude if hasattr(prop, "longitude") else None
+    request_category = getattr(maintenance_request, "category", "other") or "other"
+
+    # Resolve which trades are relevant for this category
+    relevant_trades = CATEGORY_TO_TRADES.get(request_category, {"general", "other"})
 
     # Get all preferred/linked supplier IDs for this property
     preferred_ids = set(
@@ -49,50 +78,71 @@ def rank_suppliers(maintenance_request, top_n=10):
         score = 0.0
         reasons = {}
 
-        # 1. Proximity (30%)
+        # ── 1. Proximity (30%) ──
         if prop_lat and prop_lon and supplier.latitude and supplier.longitude:
             dist = haversine_km(prop_lat, prop_lon, supplier.latitude, supplier.longitude)
             radius = supplier.service_radius_km or 100
             if dist > radius:
                 reasons["proximity"] = {"score": 0, "distance_km": round(dist, 1), "outside_radius": True}
             else:
-                # Linear decay: 0km = 1.0, radius = 0.0
                 prox_score = max(0, 1.0 - dist / radius)
                 score += prox_score * 30
                 reasons["proximity"] = {"score": round(prox_score * 30, 1), "distance_km": round(dist, 1)}
         else:
-            # No geo data — neutral
             score += 15
             reasons["proximity"] = {"score": 15, "no_geo": True}
 
-        # 2. Skills match (25%)
+        # ── 2. Skills match (25%) — category-aware ──
         supplier_trades = set(supplier.trade_list)
-        # MaintenanceRequest doesn't have category yet, so match broadly
-        # If we had a category field, we'd match against it
-        if supplier_trades:
-            # Having any trade is better than none
-            skills_score = 25 if "general" in supplier_trades or len(supplier_trades) > 0 else 0
-            score += skills_score
-            reasons["skills"] = {"score": skills_score, "trades": list(supplier_trades)}
+        matched_trades = supplier_trades & relevant_trades
+        if matched_trades:
+            # Direct trade match → full score
+            skills_score = 25
+            reasons["skills"] = {
+                "score": 25,
+                "trades": list(supplier_trades),
+                "matched": list(matched_trades),
+                "category": request_category,
+            }
+        elif "general" in supplier_trades:
+            # General maintenance can handle anything, but at reduced score
+            skills_score = 12
+            reasons["skills"] = {
+                "score": 12,
+                "trades": list(supplier_trades),
+                "matched": [],
+                "category": request_category,
+                "general_fallback": True,
+            }
+        elif supplier_trades:
+            # Has trades but none match — minimal score
+            skills_score = 5
+            reasons["skills"] = {
+                "score": 5,
+                "trades": list(supplier_trades),
+                "matched": [],
+                "category": request_category,
+            }
         else:
-            reasons["skills"] = {"score": 0, "trades": []}
+            skills_score = 0
+            reasons["skills"] = {"score": 0, "trades": [], "category": request_category}
+        score += skills_score
 
-        # 3. Price history (15%)
+        # ── 3. Price history (15%) ──
         avg_quote = (
             JobQuote.objects.filter(quote_request__supplier=supplier)
             .aggregate(avg=Avg("amount"))["avg"]
         )
         if avg_quote and global_avg and global_avg > 0:
-            # Lower than average = higher score
             price_ratio = float(avg_quote) / float(global_avg)
             price_score = max(0, min(15, 15 * (2 - price_ratio)))
             score += price_score
             reasons["price"] = {"score": round(price_score, 1), "avg_quote": float(avg_quote)}
         else:
-            score += 7.5  # neutral
+            score += 7.5
             reasons["price"] = {"score": 7.5, "no_history": True}
 
-        # 4. Owner preference (20%)
+        # ── 4. Owner preference (20%) ──
         if supplier.id in preferred_ids:
             score += 20
             reasons["preference"] = {"score": 20, "preferred": True}
@@ -102,13 +152,13 @@ def rank_suppliers(maintenance_request, top_n=10):
         else:
             reasons["preference"] = {"score": 0}
 
-        # 5. Rating & reliability (10%)
+        # ── 5. Rating & reliability (10%) ──
         if supplier.rating:
             rating_score = (float(supplier.rating) / 5.0) * 10
             score += rating_score
             reasons["rating"] = {"score": round(rating_score, 1), "rating": float(supplier.rating)}
         else:
-            score += 5  # neutral
+            score += 5
             reasons["rating"] = {"score": 5, "no_rating": True}
 
         results.append({

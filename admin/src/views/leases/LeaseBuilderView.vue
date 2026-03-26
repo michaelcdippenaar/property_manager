@@ -488,6 +488,18 @@ function escHtml(s: string) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+function _deriveFieldParty(fieldName: string): string {
+  const lower = fieldName.toLowerCase()
+  if (lower.startsWith('landlord')) return 'landlord'
+  if (/^tenant\d?_/.test(lower) || lower === 'tenant_name') return 'tenant'
+  if (lower.startsWith('occupant')) return 'occupant'
+  if (lower.startsWith('witness')) return 'witness'
+  if (/^(property|unit|address|city|suburb|area_code|province|postal)/.test(lower)) return 'property'
+  if (/^(lease|start_date|end_date|notice|early_termination)/.test(lower)) return 'lease'
+  if (/^(rent|monthly|deposit|escalation|payment|bank|account|branch)/.test(lower)) return 'financial'
+  return 'general'
+}
+
 const previewHtml = computed(() => {
   if (!templateHtml.value) return ''
   const vals = buildDocxContext() as Record<string, any>
@@ -496,20 +508,22 @@ const previewHtml = computed(() => {
 
   // Replace <span data-merge-field="X">...</span> with filled value or placeholder
   html = html.replace(/<span[^>]*data-merge-field="([^"]+)"[^>]*>[\s\S]*?<\/span>/g, (_, field) => {
+    const party = _deriveFieldParty(field)
     const val = vals[field]
     if (val !== undefined && String(val).trim() && String(val) !== '—') {
-      return `<span class="pf-filled">${escHtml(String(val))}</span>`
+      return `<span class="pf-filled" data-party="${party}">${escHtml(String(val))}</span>`
     }
-    return `<span class="pf-empty">{{${field}}}</span>`
+    return `<span class="pf-empty" data-party="${party}">{{${field}}}</span>`
   })
 
   // Also replace bare {{ field }} jinja-style placeholders
   html = html.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, field) => {
+    const party = _deriveFieldParty(field)
     const val = vals[field]
     if (val !== undefined && String(val).trim() && String(val) !== '—') {
-      return `<span class="pf-filled">${escHtml(String(val))}</span>`
+      return `<span class="pf-filled" data-party="${party}">${escHtml(String(val))}</span>`
     }
-    return `<span class="pf-empty">{{${field}}}</span>`
+    return `<span class="pf-empty" data-party="${party}">{{${field}}}</span>`
   })
 
   // Append additional terms

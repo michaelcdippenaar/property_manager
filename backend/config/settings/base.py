@@ -168,6 +168,10 @@ RAG_CHROMA_PATH = Path(config("RAG_CHROMA_PATH", default=str(BASE_DIR / "rag_chr
 RAG_PDF_MAX_PAGES = config("RAG_PDF_MAX_PAGES", default=120, cast=int)
 RAG_MAX_FILE_BYTES = config("RAG_MAX_FILE_BYTES", default=40 * 1024 * 1024, cast=int)
 RAG_QUERY_CHUNKS = config("RAG_QUERY_CHUNKS", default=8, cast=int)
+# Embedding model for RAG vector search (nomic-embed-text-v1.5 recommended)
+RAG_EMBEDDING_MODEL = config(
+    "RAG_EMBEDDING_MODEL", default="nomic-ai/nomic-embed-text-v1.5"
+)
 
 # Tenant AI chat attachments (multipart uploads)
 TENANT_AI_MAX_IMAGE_BYTES = config(

@@ -161,16 +161,37 @@ class LeaseTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
                 except Exception:
                     pass  # field discovery is best-effort
 
-        # Run RHA compliance check on save and attach to response
+        # Auto-renumber headings and clauses on save
         html = _extract_html(instance.content_html)
         if html:
-            self._compliance_report = _check_rha_compliance(html)
+            renumbered = _renumber_headings(html)
+            self._was_renumbered = renumbered != html
+            if self._was_renumbered:
+                # Write renumbered HTML back into the JSON envelope
+                raw = (instance.content_html or "").strip()
+                if raw.startswith("{"):
+                    try:
+                        doc = json.loads(raw)
+                        doc["html"] = renumbered
+                        instance.content_html = json.dumps(doc)
+                    except (json.JSONDecodeError, TypeError):
+                        instance.content_html = renumbered
+                else:
+                    instance.content_html = renumbered
+                instance.save(update_fields=["content_html"])
+
+            # Run RHA compliance check on save and attach to response
+            self._compliance_report = _check_rha_compliance(renumbered)
 
     def update(self, request, *args, **kwargs):
         self._compliance_report = None
+        self._was_renumbered = False
         response = super().update(request, *args, **kwargs)
-        if self._compliance_report and response.status_code == 200:
-            response.data["compliance"] = self._compliance_report
+        if response.status_code == 200:
+            if self._was_renumbered:
+                response.data["renumbered"] = True
+            if self._compliance_report:
+                response.data["compliance"] = self._compliance_report
         return response
 
 
@@ -842,9 +863,14 @@ def _build_toc_html(html: str, title: str = "TABLE OF CONTENTS") -> str:
     return f'<div data-block-comment="toc"><strong>{title}</strong><ol>{items}</ol></div>'
 
 
-def _renumber_headings(html: str, style: str = "number_dot", levels: str = "h2_h3_h4") -> str:
+def _renumber_headings(html: str, style: str = "number_dot", levels: str = "h2_h3_h4",
+                       renumber_paragraphs: bool = True) -> str:
     """
-    Multi-level heading renumbering.
+    Multi-level heading AND paragraph renumbering.
+
+    Headings (h2/h3/h4) get sequential numbers: 1. / 1.1 / 1.1.1
+    Paragraphs that already start with a number prefix (e.g. "3.1.", "9.2.1.")
+    get renumbered to match their parent section.
 
     levels:
       "h2"          — only h2:  1. 2. 3.
@@ -854,9 +880,14 @@ def _renumber_headings(html: str, style: str = "number_dot", levels: str = "h2_h
     style:
       "number_dot"  — "1. ", "1.1 ", "1.1.1 "
       "number_only" — "1 ", "1.1 ", "1.1.1 "
+
+    renumber_paragraphs:
+      If True, also renumber <p> elements that start with number prefixes
+      (e.g. "3.1. The Lessor..." becomes "4.1. The Lessor..." if section moved).
     """
-    # Strip any existing leading number prefix like "1.", "1.1.", "1.1.1 " etc.
     _NUM_PREFIX = re.compile(r'^[\d]+(?:\.[\d]+)*\.?\s*')
+    # Match numbered paragraphs: "3.1.", "9.2.1.", "11.1.15." etc.
+    _P_NUM_RE = re.compile(r'^(\d+(?:\.\d+)+)\.?\s+')
 
     target_tags = {"h2"}
     if levels in ("h2_h3", "h2_h3_h4"):
@@ -864,34 +895,107 @@ def _renumber_headings(html: str, style: str = "number_dot", levels: str = "h2_h
     if levels == "h2_h3_h4":
         target_tags.add("h4")
 
-    counters = [0, 0, 0]  # h2, h3, h4
+    # State tracking
+    h2_counter = [0]
+    h3_counter = [0]
+    h4_counter = [0]
+    p_counter = [0]       # paragraph counter within current section scope
+    h2_p_count = [0]      # numbered paragraphs seen directly under h2 (before any h3)
+    h3_p_count = [0]      # numbered paragraphs seen directly under h3 (before any h4)
+    current_depth = [0]   # 1=under h2, 2=under h3, 3=under h4
 
-    def repl(m):
-        tag = m.group(1).lower()
-        inner = m.group(2).strip()
-        text = _NUM_PREFIX.sub('', inner).strip()
+    def process_element(m):
+        full_match = m.group(0)
+        tag_name = m.group(2).lower()
+        attrs = m.group(3)
+        inner = m.group(4)
 
-        if tag not in target_tags:
-            return m.group(0)  # leave untouched
+        # Handle headings
+        if tag_name in ("h2", "h3", "h4"):
+            if tag_name not in target_tags:
+                return full_match
 
-        sep = ". " if style == "number_dot" else " "
+            sep = ". " if style == "number_dot" else " "
 
-        if tag == "h2":
-            counters[0] += 1
-            counters[1] = 0
-            counters[2] = 0
-            prefix = f"{counters[0]}"
-        elif tag == "h3":
-            counters[1] += 1
-            counters[2] = 0
-            prefix = f"{counters[0]}.{counters[1]}"
-        else:  # h4
-            counters[2] += 1
-            prefix = f"{counters[0]}.{counters[1]}.{counters[2]}"
+            if tag_name == "h2":
+                h2_counter[0] += 1
+                h3_counter[0] = 0
+                h4_counter[0] = 0
+                p_counter[0] = 0
+                h2_p_count[0] = 0
+                h3_p_count[0] = 0
+                current_depth[0] = 1
+                prefix = f"{h2_counter[0]}"
+            elif tag_name == "h3":
+                # h3 continues the sub-numbering after any direct h2 paragraphs
+                # e.g. if h2 had paragraphs 5.1., then first h3 = 5.2
+                if h3_counter[0] == 0 and h2_p_count[0] > 0:
+                    h3_counter[0] = h2_p_count[0] + 1
+                else:
+                    h3_counter[0] += 1
+                h4_counter[0] = 0
+                p_counter[0] = 0
+                h3_p_count[0] = 0
+                current_depth[0] = 2
+                prefix = f"{h2_counter[0]}.{h3_counter[0]}"
+            else:  # h4
+                # Same logic: h4 continues after any direct h3 paragraphs
+                if h4_counter[0] == 0 and h3_p_count[0] > 0:
+                    h4_counter[0] = h3_p_count[0] + 1
+                else:
+                    h4_counter[0] += 1
+                p_counter[0] = 0
+                current_depth[0] = 3
+                prefix = f"{h2_counter[0]}.{h3_counter[0]}.{h4_counter[0]}"
 
-        return f"<{tag}>{prefix}{sep}{text}</{tag}>"
+            # Strip existing number prefix from inner HTML
+            cleaned_inner = re.sub(r'^(\s*)[\d]+(?:\.[\d]+)*\.?\s*', r'\1', inner.lstrip()).lstrip()
+            return f"<{tag_name}{attrs}>{prefix}{sep}{cleaned_inner}</{tag_name}>"
 
-    return re.sub(r'<(h[234])[^>]*>(.*?)</\1>', repl, html, flags=re.DOTALL | re.IGNORECASE)
+        # Handle paragraphs
+        if tag_name == "p" and renumber_paragraphs:
+            text = _strip_tags(inner).strip()
+            # Skip empty paragraphs or paragraphs that are ONLY a number prefix
+            if not text or text.replace('.', '').replace(' ', '').isdigit():
+                return full_match
+            p_match = _P_NUM_RE.match(text)
+            if p_match:
+                old_num = p_match.group(1)
+                p_counter[0] += 1
+
+                # Build new prefix based on current section depth
+                if current_depth[0] == 1:
+                    # Under h2: "3.1.", "3.2." etc.
+                    h2_p_count[0] = p_counter[0]
+                    new_num = f"{h2_counter[0]}.{p_counter[0]}"
+                elif current_depth[0] == 2:
+                    # Under h3: "5.2.1.", "5.2.2." etc.
+                    h3_p_count[0] = p_counter[0]
+                    new_num = f"{h2_counter[0]}.{h3_counter[0]}.{p_counter[0]}"
+                elif current_depth[0] == 3:
+                    # Under h4: "5.2.1.1.", "5.2.1.2." etc.
+                    new_num = f"{h2_counter[0]}.{h3_counter[0]}.{h4_counter[0]}.{p_counter[0]}"
+                else:
+                    return full_match
+
+                # Replace old number in inner HTML preserving formatting
+                escaped_old = re.escape(old_num)
+                new_inner = re.sub(
+                    rf'{escaped_old}\.?\s+',
+                    f'{new_num}. ',
+                    inner,
+                    count=1
+                )
+                return f"<{tag_name}{attrs}>{new_inner}</{tag_name}>"
+
+        return full_match
+
+    return re.sub(
+        r'(<(h[234]|p)([^>]*)>(.*?)</\2>)',
+        process_element,
+        html,
+        flags=re.DOTALL | re.IGNORECASE
+    )
 
 
 def _insert_comment_html(html: str, comment: str, position: str, after_heading: str = "") -> str:
@@ -1122,16 +1226,17 @@ _TEMPLATE_TOOLS = [
     {
         "name": "renumber_sections",
         "description": (
-            "Renumber headings with multi-level numbering. "
-            "Supports h2-only (1. 2. 3.), h2+h3 (1. / 1.1), or h2+h3+h4 (1. / 1.1 / 1.1.1). "
-            "Strips existing number prefixes first, then applies fresh sequential numbering. "
-            "Use the template's existing numbering depth — if h3 sub-sections are numbered, use h2_h3 or h2_h3_h4."
+            "Renumber headings AND clause paragraphs with multi-level numbering. "
+            "Headings: h2 (1.), h3 (1.1), h4 (1.1.1). "
+            "Paragraphs: clauses starting with numbers like '3.1.', '9.2.1.' get renumbered to match their parent section. "
+            "Use when sections have been reordered, added, or removed and numbering is out of sync."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "style": {"type": "string", "enum": ["number_dot", "number_only"], "description": "Separator after number. Default: number_dot"},
-                "levels": {"type": "string", "enum": ["h2", "h2_h3", "h2_h3_h4"], "description": "Which heading levels to number. Default: h2_h3_h4"}
+                "levels": {"type": "string", "enum": ["h2", "h2_h3", "h2_h3_h4"], "description": "Which heading levels to number. Default: h2_h3_h4"},
+                "renumber_paragraphs": {"type": "boolean", "description": "Also renumber numbered paragraphs/clauses (e.g. 3.1., 9.2.1.). Default: true"}
             },
             "required": []
         }
@@ -1431,7 +1536,8 @@ class LeaseTemplateAIChatView(APIView):
                 elif name == "renumber_sections":
                     levels = inp.get("levels", "h2_h3_h4")
                     style = inp.get("style", "number_dot")
-                    new_html = _renumber_headings(current_html, style=style, levels=levels)
+                    renum_p = inp.get("renumber_paragraphs", True)
+                    new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
                     tmpl.content_html = new_html
                     tmpl.save(update_fields=["content_html"])
                     document_update = {"html": new_html, "summary": f"Headings renumbered ({levels})."}

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "tremly-tenant-context": {
+      "command": "python",
+      "args": ["backend/mcp_server/server.py"],
+      "cwd": "${workspaceFolder}"
+    }
+  }
+}

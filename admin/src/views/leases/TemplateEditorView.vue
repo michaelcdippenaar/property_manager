@@ -211,6 +211,76 @@
         <!-- ── Field palette (scrollable) ── -->
         <div v-if="!rightCollapsed" class="flex-1 overflow-y-auto min-h-0">
 
+          <!-- ── Recipient selector ── -->
+          <div class="px-3 py-2.5 border-b border-gray-100 space-y-2">
+            <div class="text-micro font-semibold text-gray-500 uppercase tracking-wide">Recipient</div>
+
+            <!-- Active recipient pill -->
+            <div
+              class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs font-medium"
+              :style="{
+                borderColor: selectedColor + '44',
+                backgroundColor: selectedColor + '08',
+                color: selectedColor
+              }"
+            >
+              <span class="w-5 h-5 rounded-full flex items-center justify-center text-white text-micro font-bold flex-shrink-0"
+                :style="{ backgroundColor: selectedColor }">
+                {{ selectedActorIdx === -1 ? 'A' : selectedActorIdx !== null && selectedActorIdx < actors.length ? actorAvatar(actors[selectedActorIdx], selectedActorIdx) : '?' }}
+              </span>
+              <span class="truncate flex-1">{{ selectedActorLabel }}</span>
+            </div>
+
+            <!-- Actor list -->
+            <div class="space-y-1">
+              <!-- Me (Agent) -->
+              <button
+                class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors"
+                :class="selectedActorIdx === -1 ? 'bg-navy/10 text-navy font-semibold' : 'text-gray-600 hover:bg-gray-50'"
+                @click="selectedActorIdx = -1"
+              >
+                <span class="w-4 h-4 rounded-full bg-navy/80 flex items-center justify-center text-white flex-shrink-0" style="font-size: 8px; font-weight: 700;">A</span>
+                <span>Me (Agent)</span>
+              </button>
+
+              <!-- Actors -->
+              <button
+                v-for="(actor, ai) in actors" :key="ai"
+                class="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors group"
+                :class="selectedActorIdx === ai ? 'font-semibold' : 'text-gray-600 hover:bg-gray-50'"
+                :style="selectedActorIdx === ai ? { backgroundColor: actorColor(actor.type, ai) + '15', color: actorColor(actor.type, ai) } : {}"
+                @click="selectedActorIdx = ai"
+              >
+                <span class="w-4 h-4 rounded-full flex items-center justify-center text-white flex-shrink-0"
+                  :style="{ backgroundColor: actorColor(actor.type, ai) }" style="font-size: 8px; font-weight: 700;">
+                  {{ actorAvatar(actor, ai) }}
+                </span>
+                <span class="flex-1 text-left truncate">{{ actor.label }}</span>
+                <button
+                  class="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 text-gray-400 hover:text-red-500 transition-opacity"
+                  @click.stop="removeActor(ai)"
+                  title="Remove"
+                >
+                  <X :size="10" />
+                </button>
+              </button>
+            </div>
+
+            <!-- Add actor buttons -->
+            <div class="flex gap-1">
+              <button
+                v-for="at in actorTypes" :key="at.key"
+                class="flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 text-micro font-medium rounded-lg border border-dashed transition-colors"
+                :class="at.btnClass"
+                @click="addActor(at.key)"
+                :title="`Add ${at.label}`"
+              >
+                <component :is="at.icon" :size="10" />
+                <span>{{ at.label }}</span>
+              </button>
+            </div>
+          </div>
+
           <!-- Personal Data -->
           <div class="px-4 py-2.5 text-micro font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
             Personal Data
@@ -1470,6 +1540,114 @@ function onEditorKeydown(e: KeyboardEvent) {
     }
   }
 
+  // Enter → create a proper <p> instead of browser default <div>
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault()
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+
+    const range = sel.getRangeAt(0)
+    range.deleteContents()
+
+    // Find the block-level parent element
+    let block: HTMLElement | null = range.startContainer as HTMLElement
+    if (block.nodeType === Node.TEXT_NODE) block = block.parentElement
+    while (block && block !== editorEl.value && !['P','H1','H2','H3','H4','LI','DIV'].includes(block.tagName)) {
+      block = block.parentElement
+    }
+
+    // Split the current block at the caret position
+    if (block && block !== editorEl.value && block.parentNode) {
+      // Extract content after caret into a new <p>
+      const afterRange = document.createRange()
+      afterRange.setStart(range.startContainer, range.startOffset)
+      afterRange.setEndAfter(block.lastChild || block)
+      const afterFrag = afterRange.extractContents()
+
+      const newP = document.createElement('p')
+      newP.appendChild(afterFrag)
+      // Clean up: remove any stale <br> tags, then add one if truly empty
+      if (!newP.textContent?.trim() && !newP.querySelector('[data-field], [data-merge-field]')) {
+        newP.innerHTML = ''
+        newP.appendChild(document.createElement('br'))
+      }
+      // Ensure the original block has content too
+      if (!block.textContent?.trim() && !block.querySelector('[data-field], [data-merge-field]')) {
+        block.innerHTML = ''
+        block.appendChild(document.createElement('br'))
+      }
+
+      block.parentNode.insertBefore(newP, block.nextSibling)
+
+      // Place caret at start of new paragraph
+      const newRange = document.createRange()
+      newRange.setStart(newP, 0)
+      newRange.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(newRange)
+    } else {
+      // Fallback: insert a <p> with <br>
+      const newP = document.createElement('p')
+      newP.appendChild(document.createElement('br'))
+      range.insertNode(newP)
+      const newRange = document.createRange()
+      newRange.setStart(newP, 0)
+      newRange.collapse(true)
+      sel.removeAllRanges()
+      sel.addRange(newRange)
+    }
+
+    onEditorInput()
+    return
+  }
+
+  // Backspace / Delete → remove merge field chips adjacent to caret
+  if (e.key === 'Backspace' || e.key === 'Delete') {
+    const sel = window.getSelection()
+    if (sel && sel.isCollapsed && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0)
+      const container = range.startContainer
+      const offset = range.startOffset
+
+      let target: Element | null = null
+
+      if (e.key === 'Backspace') {
+        // Check element immediately before caret
+        if (container.nodeType === Node.ELEMENT_NODE) {
+          const child = (container as Element).childNodes[offset - 1]
+          if (child instanceof HTMLElement && (child.hasAttribute('data-field') || child.hasAttribute('data-merge-field'))) {
+            target = child
+          }
+        } else if (container.nodeType === Node.TEXT_NODE && offset === 0) {
+          const prev = container.previousSibling
+          if (prev instanceof HTMLElement && (prev.hasAttribute('data-field') || prev.hasAttribute('data-merge-field'))) {
+            target = prev
+          }
+        }
+      } else {
+        // Delete key — check element immediately after caret
+        if (container.nodeType === Node.ELEMENT_NODE) {
+          const child = (container as Element).childNodes[offset]
+          if (child instanceof HTMLElement && (child.hasAttribute('data-field') || child.hasAttribute('data-merge-field'))) {
+            target = child
+          }
+        } else if (container.nodeType === Node.TEXT_NODE && offset === (container.textContent?.length ?? 0)) {
+          const next = container.nextSibling
+          if (next instanceof HTMLElement && (next.hasAttribute('data-field') || next.hasAttribute('data-merge-field'))) {
+            target = next
+          }
+        }
+      }
+
+      if (target) {
+        e.preventDefault()
+        target.remove()
+        onEditorInput()
+        return
+      }
+    }
+  }
+
   // Tab → indent / Shift+Tab → outdent current block
   if (e.key === 'Tab') {
     e.preventDefault()
@@ -1517,8 +1695,9 @@ function encodeDocument(): DocJson {
 
   const fields: DocField[] = []
 
-  clone.querySelectorAll('[data-field]').forEach(el => {
-    const name = el.getAttribute('data-field') || ''
+  // Handle both data-field (editor-created) and data-merge-field (backend/legacy) elements
+  clone.querySelectorAll('[data-field], [data-merge-field]').forEach(el => {
+    const name = el.getAttribute('data-field') || el.getAttribute('data-merge-field') || ''
     const fieldTypeAttr = el.getAttribute('data-field-type')
 
     if (fieldTypeAttr) {
@@ -1550,7 +1729,36 @@ function encodeDocument(): DocJson {
   })
 
   let html = clone.innerHTML.replace(/\u200B/g, '')
-  return { v: 1, html, fields }
+
+  // Deduplicate block fields — keep the one with a real position (not 0px,0px)
+  const seen = new Map<string, number>()
+  const deduped: DocField[] = []
+  for (const f of fields) {
+    const existing = seen.get(f.name)
+    if (existing !== undefined && f.position) {
+      const prev = deduped[existing]
+      // Prefer the entry with a real position over the default 0px,0px
+      if (prev.position?.top === '0px' && prev.position?.left === '0px' && f.position.top !== '0px') {
+        deduped[existing] = f
+      }
+      continue  // skip duplicate
+    }
+    if (existing !== undefined) continue  // skip duplicate without position
+    seen.set(f.name, deduped.length)
+    deduped.push(f)
+  }
+
+  // Remove duplicate {{ref}} markers in HTML (keep only first occurrence per block field name)
+  const blockNames = new Set(deduped.filter(f => f.position).map(f => f.name))
+  for (const name of blockNames) {
+    let first = true
+    html = html.replace(new RegExp(`\\{\\{${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g'), (m) => {
+      if (first) { first = false; return m }
+      return ''  // remove duplicates
+    })
+  }
+
+  return { v: 1, html, fields: deduped }
 }
 
 function decodeDocument(doc: DocJson): string {
@@ -1560,11 +1768,17 @@ function decodeDocument(doc: DocJson): string {
     if (f.position) blockFields.set(f.name, f)
   }
 
+  // Track which block fields have already been placed (prevent duplicates)
+  const placedBlocks = new Set<string>()
+
   // Replace {{ref}} markers with the right HTML elements
   return doc.html.replace(/\{\{([^}]+?)\}\}/g, (_, name) => {
     const trimmed = name.trim()
     const bf = blockFields.get(trimmed)
     if (bf) {
+      // Only place each block field once — skip duplicates
+      if (placedBlocks.has(trimmed)) return ''
+      placedBlocks.add(trimmed)
       const p = bf.position!
       return `<div data-field="${trimmed}" data-field-type="${bf.type}" data-party="${bf.party || ''}" style="top:${p.top};left:${p.left};width:${p.width};height:${p.height}">${trimmed}</div>`
     }
@@ -1579,9 +1793,15 @@ function getCleanHtml(): string {
 
 
 // ── Editor ────────────────────────────────────────────────────────────────
+let _dirtyTimer: ReturnType<typeof setTimeout> | null = null
 function onEditorInput() {
   if (isPageBreakUpdating()) return  // skip events fired by page-break injection
-  isDirty.value = getCleanHtml() !== savedHtml.value
+  // Mark dirty immediately (cheap), but defer the full DOM-clone comparison
+  if (!isDirty.value) isDirty.value = true
+  if (_dirtyTimer) clearTimeout(_dirtyTimer)
+  _dirtyTimer = setTimeout(() => {
+    isDirty.value = getCleanHtml() !== savedHtml.value
+  }, 500)
   _checkAutocomplete()
   schedulePageBreaks()
 }
@@ -1593,21 +1813,35 @@ async function saveContent() {
   store.updateDocument(doc)
   const result = await store.save()
   if (result) {
-    savedHtml.value = doc.html
+    const wasRenumbered = (result as any)?.renumbered
+    // If backend renumbered, reload the updated content into the editor
+    if (wasRenumbered && store.templateId) {
+      await store.loadTemplate(store.templateId)
+      if (editorEl.value && store.document.html) {
+        // Use decodeDocument to reconstruct block fields (signatures) with position data
+        editorEl.value.innerHTML = decodeDocument(store.document)
+        nextTick(() => {
+          _hydrateFieldChips()
+          schedulePageBreaks()
+        })
+      }
+    }
+    savedHtml.value = getCleanHtml()
     isDirty.value = false
-    // Show compliance results if available
+    // Build save message
+    const parts: string[] = []
+    if (wasRenumbered) parts.push('renumbered')
     const compliance = (result as any)?.compliance
     if (compliance) {
       const { pass_count, total_checks, sections_missing, clauses_missing } = compliance
       if (pass_count === total_checks) {
-        showToast(`Saved ✓ RHA compliant (${pass_count}/${total_checks})`)
+        parts.push(`RHA compliant (${pass_count}/${total_checks})`)
       } else {
         const missing = [...(sections_missing || []), ...(clauses_missing || [])]
-        showToast(`Saved — RHA: ${pass_count}/${total_checks}. Missing: ${missing.slice(0, 3).join(', ')}`)
+        parts.push(`RHA: ${pass_count}/${total_checks}. Missing: ${missing.slice(0, 3).join(', ')}`)
       }
-    } else {
-      showToast('Saved')
     }
+    showToast(parts.length ? `Saved — ${parts.join(' | ')}` : 'Saved')
   } else {
     showToast('Save failed')
   }
@@ -1920,7 +2154,19 @@ function _createFieldChip(fieldName: string): HTMLElement {
   const chip = document.createElement('span')
   chip.contentEditable = 'false'
   chip.dataset.field = fieldName
+  chip.dataset.party = _deriveFieldParty(fieldName)
   chip.textContent = fieldName
+  // Click to select the chip so Backspace/Delete removes it
+  chip.addEventListener('click', (e) => {
+    e.stopPropagation()
+    const sel = window.getSelection()
+    if (sel) {
+      const r = document.createRange()
+      r.selectNode(chip)
+      sel.removeAllRanges()
+      sel.addRange(r)
+    }
+  })
   return chip
 }
 
@@ -1930,6 +2176,18 @@ function _deriveParty(fieldName: string): string {
   // "landlord_signature" → "Landlord", "tenant_initials" → "Tenant", "witness_signature" → "Witness"
   const prefix = fieldName.replace(/_(signature|initials)$/i, '')
   return prefix.charAt(0).toUpperCase() + prefix.slice(1).replace(/_/g, ' ')
+}
+
+function _deriveFieldParty(fieldName: string): string {
+  const lower = fieldName.toLowerCase()
+  if (lower.startsWith('landlord')) return 'landlord'
+  if (/^tenant\d?_/.test(lower) || lower === 'tenant_name') return 'tenant'
+  if (lower.startsWith('occupant')) return 'occupant'
+  if (lower.startsWith('witness')) return 'witness'
+  if (/^(property|unit|address|city|suburb|area_code|province|postal)/.test(lower)) return 'property'
+  if (/^(lease|start_date|end_date|notice|early_termination)/.test(lower)) return 'lease'
+  if (/^(rent|monthly|deposit|escalation|payment|bank|account|branch)/.test(lower)) return 'financial'
+  return 'general'
 }
 
 function _createBlockFieldChip(fieldName: string, fieldType: string): HTMLDivElement {
@@ -2026,10 +2284,22 @@ function _hydrateFieldChips() {
     ;(el as HTMLElement).contentEditable = 'false'
     const field = el.getAttribute('data-field') || ''
     if (el.textContent !== field) el.textContent = field
+    // Assign party color if not already set
+    if (!el.getAttribute('data-party')) {
+      el.setAttribute('data-party', _deriveFieldParty(field))
+    }
     const fieldType = field.replace(/^.*_/, '')
     if (BLOCK_FIELD_TYPES.has(fieldType)) {
       if (!el.getAttribute('data-field-type')) el.setAttribute('data-field-type', fieldType)
       _makeBlockDraggable(el as HTMLDivElement)
+    }
+  })
+
+  // Hydrate pre-existing [data-merge-field] elements (from saved HTML)
+  editorEl.value.querySelectorAll('[data-merge-field]').forEach(el => {
+    const field = el.getAttribute('data-merge-field') || el.getAttribute('data-field') || ''
+    if (!el.getAttribute('data-party') && field) {
+      el.setAttribute('data-party', _deriveFieldParty(field))
     }
   })
 }
@@ -2438,10 +2708,33 @@ async function extractFromTemplate() {
   border-radius: 4px;
   margin: 0 1px;
   white-space: nowrap;
-  background: #b4530918;
-  color: #b45309;
-  border: 1px solid #b4530944;
+  /* Default: navy (general/unassigned) */
+  background: #2B2D6E18;
+  color: #2B2D6E;
+  border: 1px solid #2B2D6E44;
   cursor: grab;
+}
+/* Party-colored merge field chips */
+.document-editor :deep(span[data-party="landlord"])::before {
+  background: #1e3a5f18; color: #1e3a5f; border-color: #1e3a5f44;
+}
+.document-editor :deep(span[data-party="tenant"])::before {
+  background: #3b82f618; color: #3b82f6; border-color: #3b82f644;
+}
+.document-editor :deep(span[data-party="occupant"])::before {
+  background: #10b98118; color: #10b981; border-color: #10b98144;
+}
+.document-editor :deep(span[data-party="witness"])::before {
+  background: #8b5cf618; color: #8b5cf6; border-color: #8b5cf644;
+}
+.document-editor :deep(span[data-party="property"])::before {
+  background: #f59e0b18; color: #b45309; border-color: #f59e0b44;
+}
+.document-editor :deep(span[data-party="financial"])::before {
+  background: #10b98118; color: #047857; border-color: #10b98144;
+}
+.document-editor :deep(span[data-party="lease"])::before {
+  background: #6366f118; color: #4f46e5; border-color: #6366f144;
 }
 
 /* Block-level field placeholders (signature, initials) — absolutely positioned, resizable */

@@ -2,7 +2,11 @@ import graphene
 from graphene_django import DjangoObjectType
 
 from apps.accounts.models import Person
-from apps.leases.models import Lease, LeaseTemplate
+from apps.esigning.models import ESigningSubmission
+from apps.leases.models import (
+    Lease, LeaseTemplate, LeaseBuilderSession,
+    LeaseTenant, LeaseOccupant, LeaseEvent, OnboardingStep, LeaseDocument,
+)
 from apps.properties.models import Property, Unit
 
 
@@ -117,18 +121,100 @@ class LeaseTemplateType(DjangoObjectType):
 
 
 # ---------------------------------------------------------------------------
+# Lifecycle types
+# ---------------------------------------------------------------------------
+
+class LeaseBuilderSessionType(DjangoObjectType):
+    class Meta:
+        model = LeaseBuilderSession
+        fields = (
+            "id", "template", "lease", "messages", "current_state",
+            "rha_flags", "status", "created_at", "updated_at",
+        )
+
+
+class LeaseTenantType(DjangoObjectType):
+    class Meta:
+        model = LeaseTenant
+        fields = ("id", "lease", "person")
+
+
+class LeaseOccupantType(DjangoObjectType):
+    class Meta:
+        model = LeaseOccupant
+        fields = ("id", "lease", "person", "relationship_to_tenant")
+
+
+class LeaseEventType(DjangoObjectType):
+    class Meta:
+        model = LeaseEvent
+        fields = (
+            "id", "lease", "event_type", "title", "description", "date",
+            "status", "is_recurring", "recurrence_day",
+            "completed_at", "created_at",
+        )
+
+
+class OnboardingStepType(DjangoObjectType):
+    class Meta:
+        model = OnboardingStep
+        fields = (
+            "id", "lease", "step_type", "title", "is_completed",
+            "completed_at", "notes", "order",
+        )
+
+
+class LeaseDocumentType(DjangoObjectType):
+    class Meta:
+        model = LeaseDocument
+        fields = ("id", "lease", "document_type", "file", "description", "uploaded_at")
+
+
+class ESigningSubmissionType(DjangoObjectType):
+    class Meta:
+        model = ESigningSubmission
+        fields = (
+            "id", "lease", "docuseal_submission_id", "docuseal_template_id",
+            "status", "signing_mode", "signers", "signed_pdf_url",
+            "created_at", "updated_at",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Queries
 # ---------------------------------------------------------------------------
 
 class Query(graphene.ObjectType):
+    # Templates
     lease_template = graphene.Field(LeaseTemplateType, id=graphene.ID(required=True))
     all_lease_templates = graphene.List(graphene.NonNull(LeaseTemplateType))
 
+    # Leases
     lease = graphene.Field(LeaseType, id=graphene.ID(required=True))
-    all_leases = graphene.List(graphene.NonNull(LeaseType))
+    all_leases = graphene.List(graphene.NonNull(LeaseType), status=graphene.String())
 
+    # Properties
     property = graphene.Field(PropertyType, id=graphene.ID(required=True))
     all_properties = graphene.List(graphene.NonNull(PropertyType))
+
+    # Builder sessions
+    builder_session = graphene.Field(LeaseBuilderSessionType, id=graphene.ID(required=True))
+    all_builder_sessions = graphene.List(graphene.NonNull(LeaseBuilderSessionType), status=graphene.String())
+
+    # E-signing
+    signing_submission = graphene.Field(ESigningSubmissionType, id=graphene.ID(required=True))
+    signing_submissions_for_lease = graphene.List(
+        graphene.NonNull(ESigningSubmissionType), lease_id=graphene.ID(required=True)
+    )
+
+    # Lease lifecycle details
+    lease_events = graphene.List(graphene.NonNull(LeaseEventType), lease_id=graphene.ID(required=True))
+    onboarding_steps = graphene.List(graphene.NonNull(OnboardingStepType), lease_id=graphene.ID(required=True))
+    lease_documents = graphene.List(graphene.NonNull(LeaseDocumentType), lease_id=graphene.ID(required=True))
+    lease_co_tenants = graphene.List(graphene.NonNull(LeaseTenantType), lease_id=graphene.ID(required=True))
+    lease_occupants = graphene.List(graphene.NonNull(LeaseOccupantType), lease_id=graphene.ID(required=True))
+
+    # --- Resolvers ---
 
     def resolve_lease_template(self, info, id):
         return LeaseTemplate.objects.filter(pk=id).first()
@@ -137,16 +223,49 @@ class Query(graphene.ObjectType):
         return LeaseTemplate.objects.all()
 
     def resolve_lease(self, info, id):
-        return Lease.objects.select_related("unit", "primary_tenant").filter(pk=id).first()
+        return Lease.objects.select_related("unit", "unit__property", "primary_tenant").filter(pk=id).first()
 
-    def resolve_all_leases(self, info):
-        return Lease.objects.select_related("unit", "primary_tenant").all()
+    def resolve_all_leases(self, info, status=None):
+        qs = Lease.objects.select_related("unit", "primary_tenant")
+        if status:
+            qs = qs.filter(status=status)
+        return qs.all()
 
     def resolve_property(self, info, id):
         return Property.objects.select_related("owner").prefetch_related("units").filter(pk=id).first()
 
     def resolve_all_properties(self, info):
         return Property.objects.select_related("owner").prefetch_related("units").all()
+
+    def resolve_builder_session(self, info, id):
+        return LeaseBuilderSession.objects.select_related("template", "lease").filter(pk=id).first()
+
+    def resolve_all_builder_sessions(self, info, status=None):
+        qs = LeaseBuilderSession.objects.select_related("template", "lease")
+        if status:
+            qs = qs.filter(status=status)
+        return qs.all()
+
+    def resolve_signing_submission(self, info, id):
+        return ESigningSubmission.objects.select_related("lease").filter(pk=id).first()
+
+    def resolve_signing_submissions_for_lease(self, info, lease_id):
+        return ESigningSubmission.objects.filter(lease_id=lease_id).all()
+
+    def resolve_lease_events(self, info, lease_id):
+        return LeaseEvent.objects.filter(lease_id=lease_id).all()
+
+    def resolve_onboarding_steps(self, info, lease_id):
+        return OnboardingStep.objects.filter(lease_id=lease_id).order_by("order").all()
+
+    def resolve_lease_documents(self, info, lease_id):
+        return LeaseDocument.objects.filter(lease_id=lease_id).all()
+
+    def resolve_lease_co_tenants(self, info, lease_id):
+        return LeaseTenant.objects.select_related("person").filter(lease_id=lease_id).all()
+
+    def resolve_lease_occupants(self, info, lease_id):
+        return LeaseOccupant.objects.select_related("person").filter(lease_id=lease_id).all()
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +311,59 @@ class UpdateLeaseTemplate(graphene.Mutation):
         return UpdateLeaseTemplate(lease_template=template)
 
 
+class UpdateBuilderSession(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        status = graphene.String()
+        current_state = graphene.JSONString()
+        rha_flags = graphene.JSONString()
+
+    builder_session = graphene.Field(LeaseBuilderSessionType)
+
+    def mutate(self, info, id, **kwargs):
+        session = LeaseBuilderSession.objects.get(pk=id)
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(session, key, value)
+        session.save()
+        return UpdateBuilderSession(builder_session=session)
+
+
+class UpdateLeaseStatus(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        status = graphene.String(required=True)
+
+    lease = graphene.Field(LeaseType)
+
+    def mutate(self, info, id, status):
+        lease = Lease.objects.get(pk=id)
+        lease.status = status
+        lease.save(update_fields=["status"])
+        return UpdateLeaseStatus(lease=lease)
+
+
+class CompleteOnboardingStep(graphene.Mutation):
+    class Arguments:
+        id = graphene.ID(required=True)
+        notes = graphene.String()
+
+    step = graphene.Field(OnboardingStepType)
+
+    def mutate(self, info, id, notes=None):
+        from django.utils import timezone
+        step = OnboardingStep.objects.get(pk=id)
+        step.is_completed = True
+        step.completed_at = timezone.now()
+        if notes:
+            step.notes = notes
+        step.save()
+        return CompleteOnboardingStep(step=step)
+
+
 class Mutation(graphene.ObjectType):
     create_lease_template = CreateLeaseTemplate.Field()
     update_lease_template = UpdateLeaseTemplate.Field()
+    update_builder_session = UpdateBuilderSession.Field()
+    update_lease_status = UpdateLeaseStatus.Field()
+    complete_onboarding_step = CompleteOnboardingStep.Field()

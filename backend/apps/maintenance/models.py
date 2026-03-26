@@ -229,6 +229,16 @@ class MaintenanceRequest(models.Model):
         RESOLVED = "resolved", "Resolved"
         CLOSED = "closed", "Closed"
 
+    class Category(models.TextChoices):
+        PLUMBING = "plumbing", "Plumbing"
+        ELECTRICAL = "electrical", "Electrical"
+        ROOF = "roof", "Roof / Ceiling"
+        APPLIANCE = "appliance", "Appliance"
+        SECURITY = "security", "Security"
+        PEST = "pest", "Pest Control"
+        GARDEN = "garden", "Garden / Exterior"
+        OTHER = "other", "Other"
+
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="maintenance_requests")
     tenant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="maintenance_requests")
     supplier = models.ForeignKey(
@@ -238,6 +248,7 @@ class MaintenanceRequest(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.OPEN)
     image = models.ImageField(upload_to="maintenance/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -174,6 +174,24 @@ onBeforeUnmount(destroy)
   border: 1px dashed #fcd34d;
 }
 
+/* Party-colored filled fields */
+.document-page :deep(.pf-filled[data-party="landlord"]) { background: #1e3a5f18; color: #1e3a5f; border-bottom-color: #1e3a5f88; }
+.document-page :deep(.pf-filled[data-party="tenant"]) { background: #3b82f618; color: #2563eb; border-bottom-color: #3b82f688; }
+.document-page :deep(.pf-filled[data-party="occupant"]) { background: #10b98118; color: #059669; border-bottom-color: #10b98188; }
+.document-page :deep(.pf-filled[data-party="witness"]) { background: #8b5cf618; color: #7c3aed; border-bottom-color: #8b5cf688; }
+.document-page :deep(.pf-filled[data-party="property"]) { background: #b4530918; color: #b45309; border-bottom-color: #b4530988; }
+.document-page :deep(.pf-filled[data-party="financial"]) { background: #04785718; color: #047857; border-bottom-color: #04785788; }
+.document-page :deep(.pf-filled[data-party="lease"]) { background: #4f46e518; color: #4f46e5; border-bottom-color: #4f46e588; }
+
+/* Party-colored empty placeholders */
+.document-page :deep(.pf-empty[data-party="landlord"]) { background: #1e3a5f12; color: #1e3a5f; border-color: #1e3a5f55; }
+.document-page :deep(.pf-empty[data-party="tenant"]) { background: #3b82f612; color: #2563eb; border-color: #3b82f655; }
+.document-page :deep(.pf-empty[data-party="occupant"]) { background: #10b98112; color: #059669; border-color: #10b98155; }
+.document-page :deep(.pf-empty[data-party="witness"]) { background: #8b5cf612; color: #7c3aed; border-color: #8b5cf655; }
+.document-page :deep(.pf-empty[data-party="property"]) { background: #b4530912; color: #b45309; border-color: #b4530955; }
+.document-page :deep(.pf-empty[data-party="financial"]) { background: #04785712; color: #047857; border-color: #04785755; }
+.document-page :deep(.pf-empty[data-party="lease"]) { background: #4f46e512; color: #4f46e5; border-color: #4f46e555; }
+
 /* Inline field chips (editor mode) */
 .document-page :deep(span[data-merge-field]),
 .document-page :deep(span[data-field]) {
@@ -194,9 +212,32 @@ onBeforeUnmount(destroy)
   border-radius: 4px;
   margin: 0 1px;
   white-space: nowrap;
-  background: #b4530918;
-  color: #b45309;
-  border: 1px solid #b4530944;
+  background: #2B2D6E18;
+  color: #2B2D6E;
+  border: 1px solid #2B2D6E44;
   cursor: grab;
+}
+
+/* Party-colored merge field chips */
+.document-page :deep(span[data-party="landlord"])::before {
+  background: #1e3a5f18; color: #1e3a5f; border-color: #1e3a5f44;
+}
+.document-page :deep(span[data-party="tenant"])::before {
+  background: #3b82f618; color: #3b82f6; border-color: #3b82f644;
+}
+.document-page :deep(span[data-party="occupant"])::before {
+  background: #10b98118; color: #10b981; border-color: #10b98144;
+}
+.document-page :deep(span[data-party="witness"])::before {
+  background: #8b5cf618; color: #8b5cf6; border-color: #8b5cf644;
+}
+.document-page :deep(span[data-party="property"])::before {
+  background: #b4530918; color: #b45309; border-color: #b4530944;
+}
+.document-page :deep(span[data-party="financial"])::before {
+  background: #04785718; color: #047857; border-color: #04785744;
+}
+.document-page :deep(span[data-party="lease"])::before {
+  background: #4f46e518; color: #4f46e5; border-color: #4f46e544;
 }
 </style>
