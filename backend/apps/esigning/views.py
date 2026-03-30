@@ -294,6 +294,52 @@ class ESigningSignerStatusView(APIView):
         )
 
 
+class ESigningDownloadSignedView(APIView):
+    """
+    GET /api/v1/esigning/submissions/<pk>/download/
+    Fetches a fresh signed PDF URL from DocuSeal and redirects to it.
+    DocuSeal file URLs contain time-limited tokens, so we always fetch
+    a fresh one to avoid 500 errors from expired links.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        qs = ESigningSubmission.objects.filter(
+            lease__in=accessible_leases_queryset(request.user)
+        )
+        obj = get_object_or_404(qs, pk=pk)
+
+        if obj.status != ESigningSubmission.Status.COMPLETED:
+            return Response(
+                {"detail": "Document has not been fully signed yet."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Fetch fresh URL from DocuSeal API
+        pdf_url = None
+        docuseal_id = obj.docuseal_submission_id
+        if docuseal_id:
+            try:
+                sub_data = services._docuseal_get(f'/submissions/{docuseal_id}')
+                docs = sub_data.get('documents') or []
+                if docs:
+                    pdf_url = docs[0].get('url', '')
+            except Exception:
+                logger.exception("Failed to fetch fresh signed URL from DocuSeal")
+
+        if not pdf_url:
+            pdf_url = obj.signed_pdf_url
+
+        if not pdf_url:
+            return Response(
+                {"detail": "Signed document not available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.http import HttpResponseRedirect
+        return HttpResponseRedirect(pdf_url)
+
+
 class ESigningResendView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -612,16 +658,39 @@ class ESigningFieldsView(APIView):
             )
 
         signer_role = signer.get("role", "")
+
+        # Build a map of submitter UUID → submitter name so we can match
+        # top-level fields (which use UUID as role) to our signer's role name.
+        submitter_map = {}
+        for s in template_data.get("submitters", []):
+            submitter_map[s.get("uuid", "")] = s.get("name", "")
+
         all_fields = []
-        for doc in template_data.get("documents", []):
-            for field in doc.get("fields", []):
-                if field.get("role") == signer_role:
-                    all_fields.append({
-                        "name": field["name"],
-                        "type": field.get("type", "text"),
-                        "required": field.get("required", True),
-                        "areas": field.get("areas", []),
-                    })
+
+        # DocuSeal stores fields at the top level of the template response,
+        # with `submitter_uuid` linking to a submitter (not the role name).
+        for field in template_data.get("fields", []):
+            field_sub_uuid = field.get("submitter_uuid", "") or field.get("role", "")
+            field_role_name = submitter_map.get(field_sub_uuid, field_sub_uuid)
+            if field_role_name == signer_role:
+                all_fields.append({
+                    "name": field["name"],
+                    "type": field.get("type", "text"),
+                    "required": field.get("required", True),
+                    "areas": field.get("areas", []),
+                })
+
+        # Fallback: also check inside documents[].fields[] (older templates)
+        if not all_fields:
+            for doc in template_data.get("documents", []):
+                for field in doc.get("fields", []):
+                    if field.get("role") == signer_role:
+                        all_fields.append({
+                            "name": field["name"],
+                            "type": field.get("type", "text"),
+                            "required": field.get("required", True),
+                            "areas": field.get("areas", []),
+                        })
 
         return Response({
             "signer_name": signer.get("name", ""),

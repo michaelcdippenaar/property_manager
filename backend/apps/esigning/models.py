@@ -30,7 +30,7 @@ class ESigningSubmission(models.Model):
         help_text="Sequential: signers proceed in order. Parallel: all sign at once.",
     )
     signers = models.JSONField(default=list)
-    signed_pdf_url = models.URLField(blank=True)
+    signed_pdf_url = models.TextField(blank=True, help_text="URL to the signed PDF on DocuSeal (can be long)")
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

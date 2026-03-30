@@ -122,6 +122,97 @@ def _call_claude(system: str, messages: list) -> dict:
         return json.loads(repair_resp.content[0].text.strip())
 
 
+class LeaseBuilderDraftListView(APIView):
+    """GET /api/v1/leases/builder/drafts/ — list user's draft sessions."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        drafts = LeaseBuilderSession.objects.filter(
+            created_by=request.user,
+            status__in=[LeaseBuilderSession.Status.DRAFTING, LeaseBuilderSession.Status.REVIEW],
+        ).values("id", "current_state", "status", "updated_at", "template_id")
+        results = []
+        for d in drafts:
+            state = d["current_state"] or {}
+            # Build a human-readable summary line
+            form = state.get("form", state)  # form_state wraps in "form" key
+            prop_name = ""
+            tenant_name = ""
+            if isinstance(form.get("property"), dict):
+                prop_name = form["property"].get("name", "")
+            elif isinstance(state.get("selectedUnit"), dict):
+                prop_name = state["selectedUnit"].get("propertyName", "")
+            if isinstance(form.get("primary_tenant"), dict):
+                tenant_name = form["primary_tenant"].get("full_name", "")
+            parts = [p for p in [prop_name, tenant_name] if p]
+            summary = " — ".join(parts) if parts else "Untitled draft"
+
+            results.append({
+                "id": d["id"],
+                "status": d["status"],
+                "updated_at": d["updated_at"],
+                "template_id": d["template_id"],
+                "summary": summary,
+                "current_state": state,
+            })
+        return Response(results)
+
+
+class LeaseBuilderDraftSaveView(APIView):
+    """
+    PUT /api/v1/leases/builder/drafts/{id}/ — save form state to a draft.
+    POST /api/v1/leases/builder/drafts/ — create a new draft.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        template_id = request.data.get("template_id")
+        template = None
+        if template_id:
+            try:
+                template = LeaseTemplate.objects.get(pk=template_id)
+            except LeaseTemplate.DoesNotExist:
+                pass
+
+        session = LeaseBuilderSession.objects.create(
+            created_by=request.user,
+            template=template,
+            messages=[],
+            current_state=request.data.get("form_state", {}),
+            rha_flags=[],
+        )
+        return Response({"id": session.id}, status=status.HTTP_201_CREATED)
+
+    def put(self, request, pk=None):
+        if not pk:
+            return Response({"error": "Draft ID required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+        except LeaseBuilderSession.DoesNotExist:
+            return Response({"error": "Draft not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if session.status == LeaseBuilderSession.Status.FINALIZED:
+            return Response({"error": "Cannot update a finalized session."}, status=status.HTTP_400_BAD_REQUEST)
+
+        session.current_state = request.data.get("form_state", session.current_state)
+        if "template_id" in request.data:
+            session.template_id = request.data["template_id"]
+        session.save(update_fields=["current_state", "template_id", "updated_at"])
+        return Response({"id": session.id, "updated_at": session.updated_at})
+
+    def delete(self, request, pk=None):
+        if not pk:
+            return Response({"error": "Draft ID required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+        except LeaseBuilderSession.DoesNotExist:
+            return Response({"error": "Draft not found."}, status=status.HTTP_404_NOT_FOUND)
+        if session.status == LeaseBuilderSession.Status.FINALIZED:
+            return Response({"error": "Cannot delete a finalized session."}, status=status.HTTP_400_BAD_REQUEST)
+        session.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class LeaseBuilderSessionCreateView(APIView):
     """POST /api/v1/leases/builder/sessions/ — start a new builder session.
 

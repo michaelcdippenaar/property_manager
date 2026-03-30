@@ -109,6 +109,17 @@ onBeforeUnmount(destroy)
   z-index: 2;
 }
 
+/* Typography — matches .document-editor in TemplateEditorView */
+.document-page :deep(h1) { font-size: 1.15rem; font-weight: 700; margin: 1.25rem 0 0.4rem; }
+.document-page :deep(h2) { font-size: 1rem;    font-weight: 600; margin: 1rem 0 0.3rem; }
+.document-page :deep(h3) { font-size: 0.9rem;  font-weight: 500; margin: 0.75rem 0 0.25rem; }
+.document-page :deep(p)  { font-size: 0.875rem; margin: 0.3rem 0; }
+.document-page :deep(ul) { list-style-type: disc;    padding-left: 1.5rem; font-size: 0.875rem; }
+.document-page :deep(ol) { list-style-type: decimal; padding-left: 1.5rem; font-size: 0.875rem; }
+.document-page :deep(table) { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.875rem; }
+.document-page :deep(td), .document-page :deep(th) { border: 1px solid #e5e7eb; padding: 0.375rem 0.5rem; }
+.document-page :deep(th) { background: #f9fafb; font-weight: 600; }
+
 /* Auto page breaks */
 .document-page :deep([data-auto-page-break]) {
   display: flex;

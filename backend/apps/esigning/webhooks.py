@@ -78,10 +78,18 @@ class DocuSealWebhookView(View):
 
         if event_type == 'submission.completed':
             obj.status = ESigningSubmission.Status.COMPLETED
-            signed_url = data.get('audit_log_url') or data.get('documents', [{}])[0].get('url', '')
+            # Prefer the actual signed document over the audit log
+            signed_url = (
+                data.get('documents', [{}])[0].get('url', '')
+                or data.get('audit_log_url', '')
+            )
             if signed_url:
                 obj.signed_pdf_url = signed_url
             obj.signers = _sync_signer_statuses(obj.signers, data.get('submitters', []))
+
+            # Activate the lease now that all parties have signed
+            _activate_lease(obj)
+
             ws_event = {
                 'type': 'submission_completed',
                 'submission_id': obj.pk,
@@ -163,6 +171,10 @@ class DocuSealWebhookView(View):
         if event_type in ('form.completed', 'submission.completed', 'submission.declined'):
             _notify_staff(obj, event_type, data)
 
+        # Email signed copy to all signers when fully completed
+        if event_type == 'submission.completed':
+            _email_signed_copy_to_signers(obj, data)
+
         return HttpResponse('ok')
 
 
@@ -232,6 +244,27 @@ def _get_next_signer(signers: list) -> dict | None:
         if st not in ('completed', 'signed', 'declined'):
             return s
     return None
+
+
+def _activate_lease(submission: ESigningSubmission):
+    """
+    When all parties have signed, transition the lease from 'pending' to 'active'.
+    Only activates if the lease is currently pending — won't override other statuses.
+    """
+    try:
+        from apps.leases.models import Lease
+        lease = submission.lease
+        if lease.status == Lease.Status.PENDING:
+            lease.status = Lease.Status.ACTIVE
+            lease.save(update_fields=['status'])
+            logger.info(
+                "Lease pk=%s activated after signing submission pk=%s completed",
+                lease.pk, submission.pk,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to activate lease for submission pk=%s", submission.pk,
+        )
 
 
 # ── Next-signer notification (sequential mode) ───────────────────────
@@ -388,3 +421,88 @@ def _notify_staff(submission: ESigningSubmission, event_type: str, data: dict):
         send_email(subject, body, creator.email)
     except Exception:
         logger.exception("Failed to notify staff for submission %s", submission.pk)
+
+
+# ── Email signed copy to all signers ─────────────────────────────────
+
+
+def _email_signed_copy_to_signers(submission: ESigningSubmission, data: dict):
+    """
+    When a submission is fully completed, email a link to the signed PDF
+    to every signer so they have a copy for their records.
+
+    DocuSeal file URLs contain time-limited tokens, so we fetch a fresh
+    URL from the API to ensure the download link in the email works.
+    """
+    from . import services as esigning_services
+
+    signed_url = None
+
+    # Fetch fresh URL from DocuSeal API (most reliable)
+    docuseal_id = submission.docuseal_submission_id
+    if docuseal_id:
+        try:
+            sub_data = esigning_services._docuseal_get(f'/submissions/{docuseal_id}')
+            docs = sub_data.get('documents') or []
+            if docs:
+                signed_url = docs[0].get('url', '')
+        except Exception:
+            logger.warning("Could not fetch fresh signed URL from DocuSeal for submission %s", submission.pk)
+
+    # Fallback: use webhook data or stored URL
+    if not signed_url:
+        docs = data.get('documents') or []
+        if docs:
+            signed_url = docs[0].get('url', '')
+    if not signed_url:
+        signed_url = submission.signed_pdf_url
+    if not signed_url:
+        logger.warning(
+            "No signed PDF URL for submission %s — cannot email signers",
+            submission.pk,
+        )
+        return
+
+    prop = submission.lease.unit.property
+    doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+
+    for signer in submission.signers or []:
+        email = (signer.get('email') or '').strip()
+        name = (signer.get('name') or '').strip()
+        if not email:
+            continue
+
+        salutation = f"Hello {name}," if name else "Hello,"
+        subject = f"Your signed copy: {doc_title}"
+        plain = (
+            f"{salutation}\n\n"
+            f"All parties have signed the document for {doc_title}.\n\n"
+            f"You can download your signed copy here:\n{signed_url}\n\n"
+            f"Please save this for your records.\n\n"
+            f"Thank you,\nTremly Property Management\n"
+        )
+        html = (
+            f"<p>{salutation}</p>"
+            f"<p>All parties have signed the document for "
+            f"<strong>{doc_title}</strong>.</p>"
+            f'<p><a href="{signed_url}" style="display:inline-block;padding:12px 20px;'
+            f'background:#1e3a5f;color:#fff;text-decoration:none;border-radius:8px;'
+            f'font-weight:600;">Download Signed Document</a></p>'
+            f'<p style="font-size:13px;color:#666;">'
+            f'<a href="{signed_url}">{signed_url}</a></p>'
+            f'<p style="font-size:12px;color:#999;">Please save this document for your records.</p>'
+            f'<p style="margin-top:16px;font-size:12px;color:#999;">— Tremly Property Management</p>'
+        )
+
+        try:
+            from apps.notifications.services import send_email
+            send_email(subject, plain, email, html_body=html)
+            logger.info(
+                "Sent signed copy to signer %s (%s) for submission %s",
+                name, email, submission.pk,
+            )
+        except Exception:
+            logger.exception(
+                "Failed to email signed copy to %s for submission %s",
+                email, submission.pk,
+            )

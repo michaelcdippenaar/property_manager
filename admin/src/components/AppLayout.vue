@@ -76,7 +76,12 @@
               :title="collapsed ? item.label : undefined"
             >
               <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
+              <span v-if="!collapsed" class="flex-1">{{ item.label }}</span>
+              <span
+                v-if="item.badgeKey && badges[item.badgeKey]"
+                class="min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none"
+                :class="collapsed ? 'absolute top-0.5 right-0.5' : ''"
+              >{{ badges[item.badgeKey] }}</span>
             </RouterLink>
           </div>
         </div>
@@ -165,13 +170,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import api from '../api'
 import ToastContainer from './ToastContainer.vue'
 import {
   LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature, Calendar,
-  LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck, Hammer, Send,
+  LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck,
+  Activity, HelpCircle,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -186,10 +193,9 @@ const primaryNavItems = [
 ]
 
 const leaseSubItems = [
+  { to: '/leases/overview', icon: LayoutDashboard, label: 'Overview' },
   { to: '/leases', icon: FileText, label: 'Leases' },
   { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
-  { to: '/leases/build', icon: Hammer, label: 'Build Lease' },
-  { to: '/leases/submit', icon: Send, label: 'Submit Lease' },
 ]
 
 const lifecycleItems = [
@@ -197,7 +203,8 @@ const lifecycleItems = [
 ]
 
 const maintenanceSubItems = [
-  { to: '/maintenance/issues', icon: Wrench, label: 'Issues' },
+  { to: '/maintenance/issues', icon: Wrench, label: 'Issues', badgeKey: 'open_issues' },
+  { to: '/maintenance/questions', icon: HelpCircle, label: 'Questions', badgeKey: 'pending_questions' },
   { to: '/maintenance/suppliers', icon: Truck, label: 'Suppliers' },
 ]
 
@@ -205,6 +212,7 @@ const propertyInfoSubItems = [
   { to: '/property-info/agent', icon: Sparkles, label: 'Agent Context' },
   { to: '/property-info/skills', icon: BookOpen, label: 'Skill Library' },
   { to: '/property-info/unit-info', icon: Info, label: 'Property Info' },
+  { to: '/property-info/monitor', icon: Activity, label: 'Agent Monitor' },
 ]
 
 const allNavItems = [
@@ -215,13 +223,41 @@ const allNavItems = [
   ...propertyInfoSubItems,
 ]
 
+const badges = ref<Record<string, number>>({})
+
+async function loadBadges() {
+  try {
+    const { data } = await api.get('/maintenance/badges/')
+    badges.value = data
+  } catch { /* ignore */ }
+}
+
+onMounted(() => {
+  loadBadges()
+  setInterval(loadBadges, 60_000)
+
+  // Live badge updates via WebSocket
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+  const token = localStorage.getItem('access_token') || ''
+  const ws = new WebSocket(`${wsUrl}/ws/maintenance/updates/?token=${token}`)
+  ws.onmessage = () => loadBadges()
+})
+
 function isActive(to: string) {
   if (to === '/') return route.path === '/'
-  if (to === '/leases') return route.path === '/leases'
+  if (to === '/leases') return route.path === '/leases' || route.path === '/leases/build'
+  if (to === '/leases/overview') return route.path === '/leases/overview'
+  if (to === '/leases/status') return route.path === '/leases/status'
   return route.path === to || route.path.startsWith(`${to}/`)
 }
 
+const pageTitleOverrides: Record<string, string> = {
+  '/leases/build': 'New Lease',
+}
+
 const currentPageTitle = computed(() => {
+  const override = pageTitleOverrides[route.path]
+  if (override) return override
   const active = allNavItems.find(item => isActive(item.to))
   return active?.label ?? ''
 })

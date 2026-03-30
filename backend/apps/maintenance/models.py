@@ -240,17 +240,31 @@ class MaintenanceRequest(models.Model):
         OTHER = "other", "Other"
 
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="maintenance_requests")
-    tenant = models.ForeignKey(User, on_delete=models.CASCADE, related_name="maintenance_requests")
+    tenant = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="maintenance_requests")
     supplier = models.ForeignKey(
         Supplier, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="assigned_requests",
     )
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="assigned_maintenance_requests",
+    )
+    merged_into = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="merged_requests",
+    )
+    conversation_id_legacy = models.IntegerField(null=True, blank=True, db_column="conversation_id")
     title = models.CharField(max_length=200)
     description = models.TextField()
+    ticket_reference = models.CharField(max_length=50, blank=True, default="")
+    supplier_name = models.CharField(max_length=200, blank=True, default="")
+    supplier_phone = models.CharField(max_length=50, blank=True, default="")
     priority = models.CharField(max_length=10, choices=Priority.choices, default=Priority.MEDIUM)
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.OPEN)
     image = models.ImageField(upload_to="maintenance/", null=True, blank=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -344,8 +358,9 @@ class MaintenanceActivity(models.Model):
         MaintenanceRequest, on_delete=models.CASCADE, related_name="activities",
     )
     activity_type = models.CharField(max_length=30, choices=ActivityType.choices, default=ActivityType.NOTE)
-    message = models.TextField()
-    metadata = models.JSONField(null=True, blank=True)
+    message = models.TextField(blank=True, default="")
+    file = models.FileField(upload_to="maintenance/activity_files/", null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
     created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="maintenance_activities",
     )

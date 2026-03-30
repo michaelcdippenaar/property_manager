@@ -6,6 +6,7 @@ from .monitor_views import (
     AgentHealthCheckView,
     AgentMonitorDashboardView,
     AgentTokenLogView,
+    MaintenanceChatLogView,
     ProgressiveTestView,
 )
 from .views import (
@@ -57,6 +58,7 @@ urlpatterns = [
     path("monitor/token-logs/", AgentTokenLogView.as_view(), name="agent-monitor-tokens"),
     path("monitor/health/", AgentHealthCheckView.as_view(), name="agent-monitor-health"),
     path("monitor/tests/", ProgressiveTestView.as_view(), name="agent-monitor-tests"),
+    path("monitor/chat-log/", MaintenanceChatLogView.as_view(), name="agent-monitor-chat-log"),
     # Supplier portal (authenticated supplier users)
     path("supplier/", include(supplier_portal_urls)),
     # Token-based quote pages (no auth)

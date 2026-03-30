@@ -2,33 +2,53 @@
   <div class="space-y-5">
     <!-- Header -->
     <div class="flex items-center justify-between">
-      <p class="text-sm text-gray-500">View and manage all active, pending, and expired lease agreements.</p>
+      <p class="text-sm text-gray-500">View and manage all lease agreements.</p>
       <div class="flex items-center gap-2 flex-shrink-0">
         <button class="btn-ghost" @click="showImport = true">
           <Sparkles :size="15" class="text-accent" />
           Import from PDF
         </button>
         <button class="btn-primary" @click="router.push('/leases/build')">
-          <Plus :size="15" /> Add Lease
+          <Plus :size="15" /> New Lease
         </button>
       </div>
     </div>
 
-    <!-- ── All Leases ─────────────────────────────────────────────── -->
-    <div class="card overflow-hidden">
+    <!-- Status tabs -->
+    <div class="flex gap-1 border-b border-gray-200">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        class="px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px"
+        :class="activeTab === tab.key
+          ? 'border-navy text-navy'
+          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+        @click="activeTab = tab.key"
+      >
+        {{ tab.label }}
+        <span
+          v-if="tab.count != null"
+          class="ml-1.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+          :class="activeTab === tab.key ? 'bg-navy/10 text-navy' : 'bg-gray-100 text-gray-500'"
+        >{{ tab.count }}</span>
+      </button>
+    </div>
+
+    <!-- ── Tab: All / Active / Expired — Lease table ── -->
+    <div v-if="activeTab !== 'draft'" class="card overflow-hidden">
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
         <div v-for="i in 4" :key="i" class="h-14 bg-gray-100 rounded-lg"></div>
       </div>
 
       <EmptyState
-        v-else-if="!leases.length"
-        title="No leases yet"
-        description="Import one from a PDF or create manually to get started."
+        v-else-if="!filteredLeases.length"
+        :title="activeTab === 'all' ? 'No leases yet' : `No ${activeTab} leases`"
+        :description="activeTab === 'all' ? 'Import one from a PDF or create manually to get started.' : ''"
         :icon="FileText"
       />
 
       <div v-else class="divide-y divide-gray-200">
-        <template v-for="([propName, propLeases]) in groupedLeases" :key="propName">
+        <template v-for="([propName, propLeases]) in filteredGroupedLeases" :key="propName">
 
           <!-- Property group header -->
           <div class="flex items-center gap-2.5 px-5 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -45,7 +65,7 @@
             :class="expanded.includes(lease.id) ? 'bg-slate-50 border-l-2 border-l-navy' : ''"
             @click="toggle(lease.id)"
           >
-            <!-- Dates — first so you can scan the timeline -->
+            <!-- Dates -->
             <div class="flex-shrink-0 w-32 text-xs text-gray-600">
               <div class="font-medium tabular-nums">{{ formatDate(lease.start_date) }}</div>
               <div class="text-gray-400 tabular-nums">{{ formatDate(lease.end_date) }}</div>
@@ -75,8 +95,12 @@
             </div>
 
             <!-- Status -->
-            <div class="flex-shrink-0">
+            <div class="flex items-center gap-1.5 flex-shrink-0">
               <span :class="statusBadge(lease.status)">{{ lease.status }}</span>
+              <span
+                :class="signingNarrative(lease.id).badge"
+                class="text-micro"
+              >{{ signingNarrative(lease.id).label }}</span>
             </div>
 
             <!-- Documents badge + chevron -->
@@ -102,13 +126,9 @@
 
           <!-- Expanded detail panel -->
           <div v-if="expanded.includes(lease.id)" class="bg-slate-50 border-t-2 border-b-2 border-navy/10 px-5 py-4">
-
-            <!-- Two-column layout: details left, actions + docs right -->
             <div class="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-
               <!-- Left column -->
               <div class="space-y-4">
-
                 <!-- People card -->
                 <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
                   <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tenants — jointly &amp; severally liable</div>
@@ -181,54 +201,47 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- E-Signing inline -->
+                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                  <ESigningPanel
+                    :ref="(el: any) => { if (el) signingPanelRefs[lease.id] = el }"
+                    :key="lease.id"
+                    :lease-id="lease.id"
+                    :lease-tenants="leaseTenants(lease)"
+                    :auto-open="Number(route.query.expand) === lease.id && route.query.sign === '1'"
+                  />
+                </div>
               </div>
 
               <!-- Right column: actions + documents -->
               <div class="space-y-4">
-
-                <!-- Actions card -->
                 <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
                   <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Actions</div>
-                  <button
-                    @click.stop="openBuilderFromLease(lease.id)"
-                    class="btn-ghost btn-xs w-full justify-start"
-                    title="Renew or rebuild this lease with AI"
-                  >
+                  <button @click.stop="openBuilderFromLease(lease.id)" class="btn-ghost btn-xs w-full justify-start" title="Renew or rebuild this lease with AI">
                     <FileSignature :size="13" /> Renew lease
                   </button>
-                  <button
-                    @click.stop="editingLease = lease; showEdit = true"
-                    class="btn-ghost btn-xs w-full justify-start"
-                  >
+                  <button @click.stop="editingLease = lease; showEdit = true" class="btn-ghost btn-xs w-full justify-start">
                     <Pencil :size="13" /> Edit details
                   </button>
-                  <button
-                    @click.stop="deleteLease(lease)"
-                    :disabled="deletingId === lease.id"
-                    class="btn-danger btn-xs w-full justify-start"
-                  >
+                  <button @click.stop="deleteLease(lease)" :disabled="deletingId === lease.id" class="btn-danger btn-xs w-full justify-start">
                     <Loader2 v-if="deletingId === lease.id" :size="13" class="animate-spin" />
                     <Trash2 v-else :size="13" />
                     Delete lease
                   </button>
                 </div>
 
-                <!-- Documents card -->
                 <div class="bg-white rounded-xl border border-gray-200 p-4">
                   <div class="flex items-center justify-between mb-3">
                     <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Documents ({{ lease.document_count ?? 0 }})
                     </div>
-                    <button @click.stop="openDocs(lease)" class="text-xs text-navy hover:underline">
-                      Manage
-                    </button>
+                    <button @click.stop="openDocs(lease)" class="text-xs text-navy hover:underline">Manage</button>
                   </div>
                   <div v-if="lease.documents?.length" class="space-y-1.5">
                     <a
-                      v-for="doc in lease.documents"
-                      :key="doc.id"
-                      :href="doc.file_url"
-                      target="_blank"
+                      v-for="doc in lease.documents" :key="doc.id"
+                      :href="doc.file_url" target="_blank"
                       class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs text-gray-700 group"
                     >
                       <FileText :size="13" class="text-gray-400 group-hover:text-navy flex-shrink-0" />
@@ -246,10 +259,63 @@
       </div>
     </div>
 
-    <!-- Import wizard (full screen) -->
+    <!-- ── Tab: Draft — Builder sessions ── -->
+    <div v-if="activeTab === 'draft'" class="card overflow-hidden">
+      <div v-if="loadingDrafts" class="p-6 space-y-3 animate-pulse">
+        <div v-for="i in 3" :key="i" class="h-14 bg-gray-100 rounded-lg"></div>
+      </div>
+
+      <EmptyState
+        v-else-if="!drafts.length"
+        title="No drafts yet"
+        description="Start building a new lease to save your first draft."
+        :icon="FolderOpen"
+      >
+        <button class="btn-primary btn-sm" @click="router.push('/leases/build')">
+          <Plus :size="14" /> New Lease
+        </button>
+      </EmptyState>
+
+      <div v-else class="divide-y divide-gray-100">
+        <div
+          v-for="d in drafts" :key="d.id"
+          class="flex items-center gap-4 px-5 py-3.5 hover:bg-gray-50/60 transition-colors"
+        >
+          <!-- Summary -->
+          <div class="flex-1 min-w-0">
+            <div class="font-medium text-sm text-gray-900 truncate">{{ d.summary || 'Untitled draft' }}</div>
+            <div class="text-xs text-gray-400 mt-0.5">
+              Last edited {{ formatDraftDate(d.updated_at) }}
+            </div>
+          </div>
+
+          <!-- Status -->
+          <span class="badge-amber text-micro flex-shrink-0">{{ d.status }}</span>
+
+          <!-- Actions -->
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              class="btn-primary btn-xs"
+              @click="router.push(`/leases/build?draft=${d.id}`)"
+            >
+              Resume
+            </button>
+            <button
+              class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete draft"
+              @click="deleteDraft(d.id)"
+            >
+              <Trash2 :size="14" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import wizard -->
     <ImportLeaseWizard v-if="showImport" @close="showImport = false" @done="onImportDone" />
 
-    <!-- Edit drawer (full screen) -->
+    <!-- Edit drawer -->
     <EditLeaseDrawer
       v-if="showEdit && editingLease"
       :lease="editingLease"
@@ -378,19 +444,35 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
-import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature } from 'lucide-vue-next'
+import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, FolderOpen } from 'lucide-vue-next'
 import ImportLeaseWizard from './ImportLeaseWizard.vue'
 import EditLeaseDrawer from './EditLeaseDrawer.vue'
+import ESigningPanel from './ESigningPanel.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import { useToast } from '../../composables/useToast'
 
+const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
+// ── Tabs ──
+type TabKey = 'all' | 'draft' | 'active' | 'expired'
+const validTabs: TabKey[] = ['all', 'draft', 'active', 'expired']
+const qTab = route.query.tab as string | undefined
+const activeTab = ref<TabKey>(validTabs.includes(qTab as TabKey) ? (qTab as TabKey) : 'all')
+
+const tabs = computed(() => [
+  { key: 'all' as const, label: 'All', count: leases.value.length || null },
+  { key: 'draft' as const, label: 'Draft', count: drafts.value.length || null },
+  { key: 'active' as const, label: 'Active', count: leases.value.filter(l => l.status === 'active').length || null },
+  { key: 'expired' as const, label: 'Expired', count: leases.value.filter(l => l.status === 'expired' || l.status === 'terminated').length || null },
+])
+
+// ── Lease state ──
 const loading = ref(true)
 const saving = ref(false)
 const showImport = ref(false)
@@ -401,19 +483,28 @@ const units = ref<any[]>([])
 const expanded = ref<number[]>([])
 const deletingId = ref<number | null>(null)
 
-// Group by property name, sorted by start_date desc within each group
-const groupedLeases = computed(() => {
+// ── Draft state ──
+const loadingDrafts = ref(false)
+const drafts = ref<any[]>([])
+
+// Filter leases by active tab
+const filteredLeases = computed(() => {
+  if (activeTab.value === 'active') return leases.value.filter(l => l.status === 'active')
+  if (activeTab.value === 'expired') return leases.value.filter(l => l.status === 'expired' || l.status === 'terminated')
+  return leases.value
+})
+
+// Group filtered leases by property
+const filteredGroupedLeases = computed(() => {
   const map = new Map<string, any[]>()
-  for (const lease of leases.value) {
+  for (const lease of filteredLeases.value) {
     const prop = lease.unit_label?.split(' — ')[0] ?? 'Unknown Property'
     if (!map.has(prop)) map.set(prop, [])
     map.get(prop)!.push(lease)
   }
-  // Sort within each group by start_date descending
   for (const group of map.values()) {
-    group.sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+    group.sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
   }
-  // Return as array of [propertyName, leases[]] sorted by property name
   return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b))
 })
 
@@ -438,8 +529,17 @@ const newLease = ref({
 })
 
 onMounted(async () => {
-  await Promise.all([loadLeases(), loadUnits()])
+  await Promise.all([loadLeases(), loadUnits(), loadDrafts()])
+  // Deep-link: auto-expand a lease from query params
+  const expandId = Number(route.query.expand)
+  if (expandId && leases.value.some((l: any) => l.id === expandId)) {
+    if (!expanded.value.includes(expandId)) expanded.value.push(expandId)
+  }
 })
+
+// ── Signing data (full submission objects, not just status strings) ──
+const signingData = ref(new Map<number, any>())
+const signingPanelRefs = ref<Record<number, any>>({})
 
 async function loadLeases() {
   loading.value = true
@@ -449,6 +549,56 @@ async function loadLeases() {
   } finally {
     loading.value = false
   }
+  loadSigningStatuses()
+}
+
+async function loadSigningStatuses() {
+  const ids = leases.value.map((l: any) => l.id)
+  const results = await Promise.allSettled(
+    ids.map(id =>
+      api.get('/esigning/submissions/', { params: { lease_id: id } })
+        .then(({ data }: any) => ({ id, submissions: data.results ?? data }))
+    )
+  )
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue
+    const { id, submissions } = r.value
+    signingData.value.set(id, submissions[0] ?? null)
+  }
+}
+
+function signingNarrative(leaseId: number): { label: string; badge: string } {
+  const sub = signingData.value.get(leaseId)
+  if (!sub) return { label: 'Needs signing', badge: 'badge-gray' }
+
+  const signers = sub.signers ?? []
+  const firstName = (name: string) => name?.split(' ')[0] || 'Signer'
+
+  if (sub.status === 'completed') return { label: 'All signed', badge: 'badge-green' }
+  if (sub.status === 'declined') {
+    const who = signers.find((s: any) => (s.status ?? '').toLowerCase() === 'declined')
+    return { label: who ? `${firstName(who.name)} declined` : 'Declined', badge: 'badge-red' }
+  }
+  if (sub.status === 'expired') return { label: 'Signing expired', badge: 'badge-gray' }
+
+  // Active: find the most interesting signer status
+  const viewing = signers.find((s: any) => (s.status ?? '').toLowerCase() === 'opened')
+  if (viewing) return { label: `${firstName(viewing.name)} is reviewing`, badge: 'badge-blue' }
+
+  const unsigned = signers.filter((s: any) => {
+    const st = (s.status ?? '').toLowerCase()
+    return st !== 'completed' && st !== 'signed'
+  })
+  if (unsigned.length === 1) return { label: `Sent to ${firstName(unsigned[0].name)}`, badge: 'badge-amber' }
+  if (unsigned.length > 1) return { label: `Sent to ${unsigned.length} signers`, badge: 'badge-amber' }
+
+  return { label: 'Signing pending', badge: 'badge-amber' }
+}
+
+function leaseTenants(lease: any) {
+  const co = (lease.co_tenants ?? []).map((ct: any) => ct.person ?? ct)
+  const primary = lease.primary_tenant_detail
+  return primary ? [primary, ...co] : co
 }
 
 async function loadUnits() {
@@ -457,6 +607,26 @@ async function loadUnits() {
     ...u,
     label: `${u.property_name ?? u.property} — Unit ${u.unit_number}`,
   }))
+}
+
+async function loadDrafts() {
+  loadingDrafts.value = true
+  try {
+    const { data } = await api.get('/leases/builder/drafts/')
+    drafts.value = data
+  } catch { /* silent */ }
+  finally { loadingDrafts.value = false }
+}
+
+async function deleteDraft(id: number) {
+  if (!confirm('Delete this draft? This cannot be undone.')) return
+  try {
+    await api.delete(`/leases/builder/drafts/${id}/`)
+    drafts.value = drafts.value.filter(d => d.id !== id)
+    toast.success('Draft deleted')
+  } catch {
+    toast.error('Failed to delete draft')
+  }
 }
 
 function toggle(id: number) {
@@ -541,7 +711,6 @@ async function uploadDocument() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     documents.value.unshift(data)
-    // Also refresh the lease list so document_count updates
     const leaseIdx = leases.value.findIndex(l => l.id === selectedLease.value.id)
     if (leaseIdx !== -1) {
       leases.value[leaseIdx] = { ...leases.value[leaseIdx], document_count: (leases.value[leaseIdx].document_count ?? 0) + 1, documents: [data, ...(leases.value[leaseIdx].documents ?? [])] }
@@ -601,6 +770,11 @@ function docTypeBadge(t: string) {
 }
 function formatDate(d: string) {
   return d ? new Date(d).toLocaleDateString('en-ZA') : '—'
+}
+function formatDraftDate(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 function leasePeriodMonths(start: string, end: string): string {

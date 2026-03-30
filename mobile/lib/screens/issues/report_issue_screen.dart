@@ -20,6 +20,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
   String _priority = 'medium';
   bool _submitting = false;
   String? _error;
+  int? _conversationId;
 
   static const _categories = ['plumbing', 'electrical', 'roof', 'appliance', 'security', 'pest', 'garden', 'other'];
   static const _priorities = ['low', 'medium', 'high', 'urgent'];
@@ -37,6 +38,9 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
       if (p is String && _priorities.contains(p)) _priority = p;
       final c = d['category'];
       if (c is String && _categories.contains(c)) _category = c;
+      // Carry the chat session ID so the backend can link + persist messages
+      final cid = d['conversation_id'];
+      if (cid is int) _conversationId = cid;
     }
   }
 
@@ -52,6 +56,7 @@ class _ReportIssueScreenState extends State<ReportIssueScreen> {
         description: _descCtrl.text.trim(),
         category: _category,
         priority: _priority,
+        conversationId: _conversationId,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Repair request submitted ✓'), backgroundColor: AppColors.success500));

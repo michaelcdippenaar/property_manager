@@ -98,7 +98,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import api from '../../api'
 
 interface AgentQuestion {
@@ -168,5 +168,37 @@ async function dismissQuestion(q: AgentQuestion) {
   }
 }
 
-onMounted(loadQuestions)
+let ws: WebSocket | null = null
+
+function connectWs() {
+  const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
+  const token = localStorage.getItem('access_token') || ''
+  ws = new WebSocket(`${wsUrl}/ws/maintenance/updates/?token=${token}`)
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.event === 'question_created' || data.event === 'question_updated') {
+      loadQuestions()
+    }
+  }
+
+  ws.onclose = () => {
+    setTimeout(() => {
+      if (!ws || ws.readyState === WebSocket.CLOSED) connectWs()
+    }, 5000)
+  }
+}
+
+onMounted(() => {
+  loadQuestions()
+  connectWs()
+})
+
+onUnmounted(() => {
+  if (ws) {
+    ws.onclose = null
+    ws.close()
+    ws = null
+  }
+})
 </script>

@@ -44,6 +44,29 @@ class MaintenanceRequestViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["tenant"], self.tenant.pk)
 
+    def test_create_maintenance_request_with_initial_chat_history(self):
+        self.authenticate(self.tenant)
+        resp = self.client.post(
+            reverse("maintenance-list"),
+            {
+                "unit": self.unit.pk,
+                "title": "Broken window",
+                "description": "Window is cracked",
+                "priority": "high",
+                "initial_chat_history": [
+                    {"role": "user", "content": "The window cracked during the storm."},
+                    {"role": "assistant", "content": "I can log that for maintenance."},
+                ],
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        acts = list(MaintenanceActivity.objects.filter(request_id=resp.data["id"]).order_by("created_at"))
+        self.assertEqual(len(acts), 2)
+        self.assertEqual(acts[0].message, "The window cracked during the storm.")
+        self.assertEqual(acts[0].metadata["chat_source"], "maintenance_create_api")
+        self.assertEqual(acts[1].metadata["source"], "ai_agent")
+
     def test_filter_by_status(self):
         self.authenticate(self.agent)
         resp = self.client.get(reverse("maintenance-list"), {"status": "open"})
@@ -107,6 +130,7 @@ class MaintenanceActivityTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["created_by"], self.agent.pk)
+        self.assertEqual(resp.data["metadata"], {})
 
 
 class MaintenanceDispatchTests(TremlyAPITestCase):

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Property, PropertyAgentConfig, PropertyGroup, Unit, UnitInfo
+from .models import Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -39,6 +39,15 @@ class PropertyAgentConfigSerializer(serializers.ModelSerializer):
         model = PropertyAgentConfig
         fields = ["id", "property", "property_name", "maintenance_playbook", "ai_notes", "is_active", "updated_at"]
         read_only_fields = ["id", "updated_at"]
+
+
+class PropertyOwnershipSerializer(serializers.ModelSerializer):
+    property_name = serializers.CharField(source="property.name", read_only=True)
+
+    class Meta:
+        model = PropertyOwnership
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class PropertyGroupSerializer(serializers.ModelSerializer):

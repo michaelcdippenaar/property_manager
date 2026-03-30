@@ -1,47 +1,225 @@
 <template>
   <div class="flex flex-col h-full -m-6 bg-white overflow-hidden">
 
-      <!-- ── Header ── -->
-      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-lg bg-navy flex items-center justify-center">
-            <FileSignature :size="14" class="text-white" />
-          </div>
-          <div class="font-semibold text-gray-900 text-sm">New Lease</div>
+      <!-- ── Header row 1: Property + Template ── -->
+      <div class="flex items-center py-2.5 border-b border-gray-200 flex-shrink-0">
+        <!-- Property selector (left — matches form panel width) -->
+        <div class="w-[400px] flex-shrink-0 px-5">
+          <button
+            class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg border text-left transition-colors"
+            :class="selectedUnit?.propertyId
+              ? 'border-navy/20 bg-navy/[0.03]'
+              : 'border-gray-200 hover:border-gray-300'"
+            @click="propertyModal = true"
+          >
+            <Building2 :size="14" class="text-gray-400 flex-shrink-0" />
+            <div v-if="selectedUnit?.propertyId" class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-900 truncate">
+                {{ selectedUnit.propertyName }}
+                <span v-if="selectedUnit.unitNumber" class="text-gray-400 font-normal">— Unit {{ selectedUnit.unitNumber }}</span>
+              </div>
+              <div class="text-[11px] text-gray-400 truncate">{{ selectedUnit.address }}, {{ selectedUnit.city }}</div>
+            </div>
+            <div v-else class="flex-1 text-sm text-gray-400">Select property…</div>
+            <ChevronRight :size="14" class="text-gray-300 flex-shrink-0" />
+          </button>
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Template selector -->
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-gray-400 hidden sm:block">Template:</span>
-            <select
-              v-model="selectedTemplateId"
-              class="input text-sm py-1 px-2.5 min-w-[180px]"
+        <!-- Template selector -->
+        <div class="flex items-center gap-1.5 min-w-0 flex-shrink">
+          <select
+            v-model="selectedTemplateId"
+            class="input text-xs py-1 px-2 max-w-[200px]"
+          >
+            <option :value="null" disabled>Template…</option>
+            <option v-for="t in templates" :key="t.id" :value="t.id">
+              {{ t.name }} v{{ t.version }}
+            </option>
+          </select>
+        </div>
+
+        <div class="flex-1" />
+
+        <!-- Action buttons (right) -->
+        <div class="flex items-center gap-2 px-5 flex-shrink-0">
+          <div v-if="submitError" class="flex items-center gap-1 text-xs text-red-600 max-w-[200px]">
+            <AlertCircle :size="12" class="flex-shrink-0" />
+            <span class="truncate">{{ submitError }}</span>
+          </div>
+          <!-- Drafts toggle -->
+          <button
+            class="btn-ghost text-xs flex items-center gap-1"
+            :class="showDrafts ? 'text-navy' : ''"
+            @click="showDrafts = !showDrafts"
+          >
+            <FolderOpen :size="12" />
+            Drafts
+            <span v-if="drafts.length" class="bg-gray-200 text-gray-600 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">{{ drafts.length }}</span>
+          </button>
+          <button
+            class="btn-ghost text-xs flex items-center gap-1"
+            :disabled="savingDraft || !selectedUnit?.propertyId"
+            :title="!selectedUnit?.propertyId ? 'Select a property first' : ''"
+            @click="saveDraft"
+          >
+            <Loader2 v-if="savingDraft" :size="12" class="animate-spin" />
+            <Save v-else :size="12" />
+            Save
+          </button>
+          <button
+            class="btn-ghost text-xs flex items-center gap-1"
+            :disabled="generating || !selectedTemplateId"
+            @click="previewDocx"
+          >
+            <Loader2 v-if="generating" :size="12" class="animate-spin" />
+            DOCX
+          </button>
+          <button class="btn-primary text-xs" :disabled="submitting" @click="doFormCreate">
+            <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+            {{ submitting ? 'Creating…' : 'Create Lease' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Drafts panel (slides down below header) ── -->
+      <div v-if="showDrafts" class="border-b border-gray-200 bg-gray-50 px-5 py-3 flex-shrink-0">
+        <div v-if="loadingDrafts" class="text-xs text-gray-400">Loading drafts…</div>
+        <div v-else-if="!drafts.length" class="text-xs text-gray-400">No drafts yet. Select a property and click Save to create one.</div>
+        <div v-else class="space-y-1.5 max-h-[200px] overflow-y-auto">
+          <div
+            v-for="d in drafts"
+            :key="d.id"
+            class="flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors cursor-pointer"
+            :class="draftId === d.id ? 'border-navy/20 bg-navy/[0.03]' : 'border-gray-200 bg-white hover:border-gray-300'"
+            @click="loadDraft(d)"
+          >
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-900 truncate">{{ d.summary || 'Untitled draft' }}</div>
+              <div class="text-[11px] text-gray-400">{{ formatDraftDate(d.updated_at) }}</div>
+            </div>
+            <button
+              class="text-gray-400 hover:text-red-500 flex-shrink-0"
+              title="Delete draft"
+              @click.stop="deleteDraft(d.id)"
             >
-              <option :value="null" disabled>Select template…</option>
-              <option v-for="t in templates" :key="t.id" :value="t.id">
-                {{ t.name }} v{{ t.version }}
-              </option>
-            </select>
-            <button class="btn-ghost btn-xs" @click="router.push('/leases/templates')">
-              <Plus :size="12" /> New
+              <X :size="12" />
             </button>
           </div>
         </div>
       </div>
 
+      <!-- ── Property Selection Modal ── -->
+      <BaseModal :open="propertyModal" title="Select Property & Unit" @close="propertyModal = false">
+        <div class="space-y-3">
+          <!-- Search -->
+          <div class="relative">
+            <input
+              v-model="propertySearch"
+              class="input text-sm pl-8"
+              placeholder="Search properties…"
+            />
+            <Search :size="14" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          </div>
+
+          <!-- Property list -->
+          <div class="space-y-1.5 max-h-[400px] overflow-y-auto">
+            <div
+              v-for="p in filteredModalProperties"
+              :key="p.id"
+              class="rounded-lg border transition-colors"
+              :class="modalExpandedId === p.id ? 'border-navy/20 bg-navy/[0.03]' : 'border-gray-100 hover:border-gray-200'"
+            >
+              <!-- Property row -->
+              <button
+                class="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+                @click="onModalPropertyClick(p)"
+              >
+                <Building2 :size="14" class="text-gray-400 flex-shrink-0" />
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-medium text-gray-900 truncate">{{ p.name }}</div>
+                  <div class="text-[11px] text-gray-400 truncate">{{ p.address }}</div>
+                </div>
+                <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                  {{ p.units?.length || 0 }} {{ p.units?.length === 1 ? 'unit' : 'units' }}
+                </span>
+                <ChevronRight
+                  v-if="p.units?.length > 1"
+                  :size="14"
+                  class="text-gray-300 flex-shrink-0 transition-transform"
+                  :class="modalExpandedId === p.id ? 'rotate-90' : ''"
+                />
+              </button>
+
+              <!-- Units (expanded for multi-unit properties) -->
+              <div v-if="modalExpandedId === p.id && p.units?.length > 1" class="px-3 pb-2 space-y-1">
+                <button
+                  v-for="u in p.units"
+                  :key="u.id"
+                  class="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md text-left transition-colors border"
+                  :class="selectedUnit?.unitId === u.id && selectedUnit?.propertyId === p.id
+                    ? 'bg-navy/10 border-navy/20'
+                    : 'bg-white border-gray-100 hover:border-gray-200'"
+                  @click="selectFromModal(p, u)"
+                >
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm font-medium text-gray-900">Unit {{ u.unit_number }}</div>
+                    <div class="text-[11px] text-gray-400">{{ u.bedrooms }} bed · {{ u.bathrooms }} bath</div>
+                  </div>
+                  <span
+                    class="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                    :class="{
+                      'bg-emerald-50 text-emerald-700': u.status === 'occupied',
+                      'bg-blue-50 text-blue-700': u.status === 'available',
+                      'bg-amber-50 text-amber-700': u.status === 'maintenance',
+                    }"
+                  >
+                    {{ u.status }}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="!filteredModalProperties.length" class="text-center py-6 text-sm text-gray-400">
+              No properties found.
+            </div>
+          </div>
+        </div>
+      </BaseModal>
+
       <!-- ── Done screen ── -->
       <div v-if="step === 3" class="flex-1 flex items-center justify-center">
-        <div class="text-center space-y-4">
+        <div class="text-center space-y-5 max-w-md">
           <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
             <CheckCircle2 :size="28" class="text-emerald-500" />
           </div>
-          <div class="font-semibold text-gray-900 text-lg">Lease created!</div>
-          <div class="text-sm text-gray-500">{{ createdLeaseNumber }} is ready.</div>
-          <div class="flex gap-2 justify-center pt-2">
-            <button class="btn-ghost" @click="reset">Build another</button>
-            <button class="btn-primary" @click="router.push('/leases')">View leases</button>
+          <div>
+            <div class="font-semibold text-gray-900 text-lg">Lease created!</div>
+            <div class="text-sm text-gray-500 mt-1">
+              {{ createdLeaseNumber }}
+              <span v-if="form.primary_tenant?.full_name"> &middot; {{ form.primary_tenant.full_name }}</span>
+            </div>
           </div>
+
+          <!-- What happens next -->
+          <div class="bg-gray-50 rounded-xl px-5 py-4 text-left space-y-2">
+            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">What happens next</div>
+            <ol class="text-sm text-gray-600 space-y-1.5 list-decimal list-inside">
+              <li>Send the lease to your tenant for electronic signing</li>
+              <li>They'll receive an email with a link to review and sign</li>
+              <li>You'll be notified as soon as they sign</li>
+            </ol>
+          </div>
+
+          <div class="flex gap-2 justify-center">
+            <button class="btn-primary" @click="router.push(`/leases?expand=${createdLeaseId}&sign=1`)">
+              <Send :size="14" />
+              Send for Signing
+            </button>
+            <button class="btn-ghost" @click="router.push('/leases')">View all leases</button>
+          </div>
+          <button class="text-xs text-gray-400 hover:text-gray-600 transition-colors" @click="reset">
+            or build another lease
+          </button>
         </div>
       </div>
 
@@ -50,47 +228,52 @@
 
         <!-- Left: Form -->
         <div class="w-[400px] flex-shrink-0 border-r border-gray-200 flex flex-col overflow-hidden">
+          <!-- Tab bar -->
+          <div class="flex border-b border-gray-200 px-5 pt-3 gap-4 flex-shrink-0">
+            <button
+              v-for="t in formTabs"
+              :key="t.key"
+              class="pb-2 text-xs font-semibold uppercase tracking-wide border-b-2 transition-colors"
+              :class="formTab === t.key
+                ? 'border-navy text-navy'
+                : 'border-transparent text-gray-400 hover:text-gray-600'"
+              @click="formTab = t.key"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+
           <div class="flex-1 overflow-y-auto px-5 py-5 space-y-8">
-            <LeaseFormFields
-              v-model:form="form"
-              v-model:useExistingProperty="useExistingProperty"
-              v-model:useExistingUnit="useExistingUnit"
-              :properties="properties"
-            />
-
-            <!-- Additional Terms -->
-            <section class="space-y-2">
-              <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Additional Terms</div>
-              <textarea
-                v-model="additionalTerms"
-                rows="5"
-                class="input resize-none w-full text-sm"
-                placeholder="Type any additional clauses or special conditions…"
+            <!-- TAB: Lease Agreement -->
+            <template v-if="formTab === 'lease'">
+              <LeaseFormFields
+                v-model:form="form"
+                tab="lease"
+                :errors="validationErrors"
               />
-            </section>
+
+              <!-- Additional Terms -->
+              <section class="space-y-2">
+                <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Additional Terms</div>
+                <textarea
+                  v-model="additionalTerms"
+                  rows="5"
+                  class="input resize-none w-full text-sm"
+                  placeholder="Type any additional clauses or special conditions…"
+                />
+              </section>
+            </template>
+
+            <!-- TAB: Tenants -->
+            <template v-if="formTab === 'tenants'">
+              <LeaseFormFields
+                v-model:form="form"
+                tab="tenants"
+                :errors="validationErrors"
+              />
+            </template>
           </div>
 
-          <!-- Form footer -->
-          <div class="border-t border-gray-200 px-5 py-3 flex items-center gap-2 bg-white flex-shrink-0">
-            <div v-if="submitError" class="flex items-center gap-1.5 text-xs text-red-600 flex-1 min-w-0">
-              <AlertCircle :size="12" class="flex-shrink-0" />
-              <span class="truncate">{{ submitError }}</span>
-            </div>
-            <div class="flex gap-2 ml-auto">
-              <button
-                class="btn-ghost text-xs"
-                :disabled="generating || !selectedTemplateId"
-                @click="previewDocx"
-              >
-                <Loader2 v-if="generating" :size="12" class="animate-spin" />
-                {{ generating ? 'Generating…' : 'Download DOCX' }}
-              </button>
-              <button class="btn-primary" :disabled="submitting" @click="doFormCreate">
-                <Loader2 v-if="submitting" :size="14" class="animate-spin" />
-                {{ submitting ? 'Creating…' : 'Create Lease' }}
-              </button>
-            </div>
-          </div>
         </div>
 
         <!-- Right: Template preview -->
@@ -139,16 +322,29 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import DocumentPage from '../../components/DocumentPage.vue'
+import BaseModal from '../../components/BaseModal.vue'
 import {
-  FileSignature, AlertCircle, Loader2, CheckCircle2, Plus,
+  FileSignature, AlertCircle, Loader2, CheckCircle2, Plus, X, Save, FolderOpen,
+  Building2, ChevronRight, Search, Send,
 } from 'lucide-vue-next'
 
+const route = useRoute()
 const router = useRouter()
 
 const props = defineProps<{ existingLeaseId?: number | null; templateId?: number | null }>()
+
+interface SelectedUnit {
+  propertyId: number
+  propertyName: string
+  unitId: number
+  unitNumber: string
+  address: string
+  city: string
+  province: string
+}
 
 // ── Inline shared sub-components ──────────────────────────────────────────
 
@@ -166,7 +362,7 @@ const SectionLabel = defineComponent({
 })
 
 const PersonBlock = defineComponent({
-  props: { modelValue: Object, compact: Boolean },
+  props: { modelValue: Object, hasError: { type: Boolean, default: false } },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     function upd(field: string, val: string) {
@@ -174,22 +370,19 @@ const PersonBlock = defineComponent({
     }
     return () => {
       const p = props.modelValue as any
-      const cls = 'input' + (props.compact ? ' text-xs' : '')
-      return h('div', { class: 'grid grid-cols-2 gap-2' }, [
+      const cls = 'input text-xs py-1.5'
+      const errCls = 'input text-xs py-1.5 !border-red-400 !ring-red-100'
+      return h('div', { class: 'grid grid-cols-2 gap-1.5' }, [
         h('div', { class: 'col-span-2' }, [
-          h('label', { class: 'label' }, 'Full name'),
-          h('input', { class: cls, value: p.full_name, placeholder: 'Full name', onInput: (e: any) => upd('full_name', e.target.value) }),
+          h('input', { class: props.hasError && !p.full_name ? errCls : cls, value: p.full_name, placeholder: 'Full name *', onInput: (e: any) => upd('full_name', e.target.value) }),
         ]),
         h('div', [
-          h('label', { class: 'label' }, 'ID / Passport'),
-          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID number', onInput: (e: any) => upd('id_number', e.target.value) }),
+          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
         h('div', [
-          h('label', { class: 'label' }, 'Phone'),
           h('input', { class: cls, value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
-          h('label', { class: 'label' }, 'Email'),
           h('input', { class: cls, value: p.email, type: 'email', placeholder: 'Email', onInput: (e: any) => upd('email', e.target.value) }),
         ]),
       ])
@@ -200,102 +393,31 @@ const PersonBlock = defineComponent({
 const LeaseFormFields = defineComponent({
   props: {
     form: Object,
-    useExistingProperty: [Number, Boolean],
-    useExistingUnit: [Number, Boolean],
-    properties: Array,
+    tab: { type: String, default: '' },
+    errors: { type: Array, default: () => [] },
   },
-  emits: ['update:form', 'update:useExistingProperty', 'update:useExistingUnit'],
+  emits: ['update:form'],
   setup(props, { emit }) {
     function updForm(field: string, val: any) {
       emit('update:form', { ...props.form, [field]: val })
     }
-    function updProp(field: string, val: any) {
-      emit('update:form', { ...props.form, property: { ...(props.form as any).property, [field]: val } })
-    }
-    function updUnit(field: string, val: any) {
-      emit('update:form', { ...props.form, unit: { ...(props.form as any).unit, [field]: val } })
-    }
-
-    const unitsForProp = computed(() => {
-      const pid = props.useExistingProperty
-      if (!pid) return []
-      return (props.properties as any[])?.find((p: any) => p.id === pid)?.units ?? []
-    })
 
     return () => {
       const f = props.form as any
+      const errs = props.errors as string[]
       const inputCls = 'input'
+      const errInputCls = 'input !border-red-400 !ring-red-100'
+
+      const showLease = !props.tab || props.tab === 'lease'
+      const showTenants = !props.tab || props.tab === 'tenants'
 
       return h('div', { class: 'space-y-8' }, [
-        // Property
-        h('section', { class: 'space-y-4' }, [
-          h(SectionLabel, { text: 'Property', color: 'navy' }),
+        // Lease Terms (lease tab)
+        ...(showLease ? [h('section', { class: 'space-y-3' }, [
           h('div', { class: 'grid grid-cols-2 gap-3' }, [
-            h('div', { class: 'col-span-2' }, [
-              h('label', { class: 'label' }, 'Match existing or create new'),
-              h('select', {
-                class: inputCls,
-                value: props.useExistingProperty,
-                onChange: (e: any) => emit('update:useExistingProperty', e.target.value === 'false' ? false : Number(e.target.value)),
-              }, [
-                h('option', { value: false }, '+ Create new property'),
-                ...(props.properties as any[])?.map((p: any) => h('option', { key: p.id, value: p.id }, p.name)) ?? [],
-              ]),
-            ]),
-            ...(!props.useExistingProperty ? [
-              h('div', { class: 'col-span-2' }, [
-                h('label', { class: 'label' }, 'Property name'),
-                h('input', { class: inputCls, value: f.property?.name, placeholder: 'e.g. 18 Irene Park', onInput: (e: any) => updProp('name', e.target.value) }),
-              ]),
-              h('div', { class: 'col-span-2' }, [
-                h('label', { class: 'label' }, 'Address'),
-                h('input', { class: inputCls, value: f.property?.address, placeholder: 'Street address', onInput: (e: any) => updProp('address', e.target.value) }),
-              ]),
-              h('div', [
-                h('label', { class: 'label' }, 'City'),
-                h('input', { class: inputCls, value: f.property?.city, onInput: (e: any) => updProp('city', e.target.value) }),
-              ]),
-              h('div', [
-                h('label', { class: 'label' }, 'Province'),
-                h('input', { class: inputCls, value: f.property?.province, onInput: (e: any) => updProp('province', e.target.value) }),
-              ]),
-            ] : []),
-          ]),
-          // Unit
-          h('div', { class: 'grid grid-cols-3 gap-3' }, [
-            h('div', { class: !props.useExistingProperty || !props.useExistingUnit ? 'col-span-1' : 'col-span-3' }, [
-              h('label', { class: 'label' }, 'Unit'),
-              props.useExistingProperty
-                ? h('select', {
-                    class: inputCls,
-                    value: props.useExistingUnit,
-                    onChange: (e: any) => emit('update:useExistingUnit', e.target.value === 'false' ? false : Number(e.target.value)),
-                  }, [
-                    h('option', { value: false }, '+ Create new unit'),
-                    ...unitsForProp.value.map((u: any) => h('option', { key: u.id, value: u.id }, `Unit ${u.unit_number}`)),
-                  ])
-                : h('input', { class: inputCls, value: f.unit?.unit_number, placeholder: '1', onInput: (e: any) => updUnit('unit_number', e.target.value) }),
-            ]),
-            ...(!props.useExistingProperty || !props.useExistingUnit ? [
-              h('div', [
-                h('label', { class: 'label' }, 'Beds'),
-                h('input', { class: inputCls, type: 'number', value: f.unit?.bedrooms, onInput: (e: any) => updUnit('bedrooms', Number(e.target.value)) }),
-              ]),
-              h('div', [
-                h('label', { class: 'label' }, 'Baths'),
-                h('input', { class: inputCls, type: 'number', value: f.unit?.bathrooms, onInput: (e: any) => updUnit('bathrooms', Number(e.target.value)) }),
-              ]),
-            ] : []),
-          ]),
-        ]),
-
-        // Lease Terms
-        h('section', { class: 'space-y-3' }, [
-          h(SectionLabel, { text: 'Lease Terms', color: 'purple' }),
-          h('div', { class: 'grid grid-cols-2 gap-3' }, [
-            h('div', [h('label', { class: 'label' }, 'Start date'), h('input', { class: inputCls, type: 'date', value: f.start_date, onInput: (e: any) => updForm('start_date', e.target.value) })]),
-            h('div', [h('label', { class: 'label' }, 'End date'), h('input', { class: inputCls, type: 'date', value: f.end_date, onInput: (e: any) => updForm('end_date', e.target.value) })]),
-            h('div', [h('label', { class: 'label' }, 'Monthly rent (R)'), h('input', { class: inputCls, type: 'number', value: f.monthly_rent, onInput: (e: any) => updForm('monthly_rent', e.target.value) })]),
+            h('div', [h('label', { class: 'label' }, 'Start date *'), h('input', { class: errs.includes('start_date') && !f.start_date ? errInputCls : inputCls, type: 'date', value: f.start_date, onInput: (e: any) => updForm('start_date', e.target.value) })]),
+            h('div', [h('label', { class: 'label' }, 'End date *'), h('input', { class: errs.includes('end_date') && !f.end_date ? errInputCls : inputCls, type: 'date', value: f.end_date, onInput: (e: any) => updForm('end_date', e.target.value) })]),
+            h('div', [h('label', { class: 'label' }, 'Monthly rent (R) *'), h('input', { class: errs.includes('monthly_rent') && !f.monthly_rent ? errInputCls : inputCls, type: 'number', value: f.monthly_rent, onInput: (e: any) => updForm('monthly_rent', e.target.value) })]),
             h('div', [h('label', { class: 'label' }, 'Deposit (R)'), h('input', { class: inputCls, type: 'number', value: f.deposit, onInput: (e: any) => updForm('deposit', e.target.value) })]),
             h('div', { class: 'col-span-2' }, [h('label', { class: 'label' }, 'Payment reference'), h('input', { class: inputCls, value: f.payment_reference, onInput: (e: any) => updForm('payment_reference', e.target.value) })]),
             h('div', [h('label', { class: 'label' }, 'Max occupants'), h('input', { class: inputCls, type: 'number', value: f.max_occupants, onInput: (e: any) => updForm('max_occupants', Number(e.target.value)) })]),
@@ -312,12 +434,12 @@ const LeaseFormFields = defineComponent({
               ]),
             ]),
           ]),
-        ]),
+        ])] : []),
 
-        // Tenants
-        h('section', { class: 'space-y-3' }, [
+        // Tenants (tenants tab)
+        ...(showTenants ? [h('section', { class: 'space-y-3' }, [
           h('div', { class: 'flex items-center justify-between' }, [
-            h(SectionLabel, { text: 'Tenants — jointly & severally liable', color: 'navy' }),
+            h(SectionLabel, { text: 'Tenants', color: 'blue' }),
             f.co_tenants?.length < 3
               ? h('button', {
                   class: 'btn-ghost text-xs px-2 py-1',
@@ -325,23 +447,25 @@ const LeaseFormFields = defineComponent({
                 }, '+ Add tenant')
               : null,
           ]),
-          h('div', { class: 'relative border border-navy/20 rounded-xl p-4 bg-navy/5' }, [
-            h('span', { class: 'absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
-            h('div', { class: 'pt-4' }, [h(PersonBlock, { modelValue: f.primary_tenant, 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) })]),
+          h('div', { class: 'relative border border-navy/20 rounded-lg p-3 bg-navy/5' }, [
+            h('div', { class: 'flex items-center justify-between mb-1.5' }, [
+              h('span', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
+            ]),
+            h(PersonBlock, { modelValue: f.primary_tenant, hasError: errs.includes('primary_tenant'), 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) }),
           ]),
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>
-            h('div', { key: i, class: 'relative border border-navy/20 rounded-xl p-4 bg-navy/5' }, [
-              h('span', { class: 'absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
-              h('button', {
-                class: 'absolute top-2.5 right-3 text-gray-400 hover:text-red-500',
-                onClick: () => updForm('co_tenants', f.co_tenants.filter((_: any, j: number) => j !== i)),
-              }, h(X, { size: 14 })),
-              h('div', { class: 'pt-4' }, [
-                h(PersonBlock, {
-                  modelValue: ct, compact: true,
+            h('div', { key: i, class: 'relative border border-navy/20 rounded-lg p-3 bg-navy/5' }, [
+              h('div', { class: 'flex items-center justify-between mb-1.5' }, [
+                h('span', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
+                h('button', {
+                  class: 'text-gray-400 hover:text-red-500',
+                  onClick: () => updForm('co_tenants', f.co_tenants.filter((_: any, j: number) => j !== i)),
+                }, h(X, { size: 12 })),
+              ]),
+              h(PersonBlock, {
+                  modelValue: ct,
                   'onUpdate:modelValue': (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c)),
                 }),
-              ]),
             ])
           ),
         ]),
@@ -357,19 +481,19 @@ const LeaseFormFields = defineComponent({
           ]),
           ...(f.occupants?.length
             ? f.occupants.map((oc: any, i: number) =>
-                h('div', { key: i, class: 'relative border border-emerald-100 rounded-xl p-4 bg-emerald-50/40' }, [
-                  h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
-                  h(PersonBlock, { modelValue: oc, compact: true, 'onUpdate:modelValue': (v: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? v : o)) }),
-                  h('div', { class: 'mt-2' }, [
-                    h('label', { class: 'label' }, 'Relationship'),
-                    h('input', { class: 'input text-xs', value: oc.relationship_to_tenant, placeholder: 'self, spouse, child…', onInput: (e: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? { ...o, relationship_to_tenant: e.target.value } : o)) }),
+                h('div', { key: i, class: 'relative border border-emerald-100 rounded-lg p-3 bg-emerald-50/40' }, [
+                  h('div', { class: 'flex items-center justify-end mb-1.5' }, [
+                    h('button', { class: 'text-gray-400 hover:text-red-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
+                  ]),
+                  h(PersonBlock, { modelValue: oc, 'onUpdate:modelValue': (v: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? v : o)) }),
+                  h('div', { class: 'mt-1.5' }, [
+                    h('input', { class: 'input text-xs py-1.5', value: oc.relationship_to_tenant, placeholder: 'Relationship (self, spouse, child…)', onInput: (e: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? { ...o, relationship_to_tenant: e.target.value } : o)) }),
                   ]),
                 ])
               )
             : [h('p', { class: 'text-xs text-gray-400' }, 'None')]),
         ]),
 
-        // Guarantors
         h('section', { class: 'space-y-3' }, [
           h('div', { class: 'flex items-center justify-between' }, [
             h(SectionLabel, { text: 'Guarantors / Sureties', color: 'amber' }),
@@ -380,17 +504,18 @@ const LeaseFormFields = defineComponent({
           ]),
           ...(f.guarantors?.length
             ? f.guarantors.map((g: any, i: number) =>
-                h('div', { key: i, class: 'relative border border-amber-100 rounded-xl p-4 bg-amber-50/40' }, [
-                  h('button', { class: 'absolute top-3 right-3 text-gray-400 hover:text-red-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 14 })),
-                  h(PersonBlock, { modelValue: g, compact: true, 'onUpdate:modelValue': (v: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? v : gg)) }),
-                  h('div', { class: 'mt-2' }, [
-                    h('label', { class: 'label' }, 'Covers tenant'),
-                    h('input', { class: 'input text-xs', value: g.for_tenant, placeholder: 'Name of tenant they cover', onInput: (e: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? { ...gg, for_tenant: e.target.value } : gg)) }),
+                h('div', { key: i, class: 'relative border border-amber-100 rounded-lg p-3 bg-amber-50/40' }, [
+                  h('div', { class: 'flex items-center justify-end mb-1.5' }, [
+                    h('button', { class: 'text-gray-400 hover:text-red-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
+                  ]),
+                  h(PersonBlock, { modelValue: g, 'onUpdate:modelValue': (v: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? v : gg)) }),
+                  h('div', { class: 'mt-1.5' }, [
+                    h('input', { class: 'input text-xs py-1.5', value: g.for_tenant, placeholder: 'Covers tenant (name)', onInput: (e: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? { ...gg, for_tenant: e.target.value } : gg)) }),
                   ]),
                 ])
               )
             : [h('p', { class: 'text-xs text-gray-400' }, 'None')]),
-        ]),
+        ])] : []),
       ])
     }
   },
@@ -399,13 +524,81 @@ const LeaseFormFields = defineComponent({
 // ── State ──────────────────────────────────────────────────────────────────
 
 const step = ref(1)
+const formTab = ref<'lease' | 'tenants'>('lease')
+const formTabs = [
+  { key: 'lease' as const, label: 'Lease Agreement' },
+  { key: 'tenants' as const, label: 'Lessee' },
+]
 const properties = ref<any[]>([])
-const useExistingProperty = ref<number | false>(false)
-const useExistingUnit = ref<number | false>(false)
+const selectedUnit = ref<SelectedUnit | null>(null)
+
+// ── Property modal ────────────────────────────────────────────────────────
+const propertyModal = ref(false)
+const propertySearch = ref('')
+const modalExpandedId = ref<number | null>(null)
+
+const filteredModalProperties = computed(() => {
+  if (!propertySearch.value) return properties.value
+  const q = propertySearch.value.toLowerCase()
+  return properties.value.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.address ?? '').toLowerCase().includes(q) ||
+    (p.city ?? '').toLowerCase().includes(q)
+  )
+})
+
+function onModalPropertyClick(p: any) {
+  // No units or single unit → auto-select and close
+  if (!p.units?.length) {
+    selectFromModal(p, null)
+    return
+  }
+  if (p.units.length === 1) {
+    selectFromModal(p, p.units[0])
+    return
+  }
+  // Multi-unit → toggle expand
+  modalExpandedId.value = modalExpandedId.value === p.id ? null : p.id
+}
+
+function selectFromModal(property: any, unit: any) {
+  selectedUnit.value = {
+    propertyId: property.id,
+    propertyName: property.name,
+    unitId: unit?.id ?? 0,
+    unitNumber: unit?.unit_number ?? '',
+    address: property.address,
+    city: property.city,
+    province: property.province,
+  }
+  propertyModal.value = false
+  propertySearch.value = ''
+  modalExpandedId.value = null
+}
+
+// Sync selected property/unit into form fields for preview
+watch(selectedUnit, (su) => {
+  if (su) {
+    form.value.property = {
+      ...form.value.property,
+      name: su.propertyName,
+      address: su.address,
+      city: su.city,
+      province: su.province,
+    }
+    if (su.unitNumber) {
+      form.value.unit = { ...form.value.unit, unit_number: su.unitNumber }
+    }
+  }
+})
 const submitting = ref(false)
 const generating = ref(false)
+const savingDraft = ref(false)
+const draftId = ref<number | null>(null)
 const submitError = ref('')
+const validationErrors = ref<string[]>([])
 const createdLeaseNumber = ref('')
+const createdLeaseId = ref<number | null>(null)
 
 function emptyPerson() {
   return { full_name: '', id_number: '', phone: '', email: '' }
@@ -430,6 +623,9 @@ const form = ref({
 })
 
 const additionalTerms = ref('')
+
+// Clear validation errors when form changes
+watch(form, () => { if (validationErrors.value.length) validationErrors.value = [] }, { deep: true })
 
 // ── Template management ────────────────────────────────────────────────────
 
@@ -534,33 +730,68 @@ const previewHtml = computed(() => {
   return html
 })
 
+// ── Drafts state (must be before onMounted) ──────────────────────────────
+const showDrafts = ref(false)
+const drafts = ref<any[]>([])
+const loadingDrafts = ref(false)
+
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-onMounted(() => {
+onMounted(async () => {
   api.get('/properties/?page_size=500').then(({ data }) => {
     properties.value = data.results ?? data
   })
   loadTemplates()
+  await fetchDrafts()
+
+  // Load draft from query param (?draft=ID)
+  const qDraft = route.query.draft
+  if (qDraft) {
+    const id = Number(qDraft)
+    const match = drafts.value.find((d: any) => d.id === id)
+    if (match) {
+      loadDraft(match)
+    } else {
+      // Fetch individually if not in list
+      try {
+        const { data } = await api.get(`/leases/builder/drafts/${id}/`)
+        loadDraft(data)
+      } catch { /* draft not found — ignore */ }
+    }
+  }
 })
+
+// Refresh drafts when panel opens
+watch(showDrafts, (v) => { if (v) fetchDrafts() })
 
 // ── Smart Form: create via import ──────────────────────────────────────────
 
 async function doFormCreate() {
   submitError.value = ''
+  validationErrors.value = []
   const f = form.value
-  if (!f.primary_tenant.full_name) { submitError.value = 'Primary tenant name is required.'; return }
-  if (!f.start_date) { submitError.value = 'Lease start date is required.'; return }
-  if (!f.end_date)   { submitError.value = 'Lease end date is required.'; return }
-  if (!f.monthly_rent) { submitError.value = 'Monthly rent is required.'; return }
+  const errs: string[] = []
+  if (!f.primary_tenant.full_name) errs.push('primary_tenant')
+  if (!f.start_date) errs.push('start_date')
+  if (!f.end_date) errs.push('end_date')
+  if (!f.monthly_rent) errs.push('monthly_rent')
+  if (errs.length) {
+    validationErrors.value = errs
+    if (errs.includes('primary_tenant')) { formTab.value = 'tenants' }
+    else { formTab.value = 'lease' }
+    submitError.value = 'Please fill in all required fields.'
+    return
+  }
   submitting.value = true
   try {
     const payload: any = { ...form.value }
-    if (useExistingProperty.value) {
-      payload.property_id = useExistingProperty.value
-      if (useExistingUnit.value) payload.unit_id = useExistingUnit.value
+    if (selectedUnit.value) {
+      payload.property_id = selectedUnit.value.propertyId
+      if (selectedUnit.value.unitId) payload.unit_id = selectedUnit.value.unitId
     }
     const { data } = await api.post('/leases/import/', payload)
     createdLeaseNumber.value = data.lease_number
+    createdLeaseId.value = data.id
     step.value = 3
   } catch (e: any) {
     const detail = e?.response?.data?.error ?? e?.message ?? 'Failed to create lease'
@@ -568,6 +799,70 @@ async function doFormCreate() {
   } finally {
     submitting.value = false
   }
+}
+
+// ── Draft save/load ─────────────────────────────────────────────────────────
+
+function buildDraftState() {
+  return {
+    form: form.value,
+    additionalTerms: additionalTerms.value,
+    selectedUnit: selectedUnit.value,
+    selectedTemplateId: selectedTemplateId.value,
+  }
+}
+
+function loadDraftState(state: any) {
+  if (state.form) form.value = state.form
+  if (state.additionalTerms) additionalTerms.value = state.additionalTerms
+  if (state.selectedUnit) selectedUnit.value = state.selectedUnit
+  if (state.selectedTemplateId) selectedTemplateId.value = state.selectedTemplateId
+}
+
+async function fetchDrafts() {
+  loadingDrafts.value = true
+  try {
+    const { data } = await api.get('/leases/builder/drafts/')
+    drafts.value = data
+  } catch { /* silent */ }
+  finally { loadingDrafts.value = false }
+}
+
+async function saveDraft() {
+  if (!selectedUnit.value?.propertyId) return
+  savingDraft.value = true
+  try {
+    const payload = { form_state: buildDraftState(), template_id: selectedTemplateId.value }
+    if (draftId.value) {
+      await api.put(`/leases/builder/drafts/${draftId.value}/`, payload)
+    } else {
+      const { data } = await api.post('/leases/builder/drafts/new/', payload)
+      draftId.value = data.id
+    }
+    await fetchDrafts()
+  } catch { /* silent */ }
+  finally { savingDraft.value = false }
+}
+
+function loadDraft(d: any) {
+  draftId.value = d.id
+  const state = d.current_state ?? d.form_state
+  if (state) loadDraftState(state)
+  showDrafts.value = false
+}
+
+async function deleteDraft(id: number) {
+  try {
+    await api.delete(`/leases/builder/drafts/${id}/`)
+    drafts.value = drafts.value.filter(d => d.id !== id)
+    if (draftId.value === id) draftId.value = null
+  } catch { /* silent */ }
+}
+
+function formatDraftDate(iso: string) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 // ── Smart Form: preview DOCX ───────────────────────────────────────────────
@@ -592,16 +887,17 @@ async function previewDocx() {
 
 function buildDocxContext() {
   const f = form.value
+  const su = selectedUnit.value
   return {
     landlord_name: '—',
     landlord_id: '—',
-    landlord_address: f.property.address,
+    landlord_address: su?.address || f.property.address,
     landlord_phone: '—',
     landlord_email: '—',
-    property_address: f.property.address,
-    unit_number: f.unit.unit_number,
-    city: f.property.city,
-    province: f.property.province,
+    property_address: su?.address || f.property.address,
+    unit_number: su?.unitNumber || f.unit.unit_number,
+    city: su?.city || f.property.city,
+    province: su?.province || f.property.province,
     tenant_name: f.primary_tenant.full_name,
     tenant_id: f.primary_tenant.id_number,
     tenant_phone: f.primary_tenant.phone,
@@ -630,9 +926,9 @@ function reset() {
   step.value = 1
   submitError.value = ''
   createdLeaseNumber.value = ''
+  createdLeaseId.value = null
   additionalTerms.value = ''
-  useExistingProperty.value = false
-  useExistingUnit.value = false
+  selectedUnit.value = null
   form.value = {
     property: { name: '', address: '', city: '', province: '', postal_code: '', property_type: 'house' },
     unit: { unit_number: '1', bedrooms: 1, bathrooms: 1 },

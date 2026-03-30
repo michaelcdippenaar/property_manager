@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col">
+  <div class="h-screen bg-gray-50 flex flex-col overflow-hidden">
     <!-- Header -->
     <header class="bg-navy text-white px-4 py-4 shadow-md">
       <h1 class="text-lg font-semibold tracking-tight">Sign Document</h1>
@@ -37,123 +37,262 @@
       </div>
     </div>
 
-    <!-- Document + Signing UI -->
+    <!-- Document + Inline Signing -->
     <template v-else>
-      <!-- Step indicator -->
+      <!-- Top bar -->
       <div class="bg-white border-b px-4 py-2 flex items-center justify-between text-sm">
-        <div class="flex items-center gap-2">
-          <span
-            :class="[
-              'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold',
-              step === 'review' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-500'
-            ]"
-          >1</span>
-          <span :class="step === 'review' ? 'font-medium text-gray-900' : 'text-gray-500'">Review</span>
-          <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-          <span
-            :class="[
-              'inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold',
-              step === 'sign' ? 'bg-navy text-white' : 'bg-gray-200 text-gray-500'
-            ]"
-          >2</span>
-          <span :class="step === 'sign' ? 'font-medium text-gray-900' : 'text-gray-500'">Sign</span>
-        </div>
-        <span class="text-xs text-gray-400">
+        <span class="text-gray-500">
           Page {{ currentPage }} of {{ totalPages }}
         </span>
+        <button
+          v-if="hasSignatureField"
+          @click="scrollToSignature"
+          class="text-navy font-medium hover:underline text-sm"
+        >
+          Jump to signature &darr;
+        </button>
       </div>
 
-      <!-- PDF Viewer -->
-      <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="scrollContainer">
-        <div class="max-w-3xl mx-auto space-y-4" ref="pagesContainer">
-          <canvas
+      <!-- PDF Viewer with inline overlays -->
+      <div class="flex-1 overflow-auto bg-gray-100 p-4" ref="scrollContainer" data-scroll-container>
+        <div class="max-w-3xl mx-auto space-y-4" ref="pagesContainer" data-pages-container>
+          <div
             v-for="page in totalPages"
             :key="page"
-            :data-page="page"
-            class="w-full shadow-md rounded bg-white"
-          />
+            class="relative"
+            :data-page-wrapper="page"
+          >
+            <canvas
+              :data-page="page"
+              class="w-full shadow-md rounded bg-white"
+            />
+
+            <!-- Signature overlay on this page -->
+            <div
+              v-for="field in fieldsOnPage(page)"
+              :key="field.name"
+              class="absolute"
+              :style="fieldStyle(field)"
+            >
+              <!-- Signature field -->
+              <div
+                v-if="field.type === 'signature'"
+                data-sig-field
+                class="w-full h-full"
+              >
+                <div
+                  v-if="!signatureDrawn"
+                  class="w-full h-full border-2 border-dashed border-navy/40 rounded-lg bg-white/90 flex items-center justify-center cursor-pointer hover:border-navy hover:bg-navy/5 transition-all"
+                  @click="openSignaturePad"
+                >
+                  <div class="flex flex-col items-center gap-1">
+                    <svg class="w-5 h-5 text-navy/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16.862 3.487a2.1 2.1 0 113.004 2.938L7.5 18.79l-4 1 1-4L16.862 3.487z" />
+                    </svg>
+                    <span class="text-xs font-medium text-navy/60">Click to sign</span>
+                  </div>
+                </div>
+                <div
+                  v-else
+                  class="w-full h-full border-2 border-navy rounded-lg bg-white overflow-hidden flex items-center justify-center cursor-pointer group relative"
+                  @click="openSignaturePad"
+                >
+                  <img :src="signaturePreview" class="max-w-full max-h-full object-contain p-1" alt="Your signature" />
+                  <div class="absolute inset-0 bg-navy/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="text-xs font-medium text-navy bg-white/90 px-2 py-1 rounded">Edit</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Initials field -->
+              <div
+                v-else-if="field.type === 'initials'"
+                data-initials-field
+                class="w-full h-full"
+              >
+                <div
+                  v-if="!initialsDrawn"
+                  class="w-full h-full border-2 border-dashed border-navy/40 rounded-lg bg-white/90 flex items-center justify-center cursor-pointer hover:border-navy hover:bg-navy/5 transition-all"
+                  @click="openInitialsPad"
+                >
+                  <div class="flex flex-col items-center gap-0.5">
+                    <span class="text-xs font-bold text-navy/60">AB</span>
+                    <span class="text-[10px] text-navy/50">Initials</span>
+                  </div>
+                </div>
+                <div
+                  v-else
+                  class="w-full h-full border-2 border-navy rounded-lg bg-white overflow-hidden flex items-center justify-center cursor-pointer group relative"
+                  @click="openInitialsPad"
+                >
+                  <img :src="initialsPreview" class="max-w-full max-h-full object-contain p-1" alt="Your initials" />
+                  <div class="absolute inset-0 bg-navy/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span class="text-[10px] font-medium text-navy bg-white/90 px-2 py-0.5 rounded">Edit</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Date field -->
+              <div v-else-if="field.type === 'date'" class="w-full h-full">
+                <input
+                  type="date"
+                  v-model="signDate"
+                  class="w-full h-full px-2 text-sm border-2 border-gray-300 rounded-lg bg-white/95 focus:outline-none focus:ring-2 focus:ring-navy/30 focus:border-navy"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Bottom bar -->
+      <!-- Bottom submit bar -->
       <div class="bg-white border-t px-4 py-3 shadow-inner">
-        <div v-if="step === 'review'" class="flex items-center justify-between max-w-3xl mx-auto">
+        <div class="flex items-center justify-between max-w-3xl mx-auto">
           <p class="text-sm text-gray-600">
-            Review the document, then proceed to sign.
+            <template v-if="!signatureDrawn">
+              Scroll down and click the signature area to sign.
+            </template>
+            <template v-else-if="hasInitialsField && !initialsDrawn">
+              Click the initials area to add your initials.
+            </template>
+            <template v-else-if="!signDate">
+              Select a date to continue.
+            </template>
+            <template v-else>
+              Ready to submit your signature.
+            </template>
           </p>
           <button
-            @click="step = 'sign'"
-            class="px-5 py-2.5 bg-navy text-white text-sm font-medium rounded-lg hover:bg-navy-dark transition-colors"
+            @click="submitSignature"
+            :disabled="!canSubmit || submitting"
+            class="px-6 py-2.5 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-accent-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Proceed to Sign
+            <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            {{ submitting ? 'Submitting...' : 'Submit Signature' }}
           </button>
         </div>
+      </div>
 
-        <div v-else class="max-w-3xl mx-auto space-y-4">
-          <!-- Signature pad -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">
-              Your Signature
-            </label>
-            <div class="relative border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-hidden"
-                 :class="{ 'border-navy': signatureDrawn }">
-              <canvas
-                ref="sigCanvas"
-                class="w-full touch-none"
-                style="height: 160px;"
-              />
+      <!-- Signature pad modal -->
+      <Teleport to="body">
+        <div
+          v-if="showSigModal"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+          @click.self="closeSigModal"
+        >
+          <div class="bg-white w-full sm:max-w-lg sm:rounded-xl rounded-t-xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b">
+              <h3 class="font-semibold text-gray-900">Draw Your Signature</h3>
+              <button @click="closeSigModal" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div class="p-4">
+              <div class="relative border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-hidden"
+                   :class="{ 'border-navy': sigPadHasContent }">
+                <canvas
+                  ref="sigCanvas"
+                  class="w-full touch-none"
+                  style="height: 180px;"
+                />
+                <p v-if="!sigPadHasContent" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+                  Draw your signature here
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
               <button
-                v-if="signatureDrawn"
-                @click="clearSignature"
-                class="absolute top-2 right-2 text-xs text-gray-500 hover:text-red-600 bg-white/90 px-2 py-1 rounded"
+                @click="clearSigPad"
+                class="text-sm text-gray-500 hover:text-red-600"
               >
                 Clear
               </button>
-              <p v-if="!signatureDrawn" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
-                Draw your signature here
-              </p>
+              <div class="flex gap-2">
+                <button
+                  @click="closeSigModal"
+                  class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="confirmSignature"
+                  :disabled="!sigPadHasContent"
+                  class="px-5 py-2 bg-navy text-white text-sm font-medium rounded-lg hover:bg-navy-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
-
-          <!-- Date field -->
-          <div class="flex items-end gap-4">
-            <div class="flex-1">
-              <label class="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <input
-                type="date"
-                v-model="signDate"
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-navy/30 focus:border-navy"
-              />
-            </div>
-            <button
-              @click="submitSignature"
-              :disabled="!canSubmit || submitting"
-              class="px-6 py-2.5 bg-accent text-white text-sm font-semibold rounded-lg hover:bg-accent-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              <svg v-if="submitting" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {{ submitting ? 'Submitting...' : 'Submit Signature' }}
-            </button>
-          </div>
-
-          <button
-            @click="step = 'review'"
-            class="text-sm text-gray-500 hover:text-gray-700"
-          >
-            &larr; Back to review
-          </button>
         </div>
-      </div>
+      </Teleport>
+
+      <!-- Initials pad modal -->
+      <Teleport to="body">
+        <div
+          v-if="showInitialsModal"
+          class="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40"
+          @click.self="closeInitialsModal"
+        >
+          <div class="bg-white w-full sm:max-w-md sm:rounded-xl rounded-t-xl shadow-2xl overflow-hidden">
+            <div class="flex items-center justify-between px-4 py-3 border-b">
+              <h3 class="font-semibold text-gray-900">Draw Your Initials</h3>
+              <button @click="closeInitialsModal" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div class="p-4">
+              <div class="relative border-2 border-dashed border-gray-300 rounded-lg bg-white overflow-hidden"
+                   :class="{ 'border-navy': initialsPadHasContent }">
+                <canvas
+                  ref="initialsCanvas"
+                  class="w-full touch-none"
+                  style="height: 120px;"
+                />
+                <p v-if="!initialsPadHasContent" class="absolute inset-0 flex items-center justify-center text-gray-400 text-sm pointer-events-none">
+                  Draw your initials here
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center justify-between px-4 py-3 border-t bg-gray-50">
+              <button
+                @click="clearInitialsPad"
+                class="text-sm text-gray-500 hover:text-red-600"
+              >
+                Clear
+              </button>
+              <div class="flex gap-2">
+                <button
+                  @click="closeInitialsModal"
+                  class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  @click="confirmInitials"
+                  :disabled="!initialsPadHasContent"
+                  class="px-5 py-2 bg-navy text-white text-sm font-medium rounded-lg hover:bg-navy-dark disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Teleport>
     </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
 import SignaturePad from 'signature_pad'
@@ -173,7 +312,6 @@ const loading = ref(true)
 const errorMsg = ref('')
 const submitted = ref(false)
 const submitting = ref(false)
-const step = ref<'review' | 'sign'>('review')
 
 // Document info
 const docTitle = ref('')
@@ -189,11 +327,33 @@ const pagesContainer = ref<HTMLElement>()
 const scrollContainer = ref<HTMLElement>()
 let pdfDoc: any = null
 
-// Signature
+// Vue template refs inside <template v-else> fragments can fail to bind.
+// Use a reliable fallback via data attribute.
+function getScrollContainer(): HTMLElement | null {
+  return scrollContainer.value || document.querySelector('[data-scroll-container]')
+}
+function getPagesContainer(): HTMLElement | null {
+  return pagesContainer.value || document.querySelector('[data-pages-container]')
+}
+
+// Signature state
 const sigCanvas = ref<HTMLCanvasElement>()
+const showSigModal = ref(false)
+const sigPadHasContent = ref(false)
 const signatureDrawn = ref(false)
+const signaturePreview = ref('')  // PNG data URL for preview
+const signatureSvg = ref('')      // SVG for submission
 const signDate = ref(new Date().toISOString().split('T')[0])
 let signaturePad: SignaturePad | null = null
+
+// Initials state
+const initialsCanvas = ref<HTMLCanvasElement>()
+const showInitialsModal = ref(false)
+const initialsPadHasContent = ref(false)
+const initialsDrawn = ref(false)
+const initialsPreview = ref('')  // PNG data URL for preview
+const initialsSvg = ref('')      // SVG for submission
+let initialsPad: SignaturePad | null = null
 
 const signerLine = computed(() => {
   const n = signerName.value.trim()
@@ -202,10 +362,34 @@ const signerLine = computed(() => {
   return n || e || ''
 })
 
-const canSubmit = computed(() => signatureDrawn.value && signDate.value)
+const hasInitialsField = computed(() => fields.value.some(f => f.type === 'initials'))
+const canSubmit = computed(() => {
+  if (!signatureDrawn.value || !signDate.value) return false
+  if (hasInitialsField.value && !initialsDrawn.value) return false
+  return true
+})
+const hasSignatureField = computed(() => fields.value.some(f => f.type === 'signature'))
 
-// Token from route
 const token = computed(() => route.params.token as string)
+
+// Get fields positioned on a specific page
+function fieldsOnPage(page: number) {
+  return fields.value.filter(f =>
+    f.areas?.some((a: any) => a.page === page)
+  )
+}
+
+// Compute CSS position for a field overlay (relative to the page canvas)
+function fieldStyle(field: any) {
+  const area = field.areas?.[0]
+  if (!area) return {}
+  return {
+    left: `${area.x * 100}%`,
+    top: `${area.y * 100}%`,
+    width: `${area.w * 100}%`,
+    height: `${area.h * 100}%`,
+  }
+}
 
 onMounted(async () => {
   if (!token.value) {
@@ -215,7 +399,6 @@ onMounted(async () => {
   }
 
   try {
-    // Fetch fields and document in parallel
     const [fieldsRes, docRes] = await Promise.all([
       axios.get(`${apiBase}/esigning/public-sign/${token.value}/fields/`, {
         headers: { Accept: 'application/json' },
@@ -225,25 +408,25 @@ onMounted(async () => {
       }),
     ])
 
-    // Set metadata
     docTitle.value = fieldsRes.data.document_title || ''
     signerName.value = fieldsRes.data.signer_name || ''
     signerEmail.value = fieldsRes.data.signer_email || ''
     signerRole.value = fieldsRes.data.signer_role || ''
     fields.value = fieldsRes.data.fields || []
 
-    // Load PDF
     const pdfData = new Uint8Array(docRes.data)
     pdfDoc = await pdfjsLib.getDocument({ data: pdfData }).promise
     totalPages.value = pdfDoc.numPages
 
-    // Show the canvas DOM first, then render into it
     loading.value = false
     await nextTick()
     await renderAllPages()
+
+    // Attach scroll listener now that the scroll container is rendered
+    await nextTick()
+    getScrollContainer()?.addEventListener('scroll', handleScroll, { passive: true })
   } catch (e: any) {
     const d = e?.response?.data
-    // arraybuffer error responses need decoding
     if (d instanceof ArrayBuffer) {
       try {
         const text = new TextDecoder().decode(d)
@@ -263,7 +446,7 @@ onMounted(async () => {
 })
 
 function getCanvasForPage(page: number): HTMLCanvasElement | null {
-  return pagesContainer.value?.querySelector(`canvas[data-page="${page}"]`) ?? null
+  return getPagesContainer()?.querySelector(`canvas[data-page="${page}"]`) ?? null
 }
 
 async function renderAllPages() {
@@ -274,7 +457,6 @@ async function renderAllPages() {
     const canvas = getCanvasForPage(i)
     if (!canvas) continue
 
-    // Render at 1.5x for crisp text on retina
     const scale = 1.5
     const viewport = page.getViewport({ scale })
     canvas.width = viewport.width
@@ -289,7 +471,7 @@ async function renderAllPages() {
 
 // Track scroll position for page indicator
 function handleScroll() {
-  const container = scrollContainer.value
+  const container = getScrollContainer()
   if (!container) return
 
   const scrollTop = container.scrollTop
@@ -308,24 +490,76 @@ function handleScroll() {
   currentPage.value = closestPage
 }
 
-// Initialize signature pad when step changes to 'sign'
-watch(step, async (val) => {
-  if (val === 'sign') {
-    await nextTick()
-    initSignaturePad()
+function smoothScrollTo(container: HTMLElement, target: number, duration = 600) {
+  const start = container.scrollTop
+  const distance = target - start
+  if (Math.abs(distance) < 1) return
+  const startTime = performance.now()
+
+  function step(currentTime: number) {
+    const elapsed = currentTime - startTime
+    const progress = Math.min(elapsed / duration, 1)
+    // Ease-out cubic
+    const ease = 1 - Math.pow(1 - progress, 3)
+    container.scrollTop = start + distance * ease
+    if (progress < 1) requestAnimationFrame(step)
   }
-})
+  requestAnimationFrame(step)
+}
+
+function scrollToSignature() {
+  const container = getScrollContainer()
+  if (!container) return
+
+  const el = container.querySelector('[data-sig-field]') as HTMLElement | null
+  if (el) {
+    const containerRect = container.getBoundingClientRect()
+    const elRect = el.getBoundingClientRect()
+    const offset = elRect.top - containerRect.top + container.scrollTop - (containerRect.height / 3)
+    smoothScrollTo(container, offset)
+    // Brief pulse animation to draw attention
+    setTimeout(() => {
+      el.classList.add('animate-pulse')
+      setTimeout(() => el.classList.remove('animate-pulse'), 2000)
+    }, 650)
+    return
+  }
+  // Fallback: scroll to the page with the signature field
+  const sigField = fields.value.find(f => f.type === 'signature')
+  const page = sigField?.areas?.[0]?.page
+  if (page) {
+    const canvas = getCanvasForPage(page) as HTMLElement | null
+    if (canvas) {
+      const containerRect = container.getBoundingClientRect()
+      const canvasRect = canvas.getBoundingClientRect()
+      const offset = canvasRect.top - containerRect.top + container.scrollTop
+      smoothScrollTo(container, offset)
+    }
+  }
+}
+
+// Signature pad modal
+async function openSignaturePad() {
+  showSigModal.value = true
+  await nextTick()
+  initSignaturePad()
+}
+
+function closeSigModal() {
+  showSigModal.value = false
+  signaturePad = null
+  sigPadHasContent.value = false
+}
 
 function initSignaturePad() {
   const canvas = sigCanvas.value
-  if (!canvas || signaturePad) return
+  if (!canvas) return
 
-  // Size canvas to container
   const rect = canvas.parentElement!.getBoundingClientRect()
   canvas.width = rect.width * window.devicePixelRatio
-  canvas.height = 160 * window.devicePixelRatio
+  canvas.height = 180 * window.devicePixelRatio
   canvas.style.width = `${rect.width}px`
-  canvas.style.height = '160px'
+  canvas.style.height = '180px'
 
   const ctx = canvas.getContext('2d')!
   ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
@@ -336,13 +570,89 @@ function initSignaturePad() {
   })
 
   signaturePad.addEventListener('endStroke', () => {
-    signatureDrawn.value = !signaturePad!.isEmpty()
+    sigPadHasContent.value = !signaturePad!.isEmpty()
   })
 }
 
-function clearSignature() {
+function clearSigPad() {
   signaturePad?.clear()
-  signatureDrawn.value = false
+  sigPadHasContent.value = false
+}
+
+async function confirmSignature() {
+  if (!signaturePad || signaturePad.isEmpty()) return
+
+  signatureSvg.value = signaturePad.toSVG()
+
+  // Generate PNG preview
+  const canvas = sigCanvas.value!
+  signaturePreview.value = await svgToPngDataUrl(
+    signatureSvg.value,
+    canvas.offsetWidth,
+    canvas.offsetHeight,
+  )
+
+  signatureDrawn.value = true
+  closeSigModal()
+}
+
+// ── Initials pad modal ──────────────────────────────────────────────
+async function openInitialsPad() {
+  showInitialsModal.value = true
+  await nextTick()
+  initInitialsPad()
+}
+
+function closeInitialsModal() {
+  showInitialsModal.value = false
+  initialsPad = null
+  initialsPadHasContent.value = false
+}
+
+function initInitialsPad() {
+  const canvas = initialsCanvas.value
+  if (!canvas) return
+
+  const rect = canvas.parentElement!.getBoundingClientRect()
+  canvas.width = rect.width * window.devicePixelRatio
+  canvas.height = 120 * window.devicePixelRatio
+  canvas.style.width = `${rect.width}px`
+  canvas.style.height = '120px'
+
+  const ctx = canvas.getContext('2d')!
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+
+  initialsPad = new SignaturePad(canvas, {
+    backgroundColor: 'rgb(255, 255, 255)',
+    penColor: 'rgb(0, 0, 0)',
+    minWidth: 1.5,
+    maxWidth: 3,
+  })
+
+  initialsPad.addEventListener('endStroke', () => {
+    initialsPadHasContent.value = !initialsPad!.isEmpty()
+  })
+}
+
+function clearInitialsPad() {
+  initialsPad?.clear()
+  initialsPadHasContent.value = false
+}
+
+async function confirmInitials() {
+  if (!initialsPad || initialsPad.isEmpty()) return
+
+  initialsSvg.value = initialsPad.toSVG()
+
+  const canvas = initialsCanvas.value!
+  initialsPreview.value = await svgToPngDataUrl(
+    initialsSvg.value,
+    canvas.offsetWidth,
+    canvas.offsetHeight,
+  )
+
+  initialsDrawn.value = true
+  closeInitialsModal()
 }
 
 // Convert SVG string to a PNG data URL via an offscreen canvas
@@ -353,7 +663,7 @@ function svgToPngDataUrl(svg: string, width: number, height: number): Promise<st
     const img = new Image()
     img.onload = () => {
       const canvas = document.createElement('canvas')
-      canvas.width = width * 2   // 2x for crisp output
+      canvas.width = width * 2
       canvas.height = height * 2
       const ctx = canvas.getContext('2d')!
       ctx.scale(2, 2)
@@ -367,35 +677,41 @@ function svgToPngDataUrl(svg: string, width: number, height: number): Promise<st
 }
 
 async function submitSignature() {
-  if (!canSubmit.value || submitting.value || !signaturePad) return
+  if (!canSubmit.value || submitting.value) return
   submitting.value = true
 
-  // Capture signature as SVG (vector — source of truth)
-  const sigSvg = signaturePad.toSVG()
-  // Convert to PNG for DocuSeal submission
-  const canvas = sigCanvas.value!
-  const sigPng = await svgToPngDataUrl(sigSvg, canvas.offsetWidth, canvas.offsetHeight)
+  const sigPng = signaturePreview.value
 
-  // Build field submissions matching the DocuSeal field names
   const sigField = fields.value.find((f: any) => f.type === 'signature')
   const dateField = fields.value.find((f: any) => f.type === 'date')
+  const initField = fields.value.find((f: any) => f.type === 'initials')
 
   const submitFields: { name: string; value: string }[] = []
-  if (sigField) {
-    submitFields.push({ name: sigField.name, value: sigPng })
-  }
-  if (dateField) {
-    submitFields.push({ name: dateField.name, value: signDate.value })
+
+  // Initials
+  if (initField && initialsPreview.value) {
+    submitFields.push({ name: initField.name, value: initialsPreview.value })
+  } else if (!initField && initialsPreview.value) {
+    submitFields.push({
+      name: `Initials (${signerRole.value || 'First Party'})`,
+      value: initialsPreview.value,
+    })
   }
 
-  // Fallback if field names not found
-  if (!sigField) {
+  // Signature
+  if (sigField) {
+    submitFields.push({ name: sigField.name, value: sigPng })
+  } else {
     submitFields.push({
       name: `Signature (${signerRole.value || 'First Party'})`,
       value: sigPng,
     })
   }
-  if (!dateField) {
+
+  // Date
+  if (dateField) {
+    submitFields.push({ name: dateField.name, value: signDate.value })
+  } else {
     submitFields.push({
       name: `Date (${signerRole.value || 'First Party'})`,
       value: signDate.value,
@@ -407,7 +723,7 @@ async function submitSignature() {
       `${apiBase}/esigning/public-sign/${token.value}/submit/`,
       {
         fields: submitFields,
-        signature_svg: sigSvg,  // vector source of truth for our DB
+        signature_svg: signatureSvg.value,
       },
       { headers: { 'Content-Type': 'application/json' } },
     )
@@ -421,7 +737,5 @@ async function submitSignature() {
   }
 }
 
-onMounted(() => {
-  scrollContainer.value?.addEventListener('scroll', handleScroll, { passive: true })
-})
+// Scroll listener is attached after loading completes (see first onMounted)
 </script>

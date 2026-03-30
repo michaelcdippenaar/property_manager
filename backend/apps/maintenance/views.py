@@ -3,12 +3,13 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.parsers import FormParser, MultiPartParser
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .matching import rank_suppliers
+from .chat_history import persist_chat_history_to_request
 from .models import (
     AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceActivity, MaintenanceRequest, MaintenanceSkill, Supplier, SupplierDocument,
@@ -38,7 +39,9 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = MaintenanceRequest.objects.select_related("supplier")
+        qs = MaintenanceRequest.objects.select_related("supplier", "tenant").annotate(
+            activity_count=Count("activities"),
+        ).order_by("-created_at")
         if hasattr(user, "role") and user.role == "tenant":
             qs = qs.filter(tenant=user)
         exclude_status = self.request.query_params.get("exclude_status")
@@ -46,6 +49,38 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             qs = qs.exclude(status=exclude_status)
         return qs
 
+
+    @action(detail=False, methods=["post"], url_path="classify")
+    def classify(self, request):
+        """
+        RAG-based classification: suggest category and priority from past issues.
+
+        POST { "title": "...", "description": "...", "property_id": 123 }
+        Returns { "category", "priority", "confidence", "rag_matches", "skill_matches" }
+        """
+        from core.contract_rag import classify_from_rag
+        title = (request.data.get("title") or "").strip()
+        description = (request.data.get("description") or "").strip()
+        query = f"{title} {description}".strip()
+        if len(query) < 5:
+            return Response({"error": "title or description required"}, status=status.HTTP_400_BAD_REQUEST)
+        property_id = request.data.get("property_id")
+        result = classify_from_rag(query, property_id=property_id)
+        return Response(result)
+
+    @action(detail=False, methods=["get"], url_path="badges")
+    def badges(self, request):
+        """Lightweight counts for sidebar badge indicators."""
+        open_issues = MaintenanceRequest.objects.exclude(
+            status__in=["closed", "resolved"]
+        ).count()
+        pending_questions = AgentQuestion.objects.filter(
+            status=AgentQuestion.Status.PENDING
+        ).count()
+        return Response({
+            "open_issues": open_issues,
+            "pending_questions": pending_questions,
+        })
 
     # --- Dispatch & Quoting ---
 
@@ -111,10 +146,26 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             "dispatch": JobDispatchSerializer(jd).data,
         })
 
-    @action(detail=True, methods=["get", "post"], url_path="activity")
+    @action(
+        detail=True, methods=["get", "post"], url_path="activity",
+        parser_classes=[JSONParser, MultiPartParser, FormParser],
+    )
     def activity(self, request, pk=None):
         mreq = self.get_object()
         if request.method == "GET":
+            # Always sync from linked chat session — dedup inside
+            # persist_chat_history_to_request prevents duplicates, so this
+            # is safe to call on every load. This ensures the admin always
+            # sees the full tenant conversation history when opening a ticket.
+            linked_session = mreq.tenant_chat_sessions.order_by("-updated_at").first()
+            if linked_session and linked_session.messages:
+                persist_chat_history_to_request(
+                    mreq,
+                    linked_session.messages,
+                    created_by=linked_session.user,
+                    session_id=linked_session.pk,
+                    source="tenant_chat",
+                )
             activities = mreq.activities.select_related("created_by").all()
             return Response(MaintenanceActivitySerializer(activities, many=True).data)
 

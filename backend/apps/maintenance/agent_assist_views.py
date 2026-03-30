@@ -29,7 +29,7 @@ from core.anthropic_web_fetch import (
     build_web_fetch_tools,
     extract_anthropic_assistant_text,
 )
-from core.contract_rag import query_agent_qa, query_contracts, rag_collection_stats
+from core.contract_rag import classify_from_rag, query_agent_qa, query_contracts, query_maintenance_issues, rag_collection_stats
 
 import time as _time
 
@@ -71,31 +71,167 @@ class AgentChatThrottle(UserRateThrottle):
     scope = "agent_chat"
 
 
-def _skills_digest(limit: int = 50) -> str:
-    """
-    Build a detailed skill catalogue for the system prompt.
+_skills_cache: dict = {"objects": None, "objects_expires": 0.0}
+_SKILLS_CACHE_TTL = 300  # 5 minutes
 
-    Includes trade, name, symptom phrases (for AI matching), and
-    resolution steps — giving the agent assistant full triage context.
-    """
-    lines: list[str] = []
-    qs = (
+# Words too common to be useful for matching
+_STOP_WORDS = frozenset({
+    "not", "is", "my", "a", "the", "in", "it", "i", "and", "or", "to", "of",
+    "on", "at", "no", "be", "has", "have", "was", "are", "do", "does", "can",
+    "this", "that", "with", "for", "from", "but", "so", "if", "an", "there",
+})
+
+
+def _format_skill(skill) -> str:
+    """Format a single MaintenanceSkill into a prompt line (verbose, for backwards compat)."""
+    header = f"- [{skill.trade}] {skill.name}"
+    symptoms = skill.symptom_phrases or []
+    if symptoms:
+        header += f" | Symptoms: {', '.join(str(s) for s in symptoms[:5])}"
+    steps = skill.steps or []
+    if steps:
+        step_text = "; ".join(str(s) for s in steps[:5])
+        header += f" | Steps: {step_text}"
+    return header
+
+
+def _format_skill_compact(skill) -> str:
+    """Compact format: ~40% fewer tokens than verbose. Top 3 symptoms + top 3 steps."""
+    parts = [f"[{skill.trade}] {skill.name}"]
+    symptoms = skill.symptom_phrases or []
+    if symptoms:
+        parts.append(f"Signs: {', '.join(str(s) for s in symptoms[:3])}")
+    steps = skill.steps or []
+    if steps:
+        parts.append(f"Do: {'; '.join(str(s) for s in steps[:3])}")
+    return " | ".join(parts)
+
+
+def _get_cached_skills() -> list:
+    """Return all active skills (cached for 5 min)."""
+    now = _time.monotonic()
+    if _skills_cache["objects"] is not None and now < _skills_cache["objects_expires"]:
+        return _skills_cache["objects"]
+
+    skills = list(
         MaintenanceSkill.objects.filter(is_active=True)
-        .order_by("trade", "name")[:limit]
+        .order_by("trade", "name")
     )
-    for skill in qs:
-        header = f"- [{skill.trade}] {skill.name}"
-        # Include symptom phrases if available
-        symptoms = skill.symptom_phrases or []
-        if symptoms:
-            header += f" | Symptoms: {', '.join(str(s) for s in symptoms[:5])}"
-        # Include resolution steps if available
-        steps = skill.steps or []
-        if steps:
-            step_text = "; ".join(str(s) for s in steps[:5])
-            header += f" | Steps: {step_text}"
-        lines.append(header)
+    _skills_cache["objects"] = skills
+    _skills_cache["objects_expires"] = now + _SKILLS_CACHE_TTL
+    return skills
+
+
+def _score_skill(skill, message: str, category: str | None = None) -> float:
+    """
+    Multi-signal relevance score for a skill against a user message.
+
+    Signals (strongest → weakest):
+      1. Category match (when maintenance request category is known)
+      2. Exact symptom phrase substring match
+      3. Skill name substring match
+      4. Trade name match
+      5. Word-level overlap between message and symptoms
+    """
+    msg_lower = message.lower()
+    msg_words = set(msg_lower.split()) - _STOP_WORDS
+    score = 0.0
+
+    # 1. Category / trade match (strongest when we know the ticket category)
+    if category and skill.trade.lower() == category.lower():
+        score += 5.0
+
+    # 2. Exact symptom phrase match (strong signal)
+    for phrase in (skill.symptom_phrases or []):
+        if str(phrase).lower() in msg_lower:
+            score += 3.0
+
+    # 3. Skill name match
+    name_lower = skill.name.lower()
+    if name_lower in msg_lower:
+        score += 4.0
+    else:
+        # Partial name word overlap
+        name_words = set(name_lower.split()) - _STOP_WORDS
+        overlap = msg_words & name_words
+        score += len(overlap) * 0.8
+
+    # 4. Trade name in message
+    if skill.trade.lower() in msg_lower:
+        score += 1.0
+
+    # 5. Word-level symptom overlap (catches partial matches)
+    for phrase in (skill.symptom_phrases or []):
+        phrase_words = set(str(phrase).lower().split()) - _STOP_WORDS
+        overlap = msg_words & phrase_words
+        score += len(overlap) * 0.5
+
+    return score
+
+
+def _skills_digest(message: str = "", category: str | None = None, limit: int = 8) -> str:
+    """
+    Build a skill digest for the system prompt, filtered by relevance.
+
+    When a message is provided, scores and ranks skills — only the top `limit` are included.
+    When no message is given, returns top skills by trade diversity (still limited).
+    """
+    all_skills = _get_cached_skills()
+    if not all_skills:
+        return "(No active skills in the database.)"
+
+    if message:
+        return skills_digest_for_message(message, category=category, max_skills=limit)
+
+    # No message context — return a diverse sample (2 per trade, capped at limit)
+    seen_trades: dict[str, int] = {}
+    selected = []
+    for s in all_skills:
+        count = seen_trades.get(s.trade, 0)
+        if count < 2:
+            selected.append(s)
+            seen_trades[s.trade] = count + 1
+        if len(selected) >= limit:
+            break
+
+    lines = [_format_skill_compact(s) for s in selected]
     return "\n".join(lines) if lines else "(No active skills in the database.)"
+
+
+def skills_digest_for_message(
+    message: str,
+    *,
+    category: str | None = None,
+    max_skills: int = 8,
+) -> str:
+    """
+    Return only skills *relevant* to the message, scored and ranked.
+
+    Uses multi-signal scoring: category match, symptom phrases, skill name,
+    trade, and word-level overlap. Returns compact format to save tokens.
+    Falls back to a small general set if nothing matches.
+    """
+    all_skills = _get_cached_skills()
+    if not all_skills:
+        return "(No active skills in the database.)"
+
+    scored: list[tuple[float, object]] = []
+    for skill in all_skills:
+        s = _score_skill(skill, message, category=category)
+        if s > 0:
+            scored.append((s, skill))
+
+    if scored:
+        scored.sort(key=lambda x: x[0], reverse=True)
+        matched = [skill for _, skill in scored[:max_skills]]
+    else:
+        # No matches — provide a small set of general skills as fallback
+        matched = [s for s in all_skills if s.trade == "general"][:3]
+        if not matched:
+            matched = all_skills[:3]
+
+    lines = [_format_skill_compact(s) for s in matched]
+    return "\n".join(lines)
 
 
 class AgentAssistRagStatusView(APIView):
@@ -151,6 +287,7 @@ class AgentAssistChatView(APIView):
 
         # ── Optional: inject maintenance request context ──
         request_context = ""
+        property_id = None  # resolved from maintenance request if available
         maintenance_request_id = request.data.get("maintenance_request_id")
         if maintenance_request_id:
             try:
@@ -168,6 +305,7 @@ class AgentAssistChatView(APIView):
                     f"({a.created_by.role if a.created_by else 'system'})]: {a.message}"
                     for a in activities
                 )
+                property_id = req.unit.property_id if req.unit_id else None
                 request_context = (
                     f"\n\n--- CURRENT MAINTENANCE REQUEST ---\n"
                     f"ID: #{req.pk}\n"
@@ -194,25 +332,41 @@ class AgentAssistChatView(APIView):
         # ── Multi-turn history ──
         history = request.data.get("history") or []
 
-        # ── RAG: contract excerpts ──
+        # ── RAG: contract excerpts (scoped to property when available) ──
         n_chunks = int(getattr(settings, "RAG_QUERY_CHUNKS", 8))
-        rag_text = query_contracts(message, n_results=n_chunks)
+        rag_text = query_contracts(message, n_results=n_chunks, property_id=property_id)
 
         # ── RAG: staff-answered Q&A ──
         qa_text = query_agent_qa(message, n_results=3)
 
-        # ── Maintenance skills digest ──
-        skills = _skills_digest()
+        # ── Maintenance skills digest (filtered by message relevance) ──
+        # Resolve category from request if available
+        _req_category = None
+        if maintenance_request_id:
+            try:
+                from apps.maintenance.models import MaintenanceRequest as MR
+                _req_category = MR.objects.values_list("category", flat=True).get(pk=maintenance_request_id)
+            except Exception:
+                pass
+        skills = _skills_digest(message=message, category=_req_category, limit=8)
 
         context_block = (
             "--- RETRIEVED DOCUMENT EXCERPTS (vector search) ---\n"
             f"{rag_text or '(No chunks retrieved)'}\n\n"
-            f"--- MAINTENANCE SKILLS (active catalogue) ---\n{skills}"
+            f"--- MAINTENANCE SKILLS (relevant to query) ---\n{skills}"
         )
         if qa_text:
             context_block += (
                 f"\n\n--- STAFF-ANSWERED Q&A (relevant past answers) ---\n{qa_text}"
             )
+
+        # ── RAG: similar past maintenance issues (scoped to property when available) ──
+        issues_text = query_maintenance_issues(message, n_results=3, property_id=property_id)
+        if issues_text:
+            context_block += (
+                f"\n\n--- SIMILAR PAST ISSUES ---\n{issues_text}"
+            )
+
         context_block += request_context
 
         system = f"{SYSTEM_PROMPT}\n\n{context_block}"

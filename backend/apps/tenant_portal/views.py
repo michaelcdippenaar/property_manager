@@ -52,7 +52,9 @@ from core.anthropic_web_fetch import (
     build_web_fetch_tools,
     extract_anthropic_assistant_text,
 )
-from core.contract_rag import query_agent_qa, query_chat_knowledge, query_contracts
+from apps.maintenance.agent_assist_views import _skills_digest, skills_digest_for_message
+from apps.maintenance.chat_history import persist_chat_history_to_request
+from core.contract_rag import query_agent_qa, query_chat_knowledge, query_contracts, query_maintenance_issues
 
 logger = logging.getLogger(__name__)
 
@@ -86,9 +88,19 @@ class TenantDraftThrottle(UserRateThrottle):
 TENANT_SYSTEM_PROMPT = """\
 You are Tremly's AI assistant for residential tenants in South Africa.
 
-You may receive retrieved excerpts from the landlord's document library (lease agreements, house rules, policies). \
-When you use them, mention the source path briefly. If excerpts do not answer the question, say so and suggest \
-practical next steps (e.g. log a repair in the app, email the agent, check the signed lease).
+You are provided with several sources of knowledge:
+1. Retrieved excerpts from the landlord's document library (lease agreements, house rules, policies). \
+When you use them, mention the source path briefly.
+2. Maintenance skills catalogue — trade-specific symptom phrases and resolution steps to help triage issues.
+3. Staff-answered Q&A from past tenant interactions.
+4. Similar past maintenance issues from the property.
+
+If the provided context doesn't answer the question, say so clearly and suggest practical next steps \
+(e.g. log a repair, email the agent, check the signed lease).
+
+TRANSPARENCY: If a tenant asks what you have access to or what tools you use, you can tell them: \
+you search the property's document library, use a maintenance knowledge base with triage steps, \
+and reference past Q&A. You do not have access to live internet search.
 
 INTERACTION CLASSIFICATION
 Before composing your reply, classify this interaction:
@@ -205,6 +217,28 @@ def _valid_category(val) -> str:
     return v if v in allowed else MaintenanceRequest.Category.OTHER
 
 
+def _priority_from_severity(severity: str) -> str:
+    sev = (severity or "none").lower().strip()
+    return {
+        "critical": MaintenanceRequest.Priority.URGENT,
+        "high": MaintenanceRequest.Priority.HIGH,
+        "medium": MaintenanceRequest.Priority.MEDIUM,
+        "low": MaintenanceRequest.Priority.LOW,
+    }.get(sev, MaintenanceRequest.Priority.MEDIUM)
+
+
+def _higher_priority(left: str, right: str) -> str:
+    rank = {
+        MaintenanceRequest.Priority.LOW: 1,
+        MaintenanceRequest.Priority.MEDIUM: 2,
+        MaintenanceRequest.Priority.HIGH: 3,
+        MaintenanceRequest.Priority.URGENT: 4,
+    }
+    left_valid = _valid_priority(left)
+    right_valid = _valid_priority(right)
+    return left_valid if rank[left_valid] >= rank[right_valid] else right_valid
+
+
 _SEVERE_CATEGORY_HINTS = {
     "burst pipe": "plumbing", "pipe": "plumbing", "leak": "plumbing",
     "geyser": "plumbing", "toilet": "plumbing", "drain": "plumbing",
@@ -215,6 +249,55 @@ _SEVERE_CATEGORY_HINTS = {
     "forced entry": "security", "someone broke": "security",
     "stolen from": "security", "theft from": "security",
     "vandalis": "security", "assault": "security", "attacked": "security",
+}
+
+
+_MAINTENANCE_HINTS = (
+    "broken", "leaking", "leak", "dripping", "not working", "damaged",
+    "cracked", "stuck", "jammed", "burst", "flooding", "blocked",
+    "tripped", "sparking", "no power", "no water", "no hot water",
+    "roof", "geyser", "tap", "toilet", "drain", "pipe", "socket",
+    "light", "door", "window", "lock", "gate", "alarm", "intercom",
+    "stove", "fridge", "aircon", "washing machine", "dishwasher",
+    "pest", "rats", "mice", "cockroach", "ants", "mould", "mold",
+    "ceiling", "gutter", "fence", "paving",
+    # Wildlife / dead animals
+    "dead animal", "dead bird", "dead rat", "dead mouse", "dead cat",
+    "carcass", "animal smell", "rotting smell", "bad smell",
+    "snake", "bees", "wasps", "birds nesting", "pigeon",
+    # Pool
+    "pool", "pool pump", "pool filter", "pool green",
+    # Garden / grounds
+    "pothole", "driveway", "parking", "tree", "overgrown",
+    # Misc obvious
+    "smell", "odour", "odor", "noise", "vibrating", "loose",
+)
+
+_MAINTENANCE_CATEGORY_HINTS = {
+    **_SEVERE_CATEGORY_HINTS,
+    "tap": "plumbing", "dripping": "plumbing", "blocked": "plumbing",
+    "geyser": "plumbing", "no hot water": "plumbing", "no water": "plumbing",
+    "socket": "electrical", "light": "electrical", "tripped": "electrical",
+    "sparking": "electrical", "no power": "electrical", "power": "electrical",
+    "roof": "roof", "ceiling": "roof", "gutter": "roof",
+    "stove": "appliance", "fridge": "appliance", "aircon": "appliance",
+    "washing machine": "appliance", "dishwasher": "appliance",
+    "door": "security", "window": "security", "lock": "security",
+    "gate": "security", "alarm": "security", "intercom": "security",
+    "pest": "pest", "rats": "pest", "mice": "pest", "cockroach": "pest",
+    "ants": "pest", "mould": "other", "mold": "other",
+    "fence": "garden", "paving": "garden",
+    # Wildlife / dead animals → pest control
+    "dead animal": "pest", "dead bird": "pest", "dead rat": "pest",
+    "dead mouse": "pest", "carcass": "pest", "snake": "pest",
+    "bees": "pest", "wasps": "pest", "birds nesting": "pest", "pigeon": "pest",
+    # Pool
+    "pool": "garden", "pool pump": "garden", "pool filter": "garden",
+    # Garden / grounds
+    "pothole": "garden", "driveway": "garden", "overgrown": "garden",
+    "tree": "garden",
+    # Smell (could be many things — default to other)
+    "bad smell": "other", "rotting smell": "pest", "smell": "other",
 }
 
 
@@ -234,6 +317,135 @@ def _heuristic_severe_ticket(user_content: str) -> dict | None:
         "priority": MaintenanceRequest.Priority.URGENT,
         "category": cat,
     }
+
+
+def _heuristic_maintenance_ticket(user_content: str) -> dict | None:
+    """Broader fallback: catch normal maintenance reports when AI didn't return JSON."""
+    c = user_content.lower()
+    if not any(h in c for h in _MAINTENANCE_HINTS):
+        return None
+    cat = "other"
+    for hint, hint_cat in _MAINTENANCE_CATEGORY_HINTS.items():
+        if hint in c:
+            cat = hint_cat
+            break
+    # Determine priority from severity hints
+    priority = MaintenanceRequest.Priority.MEDIUM
+    if any(h in c for h in _SEVERE_HINTS):
+        priority = MaintenanceRequest.Priority.URGENT
+    elif any(h in c for h in ("not working", "no power", "no water", "no hot water", "burst", "flooding")):
+        priority = MaintenanceRequest.Priority.HIGH
+    title = user_content.strip()[:80]
+    return {
+        "title": title,
+        "description": user_content.strip()[:8000],
+        "priority": priority,
+        "category": cat,
+    }
+
+
+def _has_usable_maintenance_ticket(ticket: dict | None) -> bool:
+    return bool(ticket and (ticket.get("title") or "").strip())
+
+
+def _build_maintenance_ticket_from_interaction(
+    user_content: str,
+    maintenance_ticket: dict | None,
+    *,
+    interaction_type: str,
+    severity: str,
+) -> dict | None:
+    if interaction_type != "maintenance":
+        return maintenance_ticket if _has_usable_maintenance_ticket(maintenance_ticket) else None
+
+    base_ticket = dict(maintenance_ticket or {})
+    if _has_usable_maintenance_ticket(base_ticket):
+        return base_ticket
+
+    hint = _heuristic_severe_ticket(user_content)
+    if not hint:
+        hint = _heuristic_maintenance_ticket(user_content)
+
+    synthesized = hint or {}
+    title = (
+        (base_ticket.get("title") or "").strip()
+        or (synthesized.get("title") or "").strip()
+        or user_content.strip()[:80]
+        or "Maintenance issue reported via AI chat"
+    )
+    description = (
+        (base_ticket.get("description") or "").strip()
+        or user_content.strip()[:8000]
+        or (synthesized.get("description") or "").strip()
+        or title
+    )
+    if (base_ticket.get("priority") or "").strip():
+        priority = (base_ticket.get("priority") or "").strip()
+    else:
+        priority = _higher_priority(
+            (synthesized.get("priority") or "").strip() or MaintenanceRequest.Priority.MEDIUM,
+            _priority_from_severity(severity),
+        )
+    category = (
+        (base_ticket.get("category") or "").strip()
+        or (synthesized.get("category") or "").strip()
+        or MaintenanceRequest.Category.OTHER
+    )
+    return {
+        "title": title,
+        "description": description,
+        "priority": priority,
+        "category": category,
+    }
+
+
+def _serialize_skills_used(skills_text: str, *, preview_limit: int = 8) -> dict:
+    text = (skills_text or "").strip()
+    if not text or text == "(No active skills in the database.)":
+        return {
+            "used": False,
+            "count": 0,
+            "preview": [],
+            "source": "maintenance_skills_digest",
+        }
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return {
+        "used": True,
+        "count": len(lines),
+        "preview": lines[:preview_limit],
+        "source": "maintenance_skills_digest",
+    }
+
+
+def _ensure_truthful_maintenance_reply(
+    reply_text: str,
+    *,
+    maintenance_issue_identified: bool,
+    created_mr: MaintenanceRequest | None,
+    existing_request_id: int | None,
+) -> str:
+    if not maintenance_issue_identified or created_mr or existing_request_id:
+        return reply_text
+
+    truthful_note = (
+        "I identified this as a maintenance issue, but I could not log it automatically yet. "
+        "Please use the Report maintenance issue button below so the property team receives it."
+    )
+    lower_reply = (reply_text or "").lower()
+    misleading_phrases = (
+        "logged",
+        "maintenance request",
+        "ticket",
+        "team has been alerted",
+        "we've alerted",
+        "i've alerted",
+    )
+    if any(phrase in lower_reply for phrase in misleading_phrases):
+        return truthful_note
+    if not reply_text.strip():
+        return truthful_note
+    return f"{reply_text.rstrip()}\n\n{truthful_note}"
 
 
 def _is_generic_conv_title(title: str) -> bool:
@@ -367,14 +579,31 @@ def _serialize_stored_message(msg: dict, request) -> dict:
 
 
 def _default_unit_for_user(user):
-    lease = (
-        get_tenant_leases(user)
-        .filter(status=Lease.Status.ACTIVE)
-        .select_related("unit")
-        .order_by("-start_date")
-        .first()
-    )
-    return lease.unit if lease else None
+    """
+    Best-effort unit resolution for ticket logging.
+
+    We prefer an ACTIVE lease, but fall back to PENDING or the most recent lease.
+    This prevents maintenance tickets from silently failing for tenants whose
+    lease is not yet marked ACTIVE in the database.
+    """
+    qs = get_tenant_leases(user).select_related("unit").order_by("-start_date")
+
+    lease = qs.filter(status=Lease.Status.ACTIVE).first()
+    if not lease:
+        lease = qs.filter(status=Lease.Status.PENDING).first()
+    if not lease:
+        lease = qs.first()
+    if lease and lease.unit_id:
+        return lease.unit
+
+    # Final fallback: TenantIntelligence (if present) may already have unit_ref.
+    try:
+        intel = getattr(user, "tenant_intel", None)
+        if intel and getattr(intel, "unit_ref_id", None):
+            return intel.unit_ref
+    except Exception:
+        pass
+    return None
 
 
 def _property_id_for_user(user) -> int | None:
@@ -392,16 +621,40 @@ def _property_id_for_user(user) -> int | None:
 
 
 def _create_mr_from_chat(user, ticket: dict, fallback_description: str) -> MaintenanceRequest | None:
-    """Create a MaintenanceRequest from a parsed AI maintenance_ticket dict."""
+    """Create a MaintenanceRequest from a parsed AI maintenance_ticket dict.
+
+    Uses RAG classification to improve category/priority when the AI's
+    extraction returned defaults (other/medium).
+
+    Includes dedup guard: if the user already has an open ticket with a
+    very similar title created in the last 10 minutes, return the existing
+    one instead of creating a duplicate.
+    """
     title = (ticket.get("title") or "").strip()[:200]
     if not title:
         return None
     desc = (ticket.get("description") or fallback_description or "").strip()[:8000]
+
     pr = _valid_priority(ticket.get("priority"))
     cat = _valid_category(ticket.get("category"))
     unit = _default_unit_for_user(user)
     if not unit:
         return None
+
+    # RAG classification: improve category/priority from historical data
+    property_id = unit.property_id if unit else None
+    try:
+        from core.contract_rag import classify_from_rag
+        classification = classify_from_rag(f"{title} {desc}", property_id=property_id)
+        if classification["confidence"] >= 0.3:
+            if cat == "other" and classification["category"] != "other":
+                cat = classification["category"]
+            priority_order = {"low": 1, "medium": 2, "high": 3, "urgent": 4}
+            if priority_order.get(classification["priority"], 0) > priority_order.get(pr, 0):
+                pr = classification["priority"]
+    except Exception:
+        pass  # RAG failure should never block ticket creation
+
     return MaintenanceRequest.objects.create(
         tenant=user,
         unit=unit,
@@ -651,6 +904,8 @@ class TenantConversationMaintenanceDraftView(APIView):
                 },
                 status=502,
             )
+        # Include conversation_id so the report form can link back
+        draft["conversation_id"] = pk
         return Response(draft)
 
 
@@ -767,11 +1022,21 @@ class TenantConversationMessageCreateView(APIView):
             )
 
         # ── Build RAG context (property-scoped when possible) ──
+        # Run all 4 RAG queries in parallel to reduce latency
+        from concurrent.futures import ThreadPoolExecutor
         n_chunks = int(getattr(settings, "RAG_QUERY_CHUNKS", 8))
         prop_id = _property_id_for_user(request.user)
-        rag_text = query_contracts(content, n_results=n_chunks, property_id=prop_id)
-        qa_text = query_agent_qa(content, n_results=3)
-        chat_kb_text = query_chat_knowledge(content, n_results=3)
+
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            f_contracts = pool.submit(query_contracts, content, n_results=n_chunks, property_id=prop_id)
+            f_qa = pool.submit(query_agent_qa, content, n_results=3)
+            f_chat_kb = pool.submit(query_chat_knowledge, content, n_results=3)
+            f_issues = pool.submit(query_maintenance_issues, content, n_results=3, property_id=prop_id)
+
+        rag_text = f_contracts.result()
+        qa_text = f_qa.result()
+        chat_kb_text = f_chat_kb.result()
+        issues_text = f_issues.result()
 
         context_block = (
             "--- RETRIEVED DOCUMENT EXCERPTS (vector search) ---\n"
@@ -786,6 +1051,19 @@ class TenantConversationMessageCreateView(APIView):
             context_block += (
                 "\n--- LEARNED FROM PAST INTERACTIONS ---\n"
                 f"{chat_kb_text}\n"
+            )
+        if issues_text:
+            context_block += (
+                "\n--- SIMILAR PAST MAINTENANCE ISSUES ---\n"
+                f"{issues_text}\n"
+            )
+
+        skills_text = skills_digest_for_message(content, max_skills=8)
+        skills_used = _serialize_skills_used(skills_text)
+        if skills_text and skills_text != "(No active skills in the database.)":
+            context_block += (
+                "\n--- MAINTENANCE SKILLS (triage reference) ---\n"
+                f"{skills_text}\n"
             )
 
         tenant_ctx = build_tenant_context(request.user)
@@ -819,14 +1097,28 @@ class TenantConversationMessageCreateView(APIView):
             return Response({"error": f"AI error: {e}"}, status=502)
         latency_ms = int((_time.monotonic() - t0) * 1000)
 
-        # Log token usage for monitoring
+        # Log token usage for monitoring — include context breakdown
         from apps.maintenance.models import AgentTokenLog
         AgentTokenLog.log_call(
             endpoint="tenant_chat",
             response=response,
             user=request.user,
             latency_ms=latency_ms,
-            metadata={"session_id": pk},
+            metadata={
+                "session_id": pk,
+                "property_id": prop_id,
+                "system_prompt_len": len(system),
+                "rag_contracts_len": len(rag_text or ""),
+                "rag_qa_len": len(qa_text or ""),
+                "rag_chat_kb_len": len(chat_kb_text or ""),
+                "rag_issues_len": len(issues_text or ""),
+                "skills_used_count": skills_used["count"],
+                "skills_used_preview": skills_used["preview"],
+                "context_block_len": len(context_block),
+                "message_count": len(anthropic_messages),
+                "user_message": content[:200],
+                "raw_ai_response": extract_anthropic_assistant_text(response).strip()[:500],
+            },
         )
 
         raw_ai = extract_anthropic_assistant_text(response).strip()
@@ -851,19 +1143,26 @@ class TenantConversationMessageCreateView(APIView):
             except Exception:
                 pass
 
-        _maybe_update_session_title(session, conv_title, maintenance_ticket)
+        existing_request_id = session.maintenance_request_id
+        effective_ticket = _build_maintenance_ticket_from_interaction(
+            ticket_context := content,
+            maintenance_ticket,
+            interaction_type=interaction_type,
+            severity=severity,
+        )
+        _maybe_update_session_title(session, conv_title, effective_ticket or maintenance_ticket)
 
         # ── Duplicate MR guard: only create one per session ──
         created_mr: MaintenanceRequest | None = None
-        ticket_context = content
-        if not session.maintenance_request_id:
-            # No existing MR for this session — safe to create
-            if json_ok and maintenance_ticket and (maintenance_ticket.get("title") or "").strip():
+        if not existing_request_id:
+            if effective_ticket and _has_usable_maintenance_ticket(effective_ticket):
                 created_mr = _create_mr_from_chat(
-                    request.user, maintenance_ticket, ticket_context
+                    request.user, effective_ticket, ticket_context
                 )
-            if created_mr is None:
+            if created_mr is None and interaction_type != "maintenance":
                 hint = _heuristic_severe_ticket(ticket_context)
+                if not hint:
+                    hint = _heuristic_maintenance_ticket(ticket_context)
                 if hint:
                     created_mr = _create_mr_from_chat(request.user, hint, ticket_context)
 
@@ -879,10 +1178,17 @@ class TenantConversationMessageCreateView(APIView):
             )
             session.maintenance_request_id = created_mr.id
 
-        maintenance_issue_identified = bool(created_mr) or (
-            json_ok
-            and maintenance_ticket is not None
-            and bool((maintenance_ticket.get("title") or "").strip())
+        maintenance_issue_identified = (
+            interaction_type == "maintenance"
+            or bool(created_mr)
+            or bool(existing_request_id)
+            or _has_usable_maintenance_ticket(effective_ticket)
+        )
+        reply_text = _ensure_truthful_maintenance_reply(
+            reply_text,
+            maintenance_issue_identified=maintenance_issue_identified,
+            created_mr=created_mr,
+            existing_request_id=existing_request_id,
         )
         if maintenance_issue_identified and not session.maintenance_report_suggested:
             TenantChatSession.objects.filter(pk=session.pk).update(
@@ -902,6 +1208,29 @@ class TenantConversationMessageCreateView(APIView):
         _append_messages(session, ai_msg)
         session.refresh_from_db(fields=["messages", "updated_at"])
         _touch_session(session)
+        # Persist chat history to the linked maintenance request on EVERY turn
+        # (dedup inside persist_chat_history_to_request prevents duplicates)
+        linked_mr_id = (
+            created_mr.id if created_mr
+            else existing_request_id
+            or session.maintenance_request_id
+        )
+        if linked_mr_id:
+            try:
+                mr_obj = (
+                    created_mr
+                    if created_mr
+                    else MaintenanceRequest.objects.get(pk=linked_mr_id)
+                )
+                persist_chat_history_to_request(
+                    mr_obj,
+                    session.messages or [],
+                    created_by=request.user,
+                    session_id=session.pk,
+                    source="tenant_chat",
+                )
+            except MaintenanceRequest.DoesNotExist:
+                pass
 
         # ── Create AgentQuestion if AI flagged a knowledge gap ──
         _maybe_create_agent_question(session, request.user, needs_staff_input, content)
@@ -909,7 +1238,7 @@ class TenantConversationMessageCreateView(APIView):
         update_tenant_intel(
             request.user,
             session,
-            maintenance_ticket=maintenance_ticket,
+            maintenance_ticket=effective_ticket,
             json_ok=json_ok,
             interaction_type=interaction_type,
             severity=severity,
@@ -939,6 +1268,7 @@ class TenantConversationMessageCreateView(APIView):
             "maintenance_report_suggested": maintenance_report_suggested,
             "interaction_type": interaction_type,
             "severity": severity,
+            "skills_used": skills_used,
             **_linked_payload(),
         }
         return Response(payload)

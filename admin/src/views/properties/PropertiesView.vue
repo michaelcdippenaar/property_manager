@@ -27,7 +27,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="p in filteredProperties" :key="p.id">
+          <tr v-for="p in filteredProperties" :key="p.id" class="cursor-pointer hover:bg-gray-50" @click="openProperty(p)">
             <td>
               <div class="font-medium text-gray-900">{{ p.name }}</div>
               <div class="text-xs text-gray-400 mt-0.5">{{ p.address }}</div>
@@ -80,7 +80,11 @@
         </div>
         <div>
           <label class="label">Address</label>
-          <input v-model="newProperty.address" class="input" placeholder="18 Irene Park Road, La Colline" />
+          <AddressAutocomplete
+            :model-value="selectedAddress"
+            placeholder="Start typing an address…"
+            @select="onAddressSelect"
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -102,6 +106,13 @@
         </button>
       </template>
     </BaseModal>
+
+    <!-- Property Detail Drawer -->
+    <PropertyDrawer
+      :open="drawerOpen"
+      :property="selectedProperty"
+      @close="drawerOpen = false"
+    />
   </div>
 </template>
 
@@ -112,6 +123,9 @@ import { useToast } from '../../composables/useToast'
 import BaseModal from '../../components/BaseModal.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import PropertyDrawer from './PropertyDrawer.vue'
+import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
+import type { AddressResult } from '../../components/AddressAutocomplete.vue'
 import { Plus, Building2, Loader2 } from 'lucide-vue-next'
 
 const toast = useToast()
@@ -122,6 +136,22 @@ const dialog = ref(false)
 const properties = ref<any[]>([])
 const propertyTypes = ['apartment', 'house', 'townhouse', 'commercial']
 const newProperty = ref({ name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' })
+const selectedAddress = ref<AddressResult | null>(null)
+
+function onAddressSelect(addr: AddressResult) {
+  selectedAddress.value = addr
+  newProperty.value.address = addr.street || addr.formatted
+  newProperty.value.city = addr.city
+  newProperty.value.province = addr.province
+  newProperty.value.postal_code = addr.postal_code
+}
+const drawerOpen = ref(false)
+const selectedProperty = ref<any>(null)
+
+function openProperty(p: any) {
+  selectedProperty.value = p
+  drawerOpen.value = true
+}
 
 onMounted(() => loadProperties())
 
@@ -142,6 +172,7 @@ async function createProperty() {
     await api.post('/properties/', newProperty.value)
     dialog.value = false
     newProperty.value = { name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' }
+    selectedAddress.value = null
     toast.success('Property created successfully')
     await loadProperties()
   } catch {

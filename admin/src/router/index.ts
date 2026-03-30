@@ -50,8 +50,10 @@ const router = createRouter({
             { path: 'dispatch', name: 'dispatch', component: () => import('../views/suppliers/DispatchView.vue') },
           ],
         },
+        { path: 'leases/overview', name: 'lease-overview', component: () => import('../views/leases/LeaseOverviewView.vue') },
         { path: 'leases', name: 'leases', component: () => import('../views/leases/LeasesView.vue') },
         { path: 'leases/templates', name: 'lease-templates', component: () => import('../views/leases/LeaseTemplatesView.vue') },
+        { path: 'leases/status', redirect: '/leases' },
         { path: 'leases/calendar', name: 'lease-calendar', component: () => import('../views/leases/LeaseCalendarView.vue') },
         {
           path: 'leases/templates/:id/edit',
@@ -63,11 +65,8 @@ const router = createRouter({
           name: 'lease-builder',
           component: () => import('../views/leases/LeaseBuilderView.vue'),
         },
-        {
-          path: 'leases/submit',
-          name: 'lease-submit',
-          component: () => import('../views/leases/SubmitLeaseView.vue'),
-        },
+        // Redirect old path
+        { path: 'leases/submit', redirect: '/leases' },
         {
           path: 'property-info',
           component: () => import('../views/properties/PropertyInfoSection.vue'),
@@ -75,6 +74,7 @@ const router = createRouter({
             { path: 'agent', name: 'property-info-agent', component: () => import('../views/properties/PropertyAgentView.vue') },
             { path: 'skills', name: 'property-info-skills', component: () => import('../views/maintenance/SkillLibraryView.vue') },
             { path: 'unit-info', name: 'property-info-unit-info', component: () => import('../views/properties/UnitTenantInfoView.vue') },
+            { path: 'monitor', name: 'property-info-monitor', component: () => import('../views/setup/AgentMonitorView.vue') },
             { path: '', redirect: { name: 'property-info-agent' } },
           ],
         },

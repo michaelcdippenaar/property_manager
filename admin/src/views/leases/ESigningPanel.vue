@@ -1,123 +1,143 @@
 <template>
   <div class="space-y-4">
 
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2 text-sm text-gray-700">
-        <FileSignature :size="16" class="text-navy" />
-        <span class="font-medium">Signing Submissions</span>
-        <span v-if="submissions.length" class="text-xs text-gray-400">({{ submissions.length }})</span>
-      </div>
-      <button class="btn-primary text-xs flex items-center gap-1.5" @click="openModal">
-        <Send :size="13" />
-        Send for Signing
-      </button>
-    </div>
-
     <!-- Loading -->
     <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400 py-4">
       <Loader2 :size="15" class="animate-spin" />
-      Loading submissions…
+      Loading…
     </div>
 
-    <!-- Submission list -->
-    <div v-else-if="submissions.length" class="space-y-3">
-      <div
-        v-for="sub in submissions"
-        :key="sub.id"
-        class="rounded-xl border border-gray-200 bg-white overflow-hidden"
-      >
-        <!-- Submission header -->
-        <div class="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
-          <div class="flex items-center gap-2">
-            <span
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
-              :class="statusBadgeClass(sub.status)"
-            >
-              <component :is="statusIcon(sub.status)" :size="11" />
-              {{ statusLabel(sub.status) }}
-            </span>
-            <span class="text-xs text-gray-400">{{ formatDate(sub.created_at) }}</span>
-          </div>
-          <a
-            v-if="sub.signed_pdf_url"
-            :href="sub.signed_pdf_url"
-            target="_blank"
-            class="text-xs text-navy hover:underline flex items-center gap-1"
-          >
-            <Download :size="12" />
-            Signed PDF
-          </a>
-        </div>
+    <!-- ── Active submission: signing timeline ── -->
+    <template v-else-if="latestSub">
 
-        <!-- Signer rows -->
-        <div class="divide-y divide-gray-100">
+      <!-- Header with progress -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span v-if="latestSub.status === 'completed'" class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700">
+            <CheckCircle2 :size="15" />
+            Lease fully signed
+          </span>
+          <span v-else-if="latestSub.status === 'declined'" class="inline-flex items-center gap-1.5 text-sm font-medium text-red-600">
+            <XCircle :size="15" />
+            Signing declined
+          </span>
+          <span v-else class="text-sm font-medium text-gray-700">
+            Signing progress
+            <span class="text-gray-400 font-normal ml-1">{{ signedCount }} of {{ totalSigners }} signed</span>
+          </span>
+        </div>
+        <a
+          v-if="latestSub.signed_pdf_url"
+          :href="latestSub.signed_pdf_url"
+          target="_blank"
+          class="btn-ghost text-xs flex items-center gap-1"
+        >
+          <Download :size="12" />
+          Download signed PDF
+        </a>
+      </div>
+
+      <!-- Progress bar -->
+      <div v-if="latestSub.status !== 'completed' && latestSub.status !== 'declined'" class="w-full bg-gray-100 rounded-full h-1.5">
+        <div
+          class="bg-green-500 h-1.5 rounded-full transition-all duration-500"
+          :style="{ width: `${(signedCount / totalSigners) * 100}%` }"
+        />
+      </div>
+
+      <!-- Signer timeline -->
+      <div class="space-y-0">
+        <div
+          v-for="(signer, idx) in latestSub.signers"
+          :key="signer.id || idx"
+          class="relative pl-7 pb-5 last:pb-0"
+        >
+          <!-- Vertical line -->
           <div
-            v-for="signer in sub.signers"
-            :key="signer.id"
-            class="flex items-center gap-3 px-4 py-2.5"
+            v-if="idx < latestSub.signers.length - 1"
+            class="absolute left-[11px] top-6 bottom-0 w-px"
+            :class="isSignerDone(signer) ? 'bg-green-300' : 'bg-gray-200'"
+          />
+
+          <!-- Status dot -->
+          <div
+            class="absolute left-0 top-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2"
+            :class="signerDotClass(signer)"
           >
-            <div class="w-6 h-6 rounded-full bg-navy/10 flex items-center justify-center flex-shrink-0">
-              <component
-                :is="signerStatusIcon(signer.status)"
-                :size="12"
-                :class="signerStatusColor(signer.status)"
-              />
+            <CheckCircle2 v-if="isSignerDone(signer)" :size="14" class="text-green-600" />
+            <XCircle v-else-if="isSignerDeclined(signer)" :size="14" class="text-red-500" />
+            <Eye v-else-if="isSignerViewing(signer)" :size="12" class="text-blue-600" />
+            <Clock v-else :size="12" class="text-gray-400" />
+          </div>
+
+          <!-- Signer info -->
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm font-medium text-gray-900">{{ signer.name || signer.email }}</span>
+              <span class="text-[11px] text-gray-400">{{ signer.role }}</span>
             </div>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium text-gray-800">{{ signer.name || signer.email }}</div>
-              <div class="text-xs text-gray-400">{{ signer.email }} · {{ signer.role }}</div>
+
+            <!-- Status narrative -->
+            <div class="text-xs mt-0.5" :class="signerNarrativeColor(signer)">
+              {{ signerNarrative(signer) }}
             </div>
-            <div class="flex items-center gap-2 flex-wrap justify-end">
-              <span class="text-xs" :class="signerStatusColor(signer.status)">
-                {{ signerStatusLabel(signer.status) }}
-              </span>
+
+            <!-- Action: only for unsigned signers on active submissions -->
+            <div
+              v-if="!isSignerDone(signer) && !isSignerDeclined(signer) && latestSub.status !== 'completed' && latestSub.status !== 'declined'"
+              class="flex items-center gap-2 mt-2"
+            >
               <button
-                v-if="signer.id && sub.status !== 'completed' && signer.email"
+                v-if="signer.id && signer.email"
                 type="button"
-                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
-                :disabled="emailingLinkId === signer.id"
-                title="Email a passwordless signing link to this signer"
-                @click="emailPublicLink(sub.id, signer.id)"
+                class="btn-ghost text-xs py-1 px-2.5 flex items-center gap-1"
+                :disabled="actionLoadingId === signer.id"
+                @click="sendReminder(latestSub.id, signer)"
               >
-                <Loader2 v-if="emailingLinkId === signer.id" :size="11" class="animate-spin" />
+                <Loader2 v-if="actionLoadingId === signer.id" :size="11" class="animate-spin" />
                 <Mail v-else :size="11" />
-                Email link
+                Send reminder
               </button>
               <button
-                v-if="signer.id && sub.status !== 'completed'"
+                v-if="signer.id"
                 type="button"
-                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
+                class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
                 :disabled="copyingLinkId === signer.id"
-                title="Copy signing link to clipboard"
-                @click="copyPublicLink(sub.id, signer.id)"
+                @click="copyPublicLink(latestSub.id, signer.id)"
               >
                 <Loader2 v-if="copyingLinkId === signer.id" :size="11" class="animate-spin" />
                 <Link2 v-else :size="11" />
                 Copy link
               </button>
-              <button
-                v-if="signer.id && sub.status !== 'completed'"
-                type="button"
-                class="btn-ghost text-xs py-1 px-2 flex items-center gap-1"
-                :disabled="resendingId === signer.id"
-                @click="resend(sub.id, signer.id)"
-              >
-                <Loader2 v-if="resendingId === signer.id" :size="11" class="animate-spin" />
-                <RefreshCw v-else :size="11" />
-                Resend
-              </button>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- Empty state -->
-    <div v-else class="flex flex-col items-center justify-center py-8 text-center text-gray-400">
-      <FileSignature :size="28" class="mb-2 opacity-40" />
-      <p class="text-sm">No signing submissions yet</p>
-      <p class="text-xs mt-1">Click "Send for Signing" to start the e-signing process</p>
+      <!-- Send again (only if previous is done/declined/expired) -->
+      <button
+        v-if="canSendAgain"
+        class="btn-ghost text-xs flex items-center gap-1.5 w-full justify-center py-2 border-dashed border border-gray-200 rounded-xl mt-2"
+        @click="openModal"
+      >
+        <Send :size="13" />
+        Send for signing again
+      </button>
+    </template>
+
+    <!-- ── Empty state: no submissions yet ── -->
+    <div v-else class="text-center py-6">
+      <div class="w-12 h-12 rounded-full bg-navy/5 flex items-center justify-center mx-auto mb-3">
+        <Send :size="20" class="text-navy" />
+      </div>
+      <div class="text-sm font-medium text-gray-800">Ready to send for signing</div>
+      <p class="text-xs text-gray-400 mt-1 mb-4 max-w-xs mx-auto">
+        Send this lease to your tenants to review and sign electronically. They'll get an email with a link.
+      </p>
+      <button class="btn-primary text-xs flex items-center gap-1.5 mx-auto" @click="openModal">
+        <Send :size="13" />
+        Send for Signing
+      </button>
     </div>
 
     <!-- Error banner -->
@@ -250,14 +270,15 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
-  Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle,
-  Plus, Loader2, FileSignature, RefreshCw, Download, Link2,
+  Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle, Eye,
+  Plus, Loader2, Download, Link2,
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 
 const props = defineProps<{
   leaseId: number
   leaseTenants?: any[]
+  autoOpen?: boolean
 }>()
 
 const emit = defineEmits<{ signed: [] }>()
@@ -268,9 +289,8 @@ const loading     = ref(false)
 const errorMsg    = ref('')
 const showModal   = ref(false)
 const submitting  = ref(false)
-const resendingId = ref<number | string | null>(null)
+const actionLoadingId = ref<number | string | null>(null)
 const copyingLinkId = ref<number | string | null>(null)
-const emailingLinkId = ref<number | string | null>(null)
 const linkHint = ref('')
 
 interface DraftSigner {
@@ -279,19 +299,79 @@ interface DraftSigner {
   phone: string
   role: string
   send_email: boolean
-  personId?: number        // set when pre-populated from a known tenant
-  saveToRecord?: boolean   // if true, PATCH the person record on submit
+  personId?: number
+  saveToRecord?: boolean
 }
 const draftSigners = ref<DraftSigner[]>([])
 
 // ── Computed ─────────────────────────────────────────────────────────── //
+const latestSub = computed(() => submissions.value[0] ?? null)
+
+const totalSigners = computed(() => latestSub.value?.signers?.length ?? 0)
+
+const signedCount = computed(() =>
+  (latestSub.value?.signers ?? []).filter((s: any) => isSignerDone(s)).length
+)
+
 const canSubmit = computed(() =>
   draftSigners.value.length > 0 &&
   draftSigners.value.every(s => s.name.trim() && s.email.trim())
 )
 
+const canSendAgain = computed(() => {
+  if (!latestSub.value) return false
+  return ['completed', 'declined', 'expired'].includes(latestSub.value.status)
+})
+
 // ── Lifecycle ────────────────────────────────────────────────────────── //
-onMounted(loadSubmissions)
+onMounted(async () => {
+  await loadSubmissions()
+  if (props.autoOpen && !submissions.value.length) {
+    openModal()
+  }
+})
+
+// ── Signer status helpers ───────────────────────────────────────────── //
+function isSignerDone(s: any): boolean {
+  const st = (s.status ?? '').toLowerCase()
+  return st === 'completed' || st === 'signed'
+}
+
+function isSignerDeclined(s: any): boolean {
+  return (s.status ?? '').toLowerCase() === 'declined'
+}
+
+function isSignerViewing(s: any): boolean {
+  return (s.status ?? '').toLowerCase() === 'opened'
+}
+
+function signerDotClass(s: any): string {
+  if (isSignerDone(s)) return 'border-green-500 bg-green-50'
+  if (isSignerDeclined(s)) return 'border-red-400 bg-red-50'
+  if (isSignerViewing(s)) return 'border-blue-400 bg-blue-50'
+  return 'border-gray-300 bg-white'
+}
+
+function signerNarrative(s: any): string {
+  const name = s.name?.split(' ')[0] || 'Signer'
+  const st = (s.status ?? '').toLowerCase()
+  if (st === 'completed' || st === 'signed') {
+    return s.completed_at
+      ? `${name} signed on ${formatDate(s.completed_at)}`
+      : `${name} signed`
+  }
+  if (st === 'declined') return `${name} declined to sign`
+  if (st === 'opened') return `${name} viewed the lease — waiting for signature`
+  return `Lease sent — waiting for ${name} to open`
+}
+
+function signerNarrativeColor(s: any): string {
+  const st = (s.status ?? '').toLowerCase()
+  if (st === 'completed' || st === 'signed') return 'text-green-600'
+  if (st === 'declined') return 'text-red-500'
+  if (st === 'opened') return 'text-blue-600'
+  return 'text-gray-400'
+}
 
 // ── API ──────────────────────────────────────────────────────────────── //
 async function loadSubmissions() {
@@ -315,7 +395,6 @@ async function submitSigning() {
   submitting.value = true
   errorMsg.value = ''
   try {
-    // Save updated contact details back to person records where requested
     const savePromises = draftSigners.value
       .filter(s => s.personId && s.saveToRecord)
       .map(s => api.patch(`/auth/persons/${s.personId}/`, {
@@ -339,17 +418,26 @@ async function submitSigning() {
   }
 }
 
-async function resend(submissionId: number, submitterId: number | string) {
-  resendingId.value = submitterId
+async function sendReminder(submissionId: number, signer: any) {
+  actionLoadingId.value = signer.id
   errorMsg.value = ''
+  linkHint.value = ''
   try {
-    await api.post(`/esigning/submissions/${submissionId}/resend/`, {
-      submitter_id: submitterId,
+    const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
+      submitter_id: signer.id,
+      send_email: true,
+      public_app_origin: window.location.origin,
     })
+    if (data.email_sent) {
+      linkHint.value = `Reminder sent to ${signer.name || signer.email}`
+      window.setTimeout(() => { linkHint.value = '' }, 5000)
+    } else {
+      errorMsg.value = (data.email_error as string) || 'Could not send reminder email'
+    }
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.error ?? 'Failed to resend invitation'
+    errorMsg.value = e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Could not send reminder'
   } finally {
-    resendingId.value = null
+    actionLoadingId.value = null
   }
 }
 
@@ -362,46 +450,14 @@ async function copyPublicLink(submissionId: number, submitterId: number | string
       submitter_id: submitterId,
     })
     const path = (data.sign_path as string) || `/sign/${data.uuid}/`
-    const full =
-      (data.signing_url as string) || `${window.location.origin}${path}`
+    const full = (data.signing_url as string) || `${window.location.origin}${path}`
     await navigator.clipboard.writeText(full)
-    linkHint.value = 'Signing link copied. Paste it into an SMS or email to the signer.'
+    linkHint.value = 'Signing link copied to clipboard'
     window.setTimeout(() => { linkHint.value = '' }, 5000)
   } catch (e: any) {
-    errorMsg.value =
-      e?.response?.data?.error ??
-      e?.response?.data?.detail ??
-      'Could not create signing link'
+    errorMsg.value = e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Could not create signing link'
   } finally {
     copyingLinkId.value = null
-  }
-}
-
-async function emailPublicLink(submissionId: number, submitterId: number | string) {
-  emailingLinkId.value = submitterId
-  errorMsg.value = ''
-  linkHint.value = ''
-  try {
-    const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
-      submitter_id: submitterId,
-      send_email: true,
-      public_app_origin: window.location.origin,
-    })
-    if (data.email_sent) {
-      linkHint.value = 'Signing link emailed to the signer.'
-      window.setTimeout(() => { linkHint.value = '' }, 5000)
-    } else {
-      errorMsg.value =
-        (data.email_error as string) ||
-        'Link was created but the email could not be sent. Use Copy link or check logs.'
-    }
-  } catch (e: any) {
-    errorMsg.value =
-      e?.response?.data?.error ??
-      e?.response?.data?.detail ??
-      'Could not create or email signing link'
-  } finally {
-    emailingLinkId.value = null
   }
 }
 
@@ -444,65 +500,12 @@ function removeSigner(idx: number) {
 }
 
 // ── Display helpers ──────────────────────────────────────────────────── //
-function statusLabel(s: string) {
-  const map: Record<string, string> = {
-    pending:     'Pending',
-    in_progress: 'In Progress',
-    completed:   'Completed',
-    declined:    'Declined',
-    expired:     'Expired',
-  }
-  return map[s] ?? s
-}
-
-function statusBadgeClass(s: string) {
-  const map: Record<string, string> = {
-    pending:     'bg-gray-100 text-gray-600',
-    in_progress: 'bg-blue-100 text-blue-700',
-    completed:   'bg-green-100 text-green-700',
-    declined:    'bg-red-100 text-red-700',
-    expired:     'bg-amber-100 text-amber-700',
-  }
-  return map[s] ?? 'bg-gray-100 text-gray-600'
-}
-
-function statusIcon(s: string) {
-  const map: Record<string, any> = {
-    pending:     Clock,
-    in_progress: Loader2,
-    completed:   CheckCircle2,
-    declined:    XCircle,
-    expired:     AlertCircle,
-  }
-  return map[s] ?? Clock
-}
-
-function signerStatusIcon(s: string) {
-  if (s === 'completed' || s === 'signed') return CheckCircle2
-  if (s === 'declined') return XCircle
-  return Mail
-}
-
-function signerStatusColor(s: string) {
-  if (s === 'completed' || s === 'signed') return 'text-green-600'
-  if (s === 'declined') return 'text-red-500'
-  return 'text-gray-400'
-}
-
-function signerStatusLabel(s: string) {
-  const map: Record<string, string> = {
-    sent:      'Sent',
-    opened:    'Opened',
-    completed: 'Signed',
-    signed:    'Signed',
-    declined:  'Declined',
-  }
-  return map[s] ?? s
-}
-
 function formatDate(d: string) {
   return d
-    ? new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
-    : '—'
+    ? new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+    : ''
 }
+
+// Expose openModal so parent can trigger it via ref
+defineExpose({ openModal })
 </script>

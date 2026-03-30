@@ -14,5 +14,6 @@ urlpatterns = [
     path("api/v1/maintenance/", include("apps.maintenance.urls")),
     path("api/v1/esigning/", include("apps.esigning.urls")),
     path("api/v1/tenant-portal/", include("apps.tenant_portal.urls")),
+    path("api/v1/ai/", include("apps.ai.urls")),
     path("api/v1/stats/", StatsView.as_view(), name="stats"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -140,19 +140,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: AccentCard(
                     accentColor: AppColors.info500,
                     onTap: () => context.push('/signing'),
-                    child: Row(
+                    child: const Row(
                       children: [
-                        const Icon(Icons.draw_rounded,
+                        Icon(Icons.draw_rounded,
                             color: AppColors.primaryNavy, size: 22),
-                        const SizedBox(width: AppSpacing.md),
+                        SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text('Lease signing',
                                   style: AppTextStyles.cardTitle),
-                              const SizedBox(height: 2),
-                              const Text(
+                              SizedBox(height: 2),
+                              Text(
                                 'Review and sign your lease in the app',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -162,7 +162,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right,
+                        Icon(Icons.chevron_right,
                             color: AppColors.textSecondary, size: 20),
                       ],
                     ),

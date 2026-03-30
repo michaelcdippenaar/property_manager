@@ -70,10 +70,12 @@ class AgentMonitorDashboardView(APIView):
                 "contracts": stats.get("chunks", 0),
                 "agent_qa": stats.get("agent_qa_chunks", 0),
                 "chat_knowledge": stats.get("chat_knowledge_chunks", 0),
+                "maintenance_issues": stats.get("maintenance_issues_chunks", 0),
                 "total_chunks": (
                     stats.get("chunks", 0)
                     + stats.get("agent_qa_chunks", 0)
                     + stats.get("chat_knowledge_chunks", 0)
+                    + stats.get("maintenance_issues_chunks", 0)
                 ),
                 "embedding_model": stats.get("embedding_model", "unknown"),
                 "chroma_path": stats.get("chroma_path", ""),
@@ -83,31 +85,15 @@ class AgentMonitorDashboardView(APIView):
             return {"status": "error", "error": str(e)}
 
     def _mcp_status(self) -> dict:
-        """Check MCP server availability and list tools/resources."""
+        """Check MCP server availability and list tools/resources from registry."""
         mcp_path = Path(settings.BASE_DIR).parent / "backend" / "mcp_server" / "server.py"
         if not mcp_path.exists():
             mcp_path = Path(settings.BASE_DIR) / "mcp_server" / "server.py"
 
-        tools = [
-            {"name": "get_chat_session", "category": "tenant", "description": "Get full chat session with messages"},
-            {"name": "list_tenant_chats", "category": "tenant", "description": "List tenant's chat sessions"},
-            {"name": "get_tenant_context", "category": "tenant", "description": "Full intelligence profile + recent chats"},
-            {"name": "search_tenant_chats", "category": "tenant", "description": "Keyword search across messages"},
-            {"name": "list_lease_templates", "category": "lease", "description": "List all active lease templates"},
-            {"name": "get_lease_template", "category": "lease", "description": "Get template with HTML and fields"},
-            {"name": "update_lease_template", "category": "lease", "description": "Update template content/metadata"},
-            {"name": "create_lease_template", "category": "lease", "description": "Create new lease template"},
-            {"name": "get_maintenance_chat", "category": "maintenance", "description": "Get maintenance request chat history"},
-            {"name": "post_maintenance_chat", "category": "maintenance", "description": "Post message to maintenance thread"},
-            {"name": "list_maintenance_requests", "category": "maintenance", "description": "List maintenance requests"},
-        ]
+        from apps.ai.skills_registry import get_mcp_tools, get_mcp_resources
 
-        resources = [
-            {"uri": "tenant://chats/{user_id}", "description": "All tenant chats"},
-            {"uri": "tenant://intel/{user_id}", "description": "Intelligence profile"},
-            {"uri": "template://lease/{template_id}", "description": "Full lease template"},
-            {"uri": "maintenance://request/{request_id}/chat", "description": "Maintenance chat history"},
-        ]
+        tools = get_mcp_tools()
+        resources = get_mcp_resources()
 
         return {
             "server_path": str(mcp_path),
@@ -153,18 +139,18 @@ class AgentMonitorDashboardView(APIView):
                 qs.values("endpoint")
                 .annotate(
                     calls=Count("id"),
-                    input_tokens=Sum("input_tokens"),
-                    output_tokens=Sum("output_tokens"),
+                    total_input=Sum("input_tokens"),
+                    total_output=Sum("output_tokens"),
                     avg_input=Avg("input_tokens"),
-                    max_input=Max("input_tokens"),
+                    peak_input=Max("input_tokens"),
                 )
-                .order_by("-input_tokens")
+                .order_by("-total_input")
             )
 
             # Flag any endpoints sending excessive context
             oversized = [
                 e for e in by_endpoint
-                if (e.get("max_input") or 0) > 50000
+                if (e.get("peak_input") or 0) > 50000
             ]
 
             return {
@@ -296,6 +282,90 @@ class AgentTokenLogView(APIView):
             )
         )
         return Response({"logs": logs, "count": len(logs)})
+
+
+class MaintenanceChatLogView(APIView):
+    """
+    View all maintenance chat messages (from MaintenanceActivity) for
+    the Agent Monitor dashboard.
+
+    Query params:
+      - request_id: filter by maintenance request
+      - source: filter by source (ai_agent, user)
+      - days: lookback period (default 7)
+      - limit: max entries (default 100)
+    """
+    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+
+    def get(self, request):
+        from apps.maintenance.models import MaintenanceActivity, MaintenanceRequest
+
+        days = int(request.query_params.get("days", 7))
+        limit = min(int(request.query_params.get("limit", 100)), 500)
+        since = timezone.now() - timedelta(days=days)
+
+        qs = (
+            MaintenanceActivity.objects
+            .filter(created_at__gte=since)
+            .select_related("request", "created_by")
+            .order_by("-created_at")
+        )
+
+        request_id = request.query_params.get("request_id")
+        if request_id:
+            qs = qs.filter(request_id=request_id)
+
+        source = request.query_params.get("source")
+        if source == "ai_agent":
+            qs = qs.filter(metadata__source="ai_agent")
+        elif source == "user":
+            qs = qs.exclude(metadata__source="ai_agent")
+
+        entries = []
+        for a in qs[:limit]:
+            is_ai = (a.metadata or {}).get("source") == "ai_agent"
+            entries.append({
+                "id": a.pk,
+                "request_id": a.request_id,
+                "request_title": a.request.title if a.request else None,
+                "activity_type": a.activity_type,
+                "message": a.message,
+                "author": a.created_by.full_name if a.created_by else "AI Agent",
+                "role": a.created_by.role if a.created_by else "ai",
+                "is_ai": is_ai,
+                "created_at": a.created_at.isoformat(),
+            })
+
+        # Summary stats
+        total_qs = MaintenanceActivity.objects.filter(created_at__gte=since)
+        ai_count = total_qs.filter(metadata__source="ai_agent").count()
+        user_count = total_qs.exclude(metadata__source="ai_agent").count()
+
+        # Active requests with recent chat
+        active_requests = list(
+            total_qs.values("request_id", "request__title")
+            .annotate(msg_count=Count("id"))
+            .order_by("-msg_count")[:20]
+        )
+
+        return Response({
+            "entries": entries,
+            "count": len(entries),
+            "summary": {
+                "total_messages": ai_count + user_count,
+                "ai_messages": ai_count,
+                "user_messages": user_count,
+                "period_days": days,
+            },
+            "active_requests": [
+                {
+                    "request_id": r["request_id"],
+                    "title": r["request__title"],
+                    "message_count": r["msg_count"],
+                }
+                for r in active_requests
+            ],
+        })
 
 
 class AgentHealthCheckView(APIView):

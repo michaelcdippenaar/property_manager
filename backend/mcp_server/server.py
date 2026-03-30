@@ -615,6 +615,42 @@ def list_maintenance_requests(
 #  Maintenance Chat Resources
 # ──────────────────────────────────────────────
 
+@mcp.tool
+def find_similar_issues(
+    query: str,
+    property_id: int | None = None,
+    category: str | None = None,
+    limit: int = 5,
+) -> str:
+    """
+    Find similar past maintenance issues using vector search (RAG).
+
+    This searches the vectorised maintenance issues collection to find
+    past issues that are semantically similar to the query. Useful for:
+    - Finding how similar issues were resolved before
+    - Identifying recurring problems
+    - Getting context for new issue triage
+
+    Parameters
+    ----------
+    query : describe the issue to find similar ones
+    property_id : scope to a specific property
+    category : filter by category (plumbing, electrical, etc.)
+    limit : max results (default 5)
+    """
+    from core.contract_rag import query_maintenance_issues
+
+    result = query_maintenance_issues(
+        query=query,
+        n_results=limit,
+        property_id=property_id,
+        category=category,
+    )
+    if not result:
+        return json.dumps({"message": "No similar issues found. Run `manage.py vectorize_issues` to index issues."})
+    return result
+
+
 @mcp.resource("maintenance://request/{request_id}/chat")
 def maintenance_chat_resource(request_id: int) -> str:
     """Full chat history for a maintenance request."""
@@ -628,6 +664,443 @@ def maintenance_chat_resource(request_id: int) -> str:
         [_serialize_activity(a) for a in activities],
         ensure_ascii=False,
     )
+
+
+# ──────────────────────────────────────────────
+#  Database Read Tools (Properties, Users, Issues)
+# ──────────────────────────────────────────────
+
+@mcp.tool
+def get_maintenance_request(request_id: int) -> str:
+    """
+    Get full details of a maintenance request including tenant, unit,
+    property, supplier, category, priority, status, and recent activity.
+
+    Use this to understand the full context of an issue before responding
+    or making recommendations.
+    """
+    from apps.maintenance.models import MaintenanceActivity, MaintenanceRequest
+
+    try:
+        req = MaintenanceRequest.objects.select_related(
+            "unit__property", "tenant", "supplier"
+        ).get(pk=request_id)
+    except MaintenanceRequest.DoesNotExist:
+        return json.dumps({"error": f"Request {request_id} not found."})
+
+    activities = (
+        MaintenanceActivity.objects.filter(request=req)
+        .select_related("created_by")
+        .order_by("-created_at")[:20]
+    )
+
+    return json.dumps({
+        "id": req.pk,
+        "title": req.title,
+        "description": req.description,
+        "priority": req.priority,
+        "category": req.category,
+        "status": req.status,
+        "unit": {
+            "id": req.unit_id,
+            "number": req.unit.unit_number,
+            "property": {
+                "id": req.unit.property_id,
+                "name": req.unit.property.name,
+                "address": req.unit.property.address,
+                "city": req.unit.property.city,
+            },
+        } if req.unit else None,
+        "tenant": {
+            "id": req.tenant_id,
+            "name": req.tenant.full_name,
+            "email": req.tenant.email,
+            "phone": req.tenant.phone,
+        } if req.tenant else None,
+        "supplier": {
+            "id": req.supplier_id,
+            "name": req.supplier.display_name,
+        } if req.supplier else None,
+        "created_at": req.created_at.isoformat() if req.created_at else None,
+        "recent_activity": [_serialize_activity(a) for a in activities],
+    }, ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def search_maintenance_issues(
+    query: str = "",
+    status: str | None = None,
+    category: str | None = None,
+    priority: str | None = None,
+    property_id: int | None = None,
+    limit: int = 20,
+) -> str:
+    """
+    Search and filter maintenance issues from the database.
+
+    Parameters
+    ----------
+    query : text search in title/description
+    status : filter by status (open, in_progress, resolved, closed)
+    category : filter by category (plumbing, electrical, etc.)
+    priority : filter by priority (low, medium, high, critical)
+    property_id : filter by property
+    limit : max results (default 20)
+    """
+    from apps.maintenance.models import MaintenanceRequest
+    from django.db.models import Q as DQ
+
+    qs = MaintenanceRequest.objects.select_related(
+        "unit__property", "tenant", "supplier"
+    ).order_by("-created_at")
+
+    if query:
+        qs = qs.filter(DQ(title__icontains=query) | DQ(description__icontains=query))
+    if status:
+        qs = qs.filter(status=status)
+    if category:
+        qs = qs.filter(category=category)
+    if priority:
+        qs = qs.filter(priority=priority)
+    if property_id:
+        qs = qs.filter(unit__property_id=property_id)
+
+    results = []
+    for req in qs[:limit]:
+        results.append({
+            "id": req.pk,
+            "title": req.title,
+            "description": req.description[:200],
+            "priority": req.priority,
+            "category": req.category,
+            "status": req.status,
+            "unit": f"{req.unit.unit_number} — {req.unit.property.name}" if req.unit else None,
+            "tenant": req.tenant.full_name if req.tenant else None,
+            "supplier": req.supplier.display_name if req.supplier else None,
+            "created_at": req.created_at.isoformat() if req.created_at else None,
+        })
+    return json.dumps({"count": len(results), "issues": results}, ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def get_property(property_id: int) -> str:
+    """
+    Get full property details including units, tenants, and info items.
+
+    Returns property metadata, all units with tenant assignments,
+    and UnitInfo items (WiFi, alarm codes, etc.).
+    """
+    from apps.properties.models import Property, Unit, UnitInfo
+    from apps.leases.models import Lease
+
+    try:
+        prop = Property.objects.select_related("owner", "agent").get(pk=property_id)
+    except Property.DoesNotExist:
+        return json.dumps({"error": f"Property {property_id} not found."})
+
+    units = Unit.objects.filter(property=prop).order_by("unit_number")
+    info_items = UnitInfo.objects.filter(property=prop).order_by("sort_order")
+
+    # Get active leases for tenant info
+    active_leases = Lease.objects.filter(
+        unit__property=prop, status="active"
+    ).select_related("unit", "tenant")
+
+    tenant_map = {}
+    for lease in active_leases:
+        tenant_map[lease.unit_id] = {
+            "id": lease.tenant_id,
+            "name": lease.tenant.full_name if lease.tenant else None,
+            "email": lease.tenant.email if lease.tenant else None,
+            "lease_id": lease.pk,
+        }
+
+    return json.dumps({
+        "id": prop.pk,
+        "name": prop.name,
+        "property_type": prop.property_type,
+        "address": prop.address,
+        "city": prop.city,
+        "province": prop.province,
+        "postal_code": prop.postal_code,
+        "description": prop.description,
+        "owner": {
+            "id": prop.owner_id,
+            "name": str(prop.owner),
+        } if prop.owner else None,
+        "agent": {
+            "id": prop.agent_id,
+            "name": prop.agent.full_name,
+        } if prop.agent else None,
+        "units": [
+            {
+                "id": u.pk,
+                "number": u.unit_number,
+                "bedrooms": u.bedrooms,
+                "bathrooms": u.bathrooms,
+                "rent": str(u.rent_amount),
+                "status": u.status,
+                "tenant": tenant_map.get(u.pk),
+            }
+            for u in units
+        ],
+        "info_items": [
+            {"label": i.label, "value": i.value, "icon": i.icon_type}
+            for i in info_items
+        ],
+    }, ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def list_properties(limit: int = 50) -> str:
+    """List all properties with summary info."""
+    from apps.properties.models import Property
+
+    props = Property.objects.select_related("agent").order_by("name")[:limit]
+    return json.dumps([
+        {
+            "id": p.pk,
+            "name": p.name,
+            "type": p.property_type,
+            "address": p.address,
+            "city": p.city,
+            "agent": p.agent.full_name if p.agent else None,
+            "unit_count": p.units.count(),
+        }
+        for p in props
+    ], ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def get_user(user_id: int) -> str:
+    """
+    Get user profile details including role, contact info,
+    and related records (leases, maintenance requests, intelligence).
+    """
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return json.dumps({"error": f"User {user_id} not found."})
+
+    data = {
+        "id": user.pk,
+        "email": user.email,
+        "full_name": user.full_name,
+        "phone": user.phone,
+        "role": user.role,
+        "is_active": user.is_active,
+        "date_joined": user.date_joined.isoformat() if user.date_joined else None,
+    }
+
+    # Add role-specific context
+    if user.role == "tenant":
+        from apps.maintenance.models import MaintenanceRequest
+        mr_count = MaintenanceRequest.objects.filter(tenant=user).count()
+        open_count = MaintenanceRequest.objects.filter(tenant=user, status="open").count()
+        data["maintenance_requests"] = {"total": mr_count, "open": open_count}
+
+        intel = TenantIntelligence.objects.filter(user=user).first()
+        if intel:
+            data["intelligence"] = {
+                "total_chats": intel.total_chats,
+                "facts": intel.facts,
+            }
+
+    return json.dumps(data, ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def list_users(role: str | None = None, limit: int = 50) -> str:
+    """
+    List users, optionally filtered by role.
+
+    Parameters
+    ----------
+    role : filter by role (tenant, agent, admin, supplier, owner)
+    limit : max results (default 50)
+    """
+    qs = User.objects.all().order_by("-date_joined")
+    if role:
+        qs = qs.filter(role=role)
+    users = qs[:limit]
+    return json.dumps([
+        {
+            "id": u.pk,
+            "email": u.email,
+            "name": u.full_name,
+            "role": u.role,
+            "phone": u.phone,
+            "is_active": u.is_active,
+        }
+        for u in users
+    ], ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def get_maintenance_stats(property_id: int | None = None) -> str:
+    """
+    Get maintenance statistics: issue counts by status, category, priority.
+
+    Optionally scoped to a specific property.
+    """
+    from apps.maintenance.models import MaintenanceRequest
+    from django.db.models import Count
+
+    qs = MaintenanceRequest.objects.all()
+    if property_id:
+        qs = qs.filter(unit__property_id=property_id)
+
+    by_status = dict(qs.values_list("status").annotate(c=Count("id")).order_by("-c"))
+    by_category = dict(qs.values_list("category").annotate(c=Count("id")).order_by("-c"))
+    by_priority = dict(qs.values_list("priority").annotate(c=Count("id")).order_by("-c"))
+
+    return json.dumps({
+        "total": qs.count(),
+        "by_status": by_status,
+        "by_category": by_category,
+        "by_priority": by_priority,
+    }, ensure_ascii=False, default=str)
+
+
+# ──────────────────────────────────────────────
+#  Agent Monitor Tools
+# ──────────────────────────────────────────────
+
+@mcp.tool
+def agent_monitor_dashboard() -> str:
+    """
+    Get the full AI ecosystem dashboard data.
+
+    Returns RAG stats, MCP status, skills summary, token usage,
+    indexed data overview, agent endpoints, and system config.
+    Use this for monitoring and diagnostics.
+    """
+    from core.contract_rag import rag_collection_stats
+    from apps.maintenance.models import AgentTokenLog, MaintenanceSkill
+    from django.db.models import Avg, Count, Max, Sum
+    from django.utils import timezone
+    from datetime import timedelta
+
+    stats = rag_collection_stats()
+    since = timezone.now() - timedelta(days=7)
+    token_qs = AgentTokenLog.objects.filter(created_at__gte=since)
+    token_agg = token_qs.aggregate(
+        total_input=Sum("input_tokens"),
+        total_output=Sum("output_tokens"),
+        total_calls=Count("id"),
+        max_input=Max("input_tokens"),
+    )
+    by_endpoint = list(
+        token_qs.values("endpoint")
+        .annotate(calls=Count("id"), input_tokens=Sum("input_tokens"))
+        .order_by("-input_tokens")
+    )
+    skills_by_trade = dict(
+        MaintenanceSkill.objects.filter(is_active=True)
+        .values_list("trade").annotate(c=Count("id")).order_by("-c")
+    )
+
+    return json.dumps({
+        "rag": {
+            "contracts": stats.get("chunks", 0),
+            "agent_qa": stats.get("agent_qa_chunks", 0),
+            "chat_knowledge": stats.get("chat_knowledge_chunks", 0),
+            "embedding_model": stats.get("embedding_model", "unknown"),
+        },
+        "token_usage_7d": {
+            "total_input": token_agg["total_input"] or 0,
+            "total_output": token_agg["total_output"] or 0,
+            "total_calls": token_agg["total_calls"] or 0,
+            "max_input": token_agg["max_input"] or 0,
+            "by_endpoint": by_endpoint,
+        },
+        "skills": {
+            "total_active": sum(skills_by_trade.values()),
+            "by_trade": skills_by_trade,
+        },
+    }, ensure_ascii=False, default=str)
+
+
+@mcp.tool
+def agent_health_check() -> str:
+    """
+    Run diagnostic probes against the AI ecosystem.
+
+    Checks RAG collections, embedding model, API key, MCP server,
+    chat log, and skills. Returns overall status (healthy/degraded/unhealthy)
+    and individual check results.
+    """
+    from django.conf import settings
+    from pathlib import Path
+    from core.contract_rag import rag_collection_stats
+    from apps.maintenance.models import MaintenanceSkill
+
+    checks = []
+
+    api_key = bool(getattr(settings, "ANTHROPIC_API_KEY", ""))
+    checks.append({"name": "Anthropic API Key", "status": "pass" if api_key else "fail"})
+
+    try:
+        stats = rag_collection_stats()
+        chunks = stats.get("chunks", 0)
+        checks.append({"name": "RAG Contracts", "status": "pass" if chunks > 0 else "warn", "detail": f"{chunks} chunks"})
+    except Exception as e:
+        checks.append({"name": "RAG Contracts", "status": "fail", "detail": str(e)})
+
+    skill_count = MaintenanceSkill.objects.filter(is_active=True).count()
+    checks.append({"name": "Skills", "status": "pass" if skill_count > 0 else "warn", "detail": f"{skill_count} active"})
+
+    mcp_path = Path(settings.BASE_DIR) / "mcp_server" / "server.py"
+    checks.append({"name": "MCP Server", "status": "pass" if mcp_path.exists() else "warn"})
+
+    overall = "healthy"
+    if any(c["status"] == "fail" for c in checks):
+        overall = "unhealthy"
+    elif any(c["status"] == "warn" for c in checks):
+        overall = "degraded"
+
+    return json.dumps({"overall": overall, "checks": checks}, ensure_ascii=False)
+
+
+@mcp.tool
+def get_token_usage_report(
+    days: int = 7,
+    endpoint: str | None = None,
+    min_input: int | None = None,
+) -> str:
+    """
+    Get token usage report for monitoring costs and context sizes.
+
+    Parameters
+    ----------
+    days : lookback period (default 7)
+    endpoint : filter by endpoint name (tenant_chat, agent_assist, etc.)
+    min_input : only show calls above this input token count
+    """
+    from apps.maintenance.models import AgentTokenLog
+    from django.utils import timezone
+    from datetime import timedelta
+
+    since = timezone.now() - timedelta(days=days)
+    qs = AgentTokenLog.objects.filter(created_at__gte=since)
+    if endpoint:
+        qs = qs.filter(endpoint=endpoint)
+    if min_input:
+        qs = qs.filter(input_tokens__gte=min_input)
+
+    logs = list(
+        qs.order_by("-created_at")[:50].values(
+            "endpoint", "model", "input_tokens", "output_tokens",
+            "latency_ms", "created_at",
+        )
+    )
+    return json.dumps({"logs": logs, "count": len(logs)}, ensure_ascii=False, default=str)
+
+
+@mcp.resource("monitor://dashboard")
+def monitor_dashboard_resource() -> str:
+    """Full AI ecosystem monitoring dashboard."""
+    return agent_monitor_dashboard()
 
 
 # ──────────────────────────────────────────────

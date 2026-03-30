@@ -91,6 +91,52 @@ class PropertyAgentConfig(models.Model):
         return f"Agent config for {self.property.name}"
 
 
+class PropertyOwnership(models.Model):
+    """
+    Tracks ownership of a property over time.
+    A property can change owners (e.g. sold), and existing leases
+    remain linked to the ownership record that was active when signed.
+    """
+    property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="ownerships")
+
+    # Owner entity (company/trust/individual that owns the property)
+    owner_name = models.CharField(max_length=200, help_text="Company or individual name")
+    owner_type = models.CharField(max_length=20, choices=[
+        ("individual", "Individual"),
+        ("company", "Company"),
+        ("trust", "Trust"),
+    ], default="company")
+    registration_number = models.CharField(max_length=50, blank=True)
+    vat_number = models.CharField(max_length=30, blank=True)
+    owner_email = models.EmailField(blank=True)
+    owner_phone = models.CharField(max_length=20, blank=True)
+    owner_address = models.JSONField(default=dict, blank=True, help_text="street, city, province, postal_code")
+
+    # Representative / landlord (person acting on behalf of owner)
+    representative_name = models.CharField(max_length=200, blank=True)
+    representative_id_number = models.CharField(max_length=20, blank=True)
+    representative_email = models.EmailField(blank=True)
+    representative_phone = models.CharField(max_length=20, blank=True)
+
+    # Bank details (where rent is paid)
+    bank_details = models.JSONField(default=dict, blank=True, help_text="bank_name, branch_code, account_number, account_type, account_holder")
+
+    # Ownership period
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True, help_text="Null = current owner")
+    is_current = models.BooleanField(default=True)
+
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-is_current", "-start_date"]
+
+    def __str__(self):
+        return f"{self.owner_name} → {self.property.name} ({'current' if self.is_current else 'ended'})"
+
+
 class PropertyGroup(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)

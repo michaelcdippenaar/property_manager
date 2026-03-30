@@ -5,6 +5,27 @@
       <p class="text-sm text-gray-500">Track, assign, and resolve maintenance requests across all properties.</p>
     </div>
 
+    <!-- Tabs: Active / Archived -->
+    <div class="flex items-center gap-0 border-b border-gray-200 -mb-1">
+      <button
+        class="px-4 py-2 text-sm font-medium transition-colors relative"
+        :class="activeTab === 'active' ? 'text-navy' : 'text-gray-400 hover:text-gray-600'"
+        @click="switchTab('active')"
+      >
+        Active
+        <span v-if="activeTab === 'active'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-full" />
+      </button>
+      <button
+        class="px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5"
+        :class="activeTab === 'archived' ? 'text-navy' : 'text-gray-400 hover:text-gray-600'"
+        @click="switchTab('archived')"
+      >
+        <Archive :size="13" />
+        Archived
+        <span v-if="activeTab === 'archived'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-full" />
+      </button>
+    </div>
+
     <!-- Filter pills -->
     <FilterPills v-model="activeFilter" :options="filterOptions" @update:modelValue="loadRequests()" />
 
@@ -35,7 +56,10 @@
         >
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
-              <div class="font-medium text-gray-900 text-sm">{{ req.title }}</div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono text-gray-400">{{ req.ticket_reference || `#${req.id}` }}</span>
+                <span class="font-medium text-gray-900 text-sm">{{ req.title }}</span>
+              </div>
               <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ req.description }}</p>
             </div>
             <div class="flex items-center gap-2 shrink-0">
@@ -44,8 +68,10 @@
             </div>
           </div>
           <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
-            <span class="flex items-center gap-1"><Clock :size="10" /> {{ formatDate(req.created_at) }}</span>
+            <span class="flex items-center gap-1"><Clock :size="10" /> {{ formatDateTime(req.created_at) }}</span>
+            <span v-if="req.tenant_name" class="flex items-center gap-1"><User :size="10" /> {{ req.tenant_name }}</span>
             <span v-if="req.supplier_name" class="flex items-center gap-1"><Truck :size="10" /> {{ req.supplier_name }}</span>
+            <span v-if="req.activity_count" class="flex items-center gap-1"><MessageCircle :size="10" /> {{ req.activity_count }}</span>
           </div>
         </button>
 
@@ -122,38 +148,64 @@
             <!-- Issue Chat -->
             <div class="border-t border-gray-100 pt-4">
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Chat</h3>
+                <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Support Chat</h3>
                 <span class="text-xs text-gray-400">Type @agent to invoke AI</span>
               </div>
               <div
                 ref="chatContainer"
-                class="max-h-60 overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50 mb-3"
+                class="max-h-[50vh] min-h-[200px] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50 mb-3"
               >
                 <div v-if="chatLoading" class="text-xs text-gray-400 text-center py-4">Loading chat…</div>
                 <div v-else-if="!chatMessages.length" class="text-xs text-gray-400 text-center py-4">
                   No messages yet. Start the conversation below.
                 </div>
-                <div
-                  v-for="msg in chatMessages"
-                  :key="msg.id"
-                  class="text-sm rounded-lg p-2"
-                  :class="msg.metadata?.source === 'ai_agent'
-                    ? 'bg-indigo-50 text-indigo-900 mr-4 border border-indigo-200'
-                    : msg.created_by_role === 'tenant'
-                      ? 'bg-blue-50 text-blue-900 ml-4'
-                      : 'bg-white text-gray-800 border border-gray-200'"
-                >
-                  <div class="text-xs font-semibold mb-0.5"
-                    :class="msg.metadata?.source === 'ai_agent'
-                      ? 'text-indigo-600'
-                      : msg.created_by_role === 'tenant'
-                        ? 'text-blue-600'
-                        : 'text-gray-500'">
-                    {{ msg.metadata?.source === 'ai_agent' ? 'AI Agent' : (msg.created_by_name || 'System') }}
-                    <span class="font-normal text-gray-400 ml-1">{{ formatTime(msg.created_at) }}</span>
+                <template v-else>
+                  <!-- Historic tenant chat banner -->
+                  <div
+                    v-if="chatMessages.some(m => m.metadata?.chat_source === 'tenant_chat')"
+                    class="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-1.5 text-center mb-1"
+                  >
+                    Tenant conversation history from AI chat
                   </div>
-                  <div class="whitespace-pre-wrap">{{ msg.message }}</div>
-                </div>
+                  <div
+                    v-for="(msg, idx) in chatMessages"
+                    :key="msg.id"
+                  >
+                    <!-- Divider between historic chat and live ticket messages -->
+                    <div
+                      v-if="idx > 0
+                        && chatMessages[idx - 1]?.metadata?.chat_source === 'tenant_chat'
+                        && msg.metadata?.chat_source !== 'tenant_chat'"
+                      class="flex items-center gap-2 py-2"
+                    >
+                      <div class="flex-1 border-t border-gray-200" />
+                      <span class="text-micro text-gray-400 shrink-0">Ticket opened — live chat below</span>
+                      <div class="flex-1 border-t border-gray-200" />
+                    </div>
+                    <div
+                      class="text-sm rounded-lg p-2"
+                      :class="[
+                        msg.metadata?.source === 'ai_agent'
+                          ? 'bg-indigo-50 text-indigo-900 mr-4 border border-indigo-200'
+                          : msg.created_by_role === 'tenant'
+                            ? 'bg-blue-100 text-blue-900 mr-4'
+                            : 'bg-white text-gray-800 ml-4 border border-gray-200',
+                        msg.metadata?.chat_source === 'tenant_chat' ? 'opacity-80' : '',
+                      ]"
+                    >
+                      <div class="text-xs font-semibold mb-0.5"
+                        :class="msg.metadata?.source === 'ai_agent'
+                          ? 'text-indigo-600'
+                          : msg.created_by_role === 'tenant'
+                            ? 'text-blue-600'
+                            : 'text-gray-500'">
+                        {{ msg.metadata?.source === 'ai_agent' ? 'AI Agent' : (msg.created_by_name || 'System') }}
+                        <span class="font-normal text-gray-400 ml-1">{{ formatTime(msg.created_at) }}</span>
+                      </div>
+                      <div class="whitespace-pre-wrap">{{ msg.message }}</div>
+                    </div>
+                  </div>
+                </template>
               </div>
               <div class="flex gap-2">
                 <input
@@ -292,9 +344,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import api from '../../api'
-import { Clock, Truck, Send, X, Loader2, MapPin } from 'lucide-vue-next'
+import { Clock, Truck, Send, X, Loader2, MapPin, Archive, MessageCircle, User } from 'lucide-vue-next'
 import FilterPills from '../../components/FilterPills.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import { useToast } from '../../composables/useToast'
@@ -324,17 +376,79 @@ const chatSending = ref(false)
 const chatInput = ref('')
 const chatContainer = ref<HTMLElement | null>(null)
 let chatSocket: WebSocket | null = null
+let listSocket: WebSocket | null = null
 
-const filterOptions = [
-  { label: 'All', value: 'all' },
-  { label: 'Open', value: 'open' },
-  { label: 'In Progress', value: 'in_progress' },
-  { label: 'Resolved', value: 'resolved' },
-]
+const activeTab = ref<'active' | 'archived'>('active')
+
+const filterOptions = computed(() =>
+  activeTab.value === 'archived'
+    ? [{ label: 'All Closed', value: 'all' }]
+    : [
+        { label: 'All', value: 'all' },
+        { label: 'Open', value: 'open' },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Resolved', value: 'resolved' },
+      ]
+)
+
+function switchTab(tab: 'active' | 'archived') {
+  activeTab.value = tab
+  activeFilter.value = 'all'
+  selected.value = null
+  loadRequests()
+}
 
 onMounted(async () => {
   await Promise.all([loadRequests(), loadSuppliers()])
+  connectListSocket()
 })
+
+function getWsBase() {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
+  const apiUrl = import.meta.env.VITE_API_URL || ''
+  if (apiUrl) {
+    // Derive WS URL from API URL (http://localhost:8000/api/v1 → ws://localhost:8000)
+    return apiUrl.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}`
+}
+
+function connectListSocket() {
+  const host = getWsBase()
+  const token = localStorage.getItem('access_token') || ''
+  listSocket = new WebSocket(`${host}/ws/maintenance/updates/?token=${token}`)
+
+  listSocket.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.event === 'issue_created' || data.event === 'issue_updated') {
+      // Auto-refresh the issue list
+      loadRequests()
+      // If currently viewing this issue, refresh its detail too
+      if (selected.value?.id === data.request_id) {
+        selectRequest(selected.value)
+      }
+    } else if (data.event === 'activity_created') {
+      // If viewing the affected issue, reload its chat
+      if (selected.value?.id === data.request_id) {
+        loadChat(data.request_id)
+      }
+    }
+  }
+
+  listSocket.onerror = () => {
+    console.warn('Maintenance list WebSocket failed')
+  }
+
+  // Reconnect on close
+  listSocket.onclose = () => {
+    setTimeout(() => {
+      if (!listSocket || listSocket.readyState === WebSocket.CLOSED) {
+        connectListSocket()
+      }
+    }, 5000)
+  }
+}
 
 async function loadSuppliers() {
   try {
@@ -346,7 +460,14 @@ async function loadSuppliers() {
 async function loadRequests() {
   loading.value = true
   try {
-    const params = activeFilter.value !== 'all' ? { status: activeFilter.value } : {}
+    const params: Record<string, string> = {}
+    if (activeTab.value === 'archived') {
+      params.status = 'closed'
+    } else if (activeFilter.value !== 'all') {
+      params.status = activeFilter.value
+    } else {
+      params.exclude_status = 'closed'
+    }
     const { data } = await api.get('/maintenance/', { params })
     requests.value = data.results ?? data
   } finally {
@@ -380,8 +501,7 @@ async function loadChat(requestId: number) {
 
 function connectChatSocket(requestId: number) {
   disconnectChatSocket()
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  const host = import.meta.env.VITE_WS_URL || `${protocol}//${window.location.host}`
+  const host = getWsBase()
   const token = localStorage.getItem('access_token') || ''
   chatSocket = new WebSocket(`${host}/ws/maintenance/${requestId}/activity/?token=${token}`)
 
@@ -457,14 +577,20 @@ function formatTime(iso: string) {
     + ' ' + d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
 }
 
-// Clean up WebSocket on unmount
+// Clean up WebSockets on unmount
 onUnmounted(() => {
   disconnectChatSocket()
+  if (listSocket) {
+    listSocket.onclose = null  // Prevent reconnect
+    listSocket.close()
+    listSocket = null
+  }
 })
 
-// Reconnect when selected request changes
+// Disconnect stale chat socket when selection changes
+// (selectRequest() will open a new one — no need to reconnect here)
 watch(() => selected.value?.id, (newId, oldId) => {
-  if (newId !== oldId) {
+  if (oldId && newId !== oldId) {
     disconnectChatSocket()
   }
 })
@@ -567,5 +693,11 @@ function quoteStatusBadge(s: string) {
 
 function formatDate(iso: string) {
   return iso ? new Date(iso).toLocaleDateString('en-ZA') : '—'
+}
+
+function formatDateTime(iso: string) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return d.toLocaleDateString('en-ZA') + ' ' + d.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
 }
 </script>

@@ -5,6 +5,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.ai.models import TenantChatSession
+from apps.maintenance.models import AgentQuestion, MaintenanceActivity, MaintenanceRequest
 from tests.base import TremlyAPITestCase
 
 
@@ -12,6 +13,30 @@ MOCK_AI_RESPONSE_JSON = '{"reply": "I can help with that.", "conversation_title"
 MOCK_AI_RESPONSE_TICKET = (
     '{"reply": "I have noted the leak.", "conversation_title": "Kitchen leak",'
     ' "maintenance_ticket": {"title": "Kitchen tap leaking", "description": "Tap drips constantly", "priority": "medium"}}'
+)
+MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET = (
+    '{"reply": "Logged! Please turn off the main water supply immediately to limit the damage.",'
+    ' "conversation_title": "Burst pipe",'
+    ' "interaction_type": "maintenance",'
+    ' "severity": "critical",'
+    ' "needs_staff_input": false,'
+    ' "maintenance_ticket": null}'
+)
+MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET_NEEDS_STAFF = (
+    '{"reply": "Logged! The team has been alerted.",'
+    ' "conversation_title": "Monitor Test Chat",'
+    ' "interaction_type": "maintenance",'
+    ' "severity": "critical",'
+    ' "needs_staff_input": true,'
+    ' "maintenance_ticket": null}'
+)
+MOCK_AI_RESPONSE_GENERAL = (
+    '{"reply": "Check the welcome pack for the WiFi details.",'
+    ' "conversation_title": "WiFi question",'
+    ' "interaction_type": "general",'
+    ' "severity": "none",'
+    ' "needs_staff_input": false,'
+    ' "maintenance_ticket": null}'
 )
 
 
@@ -114,6 +139,8 @@ class ConversationMessageTests(TremlyAPITestCase):
         mock_response = mock.MagicMock()
         mock_response.content = [mock.MagicMock(text=response_text)]
         mock_response.stop_reason = "end_turn"
+        mock_response.model = "claude-sonnet-4-6"
+        mock_response.usage = mock.MagicMock(input_tokens=100, output_tokens=50)
         mock_client.messages.create.return_value = mock_response
 
         return mock.patch.multiple(
@@ -136,6 +163,9 @@ class ConversationMessageTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("ai_message", resp.data)
         self.assertIn("user_message", resp.data)
+        self.assertIn("skills_used", resp.data)
+        self.assertIn("used", resp.data["skills_used"])
+        self.assertIn("preview", resp.data["skills_used"])
 
     def test_send_message_empty(self):
         self.authenticate(self.tenant)
@@ -194,6 +224,81 @@ class ConversationMessageTests(TremlyAPITestCase):
         self.assertIsNotNone(resp.data.get("maintenance_request"))
         self.assertTrue(resp.data.get("maintenance_report_suggested"))
         self.assertIsNotNone(resp.data.get("maintenance_request_id"))
+        mr = MaintenanceRequest.objects.get(pk=resp.data["maintenance_request_id"])
+        acts = list(mr.activities.order_by("created_at"))
+        self.assertEqual([act.message for act in acts], [
+            "My kitchen tap is leaking badly",
+            resp.data["ai_message"]["content"],
+        ])
+        self.assertEqual(acts[0].metadata["chat_source"], "tenant_chat")
+        self.assertEqual(acts[1].metadata["source"], "ai_agent")
+
+    def test_maintenance_interaction_logs_without_ticket(self):
+        person = self.create_person(full_name="Tenant P", linked_user=self.tenant)
+        prop = self.create_property()
+        unit = self.create_unit(property_obj=prop)
+        self.create_lease(unit=unit, primary_tenant=person)
+
+        self.authenticate(self.tenant)
+        with self._mock_anthropic(MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET):
+            resp = self.client.post(
+                reverse("tenant-ai-conversation-messages", args=[self.conv.pk]),
+                {"content": "log maintenance call, pipe burst"},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data.get("interaction_type"), "maintenance")
+        self.assertIsNotNone(resp.data.get("maintenance_request"))
+        self.assertEqual(resp.data["maintenance_request"]["category"], "plumbing")
+        self.assertEqual(resp.data["maintenance_request"]["priority"], "urgent")
+        self.assertIsNotNone(resp.data.get("maintenance_request_id"))
+        ai_entry = MaintenanceActivity.objects.filter(
+            request_id=resp.data["maintenance_request_id"],
+            metadata__source="ai_agent",
+        ).first()
+        self.assertIsNotNone(ai_entry)
+
+    def test_maintenance_interaction_without_unit_stays_truthful(self):
+        self.authenticate(self.tenant)
+        with self._mock_anthropic(MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET):
+            resp = self.client.post(
+                reverse("tenant-ai-conversation-messages", args=[self.conv.pk]),
+                {"content": "log maintenance call, pipe burst"},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data.get("interaction_type"), "maintenance")
+        self.assertIsNone(resp.data.get("maintenance_request"))
+        self.assertIsNone(resp.data.get("maintenance_request_id"))
+        self.assertTrue(resp.data.get("maintenance_report_suggested"))
+        self.assertIn("could not log it automatically yet", resp.data["ai_message"]["content"])
+        self.assertNotIn("team has been alerted", resp.data["ai_message"]["content"].lower())
+
+    def test_general_interaction_without_ticket_does_not_log_request(self):
+        self.authenticate(self.tenant)
+        with self._mock_anthropic(MOCK_AI_RESPONSE_GENERAL):
+            resp = self.client.post(
+                reverse("tenant-ai-conversation-messages", args=[self.conv.pk]),
+                {"content": "Where do I find the WiFi password?"},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data.get("interaction_type"), "general")
+        self.assertIsNone(resp.data.get("maintenance_request"))
+        self.assertIsNone(resp.data.get("maintenance_request_id"))
+        self.assertFalse(resp.data.get("maintenance_report_suggested"))
+
+    def test_needs_staff_input_still_creates_agent_question(self):
+        self.authenticate(self.tenant)
+        with self._mock_anthropic(MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET_NEEDS_STAFF):
+            resp = self.client.post(
+                reverse("tenant-ai-conversation-messages", args=[self.conv.pk]),
+                {"content": "log maintenance call, pipe burst"},
+                format="json",
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNotNone(resp.data.get("agent_question_id"))
+        self.assertEqual(AgentQuestion.objects.count(), 1)
 
     def test_other_users_convo_404(self):
         other = self.create_tenant(email="other@test.com")
@@ -239,6 +344,9 @@ class MaintenanceDraftTests(TremlyAPITestCase):
         mock_extract.return_value = '{"title": "Broken tap", "description": "Tap drips"}'
         mock_parse.return_value = {"title": "Broken tap", "description": "Tap drips", "priority": "medium"}
         mock_client = mock.MagicMock()
+        mock_response = mock_client.messages.create.return_value
+        mock_response.model = "claude-sonnet-4-6"
+        mock_response.usage = mock.MagicMock(input_tokens=100, output_tokens=50)
         mock_cls.return_value = mock_client
 
         self.authenticate(self.tenant)

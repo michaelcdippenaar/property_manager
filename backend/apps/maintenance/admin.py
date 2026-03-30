@@ -1,8 +1,8 @@
 from django.contrib import admin
 from .models import (
-    JobDispatch, JobQuote, JobQuoteRequest,
-    MaintenanceRequest, Supplier, SupplierDocument,
-    SupplierProperty, SupplierTrade,
+    AgentQuestion, AgentTokenLog, JobDispatch, JobQuote, JobQuoteRequest,
+    MaintenanceActivity, MaintenanceRequest, MaintenanceSkill,
+    Supplier, SupplierDocument, SupplierProperty, SupplierTrade,
 )
 
 
@@ -53,3 +53,44 @@ class JobDispatchAdmin(admin.ModelAdmin):
 @admin.register(JobQuote)
 class JobQuoteAdmin(admin.ModelAdmin):
     list_display = ["quote_request", "amount", "estimated_days", "submitted_at"]
+
+
+@admin.register(AgentQuestion)
+class AgentQuestionAdmin(admin.ModelAdmin):
+    list_display = ["question_short", "category", "status", "added_to_context", "answered_by", "created_at"]
+    list_filter = ["status", "category", "added_to_context"]
+    search_fields = ["question", "answer"]
+    readonly_fields = ["created_at", "updated_at"]
+    raw_id_fields = ["property", "answered_by"]
+
+    @admin.display(description="Question")
+    def question_short(self, obj):
+        return obj.question[:80]
+
+
+@admin.register(MaintenanceSkill)
+class MaintenanceSkillAdmin(admin.ModelAdmin):
+    list_display = ["name", "trade", "difficulty", "is_active", "updated_at"]
+    list_filter = ["trade", "difficulty", "is_active"]
+    search_fields = ["name", "notes"]
+
+
+@admin.register(MaintenanceActivity)
+class MaintenanceActivityAdmin(admin.ModelAdmin):
+    list_display = ["request", "activity_type", "message_short", "created_by", "created_at"]
+    list_filter = ["activity_type"]
+    search_fields = ["message"]
+    raw_id_fields = ["request", "created_by"]
+    readonly_fields = ["created_at"]
+
+    @admin.display(description="Message")
+    def message_short(self, obj):
+        return obj.message[:100] if obj.message else ""
+
+
+@admin.register(AgentTokenLog)
+class AgentTokenLogAdmin(admin.ModelAdmin):
+    list_display = ["endpoint", "model", "input_tokens", "output_tokens", "latency_ms", "user", "created_at"]
+    list_filter = ["endpoint", "model"]
+    readonly_fields = ["created_at"]
+    raw_id_fields = ["user"]

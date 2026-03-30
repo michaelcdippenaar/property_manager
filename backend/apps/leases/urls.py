@@ -5,7 +5,7 @@ from .views import LeaseViewSet, LeaseCalendarAPIView
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
 from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView
-from .builder_views import LeaseBuilderSessionCreateView, LeaseBuilderChatView, LeaseBuilderFinalizeView
+from .builder_views import LeaseBuilderSessionCreateView, LeaseBuilderChatView, LeaseBuilderFinalizeView, LeaseBuilderDraftListView, LeaseBuilderDraftSaveView
 from .clause_views import ReusableClauseListCreateView, ReusableClauseDestroyView, ReusableClauseUseView, GenerateClauseView, ExtractClausesView
 from .models import LeaseTenant, LeaseOccupant, LeaseGuarantor
 from .serializers import LeaseTenantSerializer, LeaseOccupantSerializer, LeaseGuarantorSerializer
@@ -43,6 +43,10 @@ urlpatterns = [
     path("templates/<int:pk>/ai-chat/", LeaseTemplateAIChatView.as_view(), name="lease-template-ai-chat"),
     path("templates/<int:pk>/export.pdf/", ExportTemplatePDFView.as_view(), name="lease-template-export-pdf"),
     path("generate/", GenerateLeaseDocumentView.as_view(), name="lease-generate"),
+    # Lease builder drafts
+    path("builder/drafts/", LeaseBuilderDraftListView.as_view(), name="builder-draft-list"),
+    path("builder/drafts/new/", LeaseBuilderDraftSaveView.as_view(), name="builder-draft-create"),
+    path("builder/drafts/<int:pk>/", LeaseBuilderDraftSaveView.as_view(), name="builder-draft-save"),
     # AI conversational lease builder
     path("builder/sessions/", LeaseBuilderSessionCreateView.as_view(), name="builder-session-create"),
     path("builder/sessions/<int:pk>/message/", LeaseBuilderChatView.as_view(), name="builder-session-message"),

@@ -75,11 +75,29 @@ def submit_signature(submitter_id: int, fields: list) -> dict:
 
 
 def get_document_pdf_url(submitter_id: int) -> str | None:
-    """Get the PDF URL for a submitter's document from DocuSeal."""
+    """
+    Get the PDF URL for a submitter's document from DocuSeal.
+
+    Before signing, the submitter's ``documents`` list is empty — the PDF
+    lives on the **template**.  We fall back to the template document URL
+    so signers can review the lease before they sign.
+    """
     data = get_submitter(submitter_id)
+
+    # 1. Signed document already attached to submitter (post-signing)
     docs = data.get('documents') or []
     if docs:
         return docs[0].get('url')
+
+    # 2. Fall back to the template PDF (pre-signing / awaiting)
+    template = data.get('template') or {}
+    template_id = template.get('id')
+    if template_id:
+        tmpl = get_template_fields(int(template_id))
+        tmpl_docs = tmpl.get('documents') or []
+        if tmpl_docs:
+            return tmpl_docs[0].get('url')
+
     return None
 
 
@@ -117,10 +135,18 @@ def upload_pdf_template(pdf_bytes: bytes, name: str, num_signers: int = 1) -> di
         role = 'First Party' if i == 0 else f'Signer {i + 1}'
         # Each signature block is spaced evenly on the signature page.
         # The signature lines in the HTML start at roughly y=0.20 and each
-        # block is ~0.18 tall (signature + date + label).
-        y_sig = 0.22 + (i * 0.18)
+        # block is ~0.22 tall (initials + signature + date + label).
+        y_initials = 0.20 + (i * 0.22)
+        y_sig = y_initials + 0.05
         y_date = y_sig + 0.08
         fields.extend([
+            {
+                'name': f'Initials ({role})',
+                'type': 'initials',
+                'role': role,
+                'required': True,
+                'areas': [{'x': 0.55, 'y': y_initials, 'w': 0.15, 'h': 0.04, 'page': last_page}],
+            },
             {
                 'name': f'Signature ({role})',
                 'type': 'signature',
@@ -177,17 +203,57 @@ def build_lease_context(lease) -> dict:
     prop = unit.property
     tenant = lease.primary_tenant
 
+    # Resolve landlord info: try current PropertyOwnership first, then Property.owner (Person)
+    owner_person = getattr(prop, 'owner', None)
+    ownership = None
+    try:
+        ownership = prop.ownerships.filter(is_current=True).first()
+    except Exception:
+        pass
+
+    landlord_name = '—'
+    landlord_contact = '—'
+    landlord_email = '—'
+    landlord_id = '—'
+
+    if ownership:
+        landlord_name = ownership.representative_name or ownership.owner_name or '—'
+        landlord_contact = ownership.representative_phone or ownership.owner_phone or '—'
+        landlord_email = ownership.representative_email or ownership.owner_email or '—'
+        landlord_id = ownership.representative_id_number or ownership.registration_number or '—'
+    elif owner_person:
+        landlord_name = owner_person.full_name or '—'
+        landlord_contact = getattr(owner_person, 'phone', '') or '—'
+        landlord_email = getattr(owner_person, 'email', '') or '—'
+        landlord_id = getattr(owner_person, 'id_number', '') or '—'
+
     ctx = {
-        'landlord_name':    getattr(prop, 'owner', None) and prop.owner.full_name or '—',
+        # ── Landlord / Property ──────────────────────────────────
+        'landlord_name':    landlord_name,
+        'landlord_contact': landlord_contact,
+        'landlord_phone':   landlord_contact,      # alias
+        'landlord_email':   landlord_email,
+        'landlord_id':      landlord_id,
         'property_address': prop.address or '—',
         'property_name':    prop.name or '—',
         'unit_number':      unit.unit_number,
         'city':             getattr(prop, 'city', '') or '—',
         'province':         getattr(prop, 'province', '') or '—',
+
+        # ── Primary tenant (legacy names) ────────────────────────
         'tenant_name':      tenant.full_name if tenant else '—',
         'tenant_id':        tenant.id_number if tenant else '—',
         'tenant_phone':     tenant.phone if tenant else '—',
         'tenant_email':     tenant.email if tenant else '—',
+        'tenant_contact':   (tenant.phone if tenant else '') or '—',   # alias
+
+        # ── Primary tenant (numbered aliases: tenant_1_*) ────────
+        'tenant_1_name':    tenant.full_name if tenant else '—',
+        'tenant_1_id':      tenant.id_number if tenant else '—',
+        'tenant_1_phone':   tenant.phone if tenant else '—',
+        'tenant_1_email':   tenant.email if tenant else '—',
+
+        # ── Lease terms ──────────────────────────────────────────
         'lease_start':      str(lease.start_date),
         'lease_end':        str(lease.end_date),
         'monthly_rent':     f'R {lease.monthly_rent:,.2f}',
@@ -198,8 +264,24 @@ def build_lease_context(lease) -> dict:
         'max_occupants':    str(getattr(lease, 'max_occupants', 1)),
         'payment_reference': getattr(lease, 'payment_reference', '') or '—',
     }
+
+    # ── Co-tenants: tenant_2_*, tenant_3_* ───────────────────────
     co = list(lease.co_tenants.select_related('person').all())
     ctx['co_tenants'] = ', '.join(ct.person.full_name for ct in co if ct.person.full_name) or '—'
+
+    for i, ct in enumerate(co[:3], start=2):       # up to 3 co-tenants
+        p = ct.person
+        ctx[f'tenant_{i}_name']  = p.full_name or '—'
+        ctx[f'tenant_{i}_id']    = p.id_number or '—'
+        ctx[f'tenant_{i}_phone'] = p.phone or '—'
+        ctx[f'tenant_{i}_email'] = p.email or '—'
+
+    # Fill any missing tenant slots with em-dash so templates don't
+    # show raw {{ tenant_3_name }} when there's no third tenant.
+    for i in range(2, 4):
+        for suffix in ('name', 'id', 'phone', 'email'):
+            ctx.setdefault(f'tenant_{i}_{suffix}', '—')
+
     return ctx
 
 
@@ -221,7 +303,8 @@ def generate_lease_pdf(lease) -> bytes:
     )
 
     if tmpl and tmpl.content_html:
-        html_body = tmpl.content_html
+        from apps.leases.template_views import _extract_html
+        html_body = _extract_html(tmpl.content_html)
 
         def replace_field(m):
             field = m.group(1)
@@ -285,8 +368,16 @@ def generate_lease_pdf(lease) -> bytes:
     for role, name in parties:
         sig_blocks.append(
             f'<div class="sig-block">'
+            f'<div style="display:flex;justify-content:space-between;align-items:flex-end;">'
+            f'<div style="flex:1;">'
             f'<div class="sig-line"></div>'
             f'<div class="sig-label">{role}: {name}</div>'
+            f'</div>'
+            f'<div style="margin-left:40pt;width:100pt;">'
+            f'<div style="border-bottom:1px solid #333;width:100%;margin-top:36pt;"></div>'
+            f'<div class="sig-label">Initials</div>'
+            f'</div>'
+            f'</div>'
             f'<div style="margin-top:8pt;">'
             f'<span class="sig-date-line"></span>'
             f'<span style="font-size:9pt;color:#666;margin-left:8pt;">Date</span>'

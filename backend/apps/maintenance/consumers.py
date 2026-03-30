@@ -10,6 +10,7 @@ for the mobile Flutter app, keeping both channels in sync.
 
 WebSocket URL: ws://host/ws/maintenance/{pk}/activity/
 """
+import asyncio
 import json
 import logging
 import re
@@ -36,9 +37,15 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
       - AI responses are broadcast to all connected clients
     """
 
+    # Max messages per user per minute (prevents @agent spam / token burn)
+    MSG_RATE_LIMIT = 20
+    MSG_RATE_WINDOW = 60  # seconds
+
     async def connect(self):
         self.pk = self.scope["url_route"]["kwargs"]["pk"]
         self.group_name = f"maintenance_activity_{self.pk}"
+        self._agent_lock = asyncio.Lock()
+        self._msg_timestamps: list[float] = []
         user = self.scope.get("user")
 
         if not user or isinstance(user, AnonymousUser) or not user.is_authenticated:
@@ -57,12 +64,30 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
+    def _is_rate_limited(self) -> bool:
+        """Check if user has exceeded the message rate limit."""
+        import time
+        now = time.monotonic()
+        # Purge old timestamps outside the window
+        self._msg_timestamps = [t for t in self._msg_timestamps if now - t < self.MSG_RATE_WINDOW]
+        if len(self._msg_timestamps) >= self.MSG_RATE_LIMIT:
+            return True
+        self._msg_timestamps.append(now)
+        return False
+
     async def receive(self, text_data):
         data = json.loads(text_data)
         message = (data.get("message") or "").strip()
         activity_type = data.get("activity_type", "note")
 
         if not message:
+            return
+
+        if self._is_rate_limited():
+            await self.send(text_data=json.dumps({
+                "type": "error",
+                "message": "Rate limit exceeded. Please slow down.",
+            }))
             return
 
         # Save the human message
@@ -79,9 +104,14 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
             },
         )
 
-        # Check for @agent mention — trigger AI response if found
+        # Check for @agent mention — trigger AI response if found.
+        # Use a lock to prevent concurrent AI calls for the same request.
         if _AGENT_MENTION_RE.search(message):
-            await self._handle_agent_mention(message)
+            if self._agent_lock.locked():
+                # AI is already processing a previous @agent mention — skip
+                logger.info("Skipping @agent for request #%s — already processing", self.pk)
+            else:
+                await self._handle_agent_mention(message)
 
     async def activity_message(self, event):
         await self.send(text_data=json.dumps({
@@ -93,26 +123,36 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
         """
         When @agent is mentioned, call Claude with the maintenance request
         context and recent chat history, then broadcast the AI response.
+
+        Uses an asyncio.Lock to prevent concurrent AI calls per consumer.
         """
-        try:
-            ai_response = await self._call_agent_ai(message)
-            if ai_response:
-                # Save AI response as a system activity
-                activity = await self.save_activity(
-                    ai_response,
-                    "system",
-                    is_ai=True,
+        async with self._agent_lock:
+            try:
+                ai_response = await self._call_agent_ai(message)
+            except Exception:
+                logger.exception("Error handling @agent mention for request #%s", self.pk)
+                ai_response = None
+
+            if not ai_response:
+                ai_response = (
+                    "Sorry, I wasn't able to process that request right now. "
+                    "Please try again or contact the office directly for urgent matters."
                 )
-                if activity:
-                    await self.channel_layer.group_send(
-                        self.group_name,
-                        {
-                            "type": "activity.message",
-                            "activity": activity,
-                        },
-                    )
-        except Exception:
-            logger.exception("Error handling @agent mention for request #%s", self.pk)
+
+            # Save AI response as a system activity
+            activity = await self.save_activity(
+                ai_response,
+                "system",
+                is_ai=True,
+            )
+            if activity:
+                await self.channel_layer.group_send(
+                    self.group_name,
+                    {
+                        "type": "activity.message",
+                        "activity": activity,
+                    },
+                )
 
     @database_sync_to_async
     def _call_agent_ai(self, message: str) -> str | None:
@@ -125,7 +165,7 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
         from apps.leases.template_views import _get_anthropic_api_key
         from apps.maintenance.models import MaintenanceActivity, MaintenanceRequest
         from core.anthropic_web_fetch import extract_anthropic_assistant_text
-        from core.contract_rag import query_agent_qa, query_contracts
+        from core.contract_rag import query_agent_qa, query_contracts, query_maintenance_issues
 
         api_key = _get_anthropic_api_key()
         if not api_key:
@@ -150,8 +190,9 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
             for a in reversed(list(activities))
         )
 
-        # Query RAG for relevant context
-        rag_text = query_contracts(message, n_results=5)
+        # Query RAG for relevant context — scope to this property
+        property_id = req.unit.property_id if req.unit_id else None
+        rag_text = query_contracts(message, n_results=5, property_id=property_id)
         qa_text = query_agent_qa(message, n_results=3)
 
         system = (
@@ -174,10 +215,27 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
         if qa_text:
             system += f"\n--- STAFF Q&A ---\n{qa_text}\n"
 
+        # Similar past maintenance issues (property_id already resolved above)
+        issues_text = query_maintenance_issues(message, n_results=3, property_id=property_id)
+        if issues_text:
+            system += f"\n--- SIMILAR PAST ISSUES ---\n{issues_text}\n"
+
+        # Relevant maintenance skills (filtered by request category + message)
+        from apps.maintenance.agent_assist_views import skills_digest_for_message
+        skills_text = skills_digest_for_message(
+            f"{req.title} {req.description} {message}",
+            category=req.category,
+            max_skills=5,
+        )
+        if skills_text and skills_text != "(No active skills in the database.)":
+            system += f"\n--- RELEVANT SKILLS ---\n{skills_text}\n"
+
         # Strip @agent from the message for the AI
         clean_msg = _AGENT_MENTION_RE.sub("", message).strip() or message
 
+        import time as _time
         client = anthropic.Anthropic(api_key=api_key, max_retries=2)
+        t0 = _time.monotonic()
         try:
             response = client.messages.create(
                 model="claude-sonnet-4-6",
@@ -188,6 +246,16 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
         except Exception:
             logger.exception("AI error for @agent in request #%s", self.pk)
             return None
+        latency_ms = int((_time.monotonic() - t0) * 1000)
+
+        # Log token usage for monitoring
+        from apps.maintenance.models import AgentTokenLog
+        AgentTokenLog.log_call(
+            endpoint="maintenance_chat_agent",
+            response=response,
+            latency_ms=latency_ms,
+            metadata={"maintenance_request_id": self.pk},
+        )
 
         return extract_anthropic_assistant_text(response).strip() or None
 
@@ -211,6 +279,36 @@ class MaintenanceActivityConsumer(AsyncWebsocketConsumer):
             activity_type=activity_type,
             message=message,
             created_by=None if is_ai else self.user,
-            metadata={"source": "ai_agent"} if is_ai else None,
+            metadata={"source": "ai_agent"} if is_ai else {},
         )
         return MaintenanceActivitySerializer(activity).data
+
+
+class MaintenanceListConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket that broadcasts issue list updates to all connected admin clients.
+
+    Signals fire `maintenance_list_update` when a MaintenanceRequest is
+    created/updated or a MaintenanceActivity is added, so the admin UI
+    can auto-refresh the issue list and chat without polling.
+
+    WebSocket URL: ws://host/ws/maintenance/updates/
+    """
+    GROUP_NAME = "maintenance_updates"
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or isinstance(user, AnonymousUser) or not user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        self.user = user
+        await self.channel_layer.group_add(self.GROUP_NAME, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        await self.channel_layer.group_discard(self.GROUP_NAME, self.channel_name)
+
+    async def maintenance_update(self, event):
+        """Forward update events to the WebSocket client."""
+        await self.send(text_data=json.dumps(event["payload"]))

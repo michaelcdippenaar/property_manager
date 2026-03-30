@@ -17,15 +17,20 @@ from .models import JobQuote, MaintenanceRequest, Supplier, SupplierProperty
 
 # Map MaintenanceRequest.Category → relevant Supplier.Trade values.
 # A supplier scores higher when their trade matches the request category.
+#
+# NOTE: Supplier.Trade uses "pest_control" while MaintenanceSkill.Trade uses
+# "pest" — include both to avoid silent mismatches. The "other" category
+# includes trades (hvac, carpentry, painting, cleaning) that don't have
+# a dedicated MaintenanceRequest category yet.
 CATEGORY_TO_TRADES: dict[str, set[str]] = {
     "plumbing": {"plumbing"},
-    "electrical": {"electrical"},
+    "electrical": {"electrical", "hvac"},
     "roof": {"roofing", "general"},
     "appliance": {"appliance", "electrical"},
     "security": {"security", "locksmith"},
-    "pest": {"pest_control"},
-    "garden": {"landscaping"},
-    "other": {"general", "other"},
+    "pest": {"pest_control", "pest"},
+    "garden": {"landscaping", "cleaning"},
+    "other": {"general", "other", "hvac", "carpentry", "painting", "cleaning"},
 }
 
 
