@@ -58,7 +58,7 @@ const router = createRouter({
         {
           path: 'leases/templates/:id/edit',
           name: 'lease-template-edit',
-          component: () => import('../views/leases/TemplateEditorView.vue'),
+          component: () => import('../views/leases/TiptapEditorView.vue'),
         },
         {
           path: 'leases/build',

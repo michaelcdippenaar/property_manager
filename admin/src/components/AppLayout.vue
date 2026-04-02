@@ -157,7 +157,7 @@
       <!-- Page content -->
       <main class="flex-1 overflow-y-auto p-6">
         <RouterView v-slot="{ Component }">
-          <KeepAlive exclude="TemplateEditorView">
+          <KeepAlive exclude="TemplateEditorView,TiptapEditorView,LeaseBuilderView">
             <component :is="Component" />
           </KeepAlive>
         </RouterView>

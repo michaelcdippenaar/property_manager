@@ -1,0 +1,197 @@
+/* Shared TipTap editor styles — used by both TiptapEditorView and LeaseBuilderView */
+
+.tiptap-editor .tiptap {
+  outline: none;
+  min-height: 800px;
+  font-family: Arial, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: #111;
+  position: relative;
+}
+
+/* Override pagination-plus table CSS to keep our table styles */
+.tiptap-editor .tiptap.rm-with-pagination table {
+  display: table;
+  border-collapse: collapse;
+  width: 100%;
+}
+.tiptap-editor .tiptap.rm-with-pagination table tbody {
+  display: table-row-group;
+  max-height: none;
+  overflow-y: visible;
+}
+.tiptap-editor .tiptap.rm-with-pagination table > tr {
+  display: table-row;
+  min-width: unset;
+}
+
+/* Page gap styling */
+.tiptap-editor .rm-pagination-gap {
+  box-shadow: inset 0 3px 4px -2px rgba(0,0,0,0.04),
+              inset 0 -3px 4px -2px rgba(0,0,0,0.04);
+}
+
+/* Footer page number styling */
+.tiptap-editor .rm-page-footer-right {
+  font-size: 11px;
+  color: #9aa0a6;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.tiptap-editor .tiptap h1 {
+  font-size: 14pt;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 12pt;
+}
+
+.tiptap-editor .tiptap h2 {
+  font-size: 11pt;
+  font-weight: bold;
+  margin: 8pt 0 3pt;
+}
+
+.tiptap-editor .tiptap h3 {
+  font-size: 10.5pt;
+  font-weight: bold;
+  margin: 6pt 0 2pt;
+}
+
+.tiptap-editor .tiptap p {
+  margin: 3pt 0;
+}
+
+/* Table styles */
+.tiptap-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 4pt 0;
+}
+
+.tiptap-editor .tiptap td,
+.tiptap-editor .tiptap th {
+  border: 1px solid #d1d5db;
+  padding: 5pt 7pt;
+  font-size: 10pt;
+  position: relative;
+}
+
+.tiptap-editor .tiptap th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+/* Selected cell */
+.tiptap-editor .tiptap .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 58, 95, 0.08);
+  pointer-events: none;
+}
+
+/* Column resize handle */
+.tiptap-editor .tiptap .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: rgba(30, 58, 95, 0.3);
+  cursor: col-resize;
+}
+
+/* Page break */
+.tiptap-editor .tiptap div[data-page-break] {
+  border-top: 2px dashed #d1d5db;
+  margin: 24px 0;
+  position: relative;
+}
+
+.tiptap-editor .tiptap div[data-page-break]::after {
+  content: 'Page Break';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  padding: 0 8px;
+  font-size: 9px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Placeholder */
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+/* Merge field inline styles */
+.tiptap-editor .tiptap .merge-field {
+  display: inline;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Signature/initials blocks */
+.tiptap-editor .tiptap [data-type="signature-block"] {
+  display: inline-block;
+  vertical-align: middle;
+  margin: 4px 4px;
+}
+
+/* Drop cursor indicator */
+.tiptap-editor .tiptap .ProseMirror-dropcursor {
+  border: 2px solid #1e3a5f;
+  opacity: 0.4;
+}
+
+/* Drag handle cursor for draggable nodes */
+.tiptap-editor .tiptap [data-drag-handle] {
+  cursor: grab;
+}
+.tiptap-editor .tiptap [data-drag-handle]:active {
+  cursor: grabbing;
+}
+
+/* Selected node outline */
+.tiptap-editor .tiptap .ProseMirror-selectednode {
+  outline: 2px solid rgba(30, 58, 95, 0.3);
+  border-radius: 4px;
+}
+
+/* Preview-mode merge field fill/empty states */
+.tiptap-editor .tiptap .pf-filled {
+  color: #1e3a5f;
+  font-weight: 600;
+}
+
+.tiptap-editor .tiptap .pf-empty {
+  color: #9ca3af;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+/* Additional terms block */
+.tiptap-editor .tiptap .pf-additional-terms {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  font-size: 0.9em;
+}
+.tiptap-editor .tiptap .pf-terms-body {
+  margin-top: 0.5rem;
+  white-space: pre-wrap;
+  color: #374151;
+}

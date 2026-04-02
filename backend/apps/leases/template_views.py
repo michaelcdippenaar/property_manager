@@ -17,7 +17,7 @@ def _extract_html(content_html: str) -> str:
     if raw.startswith("{"):
         try:
             doc = json.loads(raw)
-            if isinstance(doc, dict) and doc.get("v") == 1 and isinstance(doc.get("html"), str):
+            if isinstance(doc, dict) and doc.get("v") in (1, 2) and isinstance(doc.get("html"), str):
                 return doc["html"]
         except (json.JSONDecodeError, TypeError):
             pass
@@ -161,35 +161,18 @@ class LeaseTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
                 except Exception:
                     pass  # field discovery is best-effort
 
-        # Auto-renumber headings and clauses on save
+        # Run RHA compliance check on save (but do NOT auto-renumber —
+        # renumbering overrides intentional user edits and triggers a full
+        # editor reload that can lose block field placements).
+        # Renumbering is available on-demand via the AI chat "renumber_sections" tool.
         html = _extract_html(instance.content_html)
         if html:
-            renumbered = _renumber_headings(html)
-            self._was_renumbered = renumbered != html
-            if self._was_renumbered:
-                # Write renumbered HTML back into the JSON envelope
-                raw = (instance.content_html or "").strip()
-                if raw.startswith("{"):
-                    try:
-                        doc = json.loads(raw)
-                        doc["html"] = renumbered
-                        instance.content_html = json.dumps(doc)
-                    except (json.JSONDecodeError, TypeError):
-                        instance.content_html = renumbered
-                else:
-                    instance.content_html = renumbered
-                instance.save(update_fields=["content_html"])
-
-            # Run RHA compliance check on save and attach to response
-            self._compliance_report = _check_rha_compliance(renumbered)
+            self._compliance_report = _check_rha_compliance(html)
 
     def update(self, request, *args, **kwargs):
         self._compliance_report = None
-        self._was_renumbered = False
         response = super().update(request, *args, **kwargs)
         if response.status_code == 200:
-            if self._was_renumbered:
-                response.data["renumbered"] = True
             if self._compliance_report:
                 response.data["compliance"] = self._compliance_report
         return response

@@ -57,6 +57,10 @@
             <button class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" @click="generatePreview(); exportMenuOpen = false">
               <Download :size="11" class="text-blue-500" /> Export as DOCX
             </button>
+            <div class="border-t border-gray-100 my-1" />
+            <button class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" @click="openDuplicateModal(); exportMenuOpen = false">
+              <Copy :size="11" class="text-green-600" /> Save as New Template
+            </button>
           </div>
         </div>
         <button
@@ -880,6 +884,49 @@
         {{ fieldNotice }}
       </div>
     </Transition>
+
+    <!-- Duplicate / Save As New Template modal -->
+    <Teleport to="body">
+      <div v-if="showDuplicateModal" class="fixed inset-0 z-[200] flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/40" @click="showDuplicateModal = false" />
+        <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4">
+          <div class="flex items-center gap-2">
+            <Copy :size="16" class="text-navy" />
+            <span class="font-semibold text-gray-900 text-sm">Save as New Template</span>
+          </div>
+          <p class="text-xs text-gray-500">
+            Creates a copy of this template with all content, fields, headers and footers.
+          </p>
+          <div>
+            <label class="block text-xs font-medium text-gray-700 mb-1">New Template Name</label>
+            <input
+              v-model="duplicateName"
+              type="text"
+              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-navy focus:ring-1 focus:ring-navy"
+              placeholder="e.g. Standard Lease v2"
+              @keydown.enter="duplicateTemplate"
+            />
+          </div>
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              class="px-4 py-2 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
+              @click="showDuplicateModal = false"
+            >
+              Cancel
+            </button>
+            <button
+              class="px-4 py-2 text-xs font-semibold text-white bg-navy rounded-lg hover:bg-navy/90 disabled:opacity-50 flex items-center gap-1.5"
+              :disabled="!duplicateName.trim() || duplicating"
+              @click="duplicateTemplate"
+            >
+              <Loader2 v-if="duplicating" :size="12" class="animate-spin" />
+              <Copy v-else :size="12" />
+              {{ duplicating ? 'Creating…' : 'Create Template' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -898,7 +945,7 @@ import {
   RotateCcw, RotateCw,
   Users, User, UserCheck, Building2,
   Hash, Calendar, CheckSquare, Phone, Mail, Type, Pen, StickyNote,
-  Scissors, FileDigit, LayoutTemplate, Hammer,
+  Scissors, FileDigit, LayoutTemplate, Hammer, Copy,
   ChevronsLeft, ChevronsRight, Wrench, Zap, ExternalLink, ChevronRight,
 } from 'lucide-vue-next'
 import api from '../../api'
@@ -1417,6 +1464,9 @@ async function loadPreview() {
   try {
     // If store already has content_html (from loadTemplate), use it directly
     if (store.document.html) {
+      const sec38 = store.document.html.match(/38\.\d[^<]{0,60}/g)
+      console.log('[LOAD] store.document fields:', store.document.fields.length, 'html length:', store.document.html.length)
+      console.log('[LOAD] section 38 snippets:', sec38)
       editorHtml.value = decodeDocument(store.document)
       return
     }
@@ -1810,27 +1860,17 @@ async function saveContent() {
   if (!editorEl.value) return
   // Update store with current editor state, then persist
   const doc = encodeDocument()
+  // DEBUG: log what's being saved
+  const sec38 = doc.html.match(/38\.\d[^<]{0,60}/g)
+  console.log('[SAVE] encodeDocument fields:', doc.fields.length, 'html length:', doc.html.length)
+  console.log('[SAVE] section 38 snippets:', sec38)
   store.updateDocument(doc)
   const result = await store.save()
   if (result) {
-    const wasRenumbered = (result as any)?.renumbered
-    // If backend renumbered, reload the updated content into the editor
-    if (wasRenumbered && store.templateId) {
-      await store.loadTemplate(store.templateId)
-      if (editorEl.value && store.document.html) {
-        // Use decodeDocument to reconstruct block fields (signatures) with position data
-        editorEl.value.innerHTML = decodeDocument(store.document)
-        nextTick(() => {
-          _hydrateFieldChips()
-          schedulePageBreaks()
-        })
-      }
-    }
     savedHtml.value = getCleanHtml()
     isDirty.value = false
     // Build save message
     const parts: string[] = []
-    if (wasRenumbered) parts.push('renumbered')
     const compliance = (result as any)?.compliance
     if (compliance) {
       const { pass_count, total_checks, sections_missing, clauses_missing } = compliance
@@ -2532,6 +2572,41 @@ function generatePreview() {
       setTimeout(() => URL.revokeObjectURL(url), 5000)
     })
     .catch(() => showToast('Export failed — DOCX templates only'))
+}
+
+// ── Duplicate / Save As New Template ─────────────────────────────────────
+const showDuplicateModal = ref(false)
+const duplicateName = ref('')
+const duplicating = ref(false)
+
+function openDuplicateModal() {
+  duplicateName.value = `${template.value?.name ?? 'Template'} (copy)`
+  showDuplicateModal.value = true
+}
+
+async function duplicateTemplate() {
+  const name = duplicateName.value.trim()
+  if (!name || !template.value) return
+
+  // Save current content first so the duplicate gets latest changes
+  if (isDirty.value) {
+    await saveContent()
+  }
+
+  duplicating.value = true
+  try {
+    const { data } = await api.post('/leases/templates/', {
+      name,
+      duplicate_from: template.value.id,
+    })
+    showDuplicateModal.value = false
+    showToast(`Template "${name}" created`)
+    router.push(`/leases/templates/${data.id}`)
+  } catch (e: any) {
+    showToast(e?.response?.data?.error ?? 'Failed to duplicate template')
+  } finally {
+    duplicating.value = false
+  }
 }
 
 async function activateTemplate() {

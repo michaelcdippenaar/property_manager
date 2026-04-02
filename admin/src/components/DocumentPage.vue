@@ -19,6 +19,18 @@
         @keydown="$emit('keydown', $event)"
       />
 
+      <!-- Signing-field overlays (positioned per page) -->
+      <div
+        v-for="(field, idx) in renderedOverlays"
+        :key="'sf-' + idx"
+        class="signing-field-overlay"
+        :style="field.style"
+      >
+        <template v-if="field.type === 'initials'">AB {{ field.label }}</template>
+        <template v-else-if="field.type === 'signature'">✍ {{ field.label }}</template>
+        <template v-else>{{ field.label }}</template>
+      </div>
+
       <!-- Footer bar (last page) -->
       <div v-if="showFooter" class="doc-footer-bar">
         <span class="text-gray-400">{{ footerLeft }}</span>
@@ -32,6 +44,17 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick, toRef } from 'vue'
 import { usePageBreaks } from '../composables/usePageBreaks'
 
+export interface SigningFieldOverlay {
+  name: string
+  type: string
+  party: string
+  page: number
+  top: number
+  left: number
+  width: number
+  height: number
+}
+
 const props = withDefaults(defineProps<{
   html: string
   editable?: boolean
@@ -41,6 +64,7 @@ const props = withDefaults(defineProps<{
   headerRight?: string
   footerLeft?: string
   contentClass?: string
+  signingFields?: SigningFieldOverlay[]
 }>(), {
   editable: false,
   showHeader: false,
@@ -62,16 +86,94 @@ const { pageCount, schedule, destroy } = usePageBreaks(docEl, {
   footerLeft: toRef(props, 'footerLeft'),
 })
 
+// Signing field overlays — recomputed after page breaks settle
+const renderedOverlays = ref<{ type: string; label: string; style: Record<string, string> }[]>([])
+
+function computeOverlayPositions() {
+  if (!props.signingFields?.length || !docEl.value) {
+    renderedOverlays.value = []
+    return
+  }
+
+  const breaks = Array.from(docEl.value.querySelectorAll('[data-auto-page-break]'))
+  if (!breaks.length) {
+    renderedOverlays.value = []
+    return
+  }
+
+  // Compute cumulative page start offsets relative to docEl top
+  // Each page break element sits between pages — the next page starts after it
+  const docRect = docEl.value.getBoundingClientRect()
+  const pageStarts = [0] // page 0 starts at the top of docEl
+  for (const el of breaks) {
+    const rect = el.getBoundingClientRect()
+    pageStarts.push(rect.bottom - docRect.top)
+  }
+
+  // Scale field positions from the template editor coordinate system to the
+  // lease builder's actual rendered dimensions.
+  // Template editor: max-w-[680px] with px-14 (56px) padding → 568px content area
+  const TEMPLATE_CONTENT_W = 568
+  const padLeft = parseFloat(getComputedStyle(docEl.value).paddingLeft) || 56
+  const actualContentW = docEl.value.clientWidth - padLeft * 2
+  const scale = actualContentW / TEMPLATE_CONTENT_W
+
+  renderedOverlays.value = props.signingFields.map(f => {
+    const pageStart = pageStarts[f.page] ?? pageStarts[pageStarts.length - 1] ?? 0
+    const label = f.name
+      .replace(/_(signature|initials|date_signed)$/i, '')
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c: string) => c.toUpperCase())
+
+    const isInitials = f.type === 'initials'
+    const scaledLeft = Math.round(f.left * scale)
+    const scaledWidth = Math.round(f.width * scale)
+
+    return {
+      type: f.type,
+      label,
+      style: {
+        position: 'absolute',
+        top: `${pageStart + f.top}px`,
+        left: `${padLeft + scaledLeft}px`,
+        width: `${scaledWidth}px`,
+        height: `${f.height}px`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        border: '2px dashed #1e3a5f',
+        borderRadius: '6px',
+        color: '#1e3a5f',
+        fontSize: isInitials ? '8pt' : '9pt',
+        fontWeight: '600',
+        pointerEvents: 'none',
+        zIndex: '5',
+      },
+    }
+  })
+}
+
+function scheduleWithOverlays() {
+  schedule()
+  // Wait for page breaks to be injected, then compute overlay positions
+  setTimeout(computeOverlayPositions, 150)
+}
+
 // Expose the element and page break scheduler for parent components
 defineExpose({ docEl, pageCount, schedulePageBreaks: schedule })
 
 // Re-run page breaks when html content changes
 watch(() => props.html, () => {
-  nextTick(schedule)
+  nextTick(scheduleWithOverlays)
+})
+
+// Recompute overlays when signing fields change
+watch(() => props.signingFields, () => {
+  nextTick(() => setTimeout(computeOverlayPositions, 150))
 })
 
 onMounted(() => {
-  nextTick(schedule)
+  nextTick(scheduleWithOverlays)
 })
 
 onBeforeUnmount(destroy)
@@ -107,6 +209,11 @@ onBeforeUnmount(destroy)
   color: #9ca3af;
   pointer-events: none;
   z-index: 2;
+}
+
+/* Signing-field overlay box */
+.signing-field-overlay {
+  background: rgba(255, 255, 255, 0.85);
 }
 
 /* Typography — matches .document-editor in TemplateEditorView */

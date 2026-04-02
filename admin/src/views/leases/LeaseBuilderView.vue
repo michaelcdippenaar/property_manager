@@ -309,23 +309,24 @@
           </div>
         </template>
 
-        <DocumentPage
-          v-else-if="templateHtml"
-          :html="previewHtml"
-          show-footer
-          :footer-left="selectedTemplateName"
-        />
+        <div v-else-if="templateHtml" class="flex-1 bg-[#f8f9fa] overflow-y-auto">
+          <div class="tiptap-editor mx-auto" style="max-width: 850px; padding: 32px 0;">
+            <EditorContent :editor="previewEditor" />
+          </div>
+        </div>
       </div>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { EditorContent } from '@tiptap/vue-3'
 import api from '../../api'
-import DocumentPage from '../../components/DocumentPage.vue'
 import BaseModal from '../../components/BaseModal.vue'
+import useTiptapEditor from '../../composables/useTiptapEditor'
+import '../../styles/tiptap-editor.css'
 import {
   FileSignature, AlertCircle, Loader2, CheckCircle2, Plus, X, Save, FolderOpen,
   Building2, ChevronRight, Search, Send,
@@ -632,6 +633,7 @@ watch(form, () => { if (validationErrors.value.length) validationErrors.value = 
 const templates = ref<any[]>([])
 const loadingTemplates = ref(false)
 const loadingContent = ref(false)
+const templateFields = ref<any[]>([])
 const selectedTemplateId = ref<number | null>(null)
 const selectedTemplateName = computed(() =>
   templates.value.find(t => t.id === selectedTemplateId.value)?.name || ''
@@ -643,9 +645,11 @@ async function loadTemplates() {
   try {
     const { data } = await api.get('/leases/templates/')
     templates.value = data.results ?? data
-    // Auto-select: prefer templateId prop, then first active, then first
-    const preferred = props.templateId
-      ? templates.value.find(t => t.id === props.templateId)
+    // Auto-select: prefer query param, then prop, then first active, then first
+    const qTemplate = route.query.template ? Number(route.query.template) : null
+    const preferredId = qTemplate || props.templateId
+    const preferred = preferredId
+      ? templates.value.find(t => t.id === preferredId)
       : templates.value.find(t => t.is_active) ?? templates.value[0]
     if (preferred) selectedTemplateId.value = preferred.id
   } catch { /* non-fatal */ }
@@ -655,14 +659,16 @@ async function loadTemplates() {
 async function fetchTemplateContent(id: number) {
   loadingContent.value = true
   templateHtml.value = ''
+  templateFields.value = []
   try {
     const { data } = await api.get(`/leases/templates/${id}/`)
     const raw = data.content_html ?? ''
     // Parse JSON format (v1) or fall back to legacy HTML
     try {
       const doc = JSON.parse(raw)
-      if (doc.v === 1 && typeof doc.html === 'string') {
+      if ((doc.v === 1 || doc.v === 2) && typeof doc.html === 'string') {
         templateHtml.value = doc.html
+        templateFields.value = doc.fields ?? []
       } else {
         templateHtml.value = raw
       }
@@ -696,6 +702,16 @@ function _deriveFieldParty(fieldName: string): string {
   return 'general'
 }
 
+// ── Read-only TipTap preview editor ──────────────────────────────────────
+const { editor: previewEditor } = useTiptapEditor({
+  editable: false,
+  placeholder: '',
+})
+
+onBeforeUnmount(() => {
+  previewEditor.value?.destroy()
+})
+
 const previewHtml = computed(() => {
   if (!templateHtml.value) return ''
   const vals = buildDocxContext() as Record<string, any>
@@ -704,6 +720,22 @@ const previewHtml = computed(() => {
 
   // Replace <span data-merge-field="X">...</span> with filled value or placeholder
   html = html.replace(/<span[^>]*data-merge-field="([^"]+)"[^>]*>[\s\S]*?<\/span>/g, (_, field) => {
+    const lower = field.toLowerCase()
+
+    // Signing fields → render as visual boxes
+    if (lower.endsWith('_signature')) {
+      const label = field.replace(/_signature$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border:2px dashed #1e3a5f;border-radius:6px;padding:8px 16px;min-width:180px;text-align:center;color:#1e3a5f;font-size:9pt;font-weight:600;margin:4px 0;">✍ ${escHtml(label)} Signature</span>`
+    }
+    if (lower.endsWith('_initials')) {
+      const label = field.replace(/_initials$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border:2px dashed #1e3a5f;border-radius:6px;padding:4px 12px;min-width:80px;text-align:center;color:#1e3a5f;font-size:8pt;font-weight:600;margin:4px 0;">AB ${escHtml(label)}</span>`
+    }
+    if (lower.endsWith('_date_signed')) {
+      const label = field.replace(/_date_signed$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border-bottom:1px solid #999;padding:2px 8px;min-width:100px;color:#999;font-size:8pt;">Date (${escHtml(label)})</span>`
+    }
+
     const party = _deriveFieldParty(field)
     const val = vals[field]
     if (val !== undefined && String(val).trim() && String(val) !== '—') {
@@ -714,6 +746,22 @@ const previewHtml = computed(() => {
 
   // Also replace bare {{ field }} jinja-style placeholders
   html = html.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, field) => {
+    const lower = field.toLowerCase()
+
+    // Signing fields → render as visual boxes (not data placeholders)
+    if (lower.endsWith('_signature')) {
+      const label = field.replace(/_signature$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border:2px dashed #1e3a5f;border-radius:6px;padding:8px 16px;min-width:180px;text-align:center;color:#1e3a5f;font-size:9pt;font-weight:600;margin:4px 0;">✍ ${escHtml(label)} Signature</span>`
+    }
+    if (lower.endsWith('_initials')) {
+      const label = field.replace(/_initials$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border:2px dashed #1e3a5f;border-radius:6px;padding:4px 12px;min-width:80px;text-align:center;color:#1e3a5f;font-size:8pt;font-weight:600;margin:4px 0;">AB ${escHtml(label)}</span>`
+    }
+    if (lower.endsWith('_date_signed')) {
+      const label = field.replace(/_date_signed$/i, '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      return `<span class="pf-sig-box" style="display:inline-block;border-bottom:1px solid #999;padding:2px 8px;min-width:100px;color:#999;font-size:8pt;">Date (${escHtml(label)})</span>`
+    }
+
     const party = _deriveFieldParty(field)
     const val = vals[field]
     if (val !== undefined && String(val).trim() && String(val) !== '—') {
@@ -728,6 +776,13 @@ const previewHtml = computed(() => {
   }
 
   return html
+})
+
+// Sync previewHtml → read-only TipTap editor
+watch(previewHtml, (html) => {
+  if (previewEditor.value) {
+    previewEditor.value.commands.setContent(html || '<p></p>')
+  }
 })
 
 // ── Drafts state (must be before onMounted) ──────────────────────────────
@@ -944,28 +999,5 @@ function reset() {
 </script>
 
 <style scoped>
-/* Additional terms block */
-:deep(.pf-additional-terms) {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e5e7eb;
-  font-size: 0.9em;
-}
-:deep(.pf-terms-body) {
-  margin-top: 0.5rem;
-  white-space: pre-wrap;
-  color: #374151;
-}
-
-/* Table styles */
-:deep(table) {
-  width: 100%; border-collapse: collapse; margin: 0.75rem 0;
-}
-:deep(td),
-:deep(th) {
-  border: 1px solid #e5e7eb; padding: 6px 10px; font-size: 12px;
-}
-.lease-preview-page :deep(th) {
-  background: #f9fafb; font-weight: 600;
-}
+/* Preview fill/empty merge field styling handled by shared tiptap-editor.css */
 </style>

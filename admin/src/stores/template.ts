@@ -11,8 +11,9 @@ export interface DocField {
 }
 
 export interface DocJson {
-  v: 1
+  v: 1 | 2
   html: string        // clean HTML with {{ref}} markers
+  tiptapJson?: any    // TipTap JSON document (v2 only)
   fields: DocField[]  // structured field metadata
 }
 
@@ -62,8 +63,9 @@ export const useTemplateStore = defineStore('template', () => {
     if (!raw) return { v: 1, html: '', fields: [] }
     try {
       const doc = JSON.parse(raw) as DocJson
-      if (doc.v === 1 && typeof doc.html === 'string') return doc
+      if ((doc.v === 1 || doc.v === 2) && typeof doc.html === 'string') return doc
     } catch { /* not JSON — legacy HTML */ }
+    console.warn('[template] parseStoredContent: content_html is not valid JSON envelope — fields will be empty. Length:', raw.length)
     return { v: 1, html: raw, fields: [] }
   }
 
@@ -120,13 +122,18 @@ export const useTemplateStore = defineStore('template', () => {
     saving.value = true
     try {
       const json = JSON.stringify(document.value)
+      console.log('[STORE SAVE] json length:', json.length, 'fields:', document.value.fields.length)
       const { data } = await api.patch(`/leases/templates/${template.value.id}/`, {
         content_html: json,
         header_html: headerHtml.value,
         footer_html: footerHtml.value,
       })
+      console.log('[STORE SAVE] response content_html length:', data?.content_html?.length)
       savedDocument.value = { ...document.value, fields: [...document.value.fields] }
-      if (template.value) template.value.content_html = json
+      // Use the response content_html (may differ from sent if backend processed it)
+      if (template.value) {
+        template.value.content_html = data?.content_html || json
+      }
       return data || true
     } catch {
       return false

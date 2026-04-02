@@ -81,7 +81,7 @@
         <!-- Footer meta -->
         <div class="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-500">
           <span>{{ tmpl.fields_schema?.length ?? 0 }} fields</span>
-          <span v-if="tmpl.content_html" class="text-teal-600">· HTML content</span>
+          <span v-if="tmpl.updated_at" class="text-gray-400">· {{ formatRelativeDate(tmpl.updated_at) }}</span>
           <span class="ml-auto text-gray-300 group-hover:text-navy transition-colors">Edit →</span>
         </div>
       </div>
@@ -222,6 +222,20 @@ const createStep = ref<'choose' | 'pick' | 'details'>('choose')
 const createSource = ref<'blank' | 'upload' | 'duplicate'>('blank')
 
 const form = ref({ name: '', version: '1.0', province: '', file: null as File | null, duplicateId: null as number | null })
+
+function formatRelativeDate(iso: string): string {
+  const d = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - d.getTime()
+  const diffMins = Math.floor(diffMs / 60_000)
+  if (diffMins < 1) return 'just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  const diffHrs = Math.floor(diffMins / 60)
+  if (diffHrs < 24) return `${diffHrs}h ago`
+  const diffDays = Math.floor(diffHrs / 24)
+  if (diffDays < 7) return `${diffDays}d ago`
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+}
 
 // ── Context menu (rename / archive) ──────────────────────────────────────
 const menuOpenId = ref<number | null>(null)

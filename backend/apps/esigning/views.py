@@ -90,53 +90,15 @@ class ESigningSubmissionListCreateView(ScopedESigningQuerysetMixin, ListCreateAP
 
         lease = get_object_or_404(accessible_leases_queryset(request.user), pk=lease_id)
 
+        # Use native signing by default
         try:
-            result = services.create_lease_submission(lease, signers, signing_mode=signing_mode)
+            obj = services.create_native_submission(lease, signers, signing_mode=signing_mode)
+            obj.created_by = request.user
+            obj.save(update_fields=['created_by'])
         except Exception as e:
-            logger.exception("DocuSeal submission failed")
+            logger.exception("Native submission creation failed")
             return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)
 
-        template_data = result["template"]
-        submission_list = result["submission"]
-
-        if isinstance(submission_list, list) and submission_list:
-            first = submission_list[0]
-            submission_id = first.get("submission_id") or first.get("id", "")
-        else:
-            submission_id = ""
-
-        signer_records = []
-        for idx, item in enumerate(submission_list if isinstance(submission_list, list) else [submission_list]):
-            signer_records.append(
-                {
-                    "id": item.get("id"),
-                    "name": item.get("name", ""),
-                    "email": item.get("email", ""),
-                    "role": item.get("role", ""),
-                    "status": item.get("status", "sent"),
-                    "slug": item.get("slug", ""),
-                    "embed_src": item.get("embed_src", ""),
-                    "completed_at": item.get("completed_at"),
-                    "order": item.get("order", idx if signing_mode == "sequential" else 0),
-                }
-            )
-
-        signer_records.sort(key=lambda s: s.get("order", 0))
-
-        obj = ESigningSubmission.objects.create(
-            lease=lease,
-            docuseal_submission_id=str(submission_id),
-            docuseal_template_id=str(template_data.get("id", "")),
-            status=ESigningSubmission.Status.PENDING,
-            signing_mode=signing_mode,
-            signers=signer_records,
-            created_by=request.user,
-        )
-
-        # Auto-create public signing links and send Tremly emails.
-        # DocuSeal never sends its own emails (send_email=False above).
-        # For sequential: only email the first signer (order 0).
-        # For parallel: email all signers at once.
         _auto_send_signing_links(obj, signers, request)
 
         return Response(ESigningSubmissionSerializer(obj).data, status=status.HTTP_201_CREATED)
@@ -186,7 +148,8 @@ def _auto_send_signing_links(submission, original_signers, request):
 
         link = ESigningPublicLink.objects.create(
             submission=submission,
-            submitter_id=int(submitter_id),
+            submitter_id=int(submitter_id) if submitter_id else None,
+            signer_role=signer.get("role", ""),
             expires_at=timezone.now() + timedelta(days=default_days),
         )
 
@@ -315,7 +278,16 @@ class ESigningDownloadSignedView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Fetch fresh URL from DocuSeal API
+        # Native signing: serve local PDF
+        if obj.signing_backend == ESigningSubmission.SigningBackend.NATIVE:
+            if obj.signed_pdf_file:
+                return Response({"url": obj.signed_pdf_file.url})
+            return Response(
+                {"detail": "Signed document not available."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # DocuSeal: fetch fresh URL from API
         pdf_url = None
         docuseal_id = obj.docuseal_submission_id
         if docuseal_id:
@@ -336,8 +308,7 @@ class ESigningDownloadSignedView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        from django.http import HttpResponseRedirect
-        return HttpResponseRedirect(pdf_url)
+        return Response({"url": pdf_url})
 
 
 class ESigningResendView(APIView):
@@ -379,11 +350,14 @@ class ESigningPublicSignDetailView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = []
 
-    def get(self, request, link_id):
+    def _resolve_link(self, link_id):
+        """Common link validation for public signing endpoints."""
         try:
             uid = uuid.UUID(str(link_id))
         except (ValueError, TypeError, AttributeError):
-            return Response({"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND)
+            return None, None, None, Response(
+                {"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         link = (
             ESigningPublicLink.objects.select_related("submission__lease__unit__property")
@@ -391,28 +365,65 @@ class ESigningPublicSignDetailView(APIView):
             .first()
         )
         if not link:
-            return Response({"detail": "Invalid or expired link."}, status=status.HTTP_404_NOT_FOUND)
+            return None, None, None, Response(
+                {"detail": "Invalid or expired link."}, status=status.HTTP_404_NOT_FOUND
+            )
         if link.is_expired():
-            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+            return None, None, None, Response(
+                {"detail": "This signing link has expired."}, status=status.HTTP_410_GONE
+            )
 
         sub = link.submission
         if sub.status in ("completed", "declined"):
-            return Response(
+            return None, None, None, Response(
                 {"detail": "This signing request is no longer active."},
                 status=status.HTTP_410_GONE,
             )
 
-        signer = sub.get_signer_by_submitter_id(link.submitter_id)
+        # Find signer: by role for native, by submitter_id for docuseal
+        signer = None
+        if sub.signing_backend == ESigningSubmission.SigningBackend.NATIVE:
+            role = link.signer_role
+            for s in sub.signers:
+                if s.get("role", "").lower() == role.lower():
+                    signer = s
+                    break
+        else:
+            signer = sub.get_signer_by_submitter_id(link.submitter_id)
+
         if not signer:
-            return Response({"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND)
+            return None, None, None, Response(
+                {"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         st = (signer.get("status") or "").lower()
         if st in ("completed", "signed", "declined"):
-            return Response(
+            return None, None, None, Response(
                 {"detail": "You have already completed or declined this document."},
                 status=status.HTTP_410_GONE,
             )
 
+        return link, sub, signer, None
+
+    def get(self, request, link_id):
+        link, sub, signer, error = self._resolve_link(link_id)
+        if error:
+            return error
+
+        lease_label = f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}"
+
+        if sub.signing_backend == ESigningSubmission.SigningBackend.NATIVE:
+            return Response({
+                "signing_backend": "native",
+                "document_title": lease_label,
+                "signer_name": signer.get("name") or "",
+                "signer_email": signer.get("email") or "",
+                "signer_role": signer.get("role") or "",
+                "submission_status": sub.status,
+                "signer_status": signer.get("status") or "",
+            })
+
+        # DocuSeal flow
         embed = (signer.get("embed_src") or "").strip()
         if not embed:
             return Response(
@@ -420,17 +431,144 @@ class ESigningPublicSignDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        lease_label = f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}"
-        return Response(
-            {
-                "embed_src": embed,
-                "document_title": lease_label,
-                "signer_name": signer.get("name") or "",
-                "signer_email": signer.get("email") or "",
-                "submission_status": sub.status,
-                "signer_status": signer.get("status") or "",
-            }
-        )
+        return Response({
+            "signing_backend": "docuseal",
+            "embed_src": embed,
+            "document_title": lease_label,
+            "signer_name": signer.get("name") or "",
+            "signer_email": signer.get("email") or "",
+            "signer_role": signer.get("role") or "",
+            "submission_status": sub.status,
+            "signer_status": signer.get("status") or "",
+        })
+
+
+class ESigningPublicDocumentView(APIView):
+    """
+    Public (no auth): GET the filled lease HTML + signing field info for native signing.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, link_id):
+        link, sub, signer, error = ESigningPublicSignDetailView()._resolve_link(link_id)
+        if error:
+            return error
+
+        if sub.signing_backend != ESigningSubmission.SigningBackend.NATIVE:
+            return Response(
+                {"detail": "This endpoint is only for native signing."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        signer_role = signer.get("role", "")
+        fields = services.extract_signer_fields(sub.document_html, signer_role)
+        already_signed = services.get_already_signed_fields(sub)
+
+        return Response({
+            "html": sub.document_html,
+            "signer_role": signer_role,
+            "fields": fields,
+            "already_signed": already_signed,
+            "signing_mode": sub.signing_mode,
+        })
+
+
+class ESigningPublicSubmitSignatureView(APIView):
+    """
+    Public (no auth): POST signature data to complete native signing for one signer.
+    """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request, link_id):
+        link, sub, signer, error = ESigningPublicSignDetailView()._resolve_link(link_id)
+        if error:
+            return error
+
+        if sub.signing_backend != ESigningSubmission.SigningBackend.NATIVE:
+            return Response(
+                {"detail": "This endpoint is only for native signing."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        signed_fields = request.data.get("fields", [])
+        consent = request.data.get("consent", {})
+
+        if not signed_fields:
+            return Response(
+                {"error": "No signed fields provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not consent.get("agreed"):
+            return Response(
+                {"error": "Consent must be given to sign electronically."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Collect audit data from request
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        ip = forwarded.split(",")[0].strip() if forwarded else request.META.get("REMOTE_ADDR", "")
+        audit_data = {
+            "ip_address": ip,
+            "user_agent": request.META.get("HTTP_USER_AGENT", ""),
+            "consent_given_at": consent.get("timestamp", timezone.now().isoformat()),
+        }
+
+        signer_role = signer.get("role", "")
+
+        try:
+            from django.db import transaction
+            with transaction.atomic():
+                sub, all_completed = services.complete_native_signer(
+                    sub, signer_role, signed_fields, audit_data
+                )
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Post-signing actions
+        from .webhooks import _broadcast_ws, _activate_lease, _get_next_signer, _notify_next_signer, _notify_staff, _email_signed_copy_to_signers
+
+        if all_completed:
+            _activate_lease(sub)
+            # Generate signed PDF
+            try:
+                from django.core.files.base import ContentFile
+                pdf_bytes = services.generate_signed_pdf(sub)
+                filename = f"signed_lease_{sub.pk}.pdf"
+                sub.signed_pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
+                sub.signed_pdf_url = sub.signed_pdf_file.url
+                sub.save(update_fields=["signed_pdf_file", "signed_pdf_url", "updated_at"])
+            except Exception:
+                logger.exception("Failed to generate signed PDF for submission %s", sub.pk)
+
+            _broadcast_ws(sub.pk, {
+                "type": "submission_completed",
+                "submission_id": sub.pk,
+                "signed_pdf_url": sub.signed_pdf_url,
+                "signers": sub.signers,
+            })
+            _notify_staff(sub, "submission.completed", {})
+            _email_signed_copy_to_signers(sub, {})
+        else:
+            # Notify next signer if sequential
+            if sub.signing_mode == ESigningSubmission.SigningMode.SEQUENTIAL:
+                next_signer = _get_next_signer(sub.signers)
+                if next_signer:
+                    _notify_next_signer(sub, next_signer)
+
+            _broadcast_ws(sub.pk, {
+                "type": "signer_completed",
+                "submission_id": sub.pk,
+                "signers": sub.signers,
+            })
+            _notify_staff(sub, "form.completed", {"submitter": signer})
+
+        return Response({
+            "status": "completed",
+            "submission_status": sub.status,
+            "all_completed": all_completed,
+        })
 
 
 class ESigningCreatePublicLinkView(APIView):
@@ -584,253 +722,60 @@ class ESigningWebhookInfoView(APIView):
         })
 
 
-# ── Headless signing endpoints (no iframe) ───────────────────────────────
 
-
-class ESigningDocumentView(APIView):
+class ESigningPublicCompletedView(APIView):
     """
-    Public (no auth): fetch the document PDF for a signing link.
-    GET /api/v1/esigning/public-sign/<uuid>/document/
-
-    Returns the PDF as a proxied binary response so the Vue app can
-    render it with PDF.js without CORS issues.
-    """
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    def get(self, request, link_id):
-        link, signer, sub, error_resp = _resolve_public_link(link_id)
-        if error_resp:
-            return error_resp
-
-        try:
-            pdf_url = services.get_document_pdf_url(int(signer["id"]))
-        except Exception:
-            logger.exception("Failed to get document URL from DocuSeal")
-            pdf_url = None
-
-        if not pdf_url:
-            return Response(
-                {"detail": "Document not available yet."},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Proxy the PDF from DocuSeal so the frontend doesn't need CORS access
-        try:
-            r = http_requests.get(pdf_url, timeout=30, stream=True)
-            r.raise_for_status()
-        except Exception:
-            return Response(
-                {"detail": "Could not fetch document."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        from django.http import HttpResponse as DjHttpResponse
-        resp = DjHttpResponse(r.content, content_type="application/pdf")
-        resp["Content-Disposition"] = 'inline; filename="document.pdf"'
-        resp["Cache-Control"] = "private, max-age=300"
-        return resp
-
-
-class ESigningFieldsView(APIView):
-    """
-    Public (no auth): get the signing field positions for a public link.
-    GET /api/v1/esigning/public-sign/<uuid>/fields/
-
-    Returns the field definitions (name, type, position, page) that the
-    signer needs to fill, filtered to their role only.
-    """
-    permission_classes = [AllowAny]
-    authentication_classes = []
-
-    def get(self, request, link_id):
-        link, signer, sub, error_resp = _resolve_public_link(link_id)
-        if error_resp:
-            return error_resp
-
-        try:
-            template_data = services.get_template_fields(int(sub.docuseal_template_id))
-        except Exception:
-            logger.exception("Failed to get template fields from DocuSeal")
-            return Response(
-                {"detail": "Could not load field definitions."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
-
-        signer_role = signer.get("role", "")
-
-        # Build a map of submitter UUID → submitter name so we can match
-        # top-level fields (which use UUID as role) to our signer's role name.
-        submitter_map = {}
-        for s in template_data.get("submitters", []):
-            submitter_map[s.get("uuid", "")] = s.get("name", "")
-
-        all_fields = []
-
-        # DocuSeal stores fields at the top level of the template response,
-        # with `submitter_uuid` linking to a submitter (not the role name).
-        for field in template_data.get("fields", []):
-            field_sub_uuid = field.get("submitter_uuid", "") or field.get("role", "")
-            field_role_name = submitter_map.get(field_sub_uuid, field_sub_uuid)
-            if field_role_name == signer_role:
-                all_fields.append({
-                    "name": field["name"],
-                    "type": field.get("type", "text"),
-                    "required": field.get("required", True),
-                    "areas": field.get("areas", []),
-                })
-
-        # Fallback: also check inside documents[].fields[] (older templates)
-        if not all_fields:
-            for doc in template_data.get("documents", []):
-                for field in doc.get("fields", []):
-                    if field.get("role") == signer_role:
-                        all_fields.append({
-                            "name": field["name"],
-                            "type": field.get("type", "text"),
-                            "required": field.get("required", True),
-                            "areas": field.get("areas", []),
-                        })
-
-        return Response({
-            "signer_name": signer.get("name", ""),
-            "signer_email": signer.get("email", ""),
-            "signer_role": signer_role,
-            "document_title": f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}",
-            "total_pages": sum(
-                max((a.get("page", 1) for a in f.get("areas", [{"page": 1}])), default=1)
-                for f in all_fields
-            ) if all_fields else 1,
-            "fields": all_fields,
-        })
-
-
-class ESigningSubmitSignatureView(APIView):
-    """
-    Public (no auth): submit a signature for a signer via their public link.
-    POST /api/v1/esigning/public-sign/<uuid>/submit/
-
-    Request body:
-    {
-        "fields": [
-            {"name": "Signature (First Party)", "value": "data:image/png;base64,..."},
-            {"name": "Date (First Party)", "value": "2026-03-26"}
-        ]
-    }
+    Public (no auth): fire-and-forget callback from the embedded DocuSeal form's
+    @completed event. This is a belt-and-suspenders fallback alongside the
+    DocuSeal webhook — if the webhook is delayed or missed, this endpoint
+    triggers the same signer-status refresh from DocuSeal's API.
     """
     permission_classes = [AllowAny]
     authentication_classes = []
 
     def post(self, request, link_id):
-        link, signer, sub, error_resp = _resolve_public_link(link_id)
-        if error_resp:
-            return error_resp
-
-        fields_input = request.data.get("fields", [])
-        signature_svg = request.data.get("signature_svg", "")
-        if not fields_input:
-            return Response(
-                {"error": "At least one field is required (signature)."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Map to DocuSeal format
-        docuseal_fields = []
-        for f in fields_input:
-            name = f.get("name", "").strip()
-            value = f.get("value", "")
-            if not name:
-                continue
-            docuseal_fields.append({
-                "name": name,
-                "default_value": value,
-            })
-
-        if not docuseal_fields:
-            return Response(
-                {"error": "No valid fields provided."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Store vector signature on the signer record for future re-rendering
-        if signature_svg and isinstance(signature_svg, str):
-            signer["signature_svg"] = signature_svg
-            sub.save(update_fields=["signers", "updated_at"])
-
         try:
-            result = services.submit_signature(int(signer["id"]), docuseal_fields)
-        except Exception as e:
-            logger.exception("Failed to submit signature to DocuSeal")
-            # Surface meaningful errors from DocuSeal (e.g. "already completed")
-            detail = str(e)
-            if hasattr(e, 'response') and e.response is not None:
-                try:
-                    body = e.response.json()
-                    detail = body.get('error', detail)
-                except Exception:
-                    pass
-            if 'already completed' in detail.lower():
-                return Response(
-                    {"error": "This document has already been signed."},
-                    status=status.HTTP_410_GONE,
+            uid = uuid.UUID(str(link_id))
+        except (ValueError, TypeError, AttributeError):
+            return Response({"ok": True})  # Silently accept — it's fire-and-forget
+
+        link = (
+            ESigningPublicLink.objects
+            .select_related("submission")
+            .filter(pk=uid)
+            .first()
+        )
+        if not link:
+            return Response({"ok": True})
+
+        sub = link.submission
+        signer = sub.get_signer_by_submitter_id(link.submitter_id)
+        if not signer:
+            return Response({"ok": True})
+
+        # Only act if signer hasn't been marked completed yet (webhook may have beaten us)
+        st = (signer.get("status") or "").lower()
+        if st in ("completed", "signed"):
+            return Response({"ok": True})
+
+        # Fetch fresh status from DocuSeal
+        try:
+            submitter_data = services.get_submitter(int(signer["id"]))
+            ds_status = (submitter_data.get("status") or "").lower()
+            if ds_status == "completed":
+                signer["status"] = "completed"
+                signer["completed_at"] = submitter_data.get("completed_at")
+                sub.save(update_fields=["signers", "updated_at"])
+                logger.info(
+                    "Completion callback updated signer %s on submission %s",
+                    signer["id"], sub.pk,
                 )
-            return Response(
-                {"error": "Signing service error. Please try again."},
-                status=status.HTTP_502_BAD_GATEWAY,
-            )
+        except Exception:
+            logger.debug("Completion callback: could not fetch submitter %s", signer.get("id"))
 
-        return Response({
-            "ok": True,
-            "submitter_status": result.get("status", "completed"),
-            "message": "Your signature has been submitted successfully.",
-        })
+        return Response({"ok": True})
 
 
-def _resolve_public_link(link_id):
-    """
-    Shared helper: validate a public signing link UUID and return
-    (link, signer, submission, None) on success or
-    (None, None, None, Response) on error.
-    """
-    try:
-        uid = uuid.UUID(str(link_id))
-    except (ValueError, TypeError, AttributeError):
-        return None, None, None, Response(
-            {"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND
-        )
-
-    link = (
-        ESigningPublicLink.objects.select_related("submission__lease__unit__property")
-        .filter(pk=uid)
-        .first()
-    )
-    if not link:
-        return None, None, None, Response(
-            {"detail": "Invalid or expired link."}, status=status.HTTP_404_NOT_FOUND
-        )
-    if link.is_expired():
-        return None, None, None, Response(
-            {"detail": "This signing link has expired."}, status=status.HTTP_410_GONE
-        )
-
-    sub = link.submission
-    if sub.status in ("completed", "declined"):
-        return None, None, None, Response(
-            {"detail": "This signing request is no longer active."},
-            status=status.HTTP_410_GONE,
-        )
-
-    signer = sub.get_signer_by_submitter_id(link.submitter_id)
-    if not signer:
-        return None, None, None, Response(
-            {"detail": "Invalid link."}, status=status.HTTP_404_NOT_FOUND
-        )
-
-    st = (signer.get("status") or "").lower()
-    if st in ("completed", "signed", "declined"):
-        return None, None, None, Response(
-            {"detail": "You have already completed or declined this document."},
-            status=status.HTTP_410_GONE,
-        )
-
-    return link, signer, sub, None
+# NOTE: The old headless signing endpoints (ESigningDocumentView, ESigningFieldsView,
+# ESigningSubmitSignatureView) were removed — the signing UI now uses DocuSeal's
+# embedded form component (@docuseal/vue) which communicates directly with DocuSeal.

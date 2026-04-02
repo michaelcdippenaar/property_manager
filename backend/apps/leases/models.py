@@ -66,9 +66,10 @@ class LeaseTemplate(models.Model):
     footer_html  = models.TextField(blank=True, default="", help_text="HTML shown at the bottom of every page (company name, page number)")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-updated_at"]
 
     def __str__(self):
         return f"{self.name} v{self.version}"

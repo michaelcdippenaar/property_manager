@@ -125,8 +125,8 @@ class LeaseTemplateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LeaseTemplate
-        fields = ["id", "name", "version", "province", "fields_schema", "is_active", "created_at", "content_html", "header_html", "footer_html", "detected_variables", "docx_file"]
-        read_only_fields = ["created_at"]
+        fields = ["id", "name", "version", "province", "fields_schema", "is_active", "created_at", "updated_at", "content_html", "header_html", "footer_html", "detected_variables", "docx_file"]
+        read_only_fields = ["created_at", "updated_at"]
 
     def get_detected_variables(self, obj):
         return _detect_and_group(obj.content_html or "")

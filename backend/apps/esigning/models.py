@@ -17,8 +17,18 @@ class ESigningSubmission(models.Model):
         PARALLEL = "parallel", "Parallel — all signers at once"
         SEQUENTIAL = "sequential", "Sequential — one after the other"
 
+    class SigningBackend(models.TextChoices):
+        DOCUSEAL = "docuseal", "DocuSeal"
+        NATIVE = "native", "Native"
+
     lease = models.ForeignKey(
         "leases.Lease", on_delete=models.CASCADE, related_name="signing_submissions"
+    )
+    signing_backend = models.CharField(
+        max_length=10,
+        choices=SigningBackend.choices,
+        default=SigningBackend.NATIVE,
+        help_text="Which signing engine handles this submission.",
     )
     docuseal_submission_id = models.CharField(max_length=100, blank=True)
     docuseal_template_id = models.CharField(max_length=100, blank=True)
@@ -31,6 +41,20 @@ class ESigningSubmission(models.Model):
     )
     signers = models.JSONField(default=list)
     signed_pdf_url = models.TextField(blank=True, help_text="URL to the signed PDF on DocuSeal (can be long)")
+    document_html = models.TextField(
+        blank=True,
+        help_text="Snapshot of filled lease HTML at submission time (native signing).",
+    )
+    document_hash = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="SHA-256 hash of document_html for tamper detection.",
+    )
+    signed_pdf_file = models.FileField(
+        upload_to="esigning/signed_pdfs/",
+        blank=True,
+        help_text="Locally generated signed PDF (native signing).",
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -71,7 +95,14 @@ class ESigningPublicLink(models.Model):
         ESigningSubmission, on_delete=models.CASCADE, related_name="public_links"
     )
     submitter_id = models.PositiveIntegerField(
-        help_text="DocuSeal submitter id (matches signers[].id on the submission JSON)."
+        null=True,
+        blank=True,
+        help_text="DocuSeal submitter id (matches signers[].id on the submission JSON).",
+    )
+    signer_role = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Signer role for native signing (e.g. 'tenant_1', 'landlord').",
     )
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)

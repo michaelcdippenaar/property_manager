@@ -25,11 +25,21 @@
             Signing progress
             <span class="text-gray-400 font-normal ml-1">{{ signedCount }} of {{ totalSigners }} signed</span>
           </span>
+          <!-- Live connection indicator -->
+          <span
+            v-if="latestSub.status !== 'completed' && latestSub.status !== 'declined'"
+            class="inline-flex items-center gap-1 text-[10px]"
+            :class="wsConnected ? 'text-green-500' : 'text-gray-300'"
+            :title="wsConnected ? 'Live updates active' : 'Reconnecting…'"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-300'" />
+            {{ wsConnected ? 'Live' : '' }}
+          </span>
         </div>
         <a
-          v-if="latestSub.signed_pdf_url"
-          :href="latestSub.signed_pdf_url"
-          target="_blank"
+          v-if="latestSub.signed_pdf_url || latestSub.status === 'completed'"
+          href="#"
+          @click.prevent="downloadSignedPdf"
           class="btn-ghost text-xs flex items-center gap-1"
         >
           <Download :size="12" />
@@ -271,9 +281,10 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
   Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle, Eye,
-  Plus, Loader2, Download, Link2,
+  Plus, Loader2, Download, Link2, Wifi, WifiOff,
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
+import { useESigningSocket } from '../../composables/useESigningSocket'
 
 const props = defineProps<{
   leaseId: number
@@ -316,6 +327,26 @@ const signedCount = computed(() =>
 const canSubmit = computed(() =>
   draftSigners.value.length > 0 &&
   draftSigners.value.every(s => s.name.trim() && s.email.trim())
+)
+
+// ── Real-time WebSocket updates ──────────────────────────────────────── //
+const { connected: wsConnected } = useESigningSocket(
+  () => latestSub.value?.id ?? null,
+  (event) => {
+    if (!latestSub.value) return
+    if (event.signers) {
+      latestSub.value.signers = event.signers
+    }
+    if (event.type === 'submission_completed') {
+      latestSub.value.status = 'completed'
+      if (event.signed_pdf_url) {
+        latestSub.value.signed_pdf_url = event.signed_pdf_url
+      }
+      emit('signed')
+    } else if (event.type === 'signer_declined') {
+      latestSub.value.status = 'declined'
+    }
+  },
 )
 
 const canSendAgain = computed(() => {
@@ -461,16 +492,30 @@ async function copyPublicLink(submissionId: number, submitterId: number | string
   }
 }
 
+async function downloadSignedPdf() {
+  if (!latestSub.value) return
+  try {
+    const { data } = await api.get(`/esigning/submissions/${latestSub.value.id}/download/`)
+    if (data.url) {
+      window.open(data.url, '_blank')
+    }
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.detail ?? 'Could not fetch signed document'
+  }
+}
+
 // ── Modal helpers ────────────────────────────────────────────────────── //
 function buildDefaultSigners(): DraftSigner[] {
   const tenants = props.leaseTenants ?? []
-  const fallbackEmail = 'mc@tremly.com'
   if (!tenants.length) {
-    return [{ name: '', email: fallbackEmail, phone: '', role: 'Tenant', send_email: true }]
+    // Pre-populated test defaults (remove before production)
+    return [
+      { name: 'Marius du Plessis', email: 'mc@tremly.com', phone: '0821234567', role: 'Tenant', send_email: true },
+    ]
   }
   return tenants.map((t, i) => ({
     name:         t.person?.full_name ?? t.full_name ?? '',
-    email:        t.person?.email     ?? t.email     ?? fallbackEmail,
+    email:        t.person?.email     ?? t.email     ?? '',
     phone:        t.person?.phone     ?? t.phone     ?? '',
     role:         i === 0 ? 'Tenant' : 'Co-Tenant',
     send_email:   true,
@@ -492,7 +537,7 @@ function closeModal() {
 }
 
 function addSigner() {
-  draftSigners.value.push({ name: '', email: 'mc@tremly.com', phone: '', role: 'Signer', send_email: true })
+  draftSigners.value.push({ name: '', email: '', phone: '', role: 'Signer', send_email: true })
 }
 
 function removeSigner(idx: number) {
