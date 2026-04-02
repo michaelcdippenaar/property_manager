@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════════════
+# KLIKK PRICING — Per-unit tiered model (ZAR, excl VAT)
+# ═══════════════════════════════════════════════════════════════
+
+currency: ZAR
+annual_discount_percent: 15
+
+tiers:
+  starter:
+    name: "Starter"
+    units: "1-5"
+    price_monthly: 0
+    price_label: "Free forever"
+    highlight: false
+    features:
+      - "Full platform access"
+      - "5 AI lease generations per month"
+      - "1 user"
+      - "Email support"
+      - "Tenant mobile app"
+    limits:
+      max_units: 5
+      max_users: 1
+      ai_leases_monthly: 5
+
+  professional:
+    name: "Professional"
+    units: "6-25"
+    price_monthly: 49
+    price_label: "R49/unit/month"
+    highlight: true
+    features:
+      - "Everything in Starter"
+      - "Unlimited AI lease generation"
+      - "5 users"
+      - "Native e-signing"
+      - "Supplier portal"
+      - "Owner portal"
+      - "Priority email support"
+    limits:
+      max_units: 25
+      max_users: 5
+      ai_leases_monthly: null
+
+  agency:
+    name: "Agency"
+    units: "26-100"
+    price_monthly: 39
+    price_label: "R39/unit/month"
+    highlight: false
+    features:
+      - "Everything in Professional"
+      - "Unlimited users"
+      - "API access"
+      - "Custom branding"
+      - "Dedicated onboarding"
+      - "Phone support"
+    limits:
+      max_units: 100
+      max_users: null
+      ai_leases_monthly: null
+
+  enterprise:
+    name: "Enterprise"
+    units: "100+"
+    price_monthly: null
+    price_label: "Custom"
+    highlight: false
+    features:
+      - "Everything in Agency"
+      - "Custom integrations"
+      - "SLA guarantee"
+      - "Dedicated account manager"
+      - "On-site onboarding"
+    limits:
+      max_units: null
+      max_users: null
+      ai_leases_monthly: null
+
+all_plans_include:
+  - "SSL encryption"
+  - "SA-hosted data"
+  - "POPIA compliant"
+  - "Automatic backups"
+  - "Mobile tenant app"

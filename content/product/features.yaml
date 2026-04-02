@@ -1,0 +1,443 @@
+# ═══════════════════════════════════════════════════════════════
+# KLIKK FEATURE REGISTRY — Single Source of Truth
+#
+# Status values: BUILT | IN_PROGRESS | PLANNED | BETA
+#
+# When you ship a feature:
+#   1. Change status to BUILT
+#   2. Set shipped_date
+#   3. That's it. Website and marketing pull from here.
+# ═══════════════════════════════════════════════════════════════
+
+features:
+
+  # ── Lease Management ──────────────────────────────────────
+
+  ai_lease_generation:
+    name: "AI Lease Generation"
+    slug: ai-lease-generation
+    status: BUILT
+    shipped_date: 2026-03-15
+    category: leases
+    backend_app: leases
+    key_files:
+      - backend/apps/leases/builder_views.py
+      - backend/apps/leases/template_views.py
+    headline: "AI Lease Generation"
+    tagline: "RHA-compliant leases in minutes, not hours"
+    description: >
+      Chat with Claude AI to generate a fully compliant Rental Housing Act
+      lease. Merge fields, signature blocks, and clause library built in.
+    icon: file-text
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: 4
+
+  document_intelligence:
+    name: "Document Intelligence"
+    slug: document-intelligence
+    status: BUILT
+    shipped_date: 2026-03-10
+    category: leases
+    backend_app: leases
+    key_files:
+      - backend/apps/leases/parse_view.py
+      - backend/apps/leases/import_view.py
+    headline: "Document Intelligence"
+    tagline: "Upload a lease, AI extracts everything"
+    description: >
+      Upload an existing PDF or DOCX lease. AI extracts tenant names, dates,
+      rent amounts, and every clause — automatically.
+    icon: search-plus
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  template_editor:
+    name: "TipTap Template Editor"
+    slug: template-editor
+    status: BUILT
+    shipped_date: 2026-03-15
+    category: leases
+    backend_app: leases
+    key_files:
+      - admin/src/composables/useTiptapEditor.ts
+      - admin/src/views/leases/TemplateEditorView.vue
+    headline: "Rich Template Editor"
+    tagline: "Full control over every clause"
+    description: >
+      TipTap-powered WYSIWYG editor with merge fields, signature blocks,
+      page breaks, and a reusable clause library. Export to PDF.
+    icon: edit-3
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: null
+
+  clause_library:
+    name: "Reusable Clause Library"
+    slug: clause-library
+    status: BUILT
+    shipped_date: 2026-03-15
+    category: leases
+    backend_app: leases
+    key_files:
+      - backend/apps/leases/clause_views.py
+    headline: "Clause Library"
+    tagline: "Save, reuse, and AI-generate clauses"
+    description: >
+      Build a library of reusable lease clauses. AI can generate new clauses
+      or extract them from existing documents. Track usage across templates.
+    icon: bookmark
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: null
+
+  # ── E-Signing ─────────────────────────────────────────────
+
+  native_esigning:
+    name: "Native E-Signing"
+    slug: native-esigning
+    status: BUILT
+    shipped_date: 2026-03-20
+    category: esigning
+    backend_app: esigning
+    key_files:
+      - backend/apps/esigning/views.py
+      - admin/src/views/signing/PublicSignView.vue
+      - admin/src/views/signing/SignatureCapture.vue
+    headline: "Native E-Signing"
+    tagline: "Sign from any device, no account needed"
+    description: >
+      No DocuSign subscription needed. Tenants sign from any device via a
+      secure link. Track completion in real-time with WebSocket updates.
+    icon: pen-tool
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: 5
+
+  # ── Maintenance ───────────────────────────────────────────
+
+  supplier_matching:
+    name: "Supplier Matching"
+    slug: supplier-matching
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: maintenance
+    backend_app: maintenance
+    key_files:
+      - backend/apps/maintenance/supplier_matching.py
+    headline: "Supplier Matching"
+    tagline: "Best match, every time"
+    description: >
+      5-factor algorithm ranks suppliers by proximity, trade skills, price
+      history, owner preference, and rating. Best match, every time.
+    icon: user-plus
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: 11
+
+  maintenance_workflow:
+    name: "Full Maintenance Workflow"
+    slug: maintenance-workflow
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: maintenance
+    backend_app: maintenance
+    key_files:
+      - backend/apps/maintenance/views.py
+    headline: "AI Maintenance Triage"
+    tagline: "Report, classify, dispatch, resolve"
+    description: >
+      AI classifies issues by urgency and trade. Automatic supplier matching
+      and dispatch. Real-time status tracking across all four apps.
+    icon: tool
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: 11
+
+  # ── Tenant Experience ─────────────────────────────────────
+
+  tenant_mobile_app:
+    name: "Tenant Mobile App"
+    slug: tenant-app
+    status: BUILT
+    shipped_date: 2026-02-15
+    category: tenant
+    backend_app: null
+    key_files:
+      - mobile/
+      - tenant_app/
+    headline: "Tenant Mobile App"
+    tagline: "Everything tenants need, on their phone"
+    description: >
+      Report issues with photos, chat in real-time, view lease details, and
+      sign documents — all from their phone. Flutter-native on iOS and Android.
+    icon: smartphone
+    show_on_homepage: true
+    homepage_section: apps
+    lifecycle_step: 9
+
+  realtime_chat:
+    name: "Real-Time Tenant Chat"
+    slug: realtime-chat
+    status: BUILT
+    shipped_date: 2026-02-15
+    category: tenant
+    backend_app: maintenance
+    key_files:
+      - backend/apps/maintenance/consumers.py
+    headline: "Real-Time Tenant Chat"
+    tagline: "WebSocket-powered messaging"
+    description: >
+      WebSocket-powered messaging between tenants, agents, and suppliers.
+      Photo attachments, typing indicators, and full audit trail.
+    icon: message-square
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  # ── Owner & Portals ───────────────────────────────────────
+
+  owner_dashboard:
+    name: "Owner Dashboard"
+    slug: owner-dashboard
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: portals
+    backend_app: accounts
+    key_files:
+      - admin/src/views/owner/
+    headline: "Owner Dashboard"
+    tagline: "Real-time visibility into your investment"
+    description: >
+      Property owners see occupancy rates, income tracking, maintenance
+      status, and lease pipeline — real-time, read-only, and beautiful.
+    icon: bar-chart-2
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  supplier_portal:
+    name: "Supplier Portal"
+    slug: supplier-portal
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: portals
+    backend_app: maintenance
+    key_files:
+      - admin/src/views/supplier/
+    headline: "Supplier Portal"
+    tagline: "Receive jobs, quote, manage your calendar"
+    description: >
+      Suppliers receive job notifications, submit quotes, and manage their
+      calendar. No login required for quoting — just click the link.
+    icon: wrench
+    show_on_homepage: true
+    homepage_section: apps
+    lifecycle_step: null
+
+  # ── Onboarding ────────────────────────────────────────────
+
+  tenant_onboarding:
+    name: "Tenant Onboarding"
+    slug: tenant-onboarding
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: onboarding
+    backend_app: accounts
+    key_files: []
+    headline: "Tenant Onboarding"
+    tagline: "Welcome pack, app invite, utility setup"
+    description: >
+      Automated onboarding checklist with welcome pack, tenant app
+      registration invite, and utility setup tracking.
+    icon: user-check
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: 6
+
+  # ── Rent & Financials ─────────────────────────────────────
+
+  rent_tracking:
+    name: "Rent Payment Tracking"
+    slug: rent-tracking
+    status: BUILT
+    shipped_date: 2026-02-01
+    category: financials
+    backend_app: leases
+    key_files: []
+    headline: "Rent Tracking"
+    tagline: "Payment references, tracking and receipts"
+    description: >
+      Generate unique payment references per tenant. Track payments,
+      generate receipts, and flag arrears automatically.
+    icon: credit-card
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: 10
+
+  lease_renewal:
+    name: "Lease Renewal"
+    slug: lease-renewal
+    status: BUILT
+    shipped_date: 2026-03-01
+    category: leases
+    backend_app: leases
+    key_files: []
+    headline: "Lease Renewal"
+    tagline: "Auto-remind, negotiate, generate renewal"
+    description: >
+      Automatic expiry reminders. Negotiate new terms and generate renewal
+      agreements from existing lease data.
+    icon: refresh-cw
+    show_on_homepage: false
+    homepage_section: null
+    lifecycle_step: 12
+
+  # ── PLANNED Features ──────────────────────────────────────
+
+  property_advertising:
+    name: "Vacancy Advertising"
+    slug: vacancy-advertising
+    status: PLANNED
+    shipped_date: null
+    category: marketing
+    backend_app: null
+    key_files: []
+    headline: "Vacancy Advertising"
+    tagline: "List once, advertise everywhere"
+    description: >
+      List vacancies on Property24, Private Property, and Facebook
+      Marketplace from one dashboard. Track leads and viewing requests.
+    icon: megaphone
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 1
+
+  property_viewings:
+    name: "Property Viewings"
+    slug: property-viewings
+    status: PLANNED
+    shipped_date: null
+    category: marketing
+    backend_app: null
+    key_files: []
+    headline: "Viewing Scheduler"
+    tagline: "Schedule and confirm property viewings"
+    description: >
+      Schedule viewings, send confirmations, collect interest forms,
+      and track lead-to-tenant conversion.
+    icon: calendar
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 2
+
+  tenant_screening:
+    name: "Tenant Screening"
+    slug: tenant-screening
+    status: PLANNED
+    shipped_date: null
+    category: onboarding
+    backend_app: null
+    key_files: []
+    depends_on:
+      - tpn_integration
+    headline: "Tenant Screening"
+    tagline: "Credit, criminal, ID and reference checks"
+    description: >
+      Credit, criminal, ID and reference checks via TPN integration.
+      Full screening report attached to lease application.
+    icon: shield-check
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 3
+
+  deposit_management:
+    name: "Deposit Management"
+    slug: deposit-management
+    status: PLANNED
+    shipped_date: null
+    category: financials
+    backend_app: null
+    key_files: []
+    headline: "Deposit Management"
+    tagline: "Collect and invest in interest-bearing trust"
+    description: >
+      Collect deposits, invest in interest-bearing trust accounts per
+      RHA requirements. Track accrued interest and manage refunds.
+    icon: lock
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 7
+
+  incoming_inspection:
+    name: "Incoming Inspection"
+    slug: incoming-inspection
+    status: PLANNED
+    shipped_date: null
+    category: inspections
+    backend_app: null
+    key_files: []
+    headline: "Incoming Inspection"
+    tagline: "Document condition with photo evidence"
+    description: >
+      Photograph and document property condition before move-in.
+      Timestamped evidence stored for dispute resolution.
+    icon: camera
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 8
+
+  notice_management:
+    name: "Notice Period Management"
+    slug: notice-management
+    status: PLANNED
+    shipped_date: null
+    category: leases
+    backend_app: null
+    key_files: []
+    headline: "Notice Management"
+    tagline: "Notice period management and timeline"
+    description: >
+      Serve or receive notice digitally. Manage handover timeline,
+      key return, and utility disconnection checklist.
+    icon: bell
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 13
+
+  outgoing_inspection:
+    name: "Outgoing Inspection"
+    slug: outgoing-inspection
+    status: PLANNED
+    shipped_date: null
+    category: inspections
+    backend_app: null
+    key_files: []
+    headline: "Outgoing Inspection"
+    tagline: "Compare to incoming, note damages"
+    description: >
+      Document outgoing condition and auto-compare to incoming inspection.
+      Generate damage report with photo evidence side-by-side.
+    icon: clipboard-check
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 14
+
+  deposit_refund:
+    name: "Deposit Refund"
+    slug: deposit-refund
+    status: PLANNED
+    shipped_date: null
+    category: financials
+    backend_app: null
+    key_files: []
+    headline: "Deposit Refund"
+    tagline: "Calculate deductions, refund within 14 days"
+    description: >
+      Calculate deductions from inspection report, generate itemised
+      statement, and process refund within RHA 14-day requirement.
+    icon: banknote
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: 15

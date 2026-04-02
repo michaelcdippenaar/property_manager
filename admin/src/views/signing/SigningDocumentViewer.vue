@@ -1,6 +1,12 @@
 <template>
-  <div class="signing-document-viewer">
-    <editor-content :editor="editor" class="signing-editor-content" />
+  <div class="signing-document-viewer" style="background:#f1f3f4;">
+    <div class="max-w-[816px] mx-auto py-6 px-4">
+      <editor-content
+        :editor="editor"
+        class="tiptap-editor bg-white"
+        style="box-shadow: 0 0 0 1px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);"
+      />
+    </div>
   </div>
 </template>
 
@@ -15,6 +21,8 @@ const props = defineProps<{
   signedFields: Map<string, { imageData: string; signedAt: string }>
   alreadySigned: Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string }>
   onFieldClick: (fieldName: string, fieldType: string) => void
+  capturedFields: Record<string, string>
+  onMergeFieldChange: (fieldName: string, value: string) => void
 }>()
 
 const { editor } = useTiptapEditor({
@@ -28,6 +36,8 @@ const signingContext = reactive({
   signedFields: props.signedFields,
   alreadySigned: props.alreadySigned,
   onFieldClick: props.onFieldClick,
+  capturedFields: props.capturedFields,
+  onMergeFieldChange: props.onMergeFieldChange,
 })
 
 provide('signingContext', signingContext)
@@ -38,46 +48,22 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
+@import '../../styles/tiptap-editor.css';
+
 .signing-document-viewer {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 16px;
+  min-height: 100%;
 }
 
-.signing-editor-content .tiptap {
-  padding: 24px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  font-family: Arial, sans-serif;
-  font-size: 10.5pt;
-  line-height: 1.55;
-  color: #111;
+/* Hide drag handles and resize controls in signing mode */
+.signing-document-viewer .tiptap-editor [data-drag-handle] {
+  cursor: default !important;
+}
+.signing-document-viewer .tiptap-editor .column-resize-handle {
+  display: none;
 }
 
-.signing-editor-content .tiptap h1 {
-  font-size: 14pt;
-  font-weight: bold;
-  text-align: center;
-  margin-bottom: 12pt;
-}
-
-.signing-editor-content .tiptap h2 {
-  font-size: 11pt;
-  font-weight: bold;
-  margin: 8pt 0 3pt;
-}
-
-.signing-editor-content .tiptap table {
-  border-collapse: collapse;
-  width: 100%;
-  margin: 4pt 0;
-}
-
-.signing-editor-content .tiptap td,
-.signing-editor-content .tiptap th {
-  border: 1px solid #d1d5db;
-  padding: 5pt 7pt;
-  font-size: 10pt;
+/* Hide page break labels in signing mode */
+.signing-document-viewer .tiptap-editor .tiptap div[data-page-break]::after {
+  display: none;
 }
 </style>

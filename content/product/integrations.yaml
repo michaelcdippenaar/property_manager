@@ -1,0 +1,132 @@
+# ═══════════════════════════════════════════════════════════════
+# KLIKK INTEGRATIONS — Third-party connections
+# ═══════════════════════════════════════════════════════════════
+
+integrations:
+
+  payprop:
+    name: "PayProp"
+    slug: payprop
+    status: PLANNED
+    priority: CRITICAL
+    category: payments
+    logo_abbrev: "PP"
+    logo_color: "#00b4d8"
+    tagline: "Works with PayProp — replaces everything else"
+    description: >
+      Bidirectional sync of tenants, properties, and payments. Real-time
+      webhooks for rent tracking. Pull arrears/statements into dashboards.
+    api_type: "REST API v1.1, OAuth 2.0, webhooks"
+    notes: "Access is approval-gated (apply via Typeform). GitHub API emulator for dev/testing."
+
+  xero:
+    name: "Xero"
+    slug: xero
+    status: PLANNED
+    priority: HIGH
+    category: accounting
+    logo_abbrev: "X"
+    logo_color: "#13B5EA"
+    tagline: "Your books update themselves"
+    description: >
+      Sync rent rolls, expenses, deposit trust accounts, and invoicing.
+      Automated reconciliation and financial reporting.
+    api_type: "REST API, OAuth 2.0"
+
+  quickbooks:
+    name: "QuickBooks"
+    slug: quickbooks
+    status: PLANNED
+    priority: HIGH
+    category: accounting
+    logo_abbrev: "QB"
+    logo_color: "#2CA01C"
+    tagline: "Works with your accountant's tool of choice"
+    description: >
+      Same accounting sync as Xero, for QuickBooks Online users.
+      Rent rolls, expenses, trust accounts, invoicing.
+    api_type: "REST API, OAuth 2.0"
+
+  tpn_credit:
+    name: "TPN Credit Bureau"
+    slug: tpn
+    status: PLANNED
+    priority: HIGH
+    category: screening
+    logo_abbrev: "TPN"
+    logo_color: "#e74c3c"
+    tagline: "Screen tenants in 60 seconds"
+    description: >
+      Credit, criminal, ID verification, employment, and rental history
+      checks. Full screening report attached to lease application.
+    api_type: "REST API"
+
+  property24:
+    name: "Property24"
+    slug: property24
+    status: PLANNED
+    priority: MEDIUM
+    category: listings
+    logo_abbrev: "P24"
+    logo_color: "#FF5A1F"
+    tagline: "List once, advertise everywhere"
+    description: >
+      Syndicate vacancy listings to Property24 and Private Property.
+      Track enquiries and viewing requests from one dashboard.
+    api_type: "Feed/API"
+
+  google_maps:
+    name: "Google Maps"
+    slug: google-maps
+    status: BUILT
+    priority: BUILT
+    category: location
+    logo_abbrev: "G"
+    logo_color: "#4285F4"
+    tagline: "Find the nearest qualified supplier"
+    description: >
+      Supplier proximity matching using Google Maps geocoding and
+      distance matrix. Factor in travel time for urgent jobs.
+    api_type: "Maps JavaScript API, Geocoding, Distance Matrix"
+
+  twilio:
+    name: "Twilio"
+    slug: twilio
+    status: BUILT
+    priority: BUILT
+    category: communication
+    logo_abbrev: "T"
+    logo_color: "#F22F46"
+    tagline: "Reach tenants instantly"
+    description: >
+      SMS notifications for maintenance updates, lease reminders,
+      and payment confirmations.
+    api_type: "REST API"
+
+  firebase:
+    name: "Firebase"
+    slug: firebase
+    status: BUILT
+    priority: BUILT
+    category: communication
+    logo_abbrev: "F"
+    logo_color: "#FFCA28"
+    tagline: "Real-time alerts on their phone"
+    description: >
+      Push notifications to the Flutter tenant app for maintenance
+      updates, chat messages, and lease events.
+    api_type: "Firebase Cloud Messaging"
+
+  whatsapp:
+    name: "WhatsApp"
+    slug: whatsapp
+    status: PLANNED
+    priority: MEDIUM
+    category: communication
+    logo_abbrev: "W"
+    logo_color: "#25D366"
+    tagline: "Meet tenants where they are"
+    description: >
+      WhatsApp Business API for maintenance notifications and
+      tenant communication for those without the app.
+    api_type: "WhatsApp Business API"

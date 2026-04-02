@@ -1,0 +1,577 @@
+---
+/**
+ * Hero — Homepage hero section
+ *
+ * Full-viewport hero with headline, CTAs, stats,
+ * and a simulated dashboard mockup with floating phone.
+ * 2-col at ≥1100px; centered single-col below.
+ */
+---
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge fade-up">
+        <span class="dot"></span>
+        Built for South African rental law
+      </div>
+      <h1 class="fade-up fade-up-1">Property management,<br><em>intelligently</em> South African.</h1>
+      <p class="fade-up fade-up-2">AI-powered leases, intelligent supplier matching, native e-signing, and a tenant app &mdash; built from the ground up for the Rental Housing Act.</p>
+      <div class="hero-actions fade-up fade-up-3">
+        <a href="#" class="hero-btn-primary">
+          Start Free &mdash; Up to 5 Units
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#" class="hero-btn-ghost">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Watch Demo
+        </a>
+      </div>
+      <div class="hero-stats fade-up fade-up-4">
+        <div class="hero-stat">
+          <div class="stat-num">15</div>
+          <div class="stat-lbl">Lifecycle stages</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <div class="stat-num">4</div>
+          <div class="stat-lbl">Purpose-built apps</div>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="hero-stat">
+          <div class="stat-num">&lt;3min</div>
+          <div class="stat-lbl">To generate a lease</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-visual fade-up fade-up-3">
+      <div class="hero-mockup">
+        <div class="mockup-bar">
+          <div class="mockup-dot red"></div>
+          <div class="mockup-dot yellow"></div>
+          <div class="mockup-dot green"></div>
+          <div class="mockup-url">app.klikk.co.za</div>
+        </div>
+        <div class="mockup-body">
+          <img src="/klikk-dashboard.png" alt="Klikk dashboard" class="mockup-screenshot" />
+        </div>
+      </div>
+      <!-- Floating phone -->
+      <div class="phone-mockup">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="phone-app-header">
+            <div class="phone-avatar">S</div>
+            <div>
+              <div class="phone-name">Klikk Tenant</div>
+              <div class="phone-sub">Unit 4B · Melville</div>
+            </div>
+          </div>
+          <div class="phone-card urgent-card">
+            <div class="phone-card-icon urgent-icon">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            </div>
+            <div>
+              <div class="phone-card-title">Leaking geyser</div>
+              <div class="phone-card-sub">2 hours ago · <span style="color:#ef4444">Urgent</span></div>
+            </div>
+          </div>
+          <div class="phone-card">
+            <div class="phone-card-icon renewal-icon">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+            </div>
+            <div>
+              <div class="phone-card-title">Lease renewal</div>
+              <div class="phone-card-sub">Expires in 30 days</div>
+            </div>
+          </div>
+          <div class="phone-cta">Sign renewal →</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    padding: 120px 40px 80px;
+    background: url('/hero-bg.png') center center / cover no-repeat;
+    overflow: hidden;
+  }
+  /* Dark navy overlay — lets texture show subtly */
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(160deg, rgba(26,27,75,0.93) 0%, rgba(43,45,110,0.90) 60%, rgba(58,60,138,0.92) 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .hero-inner {
+    display: grid;
+    grid-template-columns: 5fr 6fr;
+    gap: 80px;
+    max-width: 1320px;
+    margin: 0 auto;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* ── Content ── */
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 6px 14px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 24px;
+    letter-spacing: 0.01em;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 58px;
+    line-height: 1.06;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-accent) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: 17px;
+    line-height: 1.7;
+    color: rgba(255,255,255,0.6);
+    max-width: 480px;
+    margin-bottom: 36px;
+  }
+
+  /* ── Buttons ── */
+  .hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 48px;
+  }
+  .hero-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-accent);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: all 0.25s;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(255,61,127,0.3);
+    white-space: nowrap;
+  }
+  .hero-btn-primary:hover {
+    background: var(--color-accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 28px rgba(255,61,127,0.38);
+  }
+  .hero-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: all 0.25s;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .hero-btn-ghost:hover {
+    background: rgba(255,255,255,0.16);
+    border-color: rgba(255,255,255,0.4);
+  }
+
+  /* ── Stats ── */
+  .hero-stats {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+  .hero-stat { text-align: left; }
+  .stat-num {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  .stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255,255,255,0.15);
+    flex-shrink: 0;
+  }
+
+  /* ── Mockup ── */
+  .hero-visual {
+    position: relative;
+  }
+  .hero-mockup {
+    background: white;
+    border-radius: 14px;
+    box-shadow:
+      0 0 0 1px rgba(0,0,0,0.06),
+      0 8px 24px rgba(43,45,110,0.08),
+      0 32px 64px rgba(43,45,110,0.08);
+    overflow: hidden;
+  }
+  .mockup-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    background: #f8f8fa;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  .mockup-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .red { background: #FF6058; }
+  .yellow { background: #FFC02F; }
+  .green { background: #27CA40; }
+  .mockup-url {
+    margin-left: 8px;
+    font-size: 11px;
+    color: #9ca3af;
+    font-weight: 500;
+    background: white;
+    padding: 3px 12px;
+    border-radius: 6px;
+    border: 1px solid #e5e7eb;
+  }
+  .mockup-body {
+    padding: 0;
+    background: #f5f5f8;
+    overflow: hidden;
+  }
+  .mockup-screenshot {
+    width: 100%;
+    display: block;
+    border-radius: 0 0 14px 14px;
+  }
+
+  /* Sidebar */
+  .mock-sidebar {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    border: 1px solid #f0f0f5;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mock-sidebar-logo {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--color-navy);
+    margin-bottom: 12px;
+    padding: 0 8px;
+  }
+  .mock-sidebar-logo span { color: var(--color-accent); }
+  .mock-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 8px;
+    border-radius: 7px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #9ca3af;
+    cursor: default;
+  }
+  .mock-sidebar-item.active {
+    background: rgba(43,45,110,0.07);
+    color: var(--color-navy);
+    font-weight: 600;
+  }
+
+  /* Main area */
+  .mock-main {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mock-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+  .mock-page-title {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+  }
+  .mock-page-sub {
+    font-size: 10px;
+    color: #9ca3af;
+    margin-top: 1px;
+  }
+  .mock-ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(43,45,110,0.06);
+    color: var(--color-navy);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 8px;
+    border-radius: 6px;
+  }
+  .mock-stat-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .mock-stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 10px;
+    border: 1px solid #f0f0f5;
+  }
+  .mock-stat-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: #9ca3af;
+    font-weight: 600;
+  }
+  .mock-stat-value {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--color-navy);
+    margin: 3px 0 2px;
+    letter-spacing: -0.5px;
+  }
+  .mock-stat-value.accent { color: var(--color-accent); }
+  .mock-stat-value.success { color: #10b981; }
+  .mock-stat-change {
+    font-size: 9px;
+    font-weight: 500;
+    color: #9ca3af;
+  }
+  .mock-stat-change.up { color: #10b981; }
+  .mock-chart {
+    flex: 1;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #f0f0f5;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .mock-chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .mock-chart-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #374151;
+  }
+  .mock-chart-badge {
+    font-size: 9px;
+    font-weight: 600;
+    color: #10b981;
+    background: #ecfdf5;
+    padding: 2px 6px;
+    border-radius: 5px;
+  }
+  .mock-chart-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 64px;
+  }
+  .mock-bar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+    background: linear-gradient(180deg, var(--color-navy) 0%, var(--color-navy-deep) 100%);
+    min-height: 8px;
+  }
+  .mock-bar:nth-child(2n) {
+    background: linear-gradient(180deg, var(--color-accent-light) 0%, var(--color-accent) 100%);
+  }
+
+  /* ── Floating Phone ── */
+  .phone-mockup {
+    position: absolute;
+    bottom: -16px;
+    right: -32px;
+    width: 148px;
+    background: #1a1a2e;
+    border-radius: 28px;
+    padding: 10px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08);
+    animation: float 6s ease-in-out infinite;
+    z-index: 5;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(-1deg); }
+    50% { transform: translateY(-10px) rotate(-1deg); }
+  }
+  .phone-notch {
+    width: 40px; height: 6px;
+    border-radius: 3px;
+    background: #2d2d44;
+    margin: 0 auto 8px;
+  }
+  .phone-screen {
+    background: white;
+    border-radius: 20px;
+    padding: 12px;
+    min-height: 200px;
+  }
+  .phone-app-header {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .phone-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-navy), var(--color-accent));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .phone-name {
+    font-size: 10px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1;
+  }
+  .phone-sub {
+    font-size: 8px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+  .phone-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 7px;
+    background: #f8f8fa;
+    border-radius: 8px;
+    padding: 8px;
+    margin-bottom: 6px;
+  }
+  .urgent-card { background: #fff5f5; }
+  .phone-card-icon {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .urgent-icon { background: #fee2e2; color: #ef4444; }
+  .renewal-icon { background: #eff6ff; color: #3b82f6; }
+  .phone-card-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.2;
+  }
+  .phone-card-sub {
+    font-size: 8px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+  .phone-cta {
+    text-align: center;
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--color-accent);
+    margin-top: 4px;
+    padding: 6px;
+    background: rgba(255,61,127,0.06);
+    border-radius: 6px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1100px) {
+    .hero-inner {
+      grid-template-columns: 1fr;
+      max-width: 680px;
+    }
+    h1 { font-size: 48px; }
+    .phone-mockup { display: none; }
+    .hero-visual { order: -1; }
+  }
+  @media (max-width: 640px) {
+    .hero { padding: 100px 24px 64px; }
+    h1 { font-size: 38px; letter-spacing: -1.5px; }
+    .hero p { font-size: 16px; }
+    .hero-stats { flex-direction: column; align-items: flex-start; gap: 16px; }
+    .stat-divider { width: 32px; height: 1px; }
+  }
+</style>

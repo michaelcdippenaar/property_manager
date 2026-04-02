@@ -124,6 +124,26 @@
         </div>
       </div>
 
+      <!-- Landlord can sign — shown when all tenants have signed -->
+      <div
+        v-if="landlordCanSign"
+        class="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl mt-2"
+      >
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-blue-900">All tenants have signed</div>
+          <div class="text-xs text-blue-600 mt-0.5">The landlord can now review and sign the lease</div>
+        </div>
+        <button
+          class="btn-primary text-xs flex items-center gap-1.5 flex-shrink-0"
+          :disabled="landlordLinkLoading"
+          @click="openLandlordSigningLink"
+        >
+          <Loader2 v-if="landlordLinkLoading" :size="12" class="animate-spin" />
+          <PenTool v-else :size="12" />
+          Sign as Landlord
+        </button>
+      </div>
+
       <!-- Send again (only if previous is done/declined/expired) -->
       <button
         v-if="canSendAgain"
@@ -281,7 +301,7 @@ import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
   Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle, Eye,
-  Plus, Loader2, Download, Link2, Wifi, WifiOff,
+  Plus, Loader2, Download, Link2, Wifi, WifiOff, PenTool,
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
@@ -353,6 +373,27 @@ const canSendAgain = computed(() => {
   if (!latestSub.value) return false
   return ['completed', 'declined', 'expired'].includes(latestSub.value.status)
 })
+
+// Landlord can sign: all non-landlord signers done, landlord still pending
+const landlordSigner = computed(() => {
+  if (!latestSub.value?.signers) return null
+  return latestSub.value.signers.find((s: any) => {
+    const role = (s.role ?? '').toLowerCase()
+    return role.includes('landlord') || role.includes('lessor') || role.includes('owner')
+  }) ?? null
+})
+
+const landlordCanSign = computed(() => {
+  if (!latestSub.value || latestSub.value.status === 'completed' || latestSub.value.status === 'declined') return false
+  const ls = landlordSigner.value
+  if (!ls || isSignerDone(ls)) return false
+  // Check all other signers are done
+  return latestSub.value.signers
+    .filter((s: any) => s !== ls)
+    .every((s: any) => isSignerDone(s))
+})
+
+const landlordLinkLoading = ref(false)
 
 // ── Lifecycle ────────────────────────────────────────────────────────── //
 onMounted(async () => {
@@ -501,6 +542,25 @@ async function downloadSignedPdf() {
     }
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.detail ?? 'Could not fetch signed document'
+  }
+}
+
+async function openLandlordSigningLink() {
+  const ls = landlordSigner.value
+  if (!ls?.id || !latestSub.value) return
+  landlordLinkLoading.value = true
+  errorMsg.value = ''
+  try {
+    const { data } = await api.post(`/esigning/submissions/${latestSub.value.id}/public-link/`, {
+      submitter_id: ls.id,
+    })
+    const path = (data.sign_path as string) || `/sign/${data.uuid}/`
+    const full = (data.signing_url as string) || `${window.location.origin}${path}`
+    window.open(full, '_blank')
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Could not create signing link'
+  } finally {
+    landlordLinkLoading.value = false
   }
 }
 

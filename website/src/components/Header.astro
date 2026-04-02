@@ -1,0 +1,99 @@
+---
+/**
+ * Header — Sticky navigation bar
+ * Fixed at top with glassmorphism backdrop.
+ * Hides text links below 900px (logo + CTA only on mobile).
+ */
+---
+
+<nav id="main-nav">
+  <a href="/" class="nav-logo">Klikk<span>.</span></a>
+  <div class="nav-links">
+    <a href="/#lifecycle">Lifecycle</a>
+    <a href="/#apps">Apps</a>
+    <a href="/#features">Features</a>
+    <a href="/#integrations">Integrations</a>
+    <a href="/pricing">Pricing</a>
+  </div>
+  <a href="#" class="btn-nav">Start Free</a>
+</nav>
+
+<style>
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 16px 40px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    background: rgba(15,16,56,0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    transition: background 0.3s, border-color 0.3s;
+  }
+
+  .nav-logo {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 26px;
+    color: white;
+    letter-spacing: -0.5px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .nav-logo span { color: var(--color-accent); }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-left: auto;
+  }
+  .nav-links a {
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.55);
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: color 0.2s;
+    white-space: nowrap;
+  }
+  .nav-links a:hover { color: white; }
+
+  .btn-nav {
+    flex-shrink: 0;
+    margin-left: 8px;
+    background: rgba(255,255,255,0.1) !important;
+    color: white !important;
+    border-color: rgba(255,255,255,0.25) !important;
+  }
+  .btn-nav:hover {
+    background: rgba(255,255,255,0.18) !important;
+    border-color: rgba(255,255,255,0.5) !important;
+    color: white !important;
+    box-shadow: none !important;
+  }
+
+  nav.scrolled {
+    background: rgba(15,16,56,0.92);
+    border-bottom-color: rgba(255,255,255,0.1);
+  }
+
+  @media (max-width: 900px) {
+    .nav-links { display: none; }
+    .btn-nav { margin-left: auto; }
+    nav { padding: 14px 24px; }
+  }
+</style>
+
+<script>
+  const nav = document.getElementById('main-nav');
+  window.addEventListener('scroll', () => {
+    nav?.classList.toggle('scrolled', window.scrollY > 60);
+  }, { passive: true });
+</script>

@@ -1,0 +1,83 @@
+---
+/**
+ * Footer — Site footer with links and SA badge
+ */
+---
+
+<footer>
+  <div class="footer-inner">
+    <div class="footer-logo">Klikk<span>.</span></div>
+    <div class="footer-links">
+      <a href="/#features">Features</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/blog">Blog</a>
+      <a href="/about">About</a>
+      <a href="/contact">Contact</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>&copy; {new Date().getFullYear()} Klikk (Pty) Ltd. All rights reserved.</span>
+    <div class="footer-badge">
+      <span class="sa">&#127487;&#127462;</span> Built in South Africa. Data hosted in South Africa.
+    </div>
+  </div>
+</footer>
+
+<style>
+  footer {
+    background: var(--color-navy-deep);
+    color: rgba(255,255,255,0.4);
+    padding: 64px 48px 40px;
+  }
+  .footer-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .footer-logo {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 24px;
+    color: white;
+  }
+  .footer-logo span { color: var(--color-accent); }
+  .footer-links { display: flex; gap: 32px; }
+  .footer-links a {
+    color: rgba(255,255,255,0.4);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: white; }
+  .footer-bottom {
+    max-width: 1280px;
+    margin: 40px auto 0;
+    padding-top: 24px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+  }
+  .footer-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.06);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+  }
+  .sa { font-size: 14px; }
+
+  @media (max-width: 640px) {
+    footer { padding: 40px 20px 24px; }
+    .footer-inner { flex-direction: column; gap: 24px; text-align: center; }
+    .footer-links { flex-wrap: wrap; justify-content: center; gap: 16px; }
+    .footer-bottom { flex-direction: column; gap: 16px; text-align: center; }
+  }
+</style>

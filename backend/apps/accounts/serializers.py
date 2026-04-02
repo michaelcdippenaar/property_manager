@@ -48,6 +48,8 @@ class PersonSerializer(serializers.ModelSerializer):
         model = Person
         fields = [
             "id", "person_type", "full_name", "id_number", "phone", "email",
+            "address", "employer", "occupation", "date_of_birth",
+            "emergency_contact_name", "emergency_contact_phone",
             "company_reg", "vat_number", "linked_user", "created_at",
         ]
         read_only_fields = ["id", "created_at"]

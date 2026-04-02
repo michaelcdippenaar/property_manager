@@ -1,0 +1,350 @@
+---
+/**
+ * Pricing page — 4-tier pricing cards (Starter / Professional / Agency / Enterprise)
+ * DATA-DRIVEN: reads from content/product/pricing.yaml
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import yaml from 'js-yaml';
+import fs from 'fs';
+import path from 'path';
+
+const CONTENT_DIR = path.resolve(process.cwd(), '../content');
+const raw = fs.readFileSync(path.join(CONTENT_DIR, 'product/pricing.yaml'), 'utf8');
+const data = yaml.load(raw) as any;
+const tiers = Object.values(data.tiers) as any[];
+const allInclude: string[] = data.all_plans_include;
+---
+
+<BaseLayout
+  title="Pricing — Klikk Property Management"
+  description="Free for up to 5 units. No credit card required. Upgrade as your portfolio grows."
+>
+  <div class="pricing-page">
+
+    <!-- Header -->
+    <div class="pricing-hero reveal">
+      <div class="section-label">Pricing</div>
+      <h1>Simple, transparent pricing.</h1>
+      <p>Start free. No credit card. Upgrade when you're ready.</p>
+    </div>
+
+    <!-- All plans include -->
+    <div class="all-include reveal reveal-delay-1">
+      <span class="all-label">All plans include:</span>
+      {allInclude.map(item => (
+        <span class="all-item">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          {item}
+        </span>
+      ))}
+    </div>
+
+    <!-- Tier cards -->
+    <div class="tiers-grid">
+      {tiers.map((tier, i) => (
+        <div class={`tier-card reveal${tier.highlight ? ' tier-highlight' : ''}`} style={`transition-delay: ${i * 0.08}s`}>
+          {tier.highlight && <div class="popular-badge">Most Popular</div>}
+          <div class="tier-top">
+            <div class="tier-name">{tier.name}</div>
+            <div class="tier-units">{tier.units} units</div>
+            <div class="tier-price">
+              {tier.price_monthly === 0
+                ? <><span class="price-amount">Free</span><span class="price-sub">forever</span></>
+                : tier.price_monthly === null
+                  ? <><span class="price-amount">Custom</span><span class="price-sub">contact us</span></>
+                  : <><span class="price-amount">R{tier.price_monthly}</span><span class="price-sub">/unit/month</span></>
+              }
+            </div>
+          </div>
+          <ul class="tier-features">
+            {(tier.features as string[]).map(f => (
+              <li>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                {f}
+              </li>
+            ))}
+          </ul>
+          <a href="#" class={`tier-cta${tier.highlight ? ' tier-cta-primary' : ''}`}>
+            {tier.price_monthly === null ? 'Contact Sales' : tier.price_monthly === 0 ? 'Start Free' : 'Get Started'}
+          </a>
+        </div>
+      ))}
+    </div>
+
+    <!-- FAQ -->
+    <div class="faq-section reveal">
+      <h2>Frequently asked questions</h2>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h3>Is the free plan really free forever?</h3>
+          <p>Yes. Up to 5 units, 1 user, and 5 AI lease generations per month — free, no credit card, no expiry date.</p>
+        </div>
+        <div class="faq-item">
+          <h3>How does per-unit pricing work?</h3>
+          <p>You pay for the number of active units (properties/leases) in your portfolio. Add or remove units any time — billing adjusts at month-end.</p>
+        </div>
+        <div class="faq-item">
+          <h3>What payment methods do you accept?</h3>
+          <p>Credit/debit card, EFT, and Ozow instant EFT. Invoices available on Agency and Enterprise plans.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Can I migrate from my current system?</h3>
+          <p>Yes. We provide a CSV importer for properties, tenants, and leases. The Professional and above plans include assisted migration.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Is Klikk POPIA compliant?</h3>
+          <p>Yes. All data is hosted in South Africa, encrypted at rest and in transit, and processed in compliance with POPIA requirements.</p>
+        </div>
+        <div class="faq-item">
+          <h3>Do you offer a discount for annual billing?</h3>
+          <p>Yes — pay annually and get {data.annual_discount_percent}% off. Annual billing is available on all paid plans.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</BaseLayout>
+
+<style>
+  .pricing-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 120px 40px 100px;
+  }
+
+  /* Hero */
+  .pricing-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .pricing-hero h1 {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--color-navy);
+    letter-spacing: -2px;
+    margin: 12px 0 16px;
+    line-height: 1.08;
+  }
+  .pricing-hero p {
+    font-size: 17px;
+    color: #6b7280;
+    line-height: 1.6;
+  }
+
+  /* All include row */
+  .all-include {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-bottom: 56px;
+    padding: 14px 24px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+  }
+  .all-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #059669;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 4px;
+  }
+  .all-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #047857;
+  }
+  .all-item svg { flex-shrink: 0; color: #059669; }
+
+  /* Tier grid */
+  .tiers-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 80px;
+    align-items: start;
+  }
+
+  .tier-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 32px 28px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transition: box-shadow 0.25s, transform 0.25s;
+  }
+  .tier-card:hover {
+    box-shadow: 0 8px 32px rgba(43,45,110,0.08);
+    transform: translateY(-3px);
+  }
+  .tier-highlight {
+    border-color: var(--color-navy);
+    border-width: 2px;
+    box-shadow: 0 4px 24px rgba(43,45,110,0.1);
+  }
+  .tier-highlight:hover {
+    box-shadow: 0 12px 40px rgba(43,45,110,0.14);
+  }
+
+  .popular-badge {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--color-navy);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 14px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+
+  .tier-top {
+    margin-bottom: 24px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .tier-name {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 4px;
+  }
+  .tier-units {
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    margin-bottom: 16px;
+  }
+  .tier-price {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .price-amount {
+    font-family: var(--font-display);
+    font-size: 36px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: -1.5px;
+    line-height: 1;
+  }
+  .tier-highlight .price-amount { color: var(--color-navy); }
+  .price-sub {
+    font-size: 13px;
+    color: #9ca3af;
+    font-weight: 500;
+  }
+
+  /* Feature list */
+  .tier-features {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+  .tier-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    font-size: 13.5px;
+    color: #374151;
+    line-height: 1.4;
+  }
+  .tier-features li svg {
+    flex-shrink: 0;
+    color: #059669;
+    margin-top: 1px;
+  }
+  .tier-highlight .tier-features li svg { color: var(--color-navy); }
+
+  /* CTA button */
+  .tier-cta {
+    display: block;
+    text-align: center;
+    padding: 13px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: all 0.2s;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #e5e7eb;
+  }
+  .tier-cta:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+  }
+  .tier-cta-primary {
+    background: var(--color-navy);
+    color: white;
+    border-color: var(--color-navy);
+  }
+  .tier-cta-primary:hover {
+    background: var(--color-navy-deep, #1a1b4b);
+    border-color: var(--color-navy-deep, #1a1b4b);
+  }
+
+  /* FAQ */
+  .faq-section {
+    border-top: 1px solid #f0f0f5;
+    padding-top: 72px;
+  }
+  .faq-section h2 {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--color-navy);
+    letter-spacing: -1px;
+    margin-bottom: 40px;
+    text-align: center;
+  }
+  .faq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px 48px;
+  }
+  .faq-item h3 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 8px;
+    letter-spacing: -0.2px;
+  }
+  .faq-item p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #6b7280;
+  }
+
+  @media (max-width: 1024px) {
+    .tiers-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 640px) {
+    .pricing-page { padding: 100px 20px 60px; }
+    .pricing-hero h1 { font-size: 36px; }
+    .tiers-grid { grid-template-columns: 1fr; }
+    .faq-grid { grid-template-columns: 1fr; }
+    .all-include { flex-direction: column; align-items: flex-start; }
+  }
+</style>

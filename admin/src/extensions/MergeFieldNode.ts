@@ -111,7 +111,7 @@ export const MergeField = Node.create({
 function _deriveCategory(name: string): string {
   const n = name.toLowerCase()
   if (n.startsWith('landlord') || n.startsWith('lessor')) return 'landlord'
-  if (n.startsWith('tenant') || n.startsWith('lessee') || n.startsWith('co_tenant')) return 'tenant'
+  if (n.startsWith('tenant') || n.startsWith('lessee') || n.startsWith('co_tenant') || n.startsWith('occupant')) return 'tenant'
   if (n.startsWith('property') || n.startsWith('unit') || n.startsWith('city') || n.startsWith('province')) return 'property'
   if (n.startsWith('lease') || n.startsWith('monthly') || n.startsWith('deposit') || n.startsWith('notice')
     || n.startsWith('water') || n.startsWith('electricity') || n.startsWith('max_') || n.startsWith('payment')) return 'lease'

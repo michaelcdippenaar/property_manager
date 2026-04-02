@@ -55,6 +55,11 @@ class ESigningSubmission(models.Model):
         blank=True,
         help_text="Locally generated signed PDF (native signing).",
     )
+    captured_data = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Merge field data manually entered by signers during signing.",
+    )
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

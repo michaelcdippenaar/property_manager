@@ -1,0 +1,89 @@
+---
+/**
+ * BaseLayout — Root layout for all pages
+ *
+ * Provides:
+ * - HTML head with fonts, meta, OG tags
+ * - Header (sticky nav)
+ * - Main content slot
+ * - Footer
+ * - Scroll reveal script
+ *
+ * Usage in pages:
+ *   <BaseLayout title="Page Title" description="Meta description">
+ *     <YourContent />
+ *   </BaseLayout>
+ */
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const {
+  title = 'Klikk — Property Management, Intelligently South African',
+  description = 'AI-powered property management for South Africa. Generate RHA-compliant leases, match suppliers, e-sign documents, and manage tenants — all in one platform.',
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <link rel="canonical" href={Astro.url.href} />
+
+  <!-- OG / Social -->
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content={Astro.url.href} />
+  <meta property="og:site_name" content="Klikk" />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="/og-image.png" />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+</head>
+<body>
+  <Header />
+  <main>
+    <slot />
+  </main>
+  <Footer />
+
+  <!-- Scroll-triggered reveal animations -->
+  <script>
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Stagger grid children within their containers
+    document.querySelectorAll('.lifecycle-grid, .eco-grid, .features-grid').forEach(grid => {
+      grid.querySelectorAll('.reveal').forEach((card, i) => {
+        (card as HTMLElement).style.transitionDelay = `${i * 0.06}s`;
+      });
+    });
+  </script>
+</body>
+</html>

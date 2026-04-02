@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Klikk — Property Management, Intelligently South African</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --navy: #2B2D6E;
+      --navy-deep: #1a1b4b;
+      --navy-dark: #23255a;
+      --accent: #FF3D7F;
+      --accent-light: #FF6B9D;
+      --accent-dark: #E02D6B;
+      --surface: #F5F5F8;
+      --surface-warm: #FAF9F7;
+      --white: #FFFFFF;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --gray-900: #111827;
+      --success: #10b981;
+      --font-display: 'Bricolage Grotesque', serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-body);
+      color: var(--gray-900);
+      background: var(--white);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(32px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.4); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-12px); }
+    }
+    @keyframes gradient-shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .fade-up { animation: fadeUp 0.8s ease-out both; }
+    .fade-up-1 { animation-delay: 0.1s; }
+    .fade-up-2 { animation-delay: 0.25s; }
+    .fade-up-3 { animation-delay: 0.4s; }
+    .fade-up-4 { animation-delay: 0.55s; }
+    .fade-up-5 { animation-delay: 0.7s; }
+
+    /* ── Scroll reveal ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(28px);
+      transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.08s; }
+    .reveal-delay-2 { transition-delay: 0.16s; }
+    .reveal-delay-3 { transition-delay: 0.24s; }
+    .reveal-delay-4 { transition-delay: 0.32s; }
+    .reveal-delay-5 { transition-delay: 0.40s; }
+    .reveal-delay-6 { transition-delay: 0.48s; }
+
+    /* ── Navigation ── */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      padding: 20px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 48px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(0,0,0,0.04);
+    }
+    .nav-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 28px;
+      color: var(--navy);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      margin-left: auto;
+    }
+    .nav-links a {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-500);
+      text-decoration: none;
+      letter-spacing: 0.01em;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--navy); }
+    .btn-nav {
+      background: var(--white);
+      color: var(--navy);
+      padding: 10px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: var(--font-display);
+      text-decoration: none;
+      transition: all 0.25s;
+      border: 2px solid var(--navy);
+      cursor: pointer;
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+    .btn-nav:hover { background: var(--navy); color: var(--white); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(43,45,110,0.2); }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 140px 48px 100px;
+      background: linear-gradient(160deg, var(--white) 0%, var(--surface) 40%, #eeedf6 100%);
+      overflow: hidden;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      top: -200px;
+      right: -200px;
+      width: 700px;
+      height: 700px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255,61,127,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 80px;
+      max-width: 1280px;
+      margin: 0 auto;
+      align-items: center;
+      width: 100%;
+    }
+    .hero-content { z-index: 2; }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(43,45,110,0.06);
+      border: 1px solid rgba(43,45,110,0.1);
+      padding: 6px 16px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--navy);
+      margin-bottom: 28px;
+      animation: fadeUp 0.6s ease-out both;
+    }
+    .hero-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: 62px;
+      line-height: 1.05;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 19px;
+      line-height: 1.7;
+      color: var(--gray-500);
+      max-width: 520px;
+      margin-bottom: 40px;
+      font-weight: 400;
+    }
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--accent);
+      color: var(--white);
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: var(--font-body);
+      text-decoration: none;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 24px rgba(255,61,127,0.25);
+    }
+    .btn-primary:hover { background: var(--accent-dark); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(255,61,127,0.35); }
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      color: var(--navy);
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: var(--font-body);
+      text-decoration: none;
+      transition: all 0.3s;
+      border: 1.5px solid var(--gray-200);
+      cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--navy); background: rgba(43,45,110,0.03); }
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+      margin-top: 56px;
+      padding-top: 32px;
+      border-top: 1px solid var(--gray-200);
+    }
+    .hero-stat-number {
+      font-family: var(--font-display);
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -1px;
+    }
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--gray-400);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* ── Hero Visual ── */
+    .hero-visual {
+      position: relative;
+      z-index: 2;
+      animation: slideInRight 1s ease-out 0.3s both;
+    }
+    .hero-mockup {
+      position: relative;
+      background: var(--white);
+      border-radius: 16px;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,0.04),
+        0 12px 40px rgba(43,45,110,0.08),
+        0 40px 80px rgba(43,45,110,0.06);
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .mockup-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .mockup-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--gray-300);
+    }
+    .mockup-dot:nth-child(1) { background: #FF6058; }
+    .mockup-dot:nth-child(2) { background: #FFC02F; }
+    .mockup-dot:nth-child(3) { background: #27CA40; }
+    .mockup-body {
+      padding: 24px;
+      min-height: 360px;
+      background: var(--surface);
+    }
+    /* Simulated dashboard inside mockup */
+    .mock-dash {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 16px;
+      height: 100%;
+    }
+    .mock-sidebar {
+      background: var(--white);
+      border-radius: 12px;
+      padding: 16px;
+      border: 1px solid var(--gray-100);
+    }
+    .mock-sidebar-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gray-400);
+      margin-bottom: 4px;
+    }
+    .mock-sidebar-item.active {
+      background: rgba(43,45,110,0.08);
+      color: var(--navy);
+      font-weight: 600;
+    }
+    .mock-sidebar-icon {
+      width: 16px; height: 16px;
+      border-radius: 4px;
+      background: var(--gray-200);
+    }
+    .mock-sidebar-item.active .mock-sidebar-icon { background: var(--navy); }
+    .mock-main {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .mock-stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .mock-stat-card {
+      background: var(--white);
+      border-radius: 10px;
+      padding: 14px;
+      border: 1px solid var(--gray-100);
+    }
+    .mock-stat-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gray-400);
+      font-weight: 600;
+    }
+    .mock-stat-value {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--navy);
+      margin-top: 6px;
+      letter-spacing: -0.5px;
+    }
+    .mock-stat-value.accent { color: var(--accent); }
+    .mock-stat-value.success { color: var(--success); }
+    .mock-chart {
+      flex: 1;
+      background: var(--white);
+      border-radius: 10px;
+      border: 1px solid var(--gray-100);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+      min-height: 140px;
+    }
+    .mock-chart-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray-500);
+    }
+    .mock-chart-bars {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 80px;
+    }
+    .mock-bar {
+      flex: 1;
+      border-radius: 4px 4px 0 0;
+      background: linear-gradient(180deg, var(--navy), var(--navy-deep));
+      min-height: 12px;
+      transition: height 0.5s ease;
+    }
+    .mock-bar:nth-child(2n) { background: linear-gradient(180deg, var(--accent-light), var(--accent)); }
+
+    /* ── Phone mockup floating ── */
+    .phone-mockup {
+      position: absolute;
+      bottom: -20px;
+      right: -40px;
+      width: 140px;
+      background: var(--gray-900);
+      border-radius: 24px;
+      padding: 8px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+      animation: float 6s ease-in-out infinite;
+      z-index: 5;
+    }
+    .phone-screen {
+      background: var(--white);
+      border-radius: 18px;
+      padding: 12px;
+      min-height: 220px;
+    }
+    .phone-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .phone-avatar {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--navy), var(--accent));
+    }
+    .phone-name {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--gray-900);
+    }
+    .phone-sub {
+      font-size: 8px;
+      color: var(--gray-400);
+    }
+    .phone-card {
+      background: var(--surface);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .phone-card-title {
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+    .phone-card-sub {
+      font-size: 8px;
+      color: var(--gray-400);
+      margin-top: 2px;
+    }
+    .phone-badge {
+      display: inline-block;
+      font-size: 7px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-top: 6px;
+    }
+    .phone-badge.urgent { background: #fef2f2; color: #ef4444; }
+    .phone-badge.open { background: #eff6ff; color: #3b82f6; }
+
+    /* ── Ecosystem Section ── */
+    .section { padding: 120px 48px; max-width: 1280px; margin: 0 auto; }
+    .section-dark {
+      background: linear-gradient(160deg, var(--navy-deep) 0%, var(--navy) 50%, #3a3c8a 100%);
+      color: var(--white);
+      max-width: 100%;
+      position: relative;
+      overflow: hidden;
+    }
+    .section-dark::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    .section-warm { background: var(--surface-warm); max-width: 100%; }
+    .section-inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 2; }
+    .section-label {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    .section-dark .section-label { color: var(--accent-light); }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 46px;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 20px;
+    }
+    .section-dark .section-title { color: var(--white); }
+    .section-desc {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--gray-500);
+      max-width: 560px;
+      margin-bottom: 56px;
+    }
+    .section-dark .section-desc { color: rgba(255,255,255,0.6); }
+
+    /* ── App Ecosystem Cards ── */
+    .eco-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+    .eco-card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 32px 24px;
+      transition: all 0.35s;
+      position: relative;
+      overflow: hidden;
+    }
+    .eco-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transition: transform 0.35s;
+    }
+    .eco-card:hover { background: rgba(255,255,255,0.1); transform: translateY(-4px); }
+    .eco-card:hover::before { transform: scaleX(1); }
+    .eco-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .eco-icon svg { width: 24px; height: 24px; stroke-width: 1.75; }
+    .eco-icon.admin { background: rgba(255,61,127,0.15); }
+    .eco-icon.tenant { background: rgba(16,185,129,0.15); }
+    .eco-icon.owner { background: rgba(59,130,246,0.15); }
+    .eco-icon.supplier { background: rgba(245,158,11,0.15); }
+    .eco-card h3 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--white);
+      margin-bottom: 8px;
+      letter-spacing: -0.3px;
+    }
+    .eco-card p {
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(255,255,255,0.55);
+    }
+    .eco-card .platform {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.35);
+      margin-top: 16px;
+    }
+
+    /* ── Lifecycle Section ── */
+    .lifecycle-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      position: relative;
+    }
+    .lifecycle-step {
+      position: relative;
+      padding: 28px 20px;
+      border: 1px solid var(--gray-100);
+      border-right: none;
+      background: var(--white);
+      transition: all 0.3s;
+    }
+    .lifecycle-step:nth-child(5n) { border-right: 1px solid var(--gray-100); }
+    .lifecycle-step:nth-child(-n+5) { border-radius: 14px 14px 0 0; }
+    .lifecycle-step:nth-child(n+6):nth-child(-n+10) { border-top: none; }
+    .lifecycle-step:nth-child(n+11) { border-top: none; border-radius: 0 0 14px 14px; }
+    .lifecycle-step:hover { background: var(--surface); z-index: 2; }
+    .step-number {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--gray-200);
+      margin-bottom: 8px;
+      letter-spacing: -1px;
+    }
+    .lifecycle-step:hover .step-number { color: var(--accent); }
+    .step-title {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+    }
+    .step-desc {
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--gray-400);
+    }
+    .step-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    .step-badge.built { background: #ecfdf5; color: #059669; }
+    .step-badge.planned { background: #eff6ff; color: #2563eb; }
+
+    /* ── Features Section ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+    .feature-card {
+      background: var(--white);
+      border: 1px solid var(--gray-100);
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card:hover {
+      border-color: var(--gray-200);
+      box-shadow: 0 8px 32px rgba(43,45,110,0.06);
+      transform: translateY(-3px);
+    }
+    .feature-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      background: var(--surface);
+    }
+    .feature-icon svg { width: 22px; height: 22px; stroke-width: 1.75; color: var(--navy); }
+    .feature-card h3 {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--gray-900);
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--gray-500);
+    }
+
+    /* ── Integration Logos ── */
+    .integrations-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      padding: 32px 0;
+      flex-wrap: wrap;
+    }
+    .integration-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+    .integration-logo:hover { opacity: 0.8; }
+    .integration-logo .logo-circle {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--gray-500);
+    }
+    .integration-logo span {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gray-400);
+    }
+
+    /* ── CTA Section ── */
+    .cta-section {
+      text-align: center;
+      padding: 120px 48px;
+      background: var(--surface-warm);
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: -300px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(43,45,110,0.04) 0%, transparent 70%);
+    }
+    .cta-inner { position: relative; z-index: 2; }
+    .cta-section h2 {
+      font-family: var(--font-display);
+      font-size: 52px;
+      font-weight: 800;
+      color: var(--navy);
+      letter-spacing: -2px;
+      margin-bottom: 16px;
+    }
+    .cta-section p {
+      font-size: 18px;
+      color: var(--gray-500);
+      margin-bottom: 40px;
+    }
+    .cta-actions { display: flex; gap: 16px; justify-content: center; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--navy-deep);
+      color: rgba(255,255,255,0.4);
+      padding: 64px 48px 40px;
+    }
+    .footer-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .footer-logo {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 24px;
+      color: var(--white);
+    }
+    .footer-logo span { color: var(--accent); }
+    .footer-links { display: flex; gap: 32px; }
+    .footer-links a {
+      color: rgba(255,255,255,0.4);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--white); }
+    .footer-bottom {
+      max-width: 1280px;
+      margin: 40px auto 0;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+    .footer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.06);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+    }
+    .footer-badge .sa { font-size: 14px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+      .hero h1 { font-size: 46px; }
+      .eco-grid { grid-template-columns: repeat(2, 1fr); }
+      .lifecycle-grid { grid-template-columns: repeat(3, 1fr); }
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .phone-mockup { display: none; }
+    }
+    @media (max-width: 640px) {
+      nav { padding: 16px 20px; }
+      .nav-links a:not(.btn-nav) { display: none; }
+      .hero { padding: 120px 20px 80px; }
+      .hero h1 { font-size: 36px; letter-spacing: -1px; }
+      .hero p { font-size: 16px; }
+      .section { padding: 80px 20px; }
+      .section-dark, .section-warm { padding: 80px 20px; }
+      .section-title { font-size: 32px; }
+      .eco-grid { grid-template-columns: 1fr; }
+      .lifecycle-grid { grid-template-columns: repeat(2, 1fr); }
+      .features-grid { grid-template-columns: 1fr; }
+      .hero-stats { flex-direction: column; gap: 20px; }
+      .cta-section h2 { font-size: 36px; }
+      .cta-actions { flex-direction: column; align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <a href="#" class="nav-logo">Klikk<span>.</span></a>
+    <div class="nav-links">
+      <a href="#lifecycle">Lifecycle</a>
+      <a href="#apps">Apps</a>
+      <a href="#features">Features</a>
+      <a href="#integrations">Integrations</a>
+      <a href="#" class="btn-nav">Start Free</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-grid">
+      <div class="hero-content">
+        <div class="hero-badge fade-up">
+          <span class="dot"></span>
+          Built for South African rental law
+        </div>
+        <h1 class="fade-up fade-up-1">Property management,<br><em>intelligently</em> South African.</h1>
+        <p class="fade-up fade-up-2">AI-powered leases, intelligent supplier matching, native e-signing, and a tenant app &mdash; built from the ground up for the Rental Housing Act.</p>
+        <div class="hero-actions fade-up fade-up-3">
+          <a href="#" class="btn-primary">
+            Start Free &mdash; Up to 5 Units
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
+          <a href="#" class="btn-secondary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Watch Demo
+          </a>
+        </div>
+        <div class="hero-stats fade-up fade-up-4">
+          <div>
+            <div class="hero-stat-number">15</div>
+            <div class="hero-stat-label">Lifecycle stages covered</div>
+          </div>
+          <div>
+            <div class="hero-stat-number">4</div>
+            <div class="hero-stat-label">Purpose-built apps</div>
+          </div>
+          <div>
+            <div class="hero-stat-number">&lt;3min</div>
+            <div class="hero-stat-label">To generate a lease</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <div class="hero-mockup">
+          <div class="mockup-bar">
+            <div class="mockup-dot"></div>
+            <div class="mockup-dot"></div>
+            <div class="mockup-dot"></div>
+          </div>
+          <div class="mockup-body">
+            <div class="mock-dash">
+              <div class="mock-sidebar">
+                <div class="mock-sidebar-item active"><div class="mock-sidebar-icon"></div>Dashboard</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>Properties</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>Tenants</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>Leases</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>Maintenance</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>Suppliers</div>
+                <div class="mock-sidebar-item"><div class="mock-sidebar-icon"></div>E-Signing</div>
+              </div>
+              <div class="mock-main">
+                <div class="mock-stat-row">
+                  <div class="mock-stat-card">
+                    <div class="mock-stat-label">Properties</div>
+                    <div class="mock-stat-value">12</div>
+                  </div>
+                  <div class="mock-stat-card">
+                    <div class="mock-stat-label">Active Leases</div>
+                    <div class="mock-stat-value accent">47</div>
+                  </div>
+                  <div class="mock-stat-card">
+                    <div class="mock-stat-label">Occupancy</div>
+                    <div class="mock-stat-value success">94%</div>
+                  </div>
+                </div>
+                <div class="mock-chart">
+                  <div class="mock-chart-label">Monthly Rent Collection</div>
+                  <div class="mock-chart-bars">
+                    <div class="mock-bar" style="height:55%"></div>
+                    <div class="mock-bar" style="height:72%"></div>
+                    <div class="mock-bar" style="height:65%"></div>
+                    <div class="mock-bar" style="height:88%"></div>
+                    <div class="mock-bar" style="height:78%"></div>
+                    <div class="mock-bar" style="height:92%"></div>
+                    <div class="mock-bar" style="height:85%"></div>
+                    <div class="mock-bar" style="height:95%"></div>
+                    <div class="mock-bar" style="height:80%"></div>
+                    <div class="mock-bar" style="height:98%"></div>
+                    <div class="mock-bar" style="height:90%"></div>
+                    <div class="mock-bar" style="height:100%"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Floating phone -->
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="phone-header">
+              <div class="phone-avatar"></div>
+              <div>
+                <div class="phone-name">Klikk Tenant</div>
+                <div class="phone-sub">Unit 4B, Melville</div>
+              </div>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-title">Leaking geyser</div>
+              <div class="phone-card-sub">Reported 2 hours ago</div>
+              <div class="phone-badge urgent">Urgent</div>
+            </div>
+            <div class="phone-card">
+              <div class="phone-card-title">Lease renewal</div>
+              <div class="phone-card-sub">Expires in 30 days</div>
+              <div class="phone-badge open">Action needed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4-App Ecosystem -->
+  <section class="section-dark" id="apps">
+    <div class="section-inner" style="padding: 120px 48px;">
+      <div class="section-label reveal">One Platform, Four Apps</div>
+      <div class="section-title reveal reveal-delay-1">Every person gets<br>their own experience.</div>
+      <div class="section-desc reveal reveal-delay-2">Purpose-built apps for agents, tenants, owners, and suppliers. Connected in real-time. One source of truth.</div>
+
+      <div class="eco-grid">
+        <div class="eco-card reveal">
+          <div class="eco-icon admin"><svg viewBox="0 0 24 24" fill="none" stroke="#FF3D7F" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+          <h3>Klikk Admin</h3>
+          <p>Command centre for your portfolio. AI leases, maintenance dispatch, supplier matching, e-signing &mdash; all in one dashboard.</p>
+          <div class="platform">&#9679; Web App</div>
+        </div>
+        <div class="eco-card reveal">
+          <div class="eco-icon tenant"><svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg></div>
+          <h3>Klikk Tenant</h3>
+          <p>Report issues with photos, chat in real-time, view lease details, and sign documents &mdash; all from their phone.</p>
+          <div class="platform">&#9679; iOS &amp; Android</div>
+        </div>
+        <div class="eco-card reveal">
+          <div class="eco-icon owner"><svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+          <h3>Klikk Owner</h3>
+          <p>Real-time portfolio visibility. Occupancy rates, income tracking, maintenance status, and lease pipeline at a glance.</p>
+          <div class="platform">&#9679; Web Portal</div>
+        </div>
+        <div class="eco-card reveal">
+          <div class="eco-icon supplier"><svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+          <h3>Klikk Supplier</h3>
+          <p>Receive jobs, submit quotes, manage your calendar. No login required for quoting &mdash; just click the link.</p>
+          <div class="platform">&#9679; Web Portal</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rental Lifecycle -->
+  <section class="section" id="lifecycle">
+    <div class="section-label reveal">The Complete Rental Journey</div>
+    <div class="section-title reveal reveal-delay-1">From advertising to refund.<br>Every stage, one platform.</div>
+    <div class="section-desc reveal reveal-delay-2">Klikk covers the entire tenant lifecycle &mdash; no gaps, no workarounds, no spreadsheets.</div>
+
+    <div class="lifecycle-grid">
+      <div class="lifecycle-step reveal">
+        <div class="step-number">01</div>
+        <div class="step-title">Advertise</div>
+        <div class="step-desc">List vacancies on Property24 and Private Property</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">02</div>
+        <div class="step-title">Viewing</div>
+        <div class="step-desc">Schedule and confirm property viewings</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">03</div>
+        <div class="step-title">Screen</div>
+        <div class="step-desc">Credit, criminal, ID and reference checks</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">04</div>
+        <div class="step-title">Contract</div>
+        <div class="step-desc">AI generates RHA-compliant lease in minutes</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">05</div>
+        <div class="step-title">Sign</div>
+        <div class="step-desc">E-sign from any device, no account needed</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">06</div>
+        <div class="step-title">Onboard</div>
+        <div class="step-desc">Welcome pack, app invite, utility setup</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">07</div>
+        <div class="step-title">Deposit</div>
+        <div class="step-desc">Collect and invest in interest-bearing trust</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">08</div>
+        <div class="step-title">Inspect</div>
+        <div class="step-desc">Incoming inspection with photo evidence</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">09</div>
+        <div class="step-title">Live</div>
+        <div class="step-desc">Tenant app for issues, chat and lease access</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">10</div>
+        <div class="step-title">Pay Rent</div>
+        <div class="step-desc">Payment references, tracking and receipts</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">11</div>
+        <div class="step-title">Maintain</div>
+        <div class="step-desc">AI triage, supplier matching, dispatch</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">12</div>
+        <div class="step-title">Renew</div>
+        <div class="step-desc">Auto-remind, negotiate, generate renewal</div>
+        <div class="step-badge built">Live</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">13</div>
+        <div class="step-title">Notice</div>
+        <div class="step-desc">Notice period management and timeline</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">14</div>
+        <div class="step-title">Out-Inspect</div>
+        <div class="step-desc">Compare condition to incoming inspection</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+      <div class="lifecycle-step reveal">
+        <div class="step-number">15</div>
+        <div class="step-title">Refund</div>
+        <div class="step-desc">Calculate deductions, refund within 14 days</div>
+        <div class="step-badge planned">Coming Soon</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="section-warm" id="features">
+    <div class="section-inner" style="padding: 120px 48px;">
+      <div class="section-label reveal">AI-Powered Features</div>
+      <div class="section-title reveal reveal-delay-1">Intelligence baked into<br>every workflow.</div>
+      <div class="section-desc reveal reveal-delay-2">Not just automation. Actual intelligence that understands South African rental law, supplier proximity, and lease compliance.</div>
+
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+          <h3>AI Lease Generation</h3>
+          <p>Chat with Claude AI to generate a fully compliant Rental Housing Act lease. Merge fields, signature blocks, and clause library built in.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/></svg></div>
+          <h3>Document Intelligence</h3>
+          <p>Upload an existing PDF or DOCX lease. AI extracts tenant names, dates, rent amounts, and every clause &mdash; automatically.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div>
+          <h3>Supplier Matching</h3>
+          <p>5-factor algorithm ranks suppliers by proximity, trade skills, price history, owner preference, and rating. Best match, every time.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+          <h3>Native E-Signing</h3>
+          <p>No DocuSign subscription needed. Tenants sign from any device via a secure link. Track completion in real-time with WebSocket updates.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+          <h3>Real-Time Tenant Chat</h3>
+          <p>WebSocket-powered messaging between tenants, agents, and suppliers. Photo attachments, typing indicators, and full audit trail.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+          <h3>Owner Dashboard</h3>
+          <p>Property owners see occupancy rates, income tracking, maintenance status, and lease pipeline &mdash; real-time, read-only, and beautiful.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Integrations -->
+  <section class="section" id="integrations" style="text-align: center;">
+    <div class="section-label reveal" style="text-align: center;">Integrations</div>
+    <div class="section-title reveal reveal-delay-1" style="text-align: center;">Plays well with your<br>existing tools.</div>
+    <div class="section-desc reveal reveal-delay-2" style="text-align: center; margin: 0 auto 48px;">Connect Klikk to the platforms you already use. Payment processing, accounting, screening &mdash; all synced.</div>
+
+    <div class="integrations-row reveal reveal-delay-3">
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #00b4d8; font-size: 18px;">PP</div>
+        <span>PayProp</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #13B5EA;">X</div>
+        <span>Xero</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #2CA01C;">QB</div>
+        <span>QuickBooks</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #e74c3c;">TPN</div>
+        <span>TPN Credit</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #FF5A1F;">P24</div>
+        <span>Property24</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #4285F4;">G</div>
+        <span>Google Maps</span>
+      </div>
+      <div class="integration-logo">
+        <div class="logo-circle" style="color: #25D366;">W</div>
+        <span>WhatsApp</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <div class="cta-inner">
+      <h2 class="reveal">Ready to manage<br>smarter?</h2>
+      <p class="reveal reveal-delay-1">Free for up to 5 units. No credit card. No demo call. Just start.</p>
+      <div class="cta-actions reveal reveal-delay-2">
+        <a href="#" class="btn-primary">
+          Start Free Today
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        <a href="#" class="btn-secondary">Talk to Us</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-logo">Klikk<span>.</span></div>
+      <div class="footer-links">
+        <a href="#">Features</a>
+        <a href="#">Pricing</a>
+        <a href="#">Blog</a>
+        <a href="#">About</a>
+        <a href="#">Contact</a>
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Klikk (Pty) Ltd. All rights reserved.</span>
+      <div class="footer-badge">
+        <span class="sa">&#127487;&#127462;</span> Built in South Africa. Data hosted in South Africa.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Scroll-triggered reveal animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+    // Stagger lifecycle steps and eco/feature cards within their grids
+    document.querySelectorAll('.lifecycle-grid, .eco-grid, .features-grid').forEach(grid => {
+      grid.querySelectorAll('.reveal').forEach((card, i) => {
+        card.style.transitionDelay = `${i * 0.06}s`;
+      });
+    });
+  </script>
+</body>
+</html>

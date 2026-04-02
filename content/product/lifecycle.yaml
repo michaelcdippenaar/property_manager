@@ -1,0 +1,82 @@
+# ═══════════════════════════════════════════════════════════════
+# THE KLIKK RENTAL LIFECYCLE — 15 stages, one platform
+#
+# Each step references a feature in features.yaml via feature_ref.
+# Status is resolved from features.yaml — never duplicated here.
+# ═══════════════════════════════════════════════════════════════
+
+lifecycle:
+  - step: 1
+    title: Advertise
+    description: "List vacancies on Property24 and Private Property"
+    feature_ref: property_advertising
+
+  - step: 2
+    title: Viewing
+    description: "Schedule and confirm property viewings"
+    feature_ref: property_viewings
+
+  - step: 3
+    title: Screen
+    description: "Credit, criminal, ID and reference checks"
+    feature_ref: tenant_screening
+
+  - step: 4
+    title: Contract
+    description: "AI generates RHA-compliant lease in minutes"
+    feature_ref: ai_lease_generation
+
+  - step: 5
+    title: Sign
+    description: "E-sign from any device, no account needed"
+    feature_ref: native_esigning
+
+  - step: 6
+    title: Onboard
+    description: "Welcome pack, app invite, utility setup"
+    feature_ref: tenant_onboarding
+
+  - step: 7
+    title: Deposit
+    description: "Collect and invest in interest-bearing trust"
+    feature_ref: deposit_management
+
+  - step: 8
+    title: Inspect
+    description: "Incoming inspection with photo evidence"
+    feature_ref: incoming_inspection
+
+  - step: 9
+    title: Live
+    description: "Tenant app for issues, chat and lease access"
+    feature_ref: tenant_mobile_app
+
+  - step: 10
+    title: Pay Rent
+    description: "Payment references, tracking and receipts"
+    feature_ref: rent_tracking
+
+  - step: 11
+    title: Maintain
+    description: "AI triage, supplier matching, dispatch"
+    feature_ref: supplier_matching
+
+  - step: 12
+    title: Renew
+    description: "Auto-remind, negotiate, generate renewal"
+    feature_ref: lease_renewal
+
+  - step: 13
+    title: Notice
+    description: "Notice period management and timeline"
+    feature_ref: notice_management
+
+  - step: 14
+    title: Out-Inspect
+    description: "Compare condition to incoming inspection"
+    feature_ref: outgoing_inspection
+
+  - step: 15
+    title: Refund
+    description: "Calculate deductions, refund within 14 days"
+    feature_ref: deposit_refund

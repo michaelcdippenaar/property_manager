@@ -20,14 +20,14 @@
       <!-- Tabs -->
       <div class="flex border-b border-gray-100">
         <button
-          @click="mode = 'draw'"
+          @click="switchMode('draw')"
           class="flex-1 py-2.5 text-xs font-medium transition-colors"
           :class="mode === 'draw' ? 'text-navy border-b-2 border-navy' : 'text-gray-400 hover:text-gray-600'"
         >
           Draw
         </button>
         <button
-          @click="mode = 'type'"
+          @click="switchMode('type')"
           class="flex-1 py-2.5 text-xs font-medium transition-colors"
           :class="mode === 'type' ? 'text-navy border-b-2 border-navy' : 'text-gray-400 hover:text-gray-600'"
         >
@@ -37,13 +37,14 @@
 
       <!-- Draw mode -->
       <div v-show="mode === 'draw'" class="px-5 py-4">
-        <div class="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 overflow-hidden">
+        <div
+          ref="canvasWrapperRef"
+          class="border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 overflow-hidden"
+        >
           <canvas
             ref="canvasRef"
-            :width="canvasWidth"
-            :height="canvasHeight"
             class="w-full touch-none"
-            :style="{ height: canvasHeight / 2 + 'px' }"
+            :style="{ height: (fieldType === 'initials' ? 80 : 100) + 'px' }"
           />
         </div>
         <p class="text-[10px] text-gray-400 mt-1.5 text-center">
@@ -54,15 +55,14 @@
       <!-- Type mode -->
       <div v-show="mode === 'type'" class="px-5 py-4">
         <input
+          ref="typeInputRef"
           v-model="typedText"
           :placeholder="fieldType === 'initials' ? 'Your initials' : 'Your full name'"
           class="w-full border border-gray-200 rounded-xl px-4 py-3 text-center text-lg focus:ring-2 focus:ring-navy/20 focus:border-navy outline-none"
           :class="typedText ? 'font-signature text-2xl' : ''"
-          @input="renderTypedSignature"
         />
         <!-- Preview of typed signature -->
         <div v-if="typedText" class="mt-3 border border-gray-100 rounded-xl bg-gray-50/50 p-4 flex items-center justify-center">
-          <canvas ref="typedCanvasRef" :width="canvasWidth" :height="canvasHeight" class="max-h-16" style="display:none;" />
           <span class="font-signature text-3xl text-navy select-none">{{ typedText }}</span>
         </div>
       </div>
@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import SignaturePad from 'signature_pad'
 
 const props = defineProps<{
@@ -105,28 +105,22 @@ const emit = defineEmits<{
 const mode = ref<'draw' | 'type'>('draw')
 const typedText = ref('')
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-const typedCanvasRef = ref<HTMLCanvasElement | null>(null)
+const canvasWrapperRef = ref<HTMLDivElement | null>(null)
+const typeInputRef = ref<HTMLInputElement | null>(null)
 let signaturePad: SignaturePad | null = null
-
-const canvasWidth = computed(() => props.fieldType === 'initials' ? 400 : 600)
-const canvasHeight = computed(() => props.fieldType === 'initials' ? 160 : 200)
+let padReady = ref(false)
 
 const canConfirm = computed(() => {
-  if (mode.value === 'draw') return signaturePad ? !signaturePad.isEmpty() : false
+  if (mode.value === 'draw') return padReady.value && signaturePad ? !signaturePad.isEmpty() : false
   return typedText.value.trim().length > 0
 })
 
 onMounted(() => {
-  nextTick(() => {
-    if (canvasRef.value) {
-      signaturePad = new SignaturePad(canvasRef.value, {
-        penColor: '#1e3a5f',
-        minWidth: 1.5,
-        maxWidth: 3,
-        backgroundColor: 'rgba(0,0,0,0)',
-      })
-      resizeCanvas()
-    }
+  // Use requestAnimationFrame to ensure layout is painted before measuring canvas
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      initCanvas()
+    })
   })
   window.addEventListener('resize', resizeCanvas)
 })
@@ -136,16 +130,60 @@ onUnmounted(() => {
   signaturePad?.off()
 })
 
-function resizeCanvas() {
-  if (!canvasRef.value || !signaturePad) return
+function initCanvas() {
   const canvas = canvasRef.value
-  const ratio = Math.max(window.devicePixelRatio || 1, 1)
+  if (!canvas) return
+
   const rect = canvas.getBoundingClientRect()
+  if (rect.width === 0) {
+    // Layout not ready yet, try again
+    requestAnimationFrame(() => initCanvas())
+    return
+  }
+
+  const ratio = Math.max(window.devicePixelRatio || 1, 1)
+  canvas.width = rect.width * ratio
+  canvas.height = rect.height * ratio
+  const ctx = canvas.getContext('2d')
+  if (ctx) ctx.scale(ratio, ratio)
+
+  signaturePad = new SignaturePad(canvas, {
+    penColor: '#1e3a5f',
+    minWidth: 1.5,
+    maxWidth: 3,
+    backgroundColor: 'rgba(0,0,0,0)',
+  })
+  padReady.value = true
+}
+
+function resizeCanvas() {
+  const canvas = canvasRef.value
+  if (!canvas || !signaturePad) return
+
+  const rect = canvas.getBoundingClientRect()
+  if (rect.width === 0) return
+
+  const ratio = Math.max(window.devicePixelRatio || 1, 1)
   canvas.width = rect.width * ratio
   canvas.height = rect.height * ratio
   const ctx = canvas.getContext('2d')
   if (ctx) ctx.scale(ratio, ratio)
   signaturePad.clear()
+}
+
+function switchMode(newMode: 'draw' | 'type') {
+  mode.value = newMode
+  if (newMode === 'draw') {
+    nextTick(() => {
+      if (!signaturePad) {
+        initCanvas()
+      } else {
+        resizeCanvas()
+      }
+    })
+  } else {
+    nextTick(() => typeInputRef.value?.focus())
+  }
 }
 
 function handleClear() {
@@ -162,7 +200,6 @@ function handleConfirm() {
   if (mode.value === 'draw' && signaturePad) {
     imageData = signaturePad.toDataURL('image/png')
   } else if (mode.value === 'type' && typedText.value.trim()) {
-    // Render typed text to canvas
     imageData = renderTextToCanvas(typedText.value.trim())
   }
 
@@ -187,16 +224,6 @@ function renderTextToCanvas(text: string): string {
   ctx.fillText(text, w / 2, h / 2)
   return canvas.toDataURL('image/png')
 }
-
-function renderTypedSignature() {
-  // No-op — preview is shown via CSS text
-}
-
-watch(mode, () => {
-  if (mode.value === 'draw') {
-    nextTick(() => resizeCanvas())
-  }
-})
 </script>
 
 <style>

@@ -77,6 +77,13 @@ class Person(models.Model):
     id_number = models.CharField(max_length=20, blank=True, help_text="SA ID or passport number")
     phone = models.CharField(max_length=20, blank=True)
     email = models.EmailField(blank=True)
+    # Additional personal info (often captured during lease signing)
+    address = models.TextField(blank=True, help_text="Current residential address")
+    employer = models.CharField(max_length=200, blank=True)
+    occupation = models.CharField(max_length=100, blank=True)
+    date_of_birth = models.DateField(null=True, blank=True)
+    emergency_contact_name = models.CharField(max_length=200, blank=True)
+    emergency_contact_phone = models.CharField(max_length=20, blank=True)
     # Company-specific
     company_reg = models.CharField(max_length=50, blank=True)
     vat_number = models.CharField(max_length=30, blank=True)

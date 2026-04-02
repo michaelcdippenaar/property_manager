@@ -1,0 +1,167 @@
+---
+/**
+ * CTA — Final call-to-action section
+ */
+---
+
+<section class="cta-section">
+  <div class="cta-glow"></div>
+  <div class="cta-inner">
+    <div class="cta-badge reveal">
+      <span class="dot"></span>
+      Free for up to 5 units — no credit card
+    </div>
+    <h2 class="reveal reveal-delay-1">Ready to manage<br><em>smarter?</em></h2>
+    <p class="reveal reveal-delay-2">No demo call. No sales process. No credit card. Start managing your properties professionally today.</p>
+    <div class="cta-actions reveal reveal-delay-3">
+      <a href="#" class="cta-btn-primary">
+        Start Free Today
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </a>
+      <a href="#" class="cta-btn-ghost">Talk to Us</a>
+    </div>
+    <div class="cta-trust">
+      <span>&#127487;&#127462; Built in South Africa</span>
+      <span class="divider">·</span>
+      <span>POPIA Compliant</span>
+      <span class="divider">·</span>
+      <span>RHA Aligned</span>
+    </div>
+  </div>
+</section>
+
+<style>
+  .cta-section {
+    text-align: center;
+    padding: 120px 40px;
+    background: linear-gradient(160deg, var(--color-navy-deep) 0%, var(--color-navy) 60%, #3a3c8a 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px;
+    height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,61,127,0.12) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .cta-inner { position: relative; z-index: 2; }
+
+  .cta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 28px;
+    letter-spacing: 0.01em;
+  }
+  .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #10b981;
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.5); }
+  }
+
+  h2 {
+    font-family: var(--font-display);
+    font-size: 54px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -2px;
+    margin-bottom: 16px;
+    line-height: 1.08;
+  }
+  h2 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--color-accent-light), var(--color-accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  p {
+    font-size: 17px;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 40px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.7;
+  }
+  .cta-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+  }
+  .cta-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-accent);
+    color: white;
+    padding: 16px 32px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: all 0.25s;
+    box-shadow: 0 4px 24px rgba(255,61,127,0.35);
+    white-space: nowrap;
+  }
+  .cta-btn-primary:hover {
+    background: var(--color-accent-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(255,61,127,0.45);
+  }
+  .cta-btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    padding: 16px 28px;
+    border-radius: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    text-decoration: none;
+    transition: all 0.25s;
+    border: 1px solid rgba(255,255,255,0.2);
+    white-space: nowrap;
+  }
+  .cta-btn-ghost:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.35);
+  }
+  .cta-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.35);
+  }
+  .divider { opacity: 0.4; }
+
+  @media (max-width: 640px) {
+    .cta-section { padding: 80px 24px; }
+    h2 { font-size: 38px; }
+    .cta-actions { flex-direction: column; align-items: center; }
+  }
+</style>

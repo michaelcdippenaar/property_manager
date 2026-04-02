@@ -242,7 +242,7 @@ class ESigningSignerStatusView(APIView):
                 "submission_id": obj.pk,
                 "status": obj.status,
                 "signing_mode": obj.signing_mode,
-                "signed_pdf_url": obj.signed_pdf_url or None,
+                "signed_pdf_url": request.build_absolute_uri(obj.signed_pdf_url) if obj.signed_pdf_url else None,
                 "current_signer": current,
                 "completed_signers": completed,
                 "pending_signers": pending,
@@ -281,7 +281,7 @@ class ESigningDownloadSignedView(APIView):
         # Native signing: serve local PDF
         if obj.signing_backend == ESigningSubmission.SigningBackend.NATIVE:
             if obj.signed_pdf_file:
-                return Response({"url": obj.signed_pdf_file.url})
+                return Response({"url": request.build_absolute_uri(obj.signed_pdf_file.url)})
             return Response(
                 {"detail": "Signed document not available."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -308,7 +308,28 @@ class ESigningDownloadSignedView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # Ensure relative URLs get a full hostname
+        if pdf_url.startswith('/'):
+            pdf_url = request.build_absolute_uri(pdf_url)
+
         return Response({"url": pdf_url})
+
+
+class ESigningTestPdfView(APIView):
+    """
+    GET /api/v1/esigning/submissions/<pk>/test-pdf/
+    Regenerates the signed PDF on the fly (no caching) and returns it directly.
+    No auth required — dev/testing only.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, pk):
+        from django.http import HttpResponse
+        sub = get_object_or_404(ESigningSubmission, pk=pk)
+        pdf_bytes = services.generate_signed_pdf(sub)
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        response['Content-Disposition'] = f'inline; filename="test_lease_{pk}.pdf"'
+        return response
 
 
 class ESigningResendView(APIView):
@@ -462,13 +483,24 @@ class ESigningPublicDocumentView(APIView):
             )
 
         signer_role = signer.get("role", "")
-        fields = services.extract_signer_fields(sub.document_html, signer_role)
+
+        # Apply previously captured data so next signer sees filled values
+        display_html = services.apply_captured_data(
+            sub.document_html, sub.captured_data or {}
+        )
+
+        fields = services.extract_signer_fields(display_html, signer_role)
         already_signed = services.get_already_signed_fields(sub)
+        editable_merge_fields = services.extract_editable_merge_fields(
+            display_html, signer_role
+        )
 
         return Response({
-            "html": sub.document_html,
+            "html": display_html,
             "signer_role": signer_role,
             "fields": fields,
+            "editable_merge_fields": editable_merge_fields,
+            "already_captured": sub.captured_data or {},
             "already_signed": already_signed,
             "signing_mode": sub.signing_mode,
         })
@@ -493,6 +525,7 @@ class ESigningPublicSubmitSignatureView(APIView):
             )
 
         signed_fields = request.data.get("fields", [])
+        captured_fields = request.data.get("captured_fields", {})
         consent = request.data.get("consent", {})
 
         if not signed_fields:
@@ -521,10 +554,18 @@ class ESigningPublicSubmitSignatureView(APIView):
             from django.db import transaction
             with transaction.atomic():
                 sub, all_completed = services.complete_native_signer(
-                    sub, signer_role, signed_fields, audit_data
+                    sub, signer_role, signed_fields, audit_data,
+                    captured_fields=captured_fields or None,
                 )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Sync captured merge field data back to Person/Occupant models
+        if captured_fields:
+            try:
+                services.sync_captured_data_to_models(sub)
+            except Exception:
+                logger.exception("Failed to sync captured data for submission %s", sub.pk)
 
         # Post-signing actions
         from .webhooks import _broadcast_ws, _activate_lease, _get_next_signer, _notify_next_signer, _notify_staff, _email_signed_copy_to_signers
@@ -618,6 +659,7 @@ class ESigningCreatePublicLinkView(APIView):
         link = ESigningPublicLink.objects.create(
             submission=submission,
             submitter_id=submitter_id,
+            signer_role=signer.get("role", ""),
             expires_at=timezone.now() + timedelta(days=days),
         )
 

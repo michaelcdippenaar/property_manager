@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ESigningCreatePublicLinkView,
     ESigningDownloadSignedView,
+    ESigningTestPdfView,
     ESigningPublicCompletedView,
     ESigningPublicDocumentView,
     ESigningPublicSignDetailView,
@@ -26,6 +27,7 @@ urlpatterns = [
     path("submissions/", ESigningSubmissionListCreateView.as_view(), name="esigning-list"),
     path("submissions/<int:pk>/", ESigningSubmissionDetailView.as_view(), name="esigning-detail"),
     path("submissions/<int:pk>/download/", ESigningDownloadSignedView.as_view(), name="esigning-download"),
+    path("submissions/<int:pk>/test-pdf/", ESigningTestPdfView.as_view(), name="esigning-test-pdf"),
     path("submissions/<int:pk>/resend/", ESigningResendView.as_view(), name="esigning-resend"),
     path("submissions/<int:pk>/signer-status/", ESigningSignerStatusView.as_view(), name="esigning-signer-status"),
     path(

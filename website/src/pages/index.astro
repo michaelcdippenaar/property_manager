@@ -1,0 +1,34 @@
+---
+/**
+ * Homepage — Klikk Marketing Website
+ *
+ * Assembles all homepage sections from components.
+ * Data-driven sections (Lifecycle, Features, Integrations)
+ * read from the content/ hub at build time.
+ *
+ * Section order matches website-preview/index.html:
+ * 1. Hero
+ * 2. Ecosystem (4 apps) — dark section
+ * 3. Lifecycle (15 stages) — reads from YAML
+ * 4. Features — reads from YAML
+ * 5. Integrations — reads from YAML
+ * 6. CTA
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Hero from '../components/Hero.astro';
+import Ecosystem from '../components/Ecosystem.astro';
+import Lifecycle from '../components/Lifecycle.astro';
+import Features from '../components/Features.astro';
+import Integrations from '../components/Integrations.astro';
+import CTA from '../components/CTA.astro';
+---
+
+<BaseLayout>
+  <Hero />
+  <Ecosystem />
+  <Lifecycle />
+  <Features />
+  <hr class="section-sep" />
+  <Integrations />
+  <CTA />
+</BaseLayout>

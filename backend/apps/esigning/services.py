@@ -212,12 +212,24 @@ def build_lease_context(lease) -> dict:
         'tenant_phone':     tenant.phone if tenant else '—',
         'tenant_email':     tenant.email if tenant else '—',
         'tenant_contact':   (tenant.phone if tenant else '') or '—',   # alias
+        'tenant_address':   (tenant.address if tenant else '') or '—',
+        'tenant_employer':  (tenant.employer if tenant else '') or '—',
+        'tenant_occupation': (tenant.occupation if tenant else '') or '—',
+        'tenant_dob':       str(tenant.date_of_birth) if tenant and tenant.date_of_birth else '—',
+        'tenant_emergency_contact': (tenant.emergency_contact_name if tenant else '') or '—',
+        'tenant_emergency_phone':   (tenant.emergency_contact_phone if tenant else '') or '—',
 
         # ── Primary tenant (numbered aliases: tenant_1_*) ────────
         'tenant_1_name':    tenant.full_name if tenant else '—',
         'tenant_1_id':      tenant.id_number if tenant else '—',
         'tenant_1_phone':   tenant.phone if tenant else '—',
         'tenant_1_email':   tenant.email if tenant else '—',
+        'tenant_1_address': (tenant.address if tenant else '') or '—',
+        'tenant_1_employer': (tenant.employer if tenant else '') or '—',
+        'tenant_1_occupation': (tenant.occupation if tenant else '') or '—',
+        'tenant_1_dob':     str(tenant.date_of_birth) if tenant and tenant.date_of_birth else '—',
+        'tenant_1_emergency_contact': (tenant.emergency_contact_name if tenant else '') or '—',
+        'tenant_1_emergency_phone':   (tenant.emergency_contact_phone if tenant else '') or '—',
 
         # ── Lease terms ──────────────────────────────────────────
         'lease_start':      str(lease.start_date),
@@ -241,12 +253,32 @@ def build_lease_context(lease) -> dict:
         ctx[f'tenant_{i}_id']    = p.id_number or '—'
         ctx[f'tenant_{i}_phone'] = p.phone or '—'
         ctx[f'tenant_{i}_email'] = p.email or '—'
+        ctx[f'tenant_{i}_address'] = p.address or '—'
+        ctx[f'tenant_{i}_employer'] = p.employer or '—'
+        ctx[f'tenant_{i}_occupation'] = p.occupation or '—'
+        ctx[f'tenant_{i}_dob'] = str(p.date_of_birth) if p.date_of_birth else '—'
+        ctx[f'tenant_{i}_emergency_contact'] = p.emergency_contact_name or '—'
+        ctx[f'tenant_{i}_emergency_phone'] = p.emergency_contact_phone or '—'
 
     # Fill any missing tenant slots with em-dash so templates don't
     # show raw {{ tenant_3_name }} when there's no third tenant.
     for i in range(2, 4):
-        for suffix in ('name', 'id', 'phone', 'email'):
+        for suffix in ('name', 'id', 'phone', 'email', 'address', 'employer',
+                        'occupation', 'dob', 'emergency_contact', 'emergency_phone'):
             ctx.setdefault(f'tenant_{i}_{suffix}', '—')
+
+    # ── Occupants ────────────────────────────────────────────────
+    occupants = list(lease.occupants.select_related('person').all())
+    for i, occ in enumerate(occupants[:4], start=1):
+        p = occ.person
+        ctx[f'occupant_{i}_name'] = p.full_name or '—'
+        ctx[f'occupant_{i}_id'] = p.id_number or '—'
+        ctx[f'occupant_{i}_relationship'] = occ.relationship_to_tenant or '—'
+
+    # Fill missing occupant slots
+    for i in range(1, 5):
+        for suffix in ('name', 'id', 'relationship'):
+            ctx.setdefault(f'occupant_{i}_{suffix}', '—')
 
     return ctx
 
@@ -351,7 +383,7 @@ def _deduplicate_field_names(html: str) -> str:
     )
 
 
-def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = None) -> str:
+def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = None, native: bool = False) -> str:
     """
     Generate filled lease HTML ready for DocuSeal.
 
@@ -385,6 +417,13 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
         # ── Replace merge field spans with filled values ──────────────
         def replace_field(m: re.Match) -> str:
             field = m.group(1)
+            val = ctx.get(field)
+            if val and val != '—':
+                return f'<span style="font-weight:600">{val}</span>'
+            if native:
+                # Preserve as TipTap merge field node for editable input in signing view
+                return (f'<span data-type="merge-field" class="merge-field" '
+                        f'data-field-name="{field}">{{{{{field}}}}}</span>')
             val = ctx.get(field, f'{{ {field} }}')
             return f'<span style="font-weight:600">{val}</span>'
 
@@ -443,8 +482,21 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
         )
 
         # ── Replace remaining {{field}} mustache markers ─────────────
+        # Skip mustaches that are already inside a merge-field span (native mode
+        # preserves them as TipTap nodes — we don't want to double-wrap).
         def replace_mustache(m: re.Match) -> str:
             field = m.group(1)
+            # Check if this mustache is inside a merge-field span already
+            start = m.start()
+            preceding = html_body[max(0, start - 200):start]
+            if 'data-field-name="' in preceding and '</span>' not in preceding.split('data-field-name="')[-1]:
+                return m.group(0)  # leave as-is — already inside a merge field span
+            val = ctx.get(field)
+            if val and val != '—':
+                return val
+            if native:
+                return (f'<span data-type="merge-field" class="merge-field" '
+                        f'data-field-name="{field}">{{{{{field}}}}}</span>')
             return ctx.get(field, m.group(0))
 
         html_body = re.sub(r'\{\{\s*(\w+)\s*\}\}', replace_mustache, html_body)
@@ -456,8 +508,9 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             html_body, flags=re.DOTALL,
         )
 
-        # ── Map TipTap signer roles to DocuSeal roles ────────────────
-        html_body = _map_signing_roles(html_body, num_signers)
+        # ── Map TipTap signer roles to DocuSeal roles (skip for native signing) ──
+        if not native:
+            html_body = _map_signing_roles(html_body, num_signers)
 
         # ── Deduplicate signing field names ──────────────────────────
         html_body = _deduplicate_field_names(html_body)
@@ -571,17 +624,27 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
     """
     from apps.esigning.models import ESigningSubmission
 
-    html = generate_lease_html(lease, num_signers=len(signers))
+    html = generate_lease_html(lease, num_signers=len(signers), native=True)
     doc_hash = hashlib.sha256(html.encode()).hexdigest()
+
+    # Map frontend signer roles to TipTap role names used in the HTML
+    _role_to_tiptap = {
+        'landlord': 'landlord', 'lessor': 'landlord',
+        'tenant': 'tenant_1', 'tenant 1': 'tenant_1', 'co-tenant': 'tenant_2',
+        'tenant 2': 'tenant_2', 'tenant 3': 'tenant_3',
+        'witness': 'witness', 'agent': 'agent',
+    }
 
     signer_records = []
     for idx, s in enumerate(signers):
+        raw_role = s.get('role', f'Signer {idx + 1}')
+        tiptap_role = _role_to_tiptap.get(raw_role.lower(), raw_role.lower().replace(' ', '_'))
         signer_records.append({
             'id': idx + 1,
             'name': s['name'],
             'email': s['email'],
             'phone': s.get('phone', ''),
-            'role': s.get('role', f'Signer {idx + 1}'),
+            'role': tiptap_role,
             'status': 'pending',
             'order': s.get('order', idx),
             'completed_at': None,
@@ -635,11 +698,96 @@ def get_already_signed_fields(submission) -> list[dict]:
     return signed
 
 
-def complete_native_signer(submission, signer_role: str, signed_fields: list, audit_data: dict):
+def _derive_merge_field_category(name: str) -> str:
+    """Derive the category of a merge field from its name prefix."""
+    n = name.lower()
+    if n.startswith(('landlord', 'lessor')):
+        return 'landlord'
+    if n.startswith(('tenant', 'lessee', 'co_tenant', 'occupant')):
+        return 'tenant'
+    if n.startswith(('property', 'unit')) or n in ('city', 'province'):
+        return 'property'
+    if n.startswith(('lease', 'monthly', 'deposit', 'notice', 'water', 'electricity',
+                      'max_', 'payment')):
+        return 'lease'
+    if n.startswith('agent'):
+        return 'agent'
+    return 'other'
+
+
+def _role_to_category(signer_role: str) -> str:
+    """Map a signer role string to a merge field category."""
+    r = signer_role.lower()
+    if 'landlord' in r or 'lessor' in r:
+        return 'landlord'
+    if 'tenant' in r or 'lessee' in r:
+        return 'tenant'
+    if 'agent' in r:
+        return 'agent'
+    return 'other'
+
+
+def _field_belongs_to_role(field_name: str, signer_role: str) -> bool:
+    """Check if a merge field belongs to a specific signer role."""
+    f = field_name.lower()
+    r = signer_role.lower()
+
+    if 'landlord' in r or 'lessor' in r:
+        return f.startswith('landlord') or f.startswith('lessor')
+    if r in ('tenant_1', 'tenant', 'lessee'):
+        # tenant_1 owns tenant_* (no number), tenant_1_*, and occupant_* fields
+        return (
+            (f.startswith('tenant_') and not re.match(r'^tenant_[2-9]', f))
+            or f.startswith('occupant')
+        )
+    if r == 'tenant_2':
+        return f.startswith('tenant_2_')
+    if r == 'tenant_3':
+        return f.startswith('tenant_3_')
+    if 'agent' in r:
+        return f.startswith('agent')
+    return False
+
+
+def extract_editable_merge_fields(html: str, signer_role: str) -> list[dict]:
+    """Extract unfilled merge fields from HTML with editability based on signer role."""
+    fields = []
+    seen = set()
+    for m in re.finditer(
+        r'<span[^>]+data-type="merge-field"[^>]+data-field-name="([^"]+)"', html
+    ):
+        field_name = m.group(1)
+        if field_name in seen:
+            continue
+        seen.add(field_name)
+        category = _derive_merge_field_category(field_name)
+        fields.append({
+            'fieldName': field_name,
+            'category': category,
+            'editable': _field_belongs_to_role(field_name, signer_role),
+            'label': field_name.replace('_', ' ').title(),
+        })
+    return fields
+
+
+def apply_captured_data(html: str, captured_data: dict) -> str:
+    """Replace merge field spans in HTML with filled values from captured data."""
+    for field_name, value in captured_data.items():
+        html = re.sub(
+            rf'<span[^>]+data-field-name="{re.escape(field_name)}"[^>]*>.*?</span>',
+            f'<span style="font-weight:600">{value}</span>',
+            html, flags=re.DOTALL,
+        )
+    return html
+
+
+def complete_native_signer(submission, signer_role: str, signed_fields: list, audit_data: dict,
+                            captured_fields: dict | None = None):
     """Complete signing for a native signer.
 
     signed_fields: [{fieldName, fieldType, imageData}]
     audit_data: {ip_address, user_agent, consent_given_at}
+    captured_fields: {fieldName: value} — merge field data entered by the signer
 
     Uses select_for_update for concurrency safety.
     """
@@ -679,11 +827,17 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
                 'document_hash_at_signing': submission.document_hash,
                 'fields_signed': [f['fieldName'] for f in signed_fields],
             }
+            if captured_fields:
+                signer['captured_fields'] = captured_fields
             signer_found = True
             break
 
     if not signer_found:
         raise ValueError(f'Signer with role {signer_role} not found.')
+
+    # Store captured merge field data on the submission
+    if captured_fields:
+        submission.captured_data = {**(submission.captured_data or {}), **captured_fields}
 
     # Update submission status
     all_completed = all(s.get('status') == 'completed' for s in submission.signers)
@@ -694,9 +848,83 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
     elif any_completed:
         submission.status = ESigningSubmission.Status.IN_PROGRESS
 
-    submission.save(update_fields=['signers', 'status', 'updated_at'])
+    submission.save(update_fields=['signers', 'status', 'captured_data', 'updated_at'])
 
     return submission, all_completed
+
+
+def sync_captured_data_to_models(submission):
+    """Write captured merge field data back to Person/LeaseOccupant models.
+
+    Called after signing to keep the /tenants page and Person records up to date.
+    """
+    from apps.accounts.models import Person
+    from apps.leases.models import LeaseOccupant
+
+    data = submission.captured_data or {}
+    lease = getattr(submission, 'lease', None)
+    if not lease or not data:
+        return
+
+    PERSON_FIELD_MAP = {
+        'name': 'full_name',
+        'id': 'id_number',
+        'phone': 'phone',
+        'email': 'email',
+        'address': 'address',
+        'employer': 'employer',
+        'occupation': 'occupation',
+        'emergency_contact': 'emergency_contact_name',
+        'emergency_phone': 'emergency_contact_phone',
+    }
+
+    def _update_person(person, prefix):
+        """Update a Person record with captured data matching the prefix."""
+        updated_fields = []
+        for suffix, model_field in PERSON_FIELD_MAP.items():
+            val = data.get(f'{prefix}_{suffix}', '').strip()
+            if val and val != '—':
+                setattr(person, model_field, val)
+                updated_fields.append(model_field)
+        # Handle date_of_birth separately
+        dob_val = data.get(f'{prefix}_dob', '').strip()
+        if dob_val and dob_val != '—':
+            try:
+                from datetime import date as dt_date
+                person.date_of_birth = dt_date.fromisoformat(dob_val)
+                updated_fields.append('date_of_birth')
+            except (ValueError, TypeError):
+                pass
+        if updated_fields:
+            person.save(update_fields=updated_fields)
+
+    # Primary tenant
+    if lease.primary_tenant:
+        _update_person(lease.primary_tenant, 'tenant')
+        _update_person(lease.primary_tenant, 'tenant_1')
+
+    # Co-tenants
+    for i, ct in enumerate(lease.co_tenants.select_related('person').all()[:3], start=2):
+        _update_person(ct.person, f'tenant_{i}')
+
+    # Occupants (create Person + LeaseOccupant if new)
+    for i in range(1, 5):
+        occ_name = data.get(f'occupant_{i}_name', '').strip()
+        if occ_name and occ_name != '—':
+            person, created = Person.objects.get_or_create(
+                full_name=occ_name,
+                defaults={
+                    'id_number': data.get(f'occupant_{i}_id', '').strip(),
+                }
+            )
+            if not created:
+                _update_person(person, f'occupant_{i}')
+            LeaseOccupant.objects.get_or_create(
+                lease=lease, person=person,
+                defaults={
+                    'relationship_to_tenant': data.get(f'occupant_{i}_relationship', '').strip(),
+                }
+            )
 
 
 def generate_signed_pdf(submission) -> bytes:
@@ -706,6 +934,20 @@ def generate_signed_pdf(submission) -> bytes:
 
     html = submission.document_html
 
+    # Strip TipTap PaginationPlus page-break wrappers — let xhtml2pdf flow naturally.
+    # Remove wrapping <div style="page-break-after:always;"> and its closing </div>
+    html = re.sub(r'<div[^>]*page-break-after:\s*always[^>]*>', '', html)
+    # Remove the matching closing divs (same count — they wrap each page)
+    # We do this by removing trailing </div> before the next page-break or </body>
+    # Simpler: just remove all page-break divs and leave content to flow
+    html = html.replace('</div>\n</div>', '</div>')  # nested page wrappers
+
+    # Remove runs of empty paragraphs used as TipTap page spacers (keep max 1)
+    html = re.sub(r'(<p>\s*</p>\s*){2,}', '<p></p>', html)
+
+    # Replace unfilled merge fields with captured data
+    html = apply_captured_data(html, submission.captured_data or {})
+
     # Replace signing field tags with signature images or date text
     for signer in submission.signers:
         for field in signer.get('signed_fields', []):
@@ -714,11 +956,16 @@ def generate_signed_pdf(submission) -> bytes:
             image_data = field.get('imageData', '')
 
             if field_type in ('signature', 'initials'):
-                h = '60px' if field_type == 'signature' else '40px'
-                replacement = (
-                    f'<img src="{image_data}" '
-                    f'style="height:{h};display:inline-block;vertical-align:middle;" />'
-                )
+                if field_type == 'initials':
+                    replacement = (
+                        f'<img src="{image_data}" '
+                        f'style="height:14px;display:inline;vertical-align:baseline;" />'
+                    )
+                else:
+                    replacement = (
+                        f'<img src="{image_data}" '
+                        f'style="height:50px;display:inline-block;vertical-align:middle;" />'
+                    )
             elif field_type == 'date':
                 replacement = f'<span style="font-weight:600;">{field.get("signedAt", "")[:10]}</span>'
             else:
@@ -729,6 +976,37 @@ def generate_signed_pdf(submission) -> bytes:
                 rf'<{field_type}-field\b[^>]*name="{re.escape(field_name)}"[^>]*>[^<]*</{field_type}-field>',
                 replacement, html,
             )
+
+    # Clean up remaining unsigned signature/initials/date field tags → blank placeholder lines
+    html = re.sub(
+        r'<signature-field\b[^>]*>[^<]*</signature-field>',
+        '<span style="display:inline-block;width:200px;border-bottom:1px solid #999;height:20px;">&nbsp;</span>',
+        html,
+    )
+    html = re.sub(
+        r'<initials-field\b[^>]*>[^<]*</initials-field>',
+        '<span style="display:inline-block;width:40px;border-bottom:1px solid #ccc;height:14px;">&nbsp;</span>',
+        html,
+    )
+    html = re.sub(
+        r'<date-field\b[^>]*>[^<]*</date-field>',
+        '<span style="border-bottom:1px solid #ccc;">___/___/______</span>',
+        html,
+    )
+
+    # Clean up remaining unfilled merge-field spans: show the value or a readable placeholder
+    def _clean_merge_span(m: re.Match) -> str:
+        inner = m.group(1)
+        # If inner is mustache like {{field_name}}, show underline placeholder
+        if inner.strip().startswith('{{'):
+            return '<span style="border-bottom:1px solid #ccc;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
+        # Otherwise it's been filled — show bold text
+        return f'<span style="font-weight:600;">{inner}</span>'
+
+    html = re.sub(
+        r'<span[^>]*data-type="merge-field"[^>]*>(.*?)</span>',
+        _clean_merge_span, html, flags=re.DOTALL,
+    )
 
     # Append audit trail page
     audit_rows = ''
