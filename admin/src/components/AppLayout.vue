@@ -104,6 +104,24 @@
           </div>
         </div>
 
+        <!-- Admin (admin only) -->
+        <div v-if="auth.user?.role === 'admin'">
+          <div v-if="!collapsed" class="sidebar-section-label">Admin</div>
+          <div class="space-y-0.5">
+            <RouterLink
+              v-for="item in adminItems"
+              :key="item.to"
+              :to="item.to"
+              class="sidebar-link"
+              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
+              :title="collapsed ? item.label : undefined"
+            >
+              <component :is="item.icon" :size="18" class="flex-shrink-0" />
+              <span v-if="!collapsed">{{ item.label }}</span>
+            </RouterLink>
+          </div>
+        </div>
+
         <!-- Setup -->
         <div>
           <div v-if="!collapsed" class="sidebar-section-label">Setup</div>
@@ -133,8 +151,10 @@
             {{ initials }}
           </div>
           <div v-if="!collapsed" class="min-w-0 flex-1">
-            <div class="text-sm font-medium text-gray-900 truncate">{{ auth.user?.full_name || 'Admin' }}</div>
-            <div class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</div>
+            <RouterLink to="/profile" class="block">
+              <div class="text-sm font-medium text-gray-900 truncate hover:text-navy">{{ auth.user?.full_name || 'Admin' }}</div>
+              <div class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</div>
+            </RouterLink>
           </div>
           <button
             @click="handleLogout"
@@ -178,7 +198,7 @@ import ToastContainer from './ToastContainer.vue'
 import {
   LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText, FileSignature, Calendar,
   LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck,
-  Activity, HelpCircle,
+  Activity, HelpCircle, ShieldCheck, User,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -195,8 +215,8 @@ const primaryNavItems = [
 
 const leaseSubItems = [
   { to: '/leases/overview', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/leases', icon: FileText, label: 'Leases' },
   { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
+  { to: '/leases', icon: FileText, label: 'Leases' },
 ]
 
 const lifecycleItems = [
@@ -207,6 +227,10 @@ const maintenanceSubItems = [
   { to: '/maintenance/issues', icon: Wrench, label: 'Issues', badgeKey: 'open_issues' },
   { to: '/maintenance/questions', icon: HelpCircle, label: 'Questions', badgeKey: 'pending_questions' },
   { to: '/maintenance/suppliers', icon: Truck, label: 'Suppliers' },
+]
+
+const adminItems = [
+  { to: '/admin/users', icon: ShieldCheck, label: 'Users' },
 ]
 
 const propertyInfoSubItems = [
@@ -221,7 +245,9 @@ const allNavItems = [
   ...leaseSubItems,
   ...maintenanceSubItems,
   ...lifecycleItems,
+  ...adminItems,
   ...propertyInfoSubItems,
+  { to: '/profile', icon: User, label: 'Profile' },
 ]
 
 const badges = ref<Record<string, number>>({})
@@ -273,3 +299,4 @@ function handleLogout() {
   router.push('/login')
 }
 </script>
+

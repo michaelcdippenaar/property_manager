@@ -5,6 +5,8 @@ import re
 from django.http import HttpResponse
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework import status, generics
 
@@ -67,7 +69,7 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
       province    (string, optional)
     """
     serializer_class = LeaseTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     parser_classes = [*generics.ListCreateAPIView.parser_classes]
 
     def get_queryset(self):
@@ -147,7 +149,7 @@ class LeaseTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
     DELETE /api/v1/leases/templates/{id}/ — delete
     """
     serializer_class = LeaseTemplateSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     queryset = LeaseTemplate.objects.all()
 
     def perform_update(self, serializer):
@@ -199,7 +201,7 @@ class GenerateLeaseDocumentView(APIView):
         }
     }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request):
         if DocxTemplate is None:
@@ -250,7 +252,7 @@ class LeaseTemplatePreviewView(APIView):
     GET /api/v1/leases/templates/{id}/preview/
     Returns template paragraphs + fields for the template editor middle panel.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
         try:
@@ -1322,7 +1324,7 @@ class LeaseTemplateAIChatView(APIView):
     + a compact JSON style fact-table (formatting props indexed by node i).
     Claude picks the right tool; nodes are converted back to HTML for storage.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         import anthropic
@@ -1600,7 +1602,7 @@ class ExportTemplatePDFView(APIView):
     Convert the template's content_html to a PDF and return it as a download.
     Merge field placeholders are rendered as visible blanks (e.g. ________ ).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     _PDF_CSS = """
         @page {

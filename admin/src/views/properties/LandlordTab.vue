@@ -71,6 +71,10 @@
       <!-- Owner address -->
       <div class="space-y-3">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner Address <span class="font-normal text-gray-400 normal-case">(domicilium)</span></div>
+        <div>
+          <label class="label">Search address</label>
+          <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+        </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2">
             <label class="label">Street</label>
@@ -205,6 +209,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { Loader2, UserCircle } from 'lucide-vue-next'
+import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import api from '../../api'
 
 const props = defineProps<{ propertyId: number }>()
@@ -307,6 +312,15 @@ function populateForm(data: any) {
     start_date: data.start_date || new Date().toISOString().slice(0, 10),
     end_date: data.end_date || '',
     is_current: data.is_current ?? true,
+  }
+}
+
+function onAddressSelect(result: AddressResult) {
+  form.value.owner_address = {
+    street: result.street || result.formatted,
+    city: result.city,
+    province: result.province,
+    postal_code: result.postal_code,
   }
 }
 

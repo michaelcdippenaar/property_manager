@@ -12,6 +12,8 @@ POST   /api/v1/leases/clauses/extract/      — extract clauses from a template'
 import json
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework import status, generics
 
@@ -35,7 +37,7 @@ _CLAUSE_SYSTEM = (
 
 class ReusableClauseListCreateView(generics.ListCreateAPIView):
     serializer_class = ReusableClauseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         qs = ReusableClause.objects.filter(created_by=self.request.user)
@@ -60,7 +62,7 @@ class ReusableClauseListCreateView(generics.ListCreateAPIView):
 
 class ReusableClauseDestroyView(generics.DestroyAPIView):
     serializer_class = ReusableClauseSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         return ReusableClause.objects.filter(created_by=self.request.user)
@@ -68,7 +70,7 @@ class ReusableClauseDestroyView(generics.DestroyAPIView):
 
 class ReusableClauseUseView(APIView):
     """POST /clauses/{id}/use/ — increment use_count when clause is inserted."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -85,7 +87,7 @@ class GenerateClauseView(APIView):
     Body: { topic, category?, count? }
     Returns: { options: [{ title, category, html }] }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request):
         import anthropic
@@ -142,7 +144,7 @@ class ExtractClausesView(APIView):
     AI scans the template's content_html and extracts logical reusable clauses.
     Returns: { clauses: [{ title, category, html }] }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request):
         import anthropic

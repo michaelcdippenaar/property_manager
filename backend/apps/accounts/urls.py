@@ -1,10 +1,18 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
-from .views import RegisterView, LoginView, MeView, OTPSendView, OTPVerifyView, TenantsListView, PersonViewSet, PersonDetailView, PushTokenView
+from .views import (
+    RegisterView, LoginView, MeView, OTPSendView, OTPVerifyView,
+    TenantsListView, PersonViewSet, PersonDetailView, PushTokenView,
+    ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
+    AcceptInviteView,
+)
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView
+from .oauth_views import GoogleAuthView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
     path("login/", LoginView.as_view(), name="auth-login"),
+    path("google/", GoogleAuthView.as_view(), name="auth-google"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
     path("otp/send/", OTPSendView.as_view(), name="otp-send"),
@@ -13,4 +21,15 @@ urlpatterns = [
     path("tenants/", TenantsListView.as_view(), name="tenants-list"),
     path("persons/", PersonViewSet.as_view(), name="persons-list"),
     path("persons/<int:pk>/", PersonDetailView.as_view(), name="persons-detail"),
+    # Admin role management
+    path("users/", UserListView.as_view(), name="user-list"),
+    path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
+    path("users/invite/", InviteUserView.as_view(), name="user-invite"),
+    path("users/invites/", PendingInvitesView.as_view(), name="user-invites"),
+    # Auth hardening
+    path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
+    path("logout/", LogoutView.as_view(), name="auth-logout"),
+    path("password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
+    path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
+    path("accept-invite/", AcceptInviteView.as_view(), name="auth-accept-invite"),
 ]

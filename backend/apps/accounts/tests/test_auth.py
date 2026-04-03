@@ -144,9 +144,9 @@ class OTPTests(TremlyAPITestCase):
     def setUp(self):
         self.user = self.create_user(email="otp@test.com", phone="0821234567")
 
-    @mock.patch("apps.accounts.views.random.randint", return_value=123456)
+    @mock.patch("apps.accounts.views.secrets.randbelow", return_value=23456)
     @mock.patch("core.notifications.send_sms_otp")
-    def test_otp_send_existing_phone(self, mock_sms, mock_randint):
+    def test_otp_send_existing_phone(self, mock_sms, mock_randbelow):
         resp = self.client.post(self.send_url, {"phone": "0821234567"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(OTPCode.objects.filter(user=self.user, code="123456").exists())
@@ -160,9 +160,9 @@ class OTPTests(TremlyAPITestCase):
         self.assertIn("OTP sent if phone is registered", resp.data["detail"])
         mock_sms.assert_not_called()
 
-    @mock.patch("apps.accounts.views.random.randint", return_value=654321)
+    @mock.patch("apps.accounts.views.secrets.randbelow", return_value=554321)
     @mock.patch("core.notifications.send_sms_otp")
-    def test_otp_verify_success(self, mock_sms, mock_randint):
+    def test_otp_verify_success(self, mock_sms, mock_randbelow):
         self.client.post(self.send_url, {"phone": "0821234567"})
         resp = self.client.post(self.verify_url, {"phone": "0821234567", "code": "654321"})
         self.assertEqual(resp.status_code, 200)

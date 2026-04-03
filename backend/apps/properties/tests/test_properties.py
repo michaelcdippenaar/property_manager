@@ -29,15 +29,14 @@ class PropertyViewSetTests(TremlyAPITestCase):
         self.assertIn("Admin Property", names)
         self.assertNotIn("Agent1 Property", names)
 
-    def test_idor_tenant_sees_all_properties(self):
+    def test_idor_tenant_blocked_from_properties(self):
         """
-        SECURITY AUDIT (vuln #1): Non-agent/admin users get Property.objects.all().
-        Tenant can enumerate ALL properties in the system.
+        SECURITY AUDIT (vuln #1 — FIXED): Non-agent/admin users are now blocked
+        by IsAgentOrAdmin permission. Tenant gets 403.
         """
         self.authenticate(self.tenant)
         resp = self.client.get(reverse("property-list"))
-        self.assertEqual(resp.status_code, 200)
-        self.assertGreaterEqual(len(resp.data["results"]), 3)
+        self.assertEqual(resp.status_code, 403)
 
     def test_create_property_sets_agent(self):
         self.authenticate(self.agent1)

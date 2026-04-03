@@ -16,6 +16,8 @@ import anthropic
 from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -124,7 +126,7 @@ def _call_claude(system: str, messages: list) -> dict:
 
 class LeaseBuilderDraftListView(APIView):
     """GET /api/v1/leases/builder/drafts/ — list user's draft sessions."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         drafts = LeaseBuilderSession.objects.filter(
@@ -163,7 +165,7 @@ class LeaseBuilderDraftSaveView(APIView):
     PUT /api/v1/leases/builder/drafts/{id}/ — save form state to a draft.
     POST /api/v1/leases/builder/drafts/ — create a new draft.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request):
         template_id = request.data.get("template_id")
@@ -220,7 +222,7 @@ class LeaseBuilderSessionCreateView(APIView):
       existing_lease_id (int) — pre-populate session state from an existing lease.
       template_id       (int) — use a specific template (defaults to active template).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request):
         # Resolve template — explicit ID takes priority, else fall back to active
@@ -312,7 +314,7 @@ class LeaseBuilderSessionCreateView(APIView):
 
 class LeaseBuilderChatView(APIView):
     """POST /api/v1/leases/builder/sessions/{id}/message/ — send a message."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         try:
@@ -401,7 +403,7 @@ class LeaseBuilderFinalizeView(APIView):
     Validate the session state and create a Lease record via the same logic
     as ImportLeaseView (reuses _get_or_create_person).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         try:

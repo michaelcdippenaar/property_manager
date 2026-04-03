@@ -1,6 +1,8 @@
 # Secrets
 .env
 *.pem
+.secrets/
+client_secret*.json
 
 # Python
 backend/.venv/

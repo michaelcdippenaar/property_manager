@@ -20,16 +20,15 @@ class SupplierViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertGreaterEqual(len(resp.data["results"]), 1)
 
-    def test_idor_any_role_can_list_suppliers(self):
+    def test_idor_tenant_blocked_from_suppliers(self):
         """
-        SECURITY AUDIT (vuln #5): Any authenticated user can CRUD suppliers,
-        not just agents/admins.
+        SECURITY AUDIT (vuln #5 — FIXED): Non-agent/admin users are now blocked
+        by IsAgentOrAdmin permission. Tenant gets 403.
         """
         tenant = self.create_tenant()
         self.authenticate(tenant)
         resp = self.client.get(reverse("supplier-list"))
-        # Tenant can see suppliers — no role check
-        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.status_code, 403)
 
     def test_create_supplier(self):
         self.authenticate(self.agent)

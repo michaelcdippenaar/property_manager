@@ -1,32 +1,82 @@
-import random
+import secrets
+
+from django.conf import settings
+from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
 from rest_framework import status, generics
 from rest_framework.permissions import AllowAny, IsAuthenticated
+
+from .permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, OTPCode, Person, PushToken
+from .models import User, OTPCode, Person, PushToken, LoginAttempt, UserInvite
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer
+from .audit import log_auth_event
+from .throttles import AuthAnonThrottle, OTPSendThrottle, OTPVerifyThrottle
 
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        log_auth_event("register", request=request, user=user)
         return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
 
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
+
+    LOCKOUT_THRESHOLD = 5
+    LOCKOUT_WINDOW_MINUTES = 30
+
+    def _get_client_ip(self, request):
+        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        if xff:
+            return xff.split(",")[0].strip()
+        return request.META.get("REMOTE_ADDR", "")
 
     def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        ip = self._get_client_ip(request)
+
+        # Check lockout
+        if email:
+            window = timezone.now() - timedelta(minutes=self.LOCKOUT_WINDOW_MINUTES)
+            recent_failures = LoginAttempt.objects.filter(
+                email=email, succeeded=False, created_at__gte=window
+            ).count()
+            if recent_failures >= self.LOCKOUT_THRESHOLD:
+                return Response(
+                    {"detail": "Account temporarily locked due to too many failed login attempts. Try again later."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+
         serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            # Log failed attempt
+            if email:
+                LoginAttempt.objects.create(email=email, ip_address=ip or None, succeeded=False)
+            log_auth_event("login_failed", request=request, metadata={"email": email})
+            raise
+
+        # Log successful attempt
+        if email:
+            LoginAttempt.objects.create(email=email, ip_address=ip or None, succeeded=True)
+
+        user = User.objects.filter(email=email).first()
+        log_auth_event("login_success", request=request, user=user)
+
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
@@ -45,6 +95,7 @@ class MeView(APIView):
 
 class OTPSendView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [OTPSendThrottle]
 
     def post(self, request):
         serializer = OTPSendSerializer(data=request.data)
@@ -57,16 +108,19 @@ class OTPSendView(APIView):
             # Don't reveal whether phone exists
             return Response({"detail": "OTP sent if phone is registered."})
 
-        code = f"{random.randint(100000, 999999)}"
+        code = f"{secrets.randbelow(900000) + 100000}"
         OTPCode.objects.create(user=user, code=code)
         from core.notifications import send_sms_otp
         send_sms_otp(phone, code)
+
+        log_auth_event("otp_sent", request=request, user=user, metadata={"phone": phone})
 
         return Response({"detail": "OTP sent if phone is registered."})
 
 
 class OTPVerifyView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [OTPVerifyThrottle]
 
     def post(self, request):
         serializer = OTPVerifySerializer(data=request.data)
@@ -82,10 +136,13 @@ class OTPVerifyView(APIView):
                 user=user, code=code, is_used=False, created_at__gte=expiry
             ).latest("created_at")
         except (User.DoesNotExist, OTPCode.DoesNotExist):
+            log_auth_event("otp_failed", request=request, metadata={"phone": phone})
             return Response({"detail": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
 
         otp.is_used = True
         otp.save()
+
+        log_auth_event("otp_verified", request=request, user=user, metadata={"phone": phone})
 
         from rest_framework_simplejwt.tokens import RefreshToken
         refresh = RefreshToken.for_user(user)
@@ -123,13 +180,214 @@ class PushTokenView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current = request.data.get("current_password", "")
+        new = request.data.get("new_password", "")
+
+        # Google OAuth users (unusable password) can set password without current
+        if request.user.has_usable_password():
+            if not request.user.check_password(current):
+                return Response({"detail": "Current password is incorrect."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.contrib.auth.password_validation import validate_password
+        try:
+            validate_password(new, request.user)
+        except Exception as e:
+            return Response({"detail": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        request.user.set_password(new)
+        request.user.save()
+        log_auth_event("password_change", request=request, user=request.user)
+        return Response({"detail": "Password changed."})
+
+
+class LogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.data.get("refresh")
+        if refresh:
+            try:
+                token = RefreshToken(refresh)
+                token.blacklist()
+            except Exception:
+                pass
+        log_auth_event("logout", request=request, user=request.user)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        # Always return 200 to avoid email enumeration
+        try:
+            user = User.objects.get(email=email, is_active=True)
+        except User.DoesNotExist:
+            return Response({"detail": "If that email is registered, a reset link has been sent."})
+
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+
+        base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
+        reset_url = f"{base_url}/reset-password?uid={uid}&token={token}"
+
+        log_auth_event("password_reset_request", request=request, user=user, metadata={"email": email})
+
+        try:
+            from apps.notifications.services import send_email
+            send_email(
+                subject="Reset your Klikk password",
+                body=f"Click here to reset your password:\n{reset_url}\n\nThis link expires in 24 hours.",
+                to_emails=email,
+                html_body=f'<p>Click the link below to reset your password:</p><p><a href="{reset_url}">Reset Password</a></p><p>This link expires in 24 hours.</p>',
+            )
+        except Exception:
+            pass
+
+        return Response({"detail": "If that email is registered, a reset link has been sent."})
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
+
+    def post(self, request):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_decode
+
+        uid = request.data.get("uid", "")
+        token = request.data.get("token", "")
+        new_password = request.data.get("new_password", "")
+
+        try:
+            user_id = urlsafe_base64_decode(uid).decode()
+            user = User.objects.get(pk=user_id)
+        except Exception:
+            return Response({"detail": "Invalid reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({"detail": "Invalid or expired reset link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        from django.contrib.auth.password_validation import validate_password
+        try:
+            validate_password(new_password, user)
+        except Exception as e:
+            return Response({"detail": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        log_auth_event("password_reset_confirm", request=request, user=user)
+        return Response({"detail": "Password has been reset."})
+
+
+class AcceptInviteView(APIView):
+    """Accept an invite: validate token, create user with password or Google credential."""
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
+
+    def get(self, request):
+        """Return invite details (email, role) for the frontend to pre-fill."""
+        token = request.query_params.get("token", "")
+        try:
+            invite = UserInvite.objects.get(token=token, accepted_at__isnull=True)
+        except (UserInvite.DoesNotExist, ValueError):
+            return Response({"detail": "Invalid or expired invite."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"email": invite.email, "role": invite.role})
+
+    def post(self, request):
+        token = request.data.get("token", "")
+        try:
+            invite = UserInvite.objects.get(token=token, accepted_at__isnull=True)
+        except (UserInvite.DoesNotExist, ValueError):
+            return Response({"detail": "Invalid or expired invite."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if user with this email already exists
+        if User.objects.filter(email=invite.email).exists():
+            invite.accepted_at = timezone.now()
+            invite.save()
+            return Response({"detail": "A user with this email already exists. Please sign in."}, status=status.HTTP_400_BAD_REQUEST)
+
+        first_name = request.data.get("first_name", "").strip()
+        last_name = request.data.get("last_name", "").strip()
+        password = request.data.get("password", "")
+        google_credential = request.data.get("google_credential", "")
+
+        if google_credential:
+            # Accept via Google — verify token and create user
+            from google.oauth2 import id_token
+            from google.auth.transport import requests as google_requests
+
+            client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+            try:
+                idinfo = id_token.verify_oauth2_token(google_credential, google_requests.Request(), client_id)
+            except Exception:
+                return Response({"detail": "Invalid Google credential."}, status=status.HTTP_400_BAD_REQUEST)
+
+            google_email = idinfo.get("email", "").lower()
+            if google_email != invite.email.lower():
+                return Response(
+                    {"detail": f"Google account email ({google_email}) does not match invite email ({invite.email})."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user = User.objects.create_user(
+                email=invite.email,
+                first_name=idinfo.get("given_name", first_name),
+                last_name=idinfo.get("family_name", last_name),
+                role=invite.role,
+            )
+            user.set_unusable_password()
+            user.save()
+        else:
+            # Accept via password
+            if not password:
+                return Response({"detail": "Password is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+            from django.contrib.auth.password_validation import validate_password
+            try:
+                validate_password(password)
+            except Exception as e:
+                return Response({"detail": list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+            user = User.objects.create_user(
+                email=invite.email,
+                first_name=first_name,
+                last_name=last_name,
+                password=password,
+                role=invite.role,
+            )
+
+        invite.accepted_at = timezone.now()
+        invite.save()
+
+        log_auth_event("invite_accepted", request=request, user=user, metadata={"invite_id": invite.id, "role": invite.role})
+
+        # Return JWT so the user is immediately logged in
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        }, status=status.HTTP_201_CREATED)
+
+
 class TenantsListView(generics.ListAPIView):
     """
     Returns all Person records who appear on at least one lease
     (as primary tenant or co-tenant).
     """
     serializer_class = PersonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         from django.db.models import Q, Count
@@ -146,7 +404,7 @@ class TenantsListView(generics.ListAPIView):
 
 class PersonViewSet(generics.ListCreateAPIView):
     serializer_class = PersonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         qs = Person.objects.all()
@@ -158,5 +416,5 @@ class PersonViewSet(generics.ListCreateAPIView):
 
 class PersonDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PersonSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     queryset = Person.objects.all()

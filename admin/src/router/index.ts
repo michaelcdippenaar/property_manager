@@ -11,6 +11,30 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/register',
+      name: 'register',
+      component: () => import('../views/auth/RegisterView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: () => import('../views/auth/ForgotPasswordView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: () => import('../views/auth/ResetPasswordView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/accept-invite',
+      name: 'accept-invite',
+      component: () => import('../views/auth/AcceptInviteView.vue'),
+      meta: { public: true, allowWhenAuthenticated: true },
+    },
+    {
       path: '/sign/:token',
       name: 'public-sign',
       component: () => import('../views/signing/PublicSignView.vue'),
@@ -82,6 +106,10 @@ const router = createRouter({
         { path: 'property-agent', redirect: '/property-info/agent' },
         { path: 'unit-tenant-info', redirect: '/property-info/unit-info' },
         { path: 'skills', redirect: '/property-info/skills' },
+        // Admin
+        { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue') },
+        // Profile
+        { path: 'profile', name: 'profile', component: () => import('../views/auth/ProfileView.vue') },
       ],
     },
 

@@ -6,11 +6,23 @@ from .models import User, Person
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=8)
 
     class Meta:
         model = User
         fields = ["email", "first_name", "last_name", "phone", "password"]
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return email
+
+    def validate_password(self, value):
+        from django.contrib.auth.password_validation import validate_password
+        validate_password(value)
+        return value
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
@@ -40,7 +52,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "first_name", "last_name", "full_name", "phone", "role", "date_joined"]
-        read_only_fields = ["id", "date_joined"]
+        read_only_fields = ["id", "email", "role", "date_joined"]
 
 
 class PersonSerializer(serializers.ModelSerializer):
@@ -53,6 +65,29 @@ class PersonSerializer(serializers.ModelSerializer):
             "company_reg", "vat_number", "linked_user", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "email", "first_name", "last_name", "full_name",
+            "phone", "role", "is_active", "date_joined", "last_login",
+        ]
+        read_only_fields = ["id", "email", "date_joined", "last_login"]
+
+
+class AdminUserUpdateSerializer(serializers.Serializer):
+    role = serializers.ChoiceField(choices=User.Role.choices, required=False)
+    is_active = serializers.BooleanField(required=False)
+
+
+class InviteUserSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    role = serializers.ChoiceField(choices=User.Role.choices)
+    first_name = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class OTPSendSerializer(serializers.Serializer):

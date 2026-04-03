@@ -41,14 +41,9 @@ class LeaseViewSet(viewsets.ModelViewSet):
         if user.role == User.Role.ADMIN:
             return qs
         if user.role == User.Role.AGENT:
-            # Same portfolio scope as maintenance for assigned properties; include
-            # unassigned properties; and properties still tied to an admin user from
-            # older imports (before import stopped setting agent=request.user for admins).
-            return qs.filter(
-                Q(unit__property__agent=user)
-                | Q(unit__property__agent__isnull=True)
-                | Q(unit__property__agent__role=User.Role.ADMIN)
-            ).distinct()
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            return qs.filter(unit__property_id__in=prop_ids)
         return qs.none()
 
     # ------------------------------------------------------------------ #
@@ -263,9 +258,16 @@ class LeaseCalendarAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        user = request.user
         from_date = request.query_params.get("from")
         to_date = request.query_params.get("to")
         qs = LeaseEvent.objects.select_related("lease__unit__property", "lease__primary_tenant")
+        if user.role == User.Role.AGENT:
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(lease__unit__property_id__in=prop_ids)
+        elif user.role != User.Role.ADMIN:
+            qs = qs.none()
         if from_date:
             qs = qs.filter(date__gte=from_date)
         if to_date:

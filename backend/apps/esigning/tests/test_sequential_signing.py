@@ -154,13 +154,13 @@ class SignerStatusEndpointTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 401)
 
     def test_signer_status_tenant_cant_see_other_lease(self):
-        """Tenant without access to lease gets 404."""
+        """Tenant without access to lease gets 403 (IsAgentOrAdmin blocks first)."""
         other_tenant = self.create_tenant(email="other@test.com")
         self.authenticate(other_tenant)
         resp = self.client.get(
             reverse("esigning-signer-status", args=[self.submission.pk])
         )
-        self.assertEqual(resp.status_code, 404)
+        self.assertEqual(resp.status_code, 403)
 
 
 class WebhookSequentialNotificationTests(TremlyAPITestCase):

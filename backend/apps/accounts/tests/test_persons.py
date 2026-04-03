@@ -34,17 +34,14 @@ class TenantsListViewTests(TremlyAPITestCase):
         resp = self.client.get(self.url)
         self.assertEqual(resp.status_code, 401)
 
-    def test_idor_tenants_list_returns_all_tenants(self):
+    def test_tenant_blocked_from_tenants_list(self):
         """
-        SECURITY AUDIT (vuln #7): Any authenticated user sees ALL tenants,
-        regardless of whether they manage those properties.
+        SECURITY FIX: Tenant role is now blocked by IsAgentOrAdmin permission.
+        Previously any authenticated user could list all tenants (vuln #7).
         """
         self.authenticate(self.tenant_user)
         resp = self.client.get(self.url)
-        self.assertEqual(resp.status_code, 200)
-        # Tenant user can see persons from other agents' leases
-        names = [p["full_name"] for p in resp.data["results"]]
-        self.assertIn("Leased Person", names)
+        self.assertEqual(resp.status_code, 403)
 
 
 class PersonViewSetTests(TremlyAPITestCase):
@@ -90,15 +87,14 @@ class PersonViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 201)
         self.assertEqual(resp.data["person_type"], "company")
 
-    def test_idor_persons_returns_all(self):
+    def test_tenant_blocked_from_persons(self):
         """
-        SECURITY AUDIT (vuln #6): Any authenticated user sees ALL persons.
-        Tenant can enumerate every person in the system.
+        SECURITY FIX: Tenant role is now blocked by IsAgentOrAdmin permission.
+        Previously any authenticated user could list all persons (vuln #6).
         """
         self.authenticate(self.tenant)
         resp = self.client.get(self.url)
-        self.assertEqual(resp.status_code, 200)
-        self.assertGreaterEqual(len(resp.data["results"]), 2)
+        self.assertEqual(resp.status_code, 403)
 
 
 class PersonDetailViewTests(TremlyAPITestCase):

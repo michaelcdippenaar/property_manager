@@ -33,6 +33,7 @@ THIRD_PARTY_APPS = [
     "channels",
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
     "graphene_django",
@@ -135,6 +136,11 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_RATES": {
+        "anon_auth": "5/min",
+        "otp_send": "3/min",
+        "otp_verify": "5/min",
+    },
 }
 
 GRAPHENE = {
@@ -143,9 +149,11 @@ GRAPHENE = {
 
 from datetime import timedelta
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
+    "UPDATE_LAST_LOGIN": True,
 }
 
 CORS_ALLOWED_ORIGINS = [
@@ -156,6 +164,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5178",
     "http://127.0.0.1:5178",
 ]
+
+# Google OAuth
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")

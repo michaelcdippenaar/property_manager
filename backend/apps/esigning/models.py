@@ -55,6 +55,11 @@ class ESigningSubmission(models.Model):
         blank=True,
         help_text="Locally generated signed PDF (native signing).",
     )
+    signed_pdf_hash = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="SHA-256 hash of the signed PDF for tamper detection.",
+    )
     captured_data = models.JSONField(
         default=dict,
         blank=True,
@@ -87,6 +92,36 @@ class ESigningSubmission(models.Model):
             except (TypeError, ValueError):
                 continue
         return None
+
+
+class ESigningAuditEvent(models.Model):
+    """Immutable audit trail for e-signing events (ECTA Section 13 compliance)."""
+    class EventType(models.TextChoices):
+        LINK_CREATED = "link_created", "Link Created"
+        DOCUMENT_VIEWED = "document_viewed", "Document Viewed"
+        CONSENT_GIVEN = "consent_given", "Consent Given"
+        SIGNATURE_APPLIED = "signature_applied", "Signature Applied"
+        SIGNING_COMPLETED = "signing_completed", "Signing Completed"
+        DOCUMENT_COMPLETED = "document_completed", "Document Completed"
+        LINK_EXPIRED = "link_expired", "Link Expired"
+
+    submission = models.ForeignKey(ESigningSubmission, on_delete=models.CASCADE, related_name="audit_events")
+    signer_role = models.CharField(max_length=100, blank=True)
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    user = models.ForeignKey("accounts.User", on_delete=models.SET_NULL, null=True, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["submission", "event_type"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} — {self.submission_id} at {self.created_at}"
 
 
 class ESigningPublicLink(models.Model):

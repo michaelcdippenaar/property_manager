@@ -5,6 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -44,6 +46,11 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         ).order_by("-created_at")
         if hasattr(user, "role") and user.role == "tenant":
             qs = qs.filter(tenant=user)
+        elif hasattr(user, "role") and user.role == "agent":
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(unit__property_id__in=prop_ids)
+        # admin sees all
         exclude_status = self.request.query_params.get("exclude_status")
         if exclude_status:
             qs = qs.exclude(status=exclude_status)
@@ -209,10 +216,14 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
 class JobDispatchListView(APIView):
     """List all active dispatches for the dispatch overview."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
-        dispatches = JobDispatch.objects.select_related(
+        from apps.properties.access import get_accessible_property_ids
+        prop_ids = get_accessible_property_ids(request.user)
+        dispatches = JobDispatch.objects.filter(
+            maintenance_request__unit__property_id__in=prop_ids
+        ).select_related(
             "maintenance_request__unit__property", "dispatched_by"
         ).prefetch_related(
             "quote_requests__supplier", "quote_requests__quote"
@@ -284,7 +295,7 @@ class SupplierQuoteDeclineView(APIView):
 
 
 class SupplierViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["is_active"]
 
     def get_queryset(self):
@@ -473,7 +484,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
 class AgentQuestionViewSet(viewsets.ModelViewSet):
     serializer_class = AgentQuestionSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         qs = AgentQuestion.objects.all()
@@ -509,7 +520,7 @@ class AgentQuestionViewSet(viewsets.ModelViewSet):
 
 class MaintenanceSkillViewSet(viewsets.ModelViewSet):
     serializer_class = MaintenanceSkillSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["trade", "difficulty", "is_active"]
     pagination_class = None  # small catalog — return all rows for admin / agent UI
 

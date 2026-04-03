@@ -16,12 +16,13 @@ import logging
 
 import anthropic
 from django.conf import settings
-from rest_framework.permissions import BasePermission, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
+from apps.accounts.permissions import IsAgentOrAdmin
 from apps.leases.template_views import _get_anthropic_api_key
 from apps.maintenance.models import MaintenanceSkill
 from core.anthropic_web_fetch import (
@@ -55,14 +56,6 @@ and have them paste the official URL in a follow-up message. Only fetch URLs tha
 
 Reply in clear prose. Use markdown headings or bullets when helpful."""
 
-
-class IsAgentOrAdmin(BasePermission):
-    """Only allow users with AGENT or ADMIN role."""
-    def has_permission(self, request, view):
-        u = request.user
-        return bool(
-            u and u.is_authenticated and u.role in (User.Role.AGENT, User.Role.ADMIN)
-        )
 
 
 class AgentChatThrottle(UserRateThrottle):

@@ -14,7 +14,7 @@
               <component :is="stat.icon" :size="14" :class="stat.iconColor" />
             </div>
           </div>
-          <div class="text-2xl font-bold" :class="stat.valueColor">{{ stat.value }}</div>
+          <div class="text-3xl font-bold tracking-tight" :class="stat.valueColor">{{ stat.value }}</div>
         </template>
       </div>
     </div>

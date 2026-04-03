@@ -1,3 +1,5 @@
+import uuid
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 
@@ -127,3 +129,69 @@ class PushToken(models.Model):
 
     def __str__(self):
         return f"{self.platform} token for {self.user.email}"
+
+
+class UserInvite(models.Model):
+    email = models.EmailField()
+    role = models.CharField(max_length=10, choices=User.Role.choices)
+    token = models.UUIDField(default=uuid.uuid4, unique=True)
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="invites_sent")
+    created_at = models.DateTimeField(auto_now_add=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Invite for {self.email} ({self.role})"
+
+
+class AuthAuditLog(models.Model):
+    """Immutable audit trail for authentication events."""
+    class EventType(models.TextChoices):
+        LOGIN_SUCCESS = "login_success", "Login Success"
+        LOGIN_FAILED = "login_failed", "Login Failed"
+        LOGOUT = "logout", "Logout"
+        REGISTER = "register", "Register"
+        PASSWORD_RESET_REQUEST = "password_reset_request", "Password Reset Request"
+        PASSWORD_RESET_CONFIRM = "password_reset_confirm", "Password Reset Confirm"
+        PASSWORD_CHANGE = "password_change", "Password Change"
+        OTP_SENT = "otp_sent", "OTP Sent"
+        OTP_VERIFIED = "otp_verified", "OTP Verified"
+        OTP_FAILED = "otp_failed", "OTP Failed"
+        ROLE_CHANGE = "role_change", "Role Change"
+        ACCOUNT_LOCKED = "account_locked", "Account Locked"
+        GOOGLE_AUTH = "google_auth", "Google Auth"
+
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="audit_logs")
+    event_type = models.CharField(max_length=30, choices=EventType.choices)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "event_type"]),
+            models.Index(fields=["created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.event_type} — {self.user_id} at {self.created_at}"
+
+
+class LoginAttempt(models.Model):
+    email = models.EmailField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    succeeded = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["email", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{'OK' if self.succeeded else 'FAIL'} login for {self.email}"

@@ -22,7 +22,7 @@ class OwnerDashboardTests(TremlyAPITestCase):
         self.assertEqual(resp.data["active_issues"], 1)
 
     def test_dashboard_no_person_profile(self):
-        user = self.create_user(email="noprofile@test.com")
+        user = self.create_owner_user(email="noprofile@test.com")
         self.authenticate(user)
         resp = self.client.get(reverse("owner-dashboard"))
         self.assertEqual(resp.status_code, 200)
@@ -50,7 +50,7 @@ class OwnerPropertiesTests(TremlyAPITestCase):
         self.assertEqual(resp.data[0]["unit_count"], 1)
 
     def test_no_person_profile(self):
-        user = self.create_user(email="noprofile@test.com")
+        user = self.create_owner_user(email="noprofile@test.com")
         self.authenticate(user)
         resp = self.client.get(reverse("owner-properties"))
         self.assertEqual(resp.status_code, 200)

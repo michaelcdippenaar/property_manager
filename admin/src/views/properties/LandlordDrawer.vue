@@ -70,6 +70,10 @@
         <!-- Address -->
         <div class="space-y-3">
           <div class="text-xs font-semibold uppercase tracking-wide text-navy">Address (Domicilium)</div>
+          <div>
+            <label class="label">Search address</label>
+            <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+          </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="col-span-2">
               <label class="label">Street</label>
@@ -176,6 +180,7 @@
 import { ref, watch } from 'vue'
 import { Loader2, Plus } from 'lucide-vue-next'
 import BaseDrawer from '../../components/BaseDrawer.vue'
+import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import api from '../../api'
 
 const props = defineProps<{
@@ -196,6 +201,14 @@ watch(() => props.landlord, (ll) => {
     }
   }
 }, { immediate: true })
+
+function onAddressSelect(result: AddressResult) {
+  if (!local.value.address) local.value.address = {}
+  local.value.address.street = result.street || result.formatted
+  local.value.address.city = result.city
+  local.value.address.province = result.province
+  local.value.address.postal_code = result.postal_code
+}
 
 async function saveLandlord() {
   saving.value = true

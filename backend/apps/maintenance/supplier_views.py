@@ -8,6 +8,8 @@ from django.db.models import Q
 from rest_framework import status
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsSupplier
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -30,7 +32,7 @@ class SupplierMixin:
 
 
 class SupplierDashboardView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def get(self, request):
         supplier = self.get_supplier(request)
@@ -49,7 +51,7 @@ class SupplierDashboardView(SupplierMixin, APIView):
 
 
 class SupplierJobsView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def get(self, request):
         supplier = self.get_supplier(request)
@@ -68,7 +70,7 @@ class SupplierJobsView(SupplierMixin, APIView):
 
 
 class SupplierJobDetailView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def get(self, request, pk):
         supplier = self.get_supplier(request)
@@ -94,7 +96,7 @@ class SupplierJobDetailView(SupplierMixin, APIView):
 
 
 class SupplierJobQuoteView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def post(self, request, pk):
         supplier = self.get_supplier(request)
@@ -127,7 +129,7 @@ class SupplierJobQuoteView(SupplierMixin, APIView):
 
 
 class SupplierJobDeclineView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def post(self, request, pk):
         supplier = self.get_supplier(request)
@@ -148,7 +150,7 @@ class SupplierJobDeclineView(SupplierMixin, APIView):
 
 
 class SupplierProfileView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def get(self, request):
         supplier = self.get_supplier(request)
@@ -167,7 +169,7 @@ class SupplierProfileView(SupplierMixin, APIView):
 
 
 class SupplierDocumentsView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
     parser_classes = [MultiPartParser, FormParser]
 
     def get(self, request):
@@ -187,7 +189,7 @@ class SupplierDocumentsView(SupplierMixin, APIView):
 
 
 class SupplierCalendarView(SupplierMixin, APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsSupplier]
 
     def get(self, request):
         supplier = self.get_supplier(request)

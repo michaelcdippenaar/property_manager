@@ -71,6 +71,7 @@ def _make_submission(lease, signers=None, **kwargs):
         "docuseal_template_id": "888",
         "status": ESigningSubmission.Status.PENDING,
         "signing_mode": ESigningSubmission.SigningMode.SEQUENTIAL,
+        "signing_backend": ESigningSubmission.SigningBackend.DOCUSEAL,
         "signers": signers or _make_signers(),
     }
     defaults.update(kwargs)
@@ -611,24 +612,17 @@ class SubmissionCreateTests(TremlyAPITestCase):
         self.lease = self.create_lease(unit=self.unit)
 
     @mock.patch("apps.notifications.services.send_email", return_value=True)
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_generates_initials_fields(self, mock_create, mock_email):
-        mock_create.return_value = {
-            "template": {"id": "tmpl_100"},
-            "submission": [
-                {
-                    "id": 200,
-                    "submission_id": "sub_200",
-                    "name": "Tenant",
-                    "email": "tenant@test.com",
-                    "role": "First Party",
-                    "status": "sent",
-                    "slug": "abc",
-                    "embed_src": FAKE_EMBED,
-                    "order": 0,
-                },
-            ],
-        }
+        sub = _make_submission(
+            self.lease,
+            signers=[{
+                "id": 1, "name": "Tenant", "email": "tenant@test.com",
+                "role": "tenant_1", "status": "pending", "order": 0,
+            }],
+            created_by=self.agent,
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -642,28 +636,30 @@ class SubmissionCreateTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        # Verify create_lease_submission was called with correct args
+        # Verify create_native_submission was called with correct args
         call_args = mock_create.call_args
         self.assertEqual(call_args[0][0], self.lease)
         self.assertEqual(len(call_args[0][1]), 1)  # 1 signer
 
-        # Verify submission created in DB
-        sub = ESigningSubmission.objects.get(docuseal_submission_id="sub_200")
+        # Verify submission in DB
+        sub.refresh_from_db()
         self.assertEqual(sub.signing_mode, "sequential")
         self.assertEqual(len(sub.signers), 1)
 
     @mock.patch("apps.notifications.services.send_email", return_value=True)
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_with_multiple_signers(self, mock_create, mock_email):
-        mock_create.return_value = {
-            "template": {"id": "tmpl_101"},
-            "submission": [
-                {"id": 300, "submission_id": "sub_300", "name": "Landlord", "email": "ll@test.com",
-                 "role": "First Party", "status": "sent", "slug": "a", "embed_src": FAKE_EMBED, "order": 0},
-                {"id": 301, "submission_id": "sub_300", "name": "Tenant", "email": "t@test.com",
-                 "role": "Signer 2", "status": "sent", "slug": "b", "embed_src": FAKE_EMBED, "order": 1},
+        sub = _make_submission(
+            self.lease,
+            signers=[
+                {"id": 1, "name": "Landlord", "email": "ll@test.com",
+                 "role": "landlord", "status": "pending", "order": 0},
+                {"id": 2, "name": "Tenant", "email": "t@test.com",
+                 "role": "tenant_1", "status": "pending", "order": 1},
             ],
-        }
+            created_by=self.agent,
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -679,7 +675,7 @@ class SubmissionCreateTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
 
-        sub = ESigningSubmission.objects.get(docuseal_submission_id="sub_300")
+        sub.refresh_from_db()
         self.assertEqual(len(sub.signers), 2)
         # Sequential: signers sorted by order
         self.assertEqual(sub.signers[0]["order"], 0)

@@ -1,5 +1,7 @@
 """Owner-facing API endpoints."""
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsOwnerOrStaff
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -8,7 +10,7 @@ from apps.maintenance.models import MaintenanceRequest
 
 
 class OwnerDashboardView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrStaff]
 
     def get(self, request):
         user = request.user
@@ -39,7 +41,7 @@ class OwnerDashboardView(APIView):
 
 
 class OwnerPropertiesView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsOwnerOrStaff]
 
     def get(self, request):
         user = request.user

@@ -1,9 +1,12 @@
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+from .access import get_accessible_property_ids
 from .models import BankAccount, Landlord, Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
 from .serializers import (
     BankAccountSerializer, LandlordSerializer,
@@ -14,40 +17,41 @@ from .serializers import (
 
 class PropertyViewSet(viewsets.ModelViewSet):
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
-        user = self.request.user
-        if user.role in ("agent", "admin"):
-            return Property.objects.filter(agent=user)
-        return Property.objects.all()
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return Property.objects.filter(pk__in=prop_ids)
 
 
 class UnitViewSet(viewsets.ModelViewSet):
     serializer_class = UnitSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "status"]
 
     def get_queryset(self):
-        return Unit.objects.select_related("property")
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return Unit.objects.filter(property_id__in=prop_ids).select_related("property")
 
 
 class UnitInfoViewSet(viewsets.ModelViewSet):
     serializer_class = UnitInfoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "unit"]
 
     def get_queryset(self):
-        return UnitInfo.objects.select_related("property", "unit")
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return UnitInfo.objects.filter(property_id__in=prop_ids).select_related("property", "unit")
 
 
 class PropertyAgentConfigViewSet(viewsets.ModelViewSet):
     serializer_class = PropertyAgentConfigSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property"]
 
     def get_queryset(self):
-        return PropertyAgentConfig.objects.select_related("property")
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return PropertyAgentConfig.objects.filter(property_id__in=prop_ids).select_related("property")
 
     @action(detail=False, methods=["get", "put", "patch"], url_path="by-property/(?P<property_id>[0-9]+)")
     def by_property(self, request, property_id=None):
@@ -62,10 +66,11 @@ class PropertyAgentConfigViewSet(viewsets.ModelViewSet):
 
 class PropertyOwnershipViewSet(viewsets.ModelViewSet):
     serializer_class = PropertyOwnershipSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
-        qs = PropertyOwnership.objects.select_related("property")
+        prop_ids = get_accessible_property_ids(self.request.user)
+        qs = PropertyOwnership.objects.filter(property_id__in=prop_ids).select_related("property")
         property_id = self.request.query_params.get("property")
         if property_id:
             qs = qs.filter(property_id=property_id)
@@ -79,10 +84,13 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
 
 class LandlordViewSet(viewsets.ModelViewSet):
     serializer_class = LandlordSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
-        qs = Landlord.objects.prefetch_related('bank_accounts', 'ownerships__property')
+        prop_ids = get_accessible_property_ids(self.request.user)
+        qs = Landlord.objects.filter(
+            ownerships__property_id__in=prop_ids
+        ).distinct().prefetch_related('bank_accounts', 'ownerships__property')
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search))
@@ -91,10 +99,13 @@ class LandlordViewSet(viewsets.ModelViewSet):
 
 class BankAccountViewSet(viewsets.ModelViewSet):
     serializer_class = BankAccountSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
-        qs = BankAccount.objects.select_related('landlord')
+        prop_ids = get_accessible_property_ids(self.request.user)
+        qs = BankAccount.objects.filter(
+            landlord__ownerships__property_id__in=prop_ids
+        ).distinct().select_related('landlord')
         landlord_id = self.request.query_params.get('landlord')
         if landlord_id:
             qs = qs.filter(landlord_id=landlord_id)
@@ -103,7 +114,10 @@ class BankAccountViewSet(viewsets.ModelViewSet):
 
 class PropertyGroupViewSet(viewsets.ModelViewSet):
     serializer_class = PropertyGroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
-        return PropertyGroup.objects.prefetch_related("properties")
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return PropertyGroup.objects.filter(
+            properties__id__in=prop_ids
+        ).distinct().prefetch_related("properties")

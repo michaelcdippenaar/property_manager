@@ -29,6 +29,20 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email: string, password: string) {
     const { data } = await api.post('/auth/login/', { email, password })
+    _setTokens(data)
+  }
+
+  async function register(payload: { email: string; password: string; first_name: string; last_name: string; phone?: string }) {
+    await api.post('/auth/register/', payload)
+    await login(payload.email, payload.password)
+  }
+
+  async function googleAuth(credential: string) {
+    const { data } = await api.post('/auth/google/', { credential })
+    _setTokens(data)
+  }
+
+  function _setTokens(data: { access: string; refresh: string; user: User }) {
     accessToken.value = data.access
     refreshToken.value = data.refresh
     user.value = data.user
@@ -36,7 +50,13 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('refresh_token', data.refresh)
   }
 
-  function logout() {
+  async function logout() {
+    // Blacklist refresh token on the server (best-effort)
+    if (refreshToken.value) {
+      try {
+        await api.post('/auth/logout/', { refresh: refreshToken.value })
+      } catch { /* ignore */ }
+    }
     accessToken.value = null
     refreshToken.value = null
     user.value = null
@@ -52,6 +72,6 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     accessToken, user, isAuthenticated,
     isAgent, isSupplier, isOwner, isTenant, homeRoute,
-    login, logout, fetchMe,
+    login, register, googleAuth, logout, fetchMe, _setTokens,
   }
 })

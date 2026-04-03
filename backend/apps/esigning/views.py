@@ -11,6 +11,8 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
+
+from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,6 +21,7 @@ from apps.leases.models import Lease
 from apps.tenant_portal.views import get_tenant_leases
 
 from . import services
+from .audit import log_esigning_event
 from .models import ESigningPublicLink, ESigningSubmission
 from .serializers import ESigningSubmissionSerializer
 
@@ -36,11 +39,9 @@ def accessible_leases_queryset(user):
     if user.role == User.Role.ADMIN:
         return qs
     if user.role == User.Role.AGENT:
-        return qs.filter(
-            Q(unit__property__agent=user)
-            | Q(unit__property__agent__isnull=True)
-            | Q(unit__property__agent__role=User.Role.ADMIN)
-        ).distinct()
+        from apps.properties.access import get_accessible_property_ids
+        prop_ids = get_accessible_property_ids(user)
+        return qs.filter(unit__property_id__in=prop_ids)
     return qs.none()
 
 
@@ -231,7 +232,7 @@ class ESigningSignerStatusView(APIView):
     - signing_mode: sequential or parallel
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
         obj = get_object_or_404(esigning_submissions_for_user(request.user), pk=pk)
@@ -292,7 +293,7 @@ class ESigningDownloadSignedView(APIView):
     DocuSeal file URLs contain time-limited tokens, so we always fetch
     a fresh one to avoid 500 errors from expired links.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
         qs = ESigningSubmission.objects.filter(
@@ -365,7 +366,7 @@ class GotenbergHealthView(APIView):
     GET /api/v1/esigning/gotenberg/health/
     Returns the Gotenberg service health status (Chromium + LibreOffice engines).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         if not can_manage_esigning(request.user):
@@ -385,7 +386,7 @@ class GotenbergHealthView(APIView):
 
 
 class ESigningResendView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         if not can_manage_esigning(request.user):
@@ -484,6 +485,11 @@ class ESigningPublicSignDetailView(APIView):
             return error
 
         lease_label = f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}"
+
+        log_esigning_event(
+            sub, "document_viewed", request=request,
+            signer_role=signer.get("role", ""),
+        )
 
         if sub.signing_backend == ESigningSubmission.SigningBackend.NATIVE:
             return Response({
@@ -602,6 +608,12 @@ class ESigningPublicSubmitSignatureView(APIView):
 
         signer_role = signer.get("role", "")
 
+        log_esigning_event(
+            sub, "consent_given", request=request,
+            signer_role=signer_role,
+            metadata={"consent_timestamp": consent.get("timestamp", "")},
+        )
+
         try:
             from django.db import transaction
             with transaction.atomic():
@@ -611,6 +623,19 @@ class ESigningPublicSubmitSignatureView(APIView):
                 )
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        log_esigning_event(
+            sub, "signing_completed", request=request,
+            signer_role=signer_role,
+            metadata={"fields_signed": [f["fieldName"] for f in signed_fields]},
+        )
+
+        if all_completed:
+            log_esigning_event(
+                sub, "document_completed", request=request,
+                signer_role=signer_role,
+                metadata={"total_signers": len(sub.signers)},
+            )
 
         # Sync captured merge field data back to Person/Occupant models
         if captured_fields:
@@ -626,12 +651,14 @@ class ESigningPublicSubmitSignatureView(APIView):
             _activate_lease(sub)
             # Generate signed PDF
             try:
+                import hashlib as _hashlib
                 from django.core.files.base import ContentFile
                 pdf_bytes = services.generate_signed_pdf(sub)
                 filename = f"signed_lease_{sub.pk}.pdf"
                 sub.signed_pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
                 sub.signed_pdf_url = sub.signed_pdf_file.url
-                sub.save(update_fields=["signed_pdf_file", "signed_pdf_url", "updated_at"])
+                sub.signed_pdf_hash = _hashlib.sha256(pdf_bytes).hexdigest()
+                sub.save(update_fields=["signed_pdf_file", "signed_pdf_url", "signed_pdf_hash", "updated_at"])
             except Exception:
                 logger.exception("Failed to generate signed PDF for submission %s", sub.pk)
 
@@ -667,7 +694,7 @@ class ESigningPublicSubmitSignatureView(APIView):
 class ESigningCreatePublicLinkView(APIView):
     """Staff: create a UUID link to share by SMS/email for passwordless signing."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
         if not can_manage_esigning(request.user):
@@ -721,6 +748,13 @@ class ESigningCreatePublicLinkView(APIView):
         origin = (request.data.get("public_app_origin") or "").strip().rstrip("/")
         if not signing_url and origin:
             signing_url = f"{origin}{path}"
+
+        log_esigning_event(
+            submission, "link_created", request=request,
+            signer_role=signer.get("role", ""),
+            user=request.user,
+            metadata={"link_id": str(link.pk), "submitter_id": submitter_id},
+        )
 
         email_sent = False
         email_error = ""
@@ -781,11 +815,11 @@ class ESigningCreatePublicLinkView(APIView):
 
 class ESigningWebhookInfoView(APIView):
     """
-    Staff: exact URL and verify mode for pasting into DocuSeal → Webhooks.
-    DocuSeal initiates the connection (POST); Tremly does not call DocuSeal to “register” the hook.
+    Staff: exact URL and verify mode for pasting into DocuSeal Webhooks.
+    DocuSeal initiates the connection (POST); Tremly does not call DocuSeal to register the hook.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
         if not can_manage_esigning(request.user):

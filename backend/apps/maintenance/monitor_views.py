@@ -27,7 +27,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.maintenance.agent_assist_views import IsAgentOrAdmin
+from apps.accounts.permissions import IsAgentOrAdmin
 from apps.maintenance.models import AgentTokenLog
 from core.contract_rag import rag_collection_stats
 

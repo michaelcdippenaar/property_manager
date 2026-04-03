@@ -155,9 +155,7 @@
           <!-- Address -->
           <div class="border-t border-gray-100 pt-4">
             <h3 class="text-sm font-medium text-gray-700 mb-3">Address</h3>
-            <div>
-              <input v-model="form.address" class="input" placeholder="123 Main Road, Parow" />
-            </div>
+            <AddressAutocomplete input-class="input" @select="onAddressSelect" />
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label class="label">City</label>
@@ -168,16 +166,9 @@
                 <input v-model="form.province" class="input" placeholder="Western Cape" />
               </div>
             </div>
-            <div class="mt-3 flex items-center gap-4">
-              <button type="button" @click="geocodeAddress" :disabled="!form.address || geocoding"
-                class="text-xs text-navy hover:underline disabled:opacity-40 flex items-center gap-1">
-                <MapPin :size="12" />
-                {{ geocoding ? 'Looking up…' : 'Look up coordinates' }}
-              </button>
-              <span v-if="form.latitude && form.longitude" class="text-xs text-gray-500 font-mono">
-                {{ form.latitude }}, {{ form.longitude }}
-              </span>
-            </div>
+            <span v-if="form.latitude && form.longitude" class="text-xs text-gray-400 font-mono mt-2 inline-block">
+              {{ form.latitude }}, {{ form.longitude }}
+            </span>
           </div>
 
           <!-- Compliance -->
@@ -460,20 +451,20 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
 import {
-  Plus, X, Loader2, Pencil, Star, Trash2, MapPin,
+  Plus, X, Loader2, Pencil, Star, Trash2,
   Upload, FileText, ExternalLink, Layers,
 } from 'lucide-vue-next'
 import SearchInput from '../../components/SearchInput.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
+import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import { useToast } from '../../composables/useToast'
 
 const toast = useToast()
 
 const loading = ref(true)
 const saving = ref(false)
-const geocoding = ref(false)
 const search = ref('')
 const dialog = ref(false)
 const editing = ref<number | null>(null)
@@ -755,24 +746,11 @@ async function importExcel(e: Event) {
   (e.target as HTMLInputElement).value = ''
 }
 
-// --- Geocode ---
-
-async function geocodeAddress() {
-  if (!form.value.address) return
-  geocoding.value = true
-  try {
-    const q = [form.value.address, form.value.city, form.value.province].filter(Boolean).join(', ')
-    const resp = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(q)}&key=${import.meta.env.VITE_GOOGLE_MAPS_KEY || ''}`
-    )
-    const data = await resp.json()
-    if (data.results?.[0]) {
-      const loc = data.results[0].geometry.location
-      form.value.latitude = loc.lat
-      form.value.longitude = loc.lng
-    }
-  } finally {
-    geocoding.value = false
-  }
+function onAddressSelect(result: AddressResult) {
+  form.value.address = result.street || result.formatted
+  form.value.city = result.city
+  form.value.province = result.province
+  form.value.latitude = result.lat
+  form.value.longitude = result.lng
 }
 </script>

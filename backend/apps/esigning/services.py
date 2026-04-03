@@ -164,7 +164,7 @@ def _roles_from_template(template_data: dict) -> list[str]:
 
 
 def _get_landlord_info(lease) -> dict | None:
-    """Resolve landlord name/email/phone from Landlord → PropertyOwnership → Property.owner."""
+    """Resolve landlord info from Landlord → PropertyOwnership → Property.owner."""
     prop = lease.unit.property
     ownership = None
     try:
@@ -179,24 +179,95 @@ def _get_landlord_info(lease) -> dict | None:
             name = ll.representative_name or ll.name
             email = ll.representative_email or ll.email
             phone = ll.representative_phone or ll.phone
+            # Resolve default bank account
+            bank_account = ll.bank_accounts.filter(is_default=True).first() or ll.bank_accounts.first()
+            ba = {}
+            if bank_account:
+                ba = {
+                    'bank_name': bank_account.bank_name,
+                    'branch_code': bank_account.branch_code,
+                    'account_number': bank_account.account_number,
+                    'account_type': bank_account.account_type,
+                    'account_holder': bank_account.account_holder,
+                }
+            addr = ll.address or {}
+            physical_address = ', '.join(filter(None, [
+                addr.get('street', ''), addr.get('city', ''), addr.get('province', ''), addr.get('postal_code', '')
+            ])) or ''
             if email:
-                return {'name': name or '', 'email': email, 'phone': phone or '', 'landlord_id': ll.pk}
+                return {
+                    'name': name or '',
+                    'email': email,
+                    'phone': phone or '',
+                    'landlord_id': ll.pk,
+                    'entity_name': ll.name or '',
+                    'registration_no': ll.registration_number or ll.id_number or '',
+                    'vat_no': ll.vat_number or '',
+                    'representative': ll.representative_name or '',
+                    'representative_id': ll.representative_id_number or '',
+                    'physical_address': physical_address,
+                    'bank_account': ba,
+                }
 
         # Fallback to denormalized fields on PropertyOwnership
         name = ownership.representative_name or ownership.owner_name
         email = ownership.representative_email or ownership.owner_email
         phone = ownership.representative_phone or ownership.owner_phone
+        bank = ownership.bank_details or {}
         if email:
-            return {'name': name or '', 'email': email, 'phone': phone or ''}
+            return {
+                'name': name or '',
+                'email': email,
+                'phone': phone or '',
+                'bank_account': {
+                    'bank_name': bank.get('bank_name', ''),
+                    'branch_code': bank.get('branch_code', ''),
+                    'account_number': bank.get('account_number', ''),
+                    'account_type': bank.get('account_type', ''),
+                    'account_holder': bank.get('account_holder', ''),
+                } if bank else {},
+            }
 
     # Fallback: Property.owner (Person FK)
     owner_person = getattr(prop, 'owner', None)
     if owner_person:
         email = getattr(owner_person, 'email', '') or ''
         if email:
-            return {'name': getattr(owner_person, 'full_name', '') or '', 'email': email, 'phone': getattr(owner_person, 'phone', '') or ''}
+            return {'name': getattr(owner_person, 'full_name', '') or '', 'email': email, 'phone': getattr(owner_person, 'phone', '') or '', 'bank_account': {}}
 
     return None
+
+
+def _number_to_words(n: int) -> str:
+    """Convert a ZAR integer amount to words, e.g. 8500 → 'Eight Thousand Five Hundred Rand'."""
+    ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+            'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+            'Seventeen', 'Eighteen', 'Nineteen']
+    tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+
+    def _below_1000(num):
+        if num == 0:
+            return ''
+        elif num < 20:
+            return ones[num]
+        elif num < 100:
+            return tens[num // 10] + (' ' + ones[num % 10] if num % 10 else '')
+        else:
+            rest = _below_1000(num % 100)
+            return ones[num // 100] + ' Hundred' + (' ' + rest if rest else '')
+
+    if n == 0:
+        return 'Zero Rand'
+    parts = []
+    if n >= 1_000_000:
+        parts.append(_below_1000(n // 1_000_000) + ' Million')
+        n %= 1_000_000
+    if n >= 1_000:
+        parts.append(_below_1000(n // 1_000) + ' Thousand')
+        n %= 1_000
+    if n > 0:
+        parts.append(_below_1000(n))
+    return ' '.join(parts) + ' Rand'
 
 
 def build_lease_context(lease) -> dict:
@@ -205,39 +276,80 @@ def build_lease_context(lease) -> dict:
     prop = unit.property
     tenant = lease.primary_tenant
 
-    # Resolve landlord info: try current PropertyOwnership first, then Property.owner (Person)
-    owner_person = getattr(prop, 'owner', None)
+    # Resolve landlord info via _get_landlord_info (handles Landlord → Ownership → Person fallback)
+    ll_info = _get_landlord_info(lease) or {}
+    bank = ll_info.get('bank_account') or {}
+
+    # Also resolve from ownership for entity-level fields
     ownership = None
     try:
-        ownership = prop.ownerships.filter(is_current=True).first()
+        ownership = prop.ownerships.filter(is_current=True).select_related('landlord').first()
     except Exception:
         pass
 
-    landlord_name = '—'
-    landlord_contact = '—'
-    landlord_email = '—'
+    landlord_name = ll_info.get('name') or '—'
+    landlord_contact = ll_info.get('phone') or '—'
+    landlord_email = ll_info.get('email') or '—'
     landlord_id = '—'
+    landlord_entity_name = '—'
+    landlord_registration_no = '—'
+    landlord_vat_no = '—'
+    landlord_representative = '—'
+    landlord_representative_id = '—'
+    landlord_title = '—'
+    landlord_physical_address = ll_info.get('physical_address') or '—'
 
     if ownership:
-        landlord_name = ownership.representative_name or ownership.owner_name or '—'
-        landlord_contact = ownership.representative_phone or ownership.owner_phone or '—'
-        landlord_email = ownership.representative_email or ownership.owner_email or '—'
-        landlord_id = ownership.representative_id_number or ownership.registration_number or '—'
-    elif owner_person:
-        landlord_name = owner_person.full_name or '—'
-        landlord_contact = getattr(owner_person, 'phone', '') or '—'
-        landlord_email = getattr(owner_person, 'email', '') or '—'
-        landlord_id = getattr(owner_person, 'id_number', '') or '—'
+        ll_obj = getattr(ownership, 'landlord', None)
+        if ll_obj:
+            landlord_id = ll_obj.representative_id_number or ll_obj.registration_number or ll_obj.id_number or '—'
+            landlord_entity_name = ll_obj.name or '—'
+            landlord_registration_no = ll_obj.registration_number or ll_obj.id_number or '—'
+            landlord_vat_no = ll_obj.vat_number or '—'
+            landlord_representative = ll_obj.representative_name or '—'
+            landlord_representative_id = ll_obj.representative_id_number or '—'
+        else:
+            landlord_id = ownership.representative_id_number or ownership.registration_number or '—'
+            landlord_entity_name = ownership.owner_name or '—'
+            landlord_registration_no = ownership.registration_number or '—'
+            landlord_vat_no = ownership.vat_number or '—'
+            landlord_representative = ownership.representative_name or '—'
+            landlord_representative_id = ownership.representative_id_number or '—'
+
+    # Number-to-words for rent and deposit
+    try:
+        rent_words = _number_to_words(int(float(lease.monthly_rent)))
+    except Exception:
+        rent_words = '—'
+    try:
+        deposit_words = _number_to_words(int(float(lease.deposit)))
+    except Exception:
+        deposit_words = '—'
 
     ctx = {
         # ── Landlord / Property ──────────────────────────────────
-        'landlord_name':    landlord_name,
-        'landlord_contact': landlord_contact,
-        'landlord_phone':   landlord_contact,      # alias
-        'landlord_email':   landlord_email,
-        'landlord_id':      landlord_id,
+        'landlord_name':             landlord_name,
+        'landlord_contact':          landlord_contact,
+        'landlord_phone':            landlord_contact,      # alias
+        'landlord_email':            landlord_email,
+        'landlord_id':               landlord_id,
+        'landlord_entity_name':      landlord_entity_name,
+        'landlord_registration_no':  landlord_registration_no,
+        'landlord_vat_no':           landlord_vat_no,
+        'landlord_representative':   landlord_representative,
+        'landlord_representative_id': landlord_representative_id,
+        'landlord_title':            landlord_title,
+        'landlord_physical_address': landlord_physical_address,
+        # Bank details
+        'landlord_bank_name':        bank.get('bank_name') or '—',
+        'landlord_bank_branch_code': bank.get('branch_code') or '—',
+        'landlord_bank_account_no':  bank.get('account_number') or '—',
+        'landlord_bank_account_holder': bank.get('account_holder') or '—',
+        'landlord_bank_account_type': bank.get('account_type') or '—',
+        # Property
         'property_address': prop.address or '—',
         'property_name':    prop.name or '—',
+        'property_description': getattr(prop, 'description', '') or '—',
         'unit_number':      unit.unit_number,
         'city':             getattr(prop, 'city', '') or '—',
         'province':         getattr(prop, 'province', '') or '—',
@@ -271,12 +383,15 @@ def build_lease_context(lease) -> dict:
         'lease_start':      str(lease.start_date),
         'lease_end':        str(lease.end_date),
         'monthly_rent':     f'R {lease.monthly_rent:,.2f}',
+        'monthly_rent_words': rent_words,
         'deposit':          f'R {lease.deposit:,.2f}',
+        'deposit_words':    deposit_words,
         'notice_period_days': str(getattr(lease, 'notice_period_days', 30)),
         'water_included':   'Included' if getattr(lease, 'water_included', True) else 'Excluded',
         'electricity_prepaid': 'Prepaid' if getattr(lease, 'electricity_prepaid', True) else 'Included in rent',
         'max_occupants':    str(getattr(lease, 'max_occupants', 1)),
         'payment_reference': getattr(lease, 'payment_reference', '') or '—',
+        'lease_number':     getattr(lease, 'lease_number', '') or '—',
     }
 
     # ── Co-tenants: tenant_2_*, tenant_3_* ───────────────────────
@@ -881,7 +996,7 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
                 'ip_address': audit_data.get('ip_address', ''),
                 'user_agent': audit_data.get('user_agent', ''),
                 'consent_given_at': audit_data.get('consent_given_at', now),
-                'consent_text': 'I agree to sign this document electronically and acknowledge that electronic signatures are legally binding.',
+                'consent_text': 'I agree to sign this document electronically. I acknowledge that electronic signatures are legally binding under the Electronic Communications and Transactions Act 25 of 2002 (ECTA), Section 13.',
                 'document_hash_at_signing': submission.document_hash,
                 'fields_signed': [f['fieldName'] for f in signed_fields],
             }

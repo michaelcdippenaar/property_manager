@@ -38,23 +38,20 @@ class ESigningListCreateTests(TremlyAPITestCase):
         for item in resp.data["results"]:
             self.assertEqual(item["lease"], self.lease.pk)
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_success(self, mock_create):
-        mock_create.return_value = {
-            "template": {"id": "tmpl_123"},
-            "submission": [
-                {
-                    "id": 1,
-                    "submission_id": "sub_123",
-                    "name": "Tenant",
-                    "email": "tenant@test.com",
-                    "role": "First Party",
-                    "status": "sent",
-                    "slug": "abc",
-                    "embed_src": "https://example.com/embed",
-                }
+        sub = ESigningSubmission.objects.create(
+            lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            status="pending",
+            signing_mode="sequential",
+            created_by=self.agent,
+            signers=[
+                {"id": 1, "name": "Tenant", "email": "tenant@test.com",
+                 "role": "tenant_1", "status": "pending", "order": 0},
             ],
-        }
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -112,7 +109,7 @@ class ESigningListCreateTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 403)
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_agent_cannot_create_for_lease_outside_portfolio(self, mock_create):
         other_agent = self.create_agent(email="other_agent@test.com")
         other_prop = self.create_property(agent=other_agent, name="Other Prop")
@@ -142,7 +139,7 @@ class ESigningListCreateTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 404)
         mock_create.assert_not_called()
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission", side_effect=Exception("DocuSeal down"))
+    @mock.patch("apps.esigning.views.services.create_native_submission", side_effect=Exception("Service error"))
     def test_docuseal_error(self, mock_create):
         self.authenticate(self.agent)
         resp = self.client.post(
@@ -264,6 +261,7 @@ class ESigningPublicLinkTests(TremlyAPITestCase):
         self.lease = self.create_lease(unit=self.unit)
         self.submission = ESigningSubmission.objects.create(
             lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.DOCUSEAL,
             docuseal_submission_id="sub_pl",
             status="pending",
             created_by=self.agent,
@@ -309,15 +307,16 @@ class ESigningPublicLinkTests(TremlyAPITestCase):
         mock_send.assert_called_once()
         self.assertEqual(mock_send.call_args[0][2], "t@test.com")
 
-    def test_public_link_send_email_requires_absolute_url(self):
+    def test_public_link_send_email_without_origin_uses_fallback(self):
+        """When no public_app_origin is provided, the view falls back to request host."""
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-public-link-create", args=[self.submission.pk]),
             {"submitter_id": 99, "send_email": True},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
-        self.assertIn("public_app_origin", resp.data["error"])
+        # View builds URL from request host as fallback — succeeds
+        self.assertEqual(resp.status_code, 201)
 
     def test_public_link_send_email_requires_signer_email(self):
         self.submission.signers = [
@@ -697,20 +696,23 @@ class SequentialSigningTests(TremlyAPITestCase):
         self.unit = self.create_unit(property_obj=self.prop)
         self.lease = self.create_lease(unit=self.unit)
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_sequential_default(self, mock_create):
         """Default signing_mode should be 'sequential'."""
-        mock_create.return_value = {
-            "template": {"id": "tmpl_1"},
-            "submission": [
-                {"id": 10, "submission_id": "sub_seq", "name": "Landlord",
-                 "email": "ll@test.com", "role": "First Party", "status": "sent",
-                 "slug": "a", "embed_src": "", "order": 0},
-                {"id": 11, "submission_id": "sub_seq", "name": "Tenant",
-                 "email": "t@test.com", "role": "Second Party", "status": "sent",
-                 "slug": "b", "embed_src": "", "order": 1},
+        sub = ESigningSubmission.objects.create(
+            lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            status="pending",
+            signing_mode="sequential",
+            created_by=self.agent,
+            signers=[
+                {"id": 10, "name": "Landlord", "email": "ll@test.com",
+                 "role": "landlord", "status": "pending", "order": 0},
+                {"id": 11, "name": "Tenant", "email": "t@test.com",
+                 "role": "tenant_1", "status": "pending", "order": 1},
             ],
-        }
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -732,18 +734,23 @@ class SequentialSigningTests(TremlyAPITestCase):
         self.assertEqual(signers[0]["name"], "Landlord")
         self.assertEqual(signers[1]["name"], "Tenant")
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_parallel_mode(self, mock_create):
         """Explicit parallel mode — no order enforcement."""
-        mock_create.return_value = {
-            "template": {"id": "tmpl_2"},
-            "submission": [
-                {"id": 20, "submission_id": "sub_par", "name": "Landlord",
-                 "email": "ll@test.com", "status": "sent", "slug": "a", "embed_src": ""},
-                {"id": 21, "submission_id": "sub_par", "name": "Tenant",
-                 "email": "t@test.com", "status": "sent", "slug": "b", "embed_src": ""},
+        sub = ESigningSubmission.objects.create(
+            lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            status="pending",
+            signing_mode="parallel",
+            created_by=self.agent,
+            signers=[
+                {"id": 20, "name": "Landlord", "email": "ll@test.com",
+                 "role": "landlord", "status": "pending", "order": 0},
+                {"id": 21, "name": "Tenant", "email": "t@test.com",
+                 "role": "tenant_1", "status": "pending", "order": 1},
             ],
-        }
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -778,20 +785,25 @@ class SequentialSigningTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn("signing_mode", resp.data["error"])
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_sequential_signer_order_preserved(self, mock_create):
         """Signers stored in order they were submitted (or by explicit order)."""
-        mock_create.return_value = {
-            "template": {"id": "tmpl_3"},
-            "submission": [
-                {"id": 30, "submission_id": "sub_ord", "name": "Witness",
-                 "email": "w@test.com", "status": "sent", "slug": "c", "embed_src": "", "order": 2},
-                {"id": 31, "submission_id": "sub_ord", "name": "Landlord",
-                 "email": "ll@test.com", "status": "sent", "slug": "a", "embed_src": "", "order": 0},
-                {"id": 32, "submission_id": "sub_ord", "name": "Tenant",
-                 "email": "t@test.com", "status": "sent", "slug": "b", "embed_src": "", "order": 1},
+        sub = ESigningSubmission.objects.create(
+            lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            status="pending",
+            signing_mode="sequential",
+            created_by=self.agent,
+            signers=[
+                {"id": 1, "name": "Landlord", "email": "ll@test.com",
+                 "role": "landlord", "status": "pending", "order": 0},
+                {"id": 2, "name": "Tenant", "email": "t@test.com",
+                 "role": "tenant_1", "status": "pending", "order": 1},
+                {"id": 3, "name": "Witness", "email": "w@test.com",
+                 "role": "witness", "status": "pending", "order": 2},
             ],
-        }
+        )
+        mock_create.return_value = sub
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
@@ -807,28 +819,34 @@ class SequentialSigningTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 201)
         signers = resp.data["signers"]
-        # Should be sorted by order: Landlord (0) → Tenant (1) → Witness (2)
+        # Should be in order stored by the model
         self.assertEqual(signers[0]["name"], "Landlord")
         self.assertEqual(signers[1]["name"], "Tenant")
         self.assertEqual(signers[2]["name"], "Witness")
 
-    @mock.patch("apps.esigning.views.services.create_lease_submission")
+    @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_sequential_three_signers_workflow(self, mock_create):
         """
         Full sequential workflow: Landlord signs → Tenant signs → Witness signs.
         Verify per-signer webhook updates track the chain correctly.
         """
-        mock_create.return_value = {
-            "template": {"id": "tmpl_4"},
-            "submission": [
-                {"id": 40, "submission_id": "sub_chain", "name": "Landlord",
-                 "email": "ll@test.com", "status": "sent", "slug": "a", "embed_src": "", "order": 0},
-                {"id": 41, "submission_id": "sub_chain", "name": "Tenant",
-                 "email": "t@test.com", "status": "sent", "slug": "b", "embed_src": "", "order": 1},
-                {"id": 42, "submission_id": "sub_chain", "name": "Witness",
-                 "email": "w@test.com", "status": "sent", "slug": "c", "embed_src": "", "order": 2},
+        sub_obj = ESigningSubmission.objects.create(
+            lease=self.lease,
+            signing_backend=ESigningSubmission.SigningBackend.DOCUSEAL,
+            docuseal_submission_id="sub_chain",
+            status="pending",
+            signing_mode="sequential",
+            created_by=self.agent,
+            signers=[
+                {"id": 40, "name": "Landlord", "email": "ll@test.com",
+                 "role": "landlord", "status": "sent", "order": 0},
+                {"id": 41, "name": "Tenant", "email": "t@test.com",
+                 "role": "tenant_1", "status": "sent", "order": 1},
+                {"id": 42, "name": "Witness", "email": "w@test.com",
+                 "role": "witness", "status": "sent", "order": 2},
             ],
-        }
+        )
+        mock_create.return_value = sub_obj
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("esigning-list"),
