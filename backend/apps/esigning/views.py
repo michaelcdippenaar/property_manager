@@ -360,6 +360,30 @@ class ESigningTestPdfView(APIView):
         return response
 
 
+class GotenbergHealthView(APIView):
+    """
+    GET /api/v1/esigning/gotenberg/health/
+    Returns the Gotenberg service health status (Chromium + LibreOffice engines).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not can_manage_esigning(request.user):
+            return Response(
+                {"detail": "Only staff may check service health."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        try:
+            from .gotenberg import health_check
+            data = health_check()
+            return Response(data)
+        except Exception as e:
+            return Response(
+                {"status": "down", "error": str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+
 class ESigningResendView(APIView):
     permission_classes = [IsAuthenticated]
 

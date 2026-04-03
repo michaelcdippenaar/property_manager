@@ -40,5 +40,16 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000/api/v1
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: always
+    ports:
+      - "3000:3000"
+    command:
+      - "gotenberg"
+      - "--api-timeout=60s"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-allow-file-access-from-files"
+
 volumes:
   postgres_data:

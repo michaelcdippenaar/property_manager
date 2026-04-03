@@ -347,7 +347,7 @@ import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Table as TableIcon, SeparatorHorizontal,
   Columns3, User, Home, Hash, Phone, Mail, Calendar, PenTool, Type,
-  Sparkles, Send, Wrench, Zap, GripVertical,
+  Sparkles, Send, Wrench, Zap, GripVertical, Building2, FileText, Landmark,
 } from 'lucide-vue-next'
 import api from '../../api'
 
@@ -489,12 +489,35 @@ const actors = [
   { label: 'Agent', prefix: 'agent' },
 ]
 
-const dataFields = [
+const _defaultDataFields = [
   { key: 'name', label: 'Full Name', icon: markRaw(User) },
   { key: 'id', label: 'ID Number', icon: markRaw(Hash) },
   { key: 'phone', label: 'Phone', icon: markRaw(Phone) },
   { key: 'email', label: 'Email', icon: markRaw(Mail) },
 ]
+
+const _landlordDataFields = [
+  { key: 'name',               label: 'Entity Name',       icon: markRaw(Building2) },
+  { key: 'registration_no',    label: 'Registration No',   icon: markRaw(Hash) },
+  { key: 'vat_no',             label: 'VAT No',            icon: markRaw(Hash) },
+  { key: 'representative',     label: 'Representative',    icon: markRaw(User) },
+  { key: 'representative_id',  label: 'Rep. ID Number',    icon: markRaw(Hash) },
+  { key: 'title',              label: 'Title',             icon: markRaw(FileText) },
+  { key: 'contact',            label: 'Contact No',        icon: markRaw(Phone) },
+  { key: 'email',              label: 'Email',             icon: markRaw(Mail) },
+  { key: 'physical_address',   label: 'Physical Address',  icon: markRaw(Building2) },
+  { key: 'bank_name',          label: 'Bank Name',         icon: markRaw(Landmark) },
+  { key: 'bank_branch_code',   label: 'Branch Code',       icon: markRaw(Hash) },
+  { key: 'bank_account_no',    label: 'Account No',        icon: markRaw(Hash) },
+  { key: 'bank_account_holder',label: 'Account Holder',    icon: markRaw(User) },
+  { key: 'bank_account_type',  label: 'Account Type',      icon: markRaw(FileText) },
+]
+
+const dataFields = computed(() => {
+  return actors[selectedActorIdx.value]?.prefix === 'landlord'
+    ? _landlordDataFields
+    : _defaultDataFields
+})
 
 const signingFields = [
   { type: 'signature', label: 'Signature', icon: markRaw(PenTool) },
@@ -503,8 +526,8 @@ const signingFields = [
 ]
 
 const leaseFields = [
-  'property_address', 'unit_number', 'city', 'province',
-  'lease_start', 'lease_end', 'monthly_rent', 'deposit',
+  'property_address', 'property_description', 'unit_number', 'city', 'province',
+  'lease_start', 'lease_end', 'monthly_rent', 'monthly_rent_words', 'deposit', 'deposit_words',
   'notice_period_days', 'payment_reference', 'max_occupants',
 ]
 

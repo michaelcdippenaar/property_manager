@@ -564,13 +564,23 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
         )
 
     css = """
-        @page { size: A4; margin: 2cm; }
-        body { font-family: Arial, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #111; }
-        h1 { font-size: 14pt; font-weight: bold; text-align: center; margin-bottom: 12pt; }
-        h2 { font-size: 11pt; font-weight: bold; margin: 8pt 0 3pt; }
-        p, li { margin: 3pt 0; }
-        table { border-collapse: collapse; width: 100%; margin: 4pt 0; }
-        td, th { border: 1px solid #d1d5db; padding: 5pt 7pt; font-size: 10pt; }
+        @page { size: A4; margin: 20mm 18mm 22mm 18mm; }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 10.5pt; line-height: 1.6; color: #1a1a1a;
+            margin: 0; padding: 0;
+        }
+        h1 { font-size: 15pt; font-weight: 700; text-align: center; margin: 0 0 6pt; letter-spacing: -0.01em; }
+        h2 { font-size: 11.5pt; font-weight: 700; margin: 14pt 0 4pt; border-bottom: 0.5pt solid #d0d0d0; padding-bottom: 2pt; }
+        h3 { font-size: 10.5pt; font-weight: 700; margin: 10pt 0 3pt; }
+        p { margin: 3pt 0; orphans: 3; widows: 3; }
+        li { margin: 2pt 0; }
+        ul, ol { padding-left: 20pt; margin: 4pt 0; }
+        table { border-collapse: collapse; width: 100%; margin: 6pt 0; page-break-inside: auto; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        td, th { border: 0.5pt solid #c0c0c0; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }
+        th { background-color: #f5f5f5; font-weight: 600; text-align: left; }
     """
 
     return (
@@ -975,28 +985,302 @@ def sync_captured_data_to_models(submission):
             )
 
 
+def _clean_tiptap_html_for_print(html: str) -> str:
+    """Strip TipTap editor-only markup and normalise HTML for Chromium print rendering.
+
+    Handles PaginationPlus wrappers, editor classes, empty spacer paragraphs,
+    data-page-break divs, and other editor artifacts that should not appear in
+    the final PDF output.
+    """
+    # ── PaginationPlus page-break wrapper divs → clean CSS page breaks ──
+    html = re.sub(
+        r'<div[^>]*page-break-after:\s*always[^>]*>(.*?)</div>',
+        r'\1<div style="page-break-after:always;"></div>',
+        html, flags=re.DOTALL,
+    )
+
+    # ── data-page-break divs (from PageBreakNode) → CSS page breaks ──
+    html = re.sub(
+        r'<div[^>]*data-page-break[^>]*>.*?</div>',
+        '<div style="page-break-after:always;"></div>',
+        html, flags=re.DOTALL,
+    )
+
+    # ── Remove PaginationPlus runtime classes from the root editor element ──
+    html = re.sub(r'\s*class="[^"]*rm-with-pagination[^"]*"', '', html)
+    html = re.sub(r'\s*class="[^"]*tiptap-paged[^"]*"', '', html)
+    html = re.sub(r'\s*class="[^"]*ProseMirror[^"]*"', '', html)
+
+    # ── Remove PaginationPlus gap/footer/header overlay divs ──
+    html = re.sub(r'<div[^>]*class="[^"]*rm-pagination-gap[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<div[^>]*class="[^"]*rm-page-footer[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<div[^>]*class="[^"]*rm-page-header[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<div[^>]*class="[^"]*page-overlays-container[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL)
+    html = re.sub(r'<div[^>]*class="[^"]*page-sim-gap[^"]*"[^>]*>.*?</div>', '', html, flags=re.DOTALL)
+
+    # ── Remove contenteditable and data-drag-handle attributes ──
+    html = re.sub(r'\s*contenteditable="[^"]*"', '', html)
+    html = re.sub(r'\s*data-drag-handle(?:="[^"]*")?', '', html)
+    html = re.sub(r'\s*draggable="[^"]*"', '', html)
+
+    # ── Remove inline min-height/padding that PageSimulation adds to editor div ──
+    html = re.sub(r'style="[^"]*min-height:\s*\d+px[^"]*"', '', html)
+
+    # ── Remove empty data attributes left over from node views ──
+    html = re.sub(r'\s*data-node-view-wrapper(?:="[^"]*")?', '', html)
+    html = re.sub(r'\s*data-node-view-content(?:="[^"]*")?', '', html)
+
+    # ── Remove inline initials rows ──────────────────────────────────────
+    # TipTap PaginationPlus places initials in right-aligned <p> tags before
+    # page breaks, preceded by empty <p></p> spacers. These don't translate
+    # to print — initials are rendered in the Gotenberg footer instead.
+    # Remove: right-aligned <p> containing only signing field tags or initials imgs
+    html = re.sub(
+        r'<p[^>]*style="[^"]*text-align:\s*right[^"]*"[^>]*>'
+        r'(?:\s*(?:<span>)?\s*(?:<(?:initials-field|signature-field|date-field)\b[^>]*>[^<]*'
+        r'</(?:initials-field|signature-field|date-field)>'
+        r'|<img[^>]*height:\s*16px[^>]*/?>\s*)'
+        r'(?:</span>\s*)?)+\s*</p>',
+        '',
+        html, flags=re.DOTALL,
+    )
+
+    # ── Remove forced page breaks (let Chromium paginate naturally) ──────
+    html = re.sub(
+        r'<div[^>]*style="[^"]*page-break-after:\s*always[^"]*"[^>]*>\s*</div>',
+        '',
+        html,
+    )
+
+    # ── Collapse runs of empty paragraphs used as TipTap spacers (keep max 1) ──
+    html = re.sub(r'(<p>\s*</p>\s*){2,}', '<p></p>', html)
+
+    return html
+
+
+# ── Professional print CSS for signed lease PDFs ────────────────────────
+# Gotenberg uses Chromium, so we have full modern CSS support.
+_SIGNED_PDF_CSS = """
+@page {
+    size: A4;
+    margin: 20mm 18mm 22mm 18mm;
+}
+
+/* ── Base typography — professional legal document ── */
+body {
+    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* ── Headings ── */
+h1 {
+    font-size: 15pt;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 6pt;
+    color: #111;
+    letter-spacing: -0.01em;
+}
+
+h2 {
+    font-size: 11.5pt;
+    font-weight: 700;
+    margin: 14pt 0 4pt;
+    color: #1a1a1a;
+    border-bottom: 0.5pt solid #d0d0d0;
+    padding-bottom: 2pt;
+}
+
+h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    margin: 10pt 0 3pt;
+    color: #1a1a1a;
+}
+
+/* ── Paragraphs and lists ── */
+p {
+    margin: 3pt 0;
+    orphans: 3;
+    widows: 3;
+}
+
+li {
+    margin: 2pt 0;
+}
+
+ul, ol {
+    padding-left: 20pt;
+    margin: 4pt 0;
+}
+
+/* ── Tables ── */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 6pt 0;
+    page-break-inside: auto;
+}
+
+thead {
+    display: table-header-group;
+}
+
+tr {
+    page-break-inside: avoid;
+}
+
+td, th {
+    border: 0.5pt solid #c0c0c0;
+    padding: 5pt 7pt;
+    font-size: 10pt;
+    vertical-align: top;
+}
+
+th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    text-align: left;
+}
+
+/* ── Signatures ── */
+img[src^="data:image"] {
+    max-width: 220px;
+    max-height: 80px;
+}
+
+/* ── Filled merge field values ── */
+.pdf-field-value {
+    font-weight: 600;
+    color: #111;
+}
+
+/* ── Unfilled field placeholder ── */
+.pdf-field-blank {
+    display: inline-block;
+    min-width: 80px;
+    border-bottom: 0.5pt solid #999;
+    height: 1em;
+    vertical-align: baseline;
+}
+
+/* ── Unsigned signature placeholder ── */
+.pdf-sig-blank {
+    display: inline-block;
+    width: 180px;
+    border-bottom: 0.5pt solid #999;
+    height: 1.2em;
+    vertical-align: middle;
+}
+
+.pdf-initials-blank {
+    display: inline-block;
+    width: 50px;
+    border-bottom: 0.5pt solid #bbb;
+    height: 1em;
+    vertical-align: baseline;
+}
+
+.pdf-date-blank {
+    color: #999;
+    letter-spacing: 0.5pt;
+}
+
+/* ── Horizontal rule styling ── */
+hr {
+    border: none;
+    border-top: 0.5pt solid #d0d0d0;
+    margin: 8pt 0;
+}
+
+/* ── Audit trail page ── */
+.audit-trail {
+    page-break-before: always;
+    padding-top: 8pt;
+}
+
+.audit-trail h2 {
+    font-size: 13pt;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 4pt;
+    padding-bottom: 4pt;
+    border-bottom: 1.5pt solid #2B2D6E;
+}
+
+.audit-trail .audit-meta {
+    font-size: 8pt;
+    color: #666;
+    margin: 2pt 0 10pt;
+    font-family: 'Courier New', monospace;
+    word-break: break-all;
+}
+
+.audit-trail table {
+    font-size: 8.5pt;
+    margin-top: 6pt;
+}
+
+.audit-trail td, .audit-trail th {
+    padding: 4pt 6pt;
+    font-size: 8.5pt;
+    border: 0.5pt solid #d0d0d0;
+}
+
+.audit-trail th {
+    background: #f0f0f4;
+    color: #2B2D6E;
+    font-weight: 600;
+    font-size: 8pt;
+    text-transform: uppercase;
+    letter-spacing: 0.3pt;
+}
+
+.audit-trail .audit-ua {
+    font-size: 7pt;
+    color: #888;
+    word-break: break-all;
+    max-width: 120pt;
+}
+
+.audit-trail .audit-footer {
+    margin-top: 16pt;
+    padding-top: 8pt;
+    border-top: 0.5pt solid #e0e0e0;
+    font-size: 7.5pt;
+    color: #888;
+    line-height: 1.5;
+}
+
+.audit-trail .audit-footer strong {
+    color: #555;
+}
+"""
+
+
 def generate_signed_pdf(submission) -> bytes:
-    """Generate a PDF with embedded signature images from a completed native submission."""
-    from io import BytesIO
-    from xhtml2pdf import pisa
+    """Generate a PDF with embedded signature images from a completed native submission.
+
+    Uses Gotenberg (Chromium) for pixel-perfect rendering that matches the TipTap editor.
+    Falls back to xhtml2pdf if Gotenberg is unavailable.
+    """
+    from .gotenberg import html_to_pdf as gotenberg_html_to_pdf
 
     html = submission.document_html
 
-    # Strip TipTap PaginationPlus page-break wrappers — let xhtml2pdf flow naturally.
-    # Remove wrapping <div style="page-break-after:always;"> and its closing </div>
-    html = re.sub(r'<div[^>]*page-break-after:\s*always[^>]*>', '', html)
-    # Remove the matching closing divs (same count — they wrap each page)
-    # We do this by removing trailing </div> before the next page-break or </body>
-    # Simpler: just remove all page-break divs and leave content to flow
-    html = html.replace('</div>\n</div>', '</div>')  # nested page wrappers
+    # ── 1. Clean TipTap editor artifacts for print ──────────────────────
+    html = _clean_tiptap_html_for_print(html)
 
-    # Remove runs of empty paragraphs used as TipTap page spacers (keep max 1)
-    html = re.sub(r'(<p>\s*</p>\s*){2,}', '<p></p>', html)
-
-    # Replace unfilled merge fields with captured data
+    # ── 2. Replace unfilled merge fields with captured data ─────────────
     html = apply_captured_data(html, submission.captured_data or {})
 
-    # Replace signing field tags with signature images or date text
+    # ── 3. Replace signing field tags with signature images or date text ─
     for signer in submission.signers:
         for field in signer.get('signed_fields', []):
             field_name = field['fieldName']
@@ -1007,15 +1291,16 @@ def generate_signed_pdf(submission) -> bytes:
                 if field_type == 'initials':
                     replacement = (
                         f'<img src="{image_data}" '
-                        f'style="height:14px;display:inline;vertical-align:baseline;" />'
+                        f'style="height:16px;display:inline;vertical-align:baseline;" />'
                     )
                 else:
                     replacement = (
                         f'<img src="{image_data}" '
-                        f'style="height:50px;display:inline-block;vertical-align:middle;" />'
+                        f'style="height:55px;display:inline-block;vertical-align:middle;" />'
                     )
             elif field_type == 'date':
-                replacement = f'<span style="font-weight:600;">{field.get("signedAt", "")[:10]}</span>'
+                signed_date = field.get("signedAt", "")[:10]
+                replacement = f'<span class="pdf-field-value">{signed_date}</span>'
             else:
                 continue
 
@@ -1025,80 +1310,146 @@ def generate_signed_pdf(submission) -> bytes:
                 replacement, html,
             )
 
-    # Clean up remaining unsigned signature/initials/date field tags → blank placeholder lines
+    # ── 4. Clean up remaining unsigned field tags → styled placeholders ─
     html = re.sub(
         r'<signature-field\b[^>]*>[^<]*</signature-field>',
-        '<span style="display:inline-block;width:200px;border-bottom:1px solid #999;height:20px;">&nbsp;</span>',
+        '<span class="pdf-sig-blank">&nbsp;</span>',
         html,
     )
     html = re.sub(
         r'<initials-field\b[^>]*>[^<]*</initials-field>',
-        '<span style="display:inline-block;width:40px;border-bottom:1px solid #ccc;height:14px;">&nbsp;</span>',
+        '<span class="pdf-initials-blank">&nbsp;</span>',
         html,
     )
     html = re.sub(
         r'<date-field\b[^>]*>[^<]*</date-field>',
-        '<span style="border-bottom:1px solid #ccc;">___/___/______</span>',
+        '<span class="pdf-date-blank">____/____/________</span>',
         html,
     )
 
-    # Clean up remaining unfilled merge-field spans: show the value or a readable placeholder
+    # ── 5. Clean up remaining unfilled merge-field spans ────────────────
     def _clean_merge_span(m: re.Match) -> str:
         inner = m.group(1)
-        # If inner is mustache like {{field_name}}, show underline placeholder
         if inner.strip().startswith('{{'):
-            return '<span style="border-bottom:1px solid #ccc;">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>'
-        # Otherwise it's been filled — show bold text
-        return f'<span style="font-weight:600;">{inner}</span>'
+            return '<span class="pdf-field-blank">&nbsp;</span>'
+        return f'<span class="pdf-field-value">{inner}</span>'
 
     html = re.sub(
         r'<span[^>]*data-type="merge-field"[^>]*>(.*?)</span>',
         _clean_merge_span, html, flags=re.DOTALL,
     )
 
-    # Append audit trail page
+    # ── 6. Build audit trail page ───────────────────────────────────────
     audit_rows = ''
     for signer in submission.signers:
         audit = signer.get('audit', {}) or {}
+        completed = signer.get('completed_at', '')
+        # Format ISO timestamp to human-readable
+        if completed and len(completed) >= 16:
+            completed = completed[:10] + ' ' + completed[11:16]
         audit_rows += (
             f'<tr>'
             f'<td>{signer.get("name", "")}</td>'
             f'<td>{signer.get("email", "")}</td>'
-            f'<td>{signer.get("role", "")}</td>'
+            f'<td>{signer.get("role", "").replace("_", " ").title()}</td>'
             f'<td>{audit.get("ip_address", "")}</td>'
-            f'<td>{signer.get("completed_at", "")}</td>'
-            f'<td style="font-size:7pt;word-break:break-all;">{audit.get("user_agent", "")[:80]}</td>'
+            f'<td>{completed}</td>'
+            f'<td class="audit-ua">{audit.get("user_agent", "")[:100]}</td>'
             f'</tr>'
         )
 
     audit_page = f'''
-    <div style="page-break-before:always;">
-        <h2 style="font-size:12pt;margin-bottom:8pt;">Audit Trail</h2>
-        <p style="font-size:8pt;color:#666;">Document Hash (SHA-256): {submission.document_hash}</p>
-        <table style="border-collapse:collapse;width:100%;font-size:8pt;margin-top:8pt;">
+    <div class="audit-trail">
+        <h2>Audit Trail</h2>
+        <p class="audit-meta">Document Hash (SHA-256): {submission.document_hash}</p>
+        <table>
             <thead>
-                <tr style="background:#f3f4f6;">
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">Signer</th>
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">Email</th>
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">Role</th>
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">IP Address</th>
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">Signed At</th>
-                    <th style="border:1px solid #d1d5db;padding:4pt 6pt;text-align:left;">User Agent</th>
+                <tr>
+                    <th>Signer</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>IP Address</th>
+                    <th>Signed At</th>
+                    <th>User Agent</th>
                 </tr>
             </thead>
             <tbody>{audit_rows}</tbody>
         </table>
-        <p style="font-size:7pt;color:#999;margin-top:12pt;">
-            This document was signed electronically via Tremly Property Management.
-            All parties consented to electronic signatures as legally binding.
-        </p>
+        <div class="audit-footer">
+            <p>This document was signed electronically via <strong>Klikk Property Management</strong>.</p>
+            <p>All parties consented to electronic signatures as legally binding under the
+            Electronic Communications and Transactions Act 25 of 2002 (ECTA).</p>
+        </div>
     </div>
     '''
+
+    # ── 7. Inject print CSS and audit trail into the HTML document ──────
+    # Replace the existing <style> block with our professional print CSS
+    html = re.sub(
+        r'<style[^>]*>.*?</style>',
+        f'<style>{_SIGNED_PDF_CSS}</style>',
+        html, count=1, flags=re.DOTALL,
+    )
 
     # Insert audit page before </body>
     html = html.replace('</body>', f'{audit_page}</body>')
 
-    # Render to PDF
+    # ── 8. Build footer with initials for every page ─────────────────────
+    # Collect one initials image per signer (first initials field found).
+    initials_imgs = {}  # role → base64 data URI
+    for signer in submission.signers:
+        role = signer.get('role', '')
+        for field in signer.get('signed_fields', []):
+            if field['fieldType'] == 'initials' and field.get('imageData'):
+                if role not in initials_imgs:
+                    initials_imgs[role] = field['imageData']
+                break
+
+    if initials_imgs:
+        initials_html_parts = []
+        for _role, img_data in initials_imgs.items():
+            initials_html_parts.append(
+                f'<img src="{img_data}" />'
+            )
+        footer_html = (
+            '<!DOCTYPE html><html><head><style>'
+            'body { font-size: 8pt; font-family: Arial, sans-serif; margin: 0; '
+            'padding: 0; -webkit-print-color-adjust: exact; }'
+            'table { width: 100%; border-collapse: collapse; }'
+            'td { padding: 0; vertical-align: middle; }'
+            '.left { color: #999; font-size: 7pt; }'
+            '.right { text-align: right; white-space: nowrap; }'
+            '.right img { height: 14px; margin-left: 6px; vertical-align: middle; }'
+            '</style></head><body>'
+            '<table><tr>'
+            '<td class="left">Page <span class="pageNumber"></span>'
+            ' of <span class="totalPages"></span></td>'
+            f'<td class="right">{"".join(initials_html_parts)}</td>'
+            '</tr></table></body></html>'
+        )
+    else:
+        # No signed initials — simple page number footer
+        footer_html = (
+            '<!DOCTYPE html><html><head><style>'
+            'body { font-size: 8pt; font-family: Arial, sans-serif; margin: 0 2cm; '
+            'color: #999; }'
+            '</style></head><body>'
+            'Page <span class="pageNumber"></span>'
+            ' of <span class="totalPages"></span>'
+            '</body></html>'
+        )
+
+    # ── 9. Render to PDF via Gotenberg (Chromium) ───────────────────────
+    try:
+        return gotenberg_html_to_pdf(html, footer_html=footer_html,
+                                     margin_bottom=0.79)
+    except Exception as exc:
+        logger.warning('Gotenberg PDF generation failed, falling back to xhtml2pdf: %s', exc)
+
+    # Fallback: xhtml2pdf (legacy — less accurate CSS rendering)
+    from io import BytesIO
+    from xhtml2pdf import pisa
+
     buffer = BytesIO()
     pisa_status = pisa.CreatePDF(html, dest=buffer)
     if pisa_status.err:

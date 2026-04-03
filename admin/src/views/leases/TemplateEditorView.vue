@@ -1275,7 +1275,13 @@ function actorPrefix(actor: Actor): string {
 
 function actorFields(type: ActorType, n: number): string[] {
   if (type === 'landlord') {
-    return ['landlord_name', 'landlord_id', 'landlord_phone', 'landlord_email', 'landlord_address', 'landlord_signature']
+    return [
+      'landlord_name', 'landlord_registration_no', 'landlord_vat_no',
+      'landlord_representative', 'landlord_representative_id',
+      'landlord_title', 'landlord_contact', 'landlord_email',
+      'landlord_physical_address',
+      'landlord_signature', 'landlord_initials', 'landlord_date_signed',
+    ]
   }
   if (type === 'tenant') {
     const p = `tenant_${n}`
@@ -1318,7 +1324,7 @@ const allFieldTypes = [
   { key: 'checkbox',  label: 'Checkbox',      icon: markRaw(CheckSquare), favorite: false },
 ]
 
-const personalDataFields = [
+const _defaultPersonalDataFields = [
   { key: 'name',      label: 'Full Name',    icon: markRaw(User) },
   { key: 'id',        label: 'ID Number',    icon: markRaw(Hash) },
   { key: 'phone',     label: 'Phone Number', icon: markRaw(Phone) },
@@ -1326,6 +1332,25 @@ const personalDataFields = [
   { key: 'signature', label: 'Signature',    icon: markRaw(Pen),  block: true },
   { key: 'initials',  label: 'Initials',     icon: markRaw(Type), block: true },
 ]
+
+const _landlordDataFields = [
+  { key: 'name',               label: 'Entity Name',       icon: markRaw(Building2) },
+  { key: 'registration_no',    label: 'Registration No',   icon: markRaw(Hash) },
+  { key: 'vat_no',             label: 'VAT No',            icon: markRaw(Hash) },
+  { key: 'representative',     label: 'Representative',    icon: markRaw(User) },
+  { key: 'representative_id',  label: 'Rep. ID Number',    icon: markRaw(Hash) },
+  { key: 'title',              label: 'Title',             icon: markRaw(FileText) },
+  { key: 'contact',            label: 'Contact No',        icon: markRaw(Phone) },
+  { key: 'email',              label: 'Email',             icon: markRaw(Mail) },
+  { key: 'physical_address',   label: 'Physical Address',  icon: markRaw(Building2) },
+]
+
+const personalDataFields = computed(() => {
+  if (selectedActorIdx.value !== null && selectedActorIdx.value >= 0 && selectedActorIdx.value < actors.value.length) {
+    if (actors.value[selectedActorIdx.value].type === 'landlord') return _landlordDataFields
+  }
+  return _defaultPersonalDataFields
+})
 
 // Field keys that render as block placeholders (signature boxes) instead of inline chips
 const BLOCK_FIELD_TYPES = new Set(['signature', 'initials'])

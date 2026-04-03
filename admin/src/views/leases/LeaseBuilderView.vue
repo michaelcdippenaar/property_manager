@@ -389,7 +389,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { EditorContent } from '@tiptap/vue-3'
 import api from '../../api'
@@ -664,7 +664,7 @@ async function loadAllLandlords() {
   } catch { /* non-fatal */ }
 }
 
-function landlordInfoFromRaw(ll: any): LandlordInfo {
+function landlordInfoFromRaw(ll: any): LandlordInfo & { raw: any } {
   const name = ll.representative_name || ll.name
   const email = ll.representative_email || ll.email
   const phone = ll.representative_phone || ll.phone
@@ -680,6 +680,7 @@ function landlordInfoFromRaw(ll: any): LandlordInfo {
       account_number: defaultBank.account_number, branch_code: defaultBank.branch_code,
       account_type: defaultBank.account_type,
     } : null,
+    raw: ll,
   }
 }
 
@@ -844,6 +845,18 @@ const { editor: previewEditor } = useTiptapEditor({
   editable: false,
   placeholder: '',
 })
+
+// Provide merge field values to TipTap node views (MergeFieldComponent reads via inject)
+const mergeFieldPreviewValues = computed(() => {
+  const vals = buildDocxContext() as Record<string, string>
+  // Filter out placeholder dashes so the component shows the chip instead
+  const clean: Record<string, string> = {}
+  for (const [k, v] of Object.entries(vals)) {
+    if (v && String(v).trim() && String(v) !== '—') clean[k] = String(v)
+  }
+  return clean
+})
+provide('mergeFieldPreviewValues', mergeFieldPreviewValues)
 
 onBeforeUnmount(() => {
   previewEditor.value?.destroy()
@@ -1078,14 +1091,54 @@ async function previewDocx() {
   }
 }
 
+function numberToWords(n: number): string {
+  if (!n && n !== 0) return ''
+  if (n === 0) return 'Zero'
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen']
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
+  function chunk(num: number): string {
+    if (num === 0) return ''
+    if (num < 20) return ones[num]
+    if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 ? '-' + ones[num % 10] : '')
+    return ones[Math.floor(num / 100)] + ' Hundred' + (num % 100 ? ' and ' + chunk(num % 100) : '')
+  }
+  const val = Math.floor(Math.abs(n))
+  const cents = Math.round((Math.abs(n) - val) * 100)
+  const parts: string[] = []
+  if (val >= 1_000_000) { parts.push(chunk(Math.floor(val / 1_000_000)) + ' Million'); }
+  const remainder = val % 1_000_000
+  if (remainder >= 1000) { parts.push(chunk(Math.floor(remainder / 1000)) + ' Thousand'); }
+  const last = remainder % 1000
+  if (last > 0) { if (parts.length && last < 100) parts.push('and'); parts.push(chunk(last)); }
+  let result = parts.join(' ')
+  if (cents > 0) result += ` and ${chunk(cents)} Cents`
+  return result + ' Rand'
+}
+
 function buildDocxContext() {
   const f = form.value
   const su = selectedUnit.value
   return {
-    landlord_name: landlordInfo.value?.name || '—',
+    // Landlord fields — cover all common template merge field names
+    landlord_name: landlordInfo.value?.landlord_name || landlordInfo.value?.name || '—',
+    landlord_full_name: landlordInfo.value?.landlord_name || landlordInfo.value?.name || '—',
+    landlord_entity_name: landlordInfo.value?.landlord_name || '—',
     landlord_id: landlordInfo.value?.id_number || '—',
+    landlord_id_number: landlordInfo.value?.id_number || '—',
+    landlord_registration_no: landlordInfo.value?.raw?.registration_number || '—',
+    landlord_registration_number: landlordInfo.value?.raw?.registration_number || '—',
+    landlord_vat_no: landlordInfo.value?.raw?.vat_number || '—',
+    landlord_vat_number: landlordInfo.value?.raw?.vat_number || '—',
+    landlord_representative: landlordInfo.value?.raw?.representative_name || '—',
+    landlord_representative_name: landlordInfo.value?.raw?.representative_name || '—',
+    landlord_representative_id: landlordInfo.value?.raw?.representative_id_number || '—',
+    landlord_title: landlordInfo.value?.raw?.landlord_type === 'company' ? 'Director' : landlordInfo.value?.raw?.landlord_type === 'trust' ? 'Trustee' : 'Owner',
     landlord_address: landlordInfo.value?.address || su?.address || f.property.address,
+    landlord_physical_address: landlordInfo.value?.address || su?.address || f.property.address,
     landlord_phone: landlordInfo.value?.phone || '—',
+    landlord_contact: landlordInfo.value?.phone || '—',
+    landlord_contact_no: landlordInfo.value?.phone || '—',
     landlord_email: landlordInfo.value?.email || '—',
     property_address: su?.address || f.property.address,
     unit_number: su?.unitNumber || f.unit.unit_number,
@@ -1099,7 +1152,9 @@ function buildDocxContext() {
     lease_start: f.start_date,
     lease_end: f.end_date,
     monthly_rent: f.monthly_rent ? `R ${Number(f.monthly_rent).toLocaleString('en-ZA')}` : '',
+    monthly_rent_words: f.monthly_rent ? numberToWords(Number(f.monthly_rent)) : '',
     deposit: f.deposit ? `R ${Number(f.deposit).toLocaleString('en-ZA')}` : '',
+    deposit_words: f.deposit ? numberToWords(Number(f.deposit)) : '',
     payment_reference: f.payment_reference,
     escalation_percent: '—',
     escalation_date: '—',
@@ -1110,12 +1165,17 @@ function buildDocxContext() {
     electricity_prepaid: f.electricity_prepaid ? 'Prepaid' : 'Included in rent',
     max_occupants: f.max_occupants,
     pets_allowed: '—',
-    // Bank account (from landlord default)
+    // Bank account (from landlord default) — both generic and landlord-prefixed
     bank_name: landlordInfo.value?.bank_account?.bank_name || '—',
     account_holder: landlordInfo.value?.bank_account?.account_holder || '—',
     account_number: landlordInfo.value?.bank_account?.account_number || '—',
     branch_code: landlordInfo.value?.bank_account?.branch_code || '—',
     account_type: landlordInfo.value?.bank_account?.account_type || '—',
+    landlord_bank_name: landlordInfo.value?.bank_account?.bank_name || '—',
+    landlord_bank_branch_code: landlordInfo.value?.bank_account?.branch_code || '—',
+    landlord_bank_account_no: landlordInfo.value?.bank_account?.account_number || '—',
+    landlord_bank_account_holder: landlordInfo.value?.bank_account?.account_holder || '—',
+    landlord_bank_account_type: landlordInfo.value?.bank_account?.account_type || '—',
   }
 }
 

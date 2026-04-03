@@ -26,6 +26,11 @@
       <span v-else class="text-gray-300 italic text-[11px] align-baseline">{{ displayLabel }}</span>
     </template>
 
+    <!-- ══════════════ PREVIEW MODE (filled values) ══════════════ -->
+    <template v-else-if="previewValue">
+      <span class="font-semibold text-navy">{{ previewValue }}</span>
+    </template>
+
     <!-- ══════════════ EDITOR MODE ══════════════ -->
     <template v-else>
       <span
@@ -45,7 +50,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, inject } from 'vue'
+import { computed, inject, type Ref } from 'vue'
 import { nodeViewProps, NodeViewWrapper } from '@tiptap/vue-3'
 import { User, Home, FileText, Calendar, Briefcase } from 'lucide-vue-next'
 
@@ -59,9 +64,19 @@ interface SigningContextType {
 }
 const signingContext = inject<SigningContextType | null>('signingContext', null)
 
+// Preview values (provided by LeaseBuilderView for live preview — injected as ComputedRef)
+const previewValues = inject<Ref<Record<string, string>> | null>('mergeFieldPreviewValues', null)
+
 const displayLabel = computed(() =>
   props.node.attrs.label || props.node.attrs.fieldName?.replace(/_/g, ' ') || '?'
 )
+
+const previewValue = computed(() => {
+  const vals = previewValues?.value
+  if (!vals) return null
+  const val = vals[props.node.attrs.fieldName]
+  return val && val !== '—' && val.trim() ? val : null
+})
 
 // ── Signing mode helpers ────────────────────────────────────────────
 

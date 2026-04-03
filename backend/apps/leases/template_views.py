@@ -1602,29 +1602,35 @@ class ExportTemplatePDFView(APIView):
     """
     permission_classes = [IsAuthenticated]
 
-    # A4 page CSS that xhtml2pdf understands
     _PDF_CSS = """
         @page {
             size: A4;
-            margin: 2.8cm 2cm 2.2cm 2cm;
+            margin: 20mm 18mm 22mm 18mm;
         }
-        body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.55; color: #111; }
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            font-size: 10.5pt; line-height: 1.55; color: #111;
+            orphans: 3; widows: 3;
+            print-color-adjust: exact; -webkit-print-color-adjust: exact;
+        }
         h1 { font-size: 14pt; font-weight: bold; text-align: center; margin: 14pt 0 6pt; }
-        h2 { font-size: 11pt; font-weight: bold; margin: 10pt 0 3pt; }
+        h2 { font-size: 11pt; font-weight: bold; margin: 10pt 0 3pt; border-bottom: 0.5pt solid #e5e7eb; padding-bottom: 2pt; }
         h3 { font-size: 10.5pt; font-weight: bold; margin: 7pt 0 2pt; }
         p, li { margin: 3pt 0; }
         ol, ul { margin: 3pt 0 3pt 20pt; }
-        hr { border: none; border-top: 1px solid #ccc; margin: 6pt 0; }
+        hr { border: none; border-top: 0.5pt solid #ccc; margin: 6pt 0; }
         table { border-collapse: collapse; width: 100%; margin: 4pt 0; }
-        td, th { border: 1px solid #d1d5db; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }
+        thead { display: table-header-group; }
+        tr { page-break-inside: avoid; }
+        td, th { border: 0.5pt solid #d1d5db; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }
         th { background: #f9fafb; font-weight: 600; }
         .merge-field { border-bottom: 1px solid #555; padding: 0 2pt; min-width: 60pt; display: inline-block; color: #333; }
         .ai-comment { background: #fffbe6; border-left: 3px solid #f59e0b; padding: 4pt 8pt; margin: 6pt 0; font-size: 9pt; color: #92400e; }
         [data-page-break] { page-break-after: always; display: block; height: 0; }
-        .pdf-header { width: 100%; border-bottom: 1px solid #ddd; padding-bottom: 4pt; margin-bottom: 8pt; overflow: hidden; }
+        .pdf-header { width: 100%; border-bottom: 0.5pt solid #ddd; padding-bottom: 4pt; margin-bottom: 8pt; overflow: hidden; }
         .pdf-header-left  { float: left;  font-size: 9pt; color: #666; }
         .pdf-header-right { float: right; font-size: 9pt; color: #222; font-weight: bold; }
-        .pdf-footer { width: 100%; border-top: 1px solid #ddd; padding-top: 4pt; margin-top: 8pt; overflow: hidden; }
+        .pdf-footer { width: 100%; border-top: 0.5pt solid #ddd; padding-top: 4pt; margin-top: 8pt; overflow: hidden; }
         .pdf-footer-left  { float: left;  font-size: 8pt; color: #888; }
     """
 
@@ -1680,22 +1686,16 @@ class ExportTemplatePDFView(APIView):
             f"</head><body>{header_div}{html_body}{footer_div}</body></html>"
         )
 
-        try:
-            from xhtml2pdf import pisa
-        except ImportError:
-            return Response(
-                {"error": "xhtml2pdf is not installed. Run: pip install xhtml2pdf"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        from apps.esigning.gotenberg import html_to_pdf
 
-        buf = io.BytesIO()
-        result = pisa.CreatePDF(full_html, dest=buf)
-        if result.err:
+        try:
+            pdf_bytes = html_to_pdf(full_html)
+        except Exception as e:
+            logger.error('Gotenberg PDF generation failed for template %s: %s', pk, e)
             return Response({"error": "PDF generation failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        buf.seek(0)
         safe_name = re.sub(r'[^\w\s-]', '', tmpl.name).strip().replace(' ', '_') or 'template'
-        response = HttpResponse(buf.read(), content_type="application/pdf")
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{safe_name}.pdf"'
         return response
 

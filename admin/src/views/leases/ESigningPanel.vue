@@ -386,7 +386,7 @@ const { connected: wsConnected } = useESigningSocket(
 
 const canSendAgain = computed(() => {
   if (!latestSub.value) return false
-  return ['completed', 'declined', 'expired'].includes(latestSub.value.status)
+  return ['declined', 'expired'].includes(latestSub.value.status)
 })
 
 // Landlord can sign: all non-landlord signers done, landlord still pending

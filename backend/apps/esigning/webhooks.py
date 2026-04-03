@@ -486,6 +486,12 @@ def _email_signed_copy_to_signers(submission: ESigningSubmission, data: dict):
         )
         return
 
+    # Ensure relative URLs (from local signed_pdf_file) become absolute
+    if signed_url.startswith('/'):
+        from django.conf import settings
+        base = getattr(settings, 'SITE_URL', '') or 'http://localhost:8000'
+        signed_url = f"{base.rstrip('/')}{signed_url}"
+
     prop = submission.lease.unit.property
     doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
 

@@ -13,6 +13,7 @@ from .views import (
     ESigningSubmissionDetailView,
     ESigningSubmissionListCreateView,
     ESigningWebhookInfoView,
+    GotenbergHealthView,
 )
 from .webhooks import DocuSealWebhookView
 
@@ -37,4 +38,5 @@ urlpatterns = [
     ),
     path("webhook/info/", ESigningWebhookInfoView.as_view(), name="esigning-webhook-info"),
     path("webhook/", DocuSealWebhookView.as_view(), name="esigning-webhook"),
+    path("gotenberg/health/", GotenbergHealthView.as_view(), name="gotenberg-health"),
 ]

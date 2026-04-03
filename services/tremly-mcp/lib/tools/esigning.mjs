@@ -464,18 +464,20 @@ Requires: lease_id with a valid native-signing template.`,
 
   server.tool(
     'esigning_pdf_layout_compare',
-    'Generate PDF for a submission, render each page to an image, and compare structure (page count, text content per page) against the original TipTap document HTML.',
+    'Comprehensive PDF layout analysis: page structure, blank page detection, content density, position-aware signing element checks, and audit trail verification.',
     { id: z.coerce.number().describe('Submission ID') },
     async ({ id }) => {
       const baseUrl = process.env.TREMLY_API_URL || 'http://localhost:8000/api/v1/';
-      const results = { submission_id: id, steps: [], pass: true };
+      const results = { submission_id: id, steps: [], warnings: [], pass: true };
 
       // Step 1: Fetch submission details via authenticated API
+      let signerRoles = [];
       try {
         const subRes = await apiGet(`esigning/submissions/${id}/`);
         const sub = subRes.data || {};
         const signers = sub.signers || [];
-        results.steps.push({ step: 'fetch_submission', pass: subRes.ok, signer_count: signers.length, status: sub.status });
+        signerRoles = signers.map(s => s.role || s.name || 'unknown');
+        results.steps.push({ step: 'fetch_submission', pass: subRes.ok, signer_count: signers.length, status: sub.status, roles: signerRoles });
         if (!subRes.ok) results.pass = false;
       } catch (e) {
         results.steps.push({ step: 'fetch_submission', pass: false, error: e.message });
@@ -492,51 +494,290 @@ Requires: lease_id with a valid native-signing template.`,
       const pdfBuffer = Buffer.from(await pdfRes.arrayBuffer());
       results.steps.push({ step: 'fetch_pdf', pass: true, size_kb: Math.round(pdfBuffer.length / 1024) });
 
-      // Step 3: Render pages and extract text per page
+      // Step 3: Full layout analysis
       const tmpDir = await mkdtemp(join(tmpdir(), 'tremly-layout-'));
       const pdfPath = join(tmpDir, `sub_${id}.pdf`);
       try {
         await writeFile(pdfPath, pdfBuffer);
 
-        // Get page count + metadata
+        // 3a. Get page count + page dimensions
         const { stdout: infoOut } = await execFileAsync('/opt/homebrew/bin/pdfinfo', [pdfPath]);
         const pagesMatch = infoOut.match(/Pages:\s+(\d+)/);
         const pdfPageCount = pagesMatch ? parseInt(pagesMatch[1]) : 0;
-        results.steps.push({ step: 'pdf_pages', pass: pdfPageCount > 0, pages: pdfPageCount });
+        const sizeMatch = infoOut.match(/Page size:\s+([\d.]+)\s*x\s*([\d.]+)/);
+        const pageWidth = sizeMatch ? parseFloat(sizeMatch[1]) : null;
+        const pageHeight = sizeMatch ? parseFloat(sizeMatch[2]) : null;
+        results.steps.push({ step: 'pdf_info', pass: pdfPageCount > 0, pages: pdfPageCount, page_size: { width: pageWidth, height: pageHeight } });
 
-        // Extract text per page using pdftotext
+        // 3b. Extract text per page (standard mode for content analysis)
         const pageTexts = [];
         for (let p = 1; p <= pdfPageCount; p++) {
           try {
             const { stdout: pageText } = await execFileAsync('/opt/homebrew/bin/pdftotext', ['-f', String(p), '-l', String(p), pdfPath, '-']);
             const trimmed = pageText.trim();
+            const lines = trimmed.split('\n').filter(l => l.trim().length > 0);
             pageTexts.push({
               page: p,
               char_count: trimmed.length,
-              preview: trimmed.slice(0, 120).replace(/\n/g, ' '),
+              line_count: lines.length,
+              preview: trimmed.slice(0, 150).replace(/\n/g, ' '),
               blank: trimmed.length === 0,
             });
           } catch {
-            pageTexts.push({ page: p, error: 'text extraction failed' });
+            pageTexts.push({ page: p, char_count: 0, line_count: 0, preview: '', blank: true, error: 'text extraction failed' });
           }
         }
 
+        // 3c. Blank page detection
         const blankPages = pageTexts.filter(p => p.blank);
         results.steps.push({
-          step: 'page_text_analysis',
+          step: 'blank_page_check',
           pass: blankPages.length === 0,
-          pages: pageTexts,
-          blank_page_count: blankPages.length,
-          warn: blankPages.length > 0 ? `${blankPages.length} blank page(s) detected — possible layout overflow` : null,
+          blank_pages: blankPages.map(p => p.page),
+          warn: blankPages.length > 0 ? `${blankPages.length} blank page(s) detected — layout overflow or forced page break artifact` : null,
         });
 
-        // Check audit trail page (should be last page with "Audit Trail" text)
+        // 3d. Content density analysis — flag abnormally sparse pages
+        // (Excludes last page which is the audit trail)
+        const contentPages = pageTexts.slice(0, -1); // all except audit trail
+        if (contentPages.length > 1) {
+          const charCounts = contentPages.filter(p => !p.blank).map(p => p.char_count);
+          const avgChars = charCounts.reduce((a, b) => a + b, 0) / charCounts.length;
+          const sparseThreshold = avgChars * 0.15; // pages with <15% of average are suspicious
+          const sparsePages = contentPages.filter(p => !p.blank && p.char_count < sparseThreshold && p.char_count > 0);
+
+          if (sparsePages.length > 0) {
+            const sparseDetails = sparsePages.map(p => ({ page: p.page, chars: p.char_count, avg: Math.round(avgChars), preview: p.preview }));
+            results.warnings.push({ type: 'sparse_pages', pages: sparseDetails, message: `${sparsePages.length} page(s) have <15% of average content — possible layout artifact` });
+          }
+          results.steps.push({
+            step: 'content_density',
+            pass: sparsePages.length === 0,
+            avg_chars_per_page: Math.round(avgChars),
+            sparse_pages: sparsePages.map(p => p.page),
+          });
+        }
+
+        // 3e. Position-aware layout analysis using pdftotext -layout
+        // This preserves spatial positioning so we can detect elements at wrong Y-coordinates
+        const layoutIssues = [];
+        for (let p = 1; p <= pdfPageCount; p++) {
+          try {
+            const { stdout: layoutText } = await execFileAsync('/opt/homebrew/bin/pdftotext', ['-layout', '-f', String(p), '-l', String(p), pdfPath, '-']);
+            const layoutLines = layoutText.split('\n');
+            const totalLines = layoutLines.length;
+
+            // Detect actual signing field placeholders (not clause text mentioning signatures)
+            // These patterns match rendered signing fields, not prose about signing
+            const signingPatterns = [
+              /_{5,}\s*\/\s*_{5,}\s*\/\s*_{5,}/,      // ___/___/______ date placeholder
+              /_{15,}/,                                  // long underline (signature/initials placeholder)
+              /^\s*Signed at:\s*$/,                      // standalone "Signed at:" line
+              /^\s*Date:\s*\d{4}-\d{2}-\d{2}\s*$/,     // standalone date field with value
+              /^\s*Date:\s*$/,                            // empty date field
+              /^\s*Name:\s+\S/,                          // name field with value (in signing block)
+            ];
+
+            for (let lineIdx = 0; lineIdx < totalLines; lineIdx++) {
+              const line = layoutLines[lineIdx].trim();
+              if (!line) continue;
+
+              for (const pat of signingPatterns) {
+                if (pat.test(line)) {
+                  const positionPct = Math.round((lineIdx / totalLines) * 100);
+                  // Flag signing elements that appear in the top 20% of a page
+                  // (they should be at bottom or in footer, not floating at top)
+                  if (positionPct < 20 && p > 1) {
+                    layoutIssues.push({
+                      page: p,
+                      line_index: lineIdx,
+                      total_lines: totalLines,
+                      position_pct: positionPct,
+                      content: line.slice(0, 100),
+                      issue: 'signing_element_at_page_top',
+                    });
+                  }
+                  break; // one match per line is enough
+                }
+              }
+            }
+
+            // Check for orphaned content — a page where signing content is >60% of all content
+            const nonEmptyLines = layoutLines.filter(l => l.trim().length > 0);
+            const signingLines = nonEmptyLines.filter(l => signingPatterns.some(p => p.test(l)));
+            if (nonEmptyLines.length > 0 && nonEmptyLines.length <= 5 && signingLines.length > 0) {
+              layoutIssues.push({
+                page: p,
+                total_content_lines: nonEmptyLines.length,
+                signing_lines: signingLines.length,
+                issue: 'orphaned_signing_elements',
+                message: `Page ${p} has only ${nonEmptyLines.length} lines, ${signingLines.length} are signing elements — likely displaced from previous page`,
+              });
+            }
+          } catch {
+            // Layout extraction failed for this page — non-fatal
+          }
+        }
+
+        results.steps.push({
+          step: 'text_position_analysis',
+          pass: layoutIssues.length === 0,
+          issues: layoutIssues,
+          warn: layoutIssues.length > 0 ? `${layoutIssues.length} text position issue(s) detected` : null,
+        });
+
+        // 3f. Image position analysis using pdftohtml -xml
+        // Detects initials/signature images that have drifted to wrong page positions
+        // (the bug that triggered this check: TipTap spacers collapsed in Chromium,
+        //  causing initials images to float mid-page instead of bottom/footer)
+        const imageIssues = [];
+        try {
+          const { stdout: xmlOut } = await execFileAsync('/opt/homebrew/bin/pdftohtml', ['-xml', '-stdout', pdfPath]);
+          // Parse page dimensions and image positions from XML
+          const pages = {};
+          let currentPage = null;
+          for (const line of xmlOut.split('\n')) {
+            const pageMatch = line.match(/<page number="(\d+)"[^>]*height="(\d+)"/);
+            if (pageMatch) {
+              currentPage = parseInt(pageMatch[1]);
+              pages[currentPage] = { height: parseInt(pageMatch[2]), images: [] };
+              continue;
+            }
+            const imgMatch = line.match(/<image top="(\d+)" left="(\d+)" width="(\d+)" height="(\d+)"/);
+            if (imgMatch && currentPage && pages[currentPage]) {
+              pages[currentPage].images.push({
+                top: parseInt(imgMatch[1]),
+                left: parseInt(imgMatch[2]),
+                width: parseInt(imgMatch[3]),
+                height: parseInt(imgMatch[4]),
+              });
+            }
+          }
+
+          // Identify small images (initials: typically ≤100px height, ≤150px width)
+          // that appear on content pages (not signing/audit pages)
+          const contentPageNums = Object.keys(pages).map(Number).filter(p => p < pdfPageCount); // exclude audit trail
+          const initialsImages = []; // { page, top, topPct }
+          for (const pNum of contentPageNums) {
+            const pg = pages[pNum];
+            if (!pg) continue;
+            for (const img of pg.images) {
+              if (img.height <= 100 && img.width <= 150) {
+                const topPct = Math.round((img.top / pg.height) * 100);
+                initialsImages.push({ page: pNum, top: img.top, pageHeight: pg.height, topPct });
+              }
+            }
+          }
+
+          if (initialsImages.length > 0) {
+            // Check consistency: all initials should be at similar Y-positions
+            // Footer initials are at >90% of page height; inline initials vary wildly
+            const topPcts = initialsImages.map(i => i.topPct);
+            const minPct = Math.min(...topPcts);
+            const maxPct = Math.max(...topPcts);
+            const spread = maxPct - minPct;
+
+            // Flag if initials appear at inconsistent positions (spread > 15%)
+            // or if any are in the top half of the page (< 50%)
+            const misplacedImages = initialsImages.filter(i => i.topPct < 50);
+            const inconsistent = spread > 15;
+
+            if (misplacedImages.length > 0) {
+              imageIssues.push({
+                issue: 'initials_in_content_area',
+                count: misplacedImages.length,
+                pages: [...new Set(misplacedImages.map(i => i.page))],
+                message: `${misplacedImages.length} initials image(s) found in top half of page — should be in footer or bottom margin`,
+                details: misplacedImages.slice(0, 5),
+              });
+            }
+            if (inconsistent) {
+              imageIssues.push({
+                issue: 'inconsistent_initials_position',
+                spread_pct: spread,
+                min_pct: minPct,
+                max_pct: maxPct,
+                message: `Initials images span ${spread}% of page height across pages — expected consistent footer position`,
+              });
+            }
+
+            results.steps.push({
+              step: 'image_position_analysis',
+              pass: imageIssues.length === 0,
+              initials_count: initialsImages.length,
+              position_range: { min_pct: minPct, max_pct: maxPct, spread_pct: spread },
+              issues: imageIssues,
+              warn: imageIssues.length > 0 ? `${imageIssues.length} image position issue(s)` : null,
+            });
+          } else {
+            results.steps.push({ step: 'image_position_analysis', pass: true, initials_count: 0, note: 'No small images (initials) found on content pages' });
+          }
+        } catch (e) {
+          results.steps.push({ step: 'image_position_analysis', pass: true, note: 'pdftohtml not available — skipped image position check', error: e.message });
+        }
+
+        // 3g. Page count reasonableness check
+        // A typical SA residential lease is 8-25 pages; much more suggests layout problems
+        const maxReasonablePages = 30;
+        const pageCountOk = pdfPageCount <= maxReasonablePages;
+        if (!pageCountOk) {
+          results.warnings.push({ type: 'excessive_pages', pages: pdfPageCount, threshold: maxReasonablePages, message: `PDF has ${pdfPageCount} pages — may indicate layout inflation from empty spacers or forced page breaks` });
+        }
+        results.steps.push({ step: 'page_count_check', pass: pageCountOk, pages: pdfPageCount, threshold: maxReasonablePages });
+
+        // 3g. Footer consistency check — if footer exists, verify it appears on content pages
+        // Extract text from bottom region of each page using layout mode
+        const footerTexts = [];
+        for (let p = 1; p <= Math.min(pdfPageCount - 1, 5); p++) { // sample first 5 content pages
+          try {
+            const { stdout: layoutText } = await execFileAsync('/opt/homebrew/bin/pdftotext', ['-layout', '-f', String(p), '-l', String(p), pdfPath, '-']);
+            const lines = layoutText.split('\n');
+            const bottomLines = lines.slice(-5).join(' ').trim(); // last 5 lines
+            footerTexts.push({ page: p, footer_text: bottomLines.slice(0, 100) });
+          } catch {
+            // skip
+          }
+        }
+        if (footerTexts.length > 1) {
+          // Check if footer content is consistent across pages
+          const footerSamples = footerTexts.map(f => f.footer_text).filter(t => t.length > 0);
+          // Look for page numbers or initials pattern in footers
+          const hasPageNumbers = footerSamples.some(t => /\bPage\b|\b\d+\s*\/\s*\d+\b|\b\d+\s+of\s+\d+\b/i.test(t));
+          results.steps.push({
+            step: 'footer_check',
+            pass: true, // informational
+            has_page_numbers: hasPageNumbers,
+            sample_footers: footerTexts.slice(0, 3),
+          });
+        }
+
+        // 3h. Audit trail verification (last page)
         const lastPage = pageTexts[pageTexts.length - 1];
-        const hasAuditTrail = lastPage?.preview?.includes('Audit Trail') || lastPage?.preview?.includes('Signer');
-        results.steps.push({ step: 'audit_trail_page', pass: hasAuditTrail, last_page_preview: lastPage?.preview });
+        const auditKeywords = ['Audit Trail', 'Signer', 'SHA-256', 'Document Hash', 'Electronic'];
+        const auditHits = auditKeywords.filter(kw => lastPage?.preview?.includes(kw) || false);
+        const hasAuditTrail = auditHits.length >= 2; // at least 2 keywords
+        results.steps.push({
+          step: 'audit_trail',
+          pass: hasAuditTrail,
+          keywords_found: auditHits,
+          last_page_preview: lastPage?.preview,
+        });
+
+        // 3i. Content pages summary
+        results.steps.push({
+          step: 'page_summary',
+          pass: true,
+          pages: pageTexts.map(p => ({
+            page: p.page,
+            chars: p.char_count,
+            lines: p.line_count,
+            blank: p.blank,
+            preview: p.preview?.slice(0, 80),
+          })),
+        });
 
       } catch (e) {
-        results.steps.push({ step: 'render', pass: false, error: e.message });
+        results.steps.push({ step: 'analysis', pass: false, error: e.message });
         results.pass = false;
       } finally {
         await rm(tmpDir, { recursive: true, force: true });

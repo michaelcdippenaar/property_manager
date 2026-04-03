@@ -22,10 +22,16 @@ TipTap is headless — it provides pure editor logic with no default UI or styli
 
 ## References
 
-Read these when you need deep detail beyond what's in this file:
+Read the relevant file when you need deep detail beyond what's in this file. Pick the one that matches the task — don't load all of them.
 
-- [tiptap-api-reference.md](references/tiptap-api-reference.md) — **Complete TipTap API**: Editor config, all commands, extension system, creating custom extensions (Node/Mark/Extension), extending existing extensions, Vue 3 node views, schema, events, marks, nodes, styling, menus, output formats, TypeScript, ProseMirror integration, StarterKit contents, and configuration reference for Placeholder, TextAlign, Color, Highlight, Table, Image, DragHandle
-- [tremly-tiptap-extensions.md](references/tremly-tiptap-extensions.md) — **Tremly custom extensions**: MergeField, SignatureBlock, PageBreak, FontSize, PaginationPlus config, document storage format (v2 JSON envelope)
+| When you need... | Read |
+|---|---|
+| Editor setup, options, events, styling, menus | [editor-config.md](references/editor-config.md) |
+| Commands (content, node, mark, list, selection, table) | [commands.md](references/commands.md) |
+| Creating custom extensions, extending existing ones, TypeScript | [custom-extensions.md](references/custom-extensions.md) |
+| Vue 3 node views (VueNodeViewRenderer, props, patterns) | [node-views-vue.md](references/node-views-vue.md) |
+| StarterKit, Table, TextAlign, Color, Highlight, Placeholder, Image, DragHandle config | [extensions-config.md](references/extensions-config.md) |
+| Tremly custom extensions: MergeField, SignatureBlock, PageBreak, FontSize, PaginationPlus, v2 JSON envelope | [tremly-tiptap-extensions.md](references/tremly-tiptap-extensions.md) |
 
 ## TipTap Core Concepts
 

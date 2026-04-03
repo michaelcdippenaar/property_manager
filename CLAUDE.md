@@ -54,6 +54,7 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `lease-docuseal` | E-signing workflows |
 | `lease-tiptap` | TipTap rich text editor for lease templates |
 | `lease-tiptap-to-pdf` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
+| `gotenberg` | Gotenberg Docker PDF service, HTML/Office→PDF, merge/split/encrypt |
 | `lease-format-document` | Format/restructure lease template HTML |
 | `lease-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
 | `lease-test-battery` | Run full lease + e-signing integration test battery |

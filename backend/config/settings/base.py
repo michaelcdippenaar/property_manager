@@ -252,6 +252,9 @@ ESIGNING_WEBHOOK_PUBLIC_URL = config("ESIGNING_WEBHOOK_PUBLIC_URL", default="").
 ESIGNING_PUBLIC_LINK_EXPIRY_DAYS = config("ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", default=14, cast=int)
 SIGNING_PUBLIC_APP_BASE_URL = config("SIGNING_PUBLIC_APP_BASE_URL", default="").strip().rstrip("/")
 
+# Gotenberg — Chromium-based HTML→PDF service (docker-compose: gotenberg on port 3000)
+GOTENBERG_URL = config("GOTENBERG_URL", default="http://localhost:3000")
+
 # Email (Django) — Gmail: smtp.gmail.com:587 + app password; see apps/notifications/NOTIFICATIONS.md
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",

@@ -151,7 +151,8 @@ export const SignatureBlock = Node.create({
     return {
       insertSignatureBlock: (attrs) => ({ commands }) => {
         _blockCounter++
-        const fieldName = attrs.fieldName || `${attrs.signerRole}_${attrs.fieldType}_${_blockCounter}`
+        const suffix = attrs.fieldType === 'date' ? 'date_signed' : attrs.fieldType
+        const fieldName = attrs.fieldName || `${attrs.signerRole}_${suffix}_${_blockCounter}`
         return commands.insertContent({
           type: this.name,
           attrs: {
