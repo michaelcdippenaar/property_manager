@@ -14,6 +14,25 @@
 
     <!-- Ownership form -->
     <form v-else class="space-y-5" @submit.prevent="save">
+      <!-- Link to existing landlord -->
+      <div class="space-y-2">
+        <div class="text-xs font-semibold uppercase tracking-wide text-navy">Link Landlord</div>
+        <div class="flex items-center gap-2">
+          <select v-model="selectedLandlordId" class="input flex-1" @change="onLandlordSelected">
+            <option :value="null">— Select existing landlord —</option>
+            <option v-for="ll in availableLandlords" :key="ll.id" :value="ll.id">
+              {{ ll.name }} ({{ ll.email || 'no email' }})
+            </option>
+          </select>
+          <router-link to="/landlords" class="text-xs text-navy hover:underline whitespace-nowrap">Manage landlords</router-link>
+        </div>
+        <div v-if="linkedLandlord" class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+          <UserCircle :size="14" class="flex-shrink-0" />
+          Linked to <strong>{{ linkedLandlord.name }}</strong>
+          <span v-if="linkedLandlord.property_count > 1" class="text-blue-500">· {{ linkedLandlord.property_count }} properties</span>
+        </div>
+      </div>
+
       <!-- Owner entity -->
       <div class="space-y-3">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner Entity</div>
@@ -197,6 +216,9 @@ const error   = ref('')
 
 const ownership = ref<any>(null)
 const history   = ref<any[]>([])
+const availableLandlords = ref<any[]>([])
+const selectedLandlordId = ref<number | null>(null)
+const linkedLandlord = ref<any>(null)
 
 const emptyForm = () => ({
   owner_name: '',
@@ -221,10 +243,18 @@ const form = ref(emptyForm())
 async function load() {
   loading.value = true
   try {
+    // Load available landlords
+    try {
+      const { data } = await api.get('/properties/landlords/')
+      availableLandlords.value = data.results ?? data
+    } catch { /* ignore */ }
+
     // Get current ownership
     try {
       const { data } = await api.get(`/properties/ownerships/current/${props.propertyId}/`)
       ownership.value = data
+      selectedLandlordId.value = data.landlord ?? null
+      linkedLandlord.value = availableLandlords.value.find((ll: any) => ll.id === data.landlord) ?? null
       populateForm(data)
     } catch (e: any) {
       if (e?.response?.status === 404) {
@@ -238,6 +268,26 @@ async function load() {
   } finally {
     loading.value = false
   }
+}
+
+function onLandlordSelected() {
+  const ll = availableLandlords.value.find((l: any) => l.id === selectedLandlordId.value)
+  linkedLandlord.value = ll ?? null
+  if (!ll) return
+  // Auto-fill form from landlord
+  form.value.owner_name = ll.name || form.value.owner_name
+  form.value.owner_type = ll.landlord_type || form.value.owner_type
+  form.value.registration_number = ll.registration_number || ll.id_number || form.value.registration_number
+  form.value.vat_number = ll.vat_number || form.value.vat_number
+  form.value.owner_email = ll.email || form.value.owner_email
+  form.value.owner_phone = ll.phone || form.value.owner_phone
+  if (ll.address && typeof ll.address === 'object') {
+    form.value.owner_address = { ...form.value.owner_address, ...ll.address }
+  }
+  form.value.representative_name = ll.representative_name || form.value.representative_name
+  form.value.representative_id_number = ll.representative_id_number || form.value.representative_id_number
+  form.value.representative_email = ll.representative_email || form.value.representative_email
+  form.value.representative_phone = ll.representative_phone || form.value.representative_phone
 }
 
 function populateForm(data: any) {
@@ -273,6 +323,7 @@ async function save() {
     const payload = {
       ...form.value,
       property: props.propertyId,
+      landlord: selectedLandlordId.value || null,
       end_date: form.value.end_date || null,
     }
 

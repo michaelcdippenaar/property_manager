@@ -105,6 +105,9 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
                 name=name,
                 version=request.data.get("version") or "1.0",
                 province=request.data.get("province") or "",
+                content_html=request.data.get("content_html") or "",
+                header_html=request.data.get("header_html") or "",
+                footer_html=request.data.get("footer_html") or "",
             )
             serializer = LeaseTemplateSerializer(tmpl, context={"request": request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)

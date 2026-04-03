@@ -23,7 +23,7 @@
         >
           <div
             v-if="open"
-            class="relative bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
+            class="relative bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden max-h-[90vh]"
             :class="sizeClass"
           >
             <!-- Header -->

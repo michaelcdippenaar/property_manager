@@ -25,6 +25,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
         { path: 'properties', name: 'properties', component: () => import('../views/properties/PropertiesView.vue') },
+        { path: 'landlords', name: 'landlords', component: () => import('../views/properties/LandlordsView.vue') },
         { path: 'tenants', name: 'tenants', component: () => import('../views/tenants/TenantsView.vue') },
         { path: 'maintenance', redirect: '/maintenance/issues' },
         {

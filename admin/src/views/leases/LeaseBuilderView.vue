@@ -252,6 +252,75 @@
                 :errors="validationErrors"
               />
 
+              <!-- Landlord Info -->
+              <section v-if="selectedUnit" class="space-y-2">
+                <div class="text-xs font-semibold text-navy uppercase tracking-widest">Landlord</div>
+                <select
+                  :value="selectedLandlordId"
+                  @change="onLandlordChange(Number(($event.target as HTMLSelectElement).value) || null)"
+                  class="input text-xs py-1.5"
+                >
+                  <option :value="null">— No landlord —</option>
+                  <option
+                    v-for="ll in allLandlords"
+                    :key="ll.id"
+                    :value="ll.id"
+                  >
+                    {{ ll.name }}{{ ll.id === defaultLandlordId ? ' (default)' : '' }}
+                  </option>
+                </select>
+                <div v-if="landlordInfo?.name" class="border border-navy/20 rounded-lg p-3 bg-navy/5 space-y-2">
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <div class="col-span-2">
+                      <div class="text-[10px] text-gray-400 uppercase">Name</div>
+                      <div class="text-xs font-medium text-gray-900">{{ landlordInfo.name }}</div>
+                    </div>
+                    <div>
+                      <div class="text-[10px] text-gray-400 uppercase">Email</div>
+                      <div class="text-xs text-gray-700">{{ landlordInfo.email || '—' }}</div>
+                    </div>
+                    <div>
+                      <div class="text-[10px] text-gray-400 uppercase">Phone</div>
+                      <div class="text-xs text-gray-700">{{ landlordInfo.phone || '—' }}</div>
+                    </div>
+                    <div v-if="landlordInfo.id_number">
+                      <div class="text-[10px] text-gray-400 uppercase">ID / Reg no.</div>
+                      <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.id_number }}</div>
+                    </div>
+                    <div v-if="landlordInfo.address">
+                      <div class="text-[10px] text-gray-400 uppercase">Address</div>
+                      <div class="text-xs text-gray-700">{{ landlordInfo.address }}</div>
+                    </div>
+                  </div>
+                  <!-- Bank account -->
+                  <div v-if="landlordInfo.bank_account" class="border-t border-navy/10 pt-2 mt-2">
+                    <div class="text-[10px] text-navy/50 uppercase font-semibold mb-1">Bank Account (Default)</div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                      <div>
+                        <div class="text-[10px] text-gray-400 uppercase">Bank</div>
+                        <div class="text-xs text-gray-700">{{ landlordInfo.bank_account.bank_name }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-gray-400 uppercase">Account holder</div>
+                        <div class="text-xs text-gray-700">{{ landlordInfo.bank_account.account_holder }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-gray-400 uppercase">Account no.</div>
+                        <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.bank_account.account_number }}</div>
+                      </div>
+                      <div>
+                        <div class="text-[10px] text-gray-400 uppercase">Branch code</div>
+                        <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.bank_account.branch_code }}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="text-[10px] text-amber-600 mt-1">No bank account on file — add one on the Landlords page.</div>
+                </div>
+                <div v-else class="border border-amber-200 rounded-lg p-3 bg-amber-50 text-xs text-amber-700">
+                  No landlord linked to this property. Link one from the property's Landlord tab or the <router-link to="/landlords" class="underline font-medium">Landlords page</router-link>.
+                </div>
+              </section>
+
               <!-- Additional Terms -->
               <section class="space-y-2">
                 <div class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Additional Terms</div>
@@ -577,6 +646,73 @@ function selectFromModal(property: any, unit: any) {
   modalExpandedId.value = null
 }
 
+// ── Landlord selection ────────────────────────────────────────────────────
+interface LandlordInfo {
+  name: string; email: string; phone: string; id_number: string; address: string
+  landlord_name: string
+  bank_account: { bank_name: string; account_holder: string; account_number: string; branch_code: string; account_type: string } | null
+}
+const allLandlords = ref<any[]>([])
+const selectedLandlordId = ref<number | null>(null)
+const defaultLandlordId = ref<number | null>(null)
+const landlordInfo = ref<LandlordInfo | null>(null)
+
+async function loadAllLandlords() {
+  try {
+    const { data } = await api.get('/properties/landlords/')
+    allLandlords.value = data.results ?? data
+  } catch { /* non-fatal */ }
+}
+
+function landlordInfoFromRaw(ll: any): LandlordInfo {
+  const name = ll.representative_name || ll.name
+  const email = ll.representative_email || ll.email
+  const phone = ll.representative_phone || ll.phone
+  const idNum = ll.representative_id_number || ll.registration_number || ll.id_number
+  const addr = ll.address
+  const addrStr = addr ? [addr.street, addr.city, addr.province, addr.postal_code].filter(Boolean).join(', ') : ''
+  const defaultBank = (ll.bank_accounts ?? []).find((ba: any) => ba.is_default) ?? (ll.bank_accounts ?? [])[0] ?? null
+  return {
+    name, email, phone, id_number: idNum, address: addrStr,
+    landlord_name: ll.name,
+    bank_account: defaultBank ? {
+      bank_name: defaultBank.bank_name, account_holder: defaultBank.account_holder,
+      account_number: defaultBank.account_number, branch_code: defaultBank.branch_code,
+      account_type: defaultBank.account_type,
+    } : null,
+  }
+}
+
+async function fetchLandlordForProperty(propertyId: number) {
+  landlordInfo.value = null
+  selectedLandlordId.value = null
+  defaultLandlordId.value = null
+  try {
+    const { data } = await api.get(`/properties/ownerships/?property=${propertyId}`)
+    const ownerships = data.results ?? data
+    const ownership = ownerships.find((o: any) => o.is_current)
+    if (!ownership) return
+    if (ownership.landlord) {
+      defaultLandlordId.value = ownership.landlord
+      selectedLandlordId.value = ownership.landlord
+      const ll = allLandlords.value.find(l => l.id === ownership.landlord)
+      if (ll) {
+        landlordInfo.value = landlordInfoFromRaw(ll)
+      } else {
+        const { data: llData } = await api.get(`/properties/landlords/${ownership.landlord}/`)
+        landlordInfo.value = landlordInfoFromRaw(llData)
+      }
+    }
+  } catch { /* non-fatal */ }
+}
+
+function onLandlordChange(id: number | null) {
+  selectedLandlordId.value = id
+  if (!id) { landlordInfo.value = null; return }
+  const ll = allLandlords.value.find(l => l.id === id)
+  if (ll) landlordInfo.value = landlordInfoFromRaw(ll)
+}
+
 // Sync selected property/unit into form fields for preview
 watch(selectedUnit, (su) => {
   if (su) {
@@ -590,6 +726,7 @@ watch(selectedUnit, (su) => {
     if (su.unitNumber) {
       form.value.unit = { ...form.value.unit, unit_number: su.unitNumber }
     }
+    fetchLandlordForProperty(su.propertyId)
   }
 })
 const submitting = ref(false)
@@ -796,6 +933,7 @@ onMounted(async () => {
   api.get('/properties/?page_size=500').then(({ data }) => {
     properties.value = data.results ?? data
   })
+  loadAllLandlords()
   loadTemplates()
   await fetchDrafts()
 
@@ -944,11 +1082,11 @@ function buildDocxContext() {
   const f = form.value
   const su = selectedUnit.value
   return {
-    landlord_name: '—',
-    landlord_id: '—',
-    landlord_address: su?.address || f.property.address,
-    landlord_phone: '—',
-    landlord_email: '—',
+    landlord_name: landlordInfo.value?.name || '—',
+    landlord_id: landlordInfo.value?.id_number || '—',
+    landlord_address: landlordInfo.value?.address || su?.address || f.property.address,
+    landlord_phone: landlordInfo.value?.phone || '—',
+    landlord_email: landlordInfo.value?.email || '—',
     property_address: su?.address || f.property.address,
     unit_number: su?.unitNumber || f.unit.unit_number,
     city: su?.city || f.property.city,
@@ -972,6 +1110,12 @@ function buildDocxContext() {
     electricity_prepaid: f.electricity_prepaid ? 'Prepaid' : 'Included in rent',
     max_occupants: f.max_occupants,
     pets_allowed: '—',
+    // Bank account (from landlord default)
+    bank_name: landlordInfo.value?.bank_account?.bank_name || '—',
+    account_holder: landlordInfo.value?.bank_account?.account_holder || '—',
+    account_number: landlordInfo.value?.bank_account?.account_number || '—',
+    branch_code: landlordInfo.value?.bank_account?.branch_code || '—',
+    account_type: landlordInfo.value?.bank_account?.account_type || '—',
   }
 }
 

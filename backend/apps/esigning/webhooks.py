@@ -290,6 +290,7 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
     link = ESigningPublicLink.objects.create(
         submission=submission,
         submitter_id=int(submitter_id),
+        signer_role=next_signer.get('role', ''),
         expires_at=timezone.now() + timedelta(days=default_days),
     )
 
@@ -308,19 +309,41 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
             salutation = f"Hello {name}," if name else "Hello,"
             exp = link.expires_at.strftime("%d %b %Y")
 
-            subject = f"Your turn to sign: {doc_title}"
+            # Detect landlord role for tailored messaging
+            role = (next_signer.get('role') or '').lower()
+            is_landlord = role in ('landlord', 'lessor', 'owner')
+
+            if is_landlord:
+                subject = f"All tenants signed — your signature needed: {doc_title}"
+                intro_plain = (
+                    "All tenants have completed signing the lease agreement. "
+                    "Please review and add your signature as landlord to finalise the document."
+                )
+                intro_html = (
+                    "All tenants have completed signing the lease agreement. "
+                    "Please review and add <strong>your signature as landlord</strong> to finalise the document."
+                )
+            else:
+                subject = f"Your turn to sign: {doc_title}"
+                intro_plain = (
+                    "The previous signer has completed their part. "
+                    "It is now your turn to review and sign the document."
+                )
+                intro_html = (
+                    "The previous signer has completed their part. "
+                    "It is now <strong>your turn</strong> to review and sign."
+                )
+
             plain = (
                 f"{salutation}\n\n"
-                f"The previous signer has completed their part. "
-                f"It is now your turn to review and sign the document.\n\n"
+                f"{intro_plain}\n\n"
                 f"Please sign using this link:\n{signing_url}\n\n"
                 f"This link expires on {exp}.\n\n"
                 f"If you did not expect this email, you can ignore it.\n"
             )
             html = (
                 f"<p>{salutation}</p>"
-                f"<p>The previous signer has completed their part. "
-                f"It is now <strong>your turn</strong> to review and sign.</p>"
+                f"<p>{intro_html}</p>"
                 f'<p><a href="{signing_url}" style="display:inline-block;padding:12px 20px;'
                 f'background:#1e3a5f;color:#fff;text-decoration:none;border-radius:8px;'
                 f'font-weight:600;">Sign now</a></p>'

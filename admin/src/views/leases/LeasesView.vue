@@ -209,6 +209,7 @@
                     :key="lease.id"
                     :lease-id="lease.id"
                     :lease-tenants="leaseTenants(lease)"
+                    :lease-data="lease"
                     :auto-open="Number(route.query.expand) === lease.id && route.query.sign === '1'"
                   />
                 </div>
@@ -443,7 +444,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, FolderOpen } from 'lucide-vue-next'
@@ -528,14 +529,19 @@ const newLease = ref({
   max_occupants: 1, water_included: true, electricity_prepaid: true,
 })
 
-onMounted(async () => {
+async function initView() {
   await Promise.all([loadLeases(), loadUnits(), loadDrafts()])
   // Deep-link: auto-expand a lease from query params
   const expandId = Number(route.query.expand)
   if (expandId && leases.value.some((l: any) => l.id === expandId)) {
     if (!expanded.value.includes(expandId)) expanded.value.push(expandId)
   }
-})
+}
+
+onMounted(initView)
+
+// Re-run on keep-alive re-activation (e.g. returning from /leases/build)
+onActivated(initView)
 
 // ── Signing data (full submission objects, not just status strings) ──
 const signingData = ref(new Map<number, any>())

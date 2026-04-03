@@ -103,6 +103,8 @@ class LeaseSerializer(serializers.ModelSerializer):
     all_tenant_names = serializers.SerializerMethodField()
     document_count = serializers.SerializerMethodField()
     unit_label = serializers.SerializerMethodField()
+    landlord_info = serializers.SerializerMethodField()
+    property_id = serializers.IntegerField(source='unit.property_id', read_only=True)
 
     class Meta:
         model = Lease
@@ -123,6 +125,10 @@ class LeaseSerializer(serializers.ModelSerializer):
 
     def get_document_count(self, obj):
         return obj.documents.count()
+
+    def get_landlord_info(self, obj):
+        from apps.esigning.services import _get_landlord_info
+        return _get_landlord_info(obj)
 
 
 class LeaseTemplateSerializer(serializers.ModelSerializer):

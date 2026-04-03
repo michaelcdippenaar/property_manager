@@ -1,9 +1,11 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PropertyAgentConfigViewSet, PropertyGroupViewSet, PropertyOwnershipViewSet, PropertyViewSet, UnitInfoViewSet, UnitViewSet
+from .views import BankAccountViewSet, LandlordViewSet, PropertyAgentConfigViewSet, PropertyGroupViewSet, PropertyOwnershipViewSet, PropertyViewSet, UnitInfoViewSet, UnitViewSet
 from .owner_views import OwnerDashboardView, OwnerPropertiesView
 
 router = DefaultRouter()
+router.register("landlords", LandlordViewSet, basename="landlord")
+router.register("bank-accounts", BankAccountViewSet, basename="bank-account")
 router.register("groups", PropertyGroupViewSet, basename="property-group")
 router.register("units", UnitViewSet, basename="unit")
 router.register("unit-info", UnitInfoViewSet, basename="unit-info")

@@ -144,6 +144,16 @@
         </button>
       </div>
 
+      <!-- Cancel pending submission — only allowed before anyone has signed -->
+      <button
+        v-if="latestSub && latestSub.status !== 'completed' && latestSub.status !== 'declined' && signedCount === 0"
+        class="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 mt-2 transition-colors"
+        @click="cancelSubmission"
+      >
+        <X :size="11" />
+        Cancel signing request
+      </button>
+
       <!-- Send again (only if previous is done/declined/expired) -->
       <button
         v-if="canSendAgain"
@@ -297,11 +307,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '../../api'
 import {
   Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle, Eye,
-  Plus, Loader2, Download, Link2, Wifi, WifiOff, PenTool,
+  Plus, Loader2, Download, Link2, Wifi, WifiOff, PenTool, X,
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
@@ -309,6 +319,7 @@ import { useESigningSocket } from '../../composables/useESigningSocket'
 const props = defineProps<{
   leaseId: number
   leaseTenants?: any[]
+  leaseData?: any
   autoOpen?: boolean
 }>()
 
@@ -362,7 +373,11 @@ const { connected: wsConnected } = useESigningSocket(
       if (event.signed_pdf_url) {
         latestSub.value.signed_pdf_url = event.signed_pdf_url
       }
+      loadSubmissions()
       emit('signed')
+    } else if (event.type === 'signer_completed') {
+      // Reload to get accurate completed_at timestamps
+      loadSubmissions()
     } else if (event.type === 'signer_declined') {
       latestSub.value.status = 'declined'
     }
@@ -402,6 +417,18 @@ onMounted(async () => {
     openModal()
   }
 })
+
+// Poll for updates when WS is disconnected and submission is active
+let pollTimer: ReturnType<typeof setInterval> | null = null
+watch(() => latestSub.value?.status, (status) => {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+  if (status === 'pending' || status === 'in_progress') {
+    pollTimer = setInterval(() => {
+      if (!wsConnected.value) loadSubmissions()
+    }, 10_000)
+  }
+}, { immediate: true })
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
 
 // ── Signer status helpers ───────────────────────────────────────────── //
 function isSignerDone(s: any): boolean {
@@ -523,13 +550,29 @@ async function copyPublicLink(submissionId: number, submitterId: number | string
     })
     const path = (data.sign_path as string) || `/sign/${data.uuid}/`
     const full = (data.signing_url as string) || `${window.location.origin}${path}`
-    await navigator.clipboard.writeText(full)
-    linkHint.value = 'Signing link copied to clipboard'
-    window.setTimeout(() => { linkHint.value = '' }, 5000)
+    try {
+      await navigator.clipboard.writeText(full)
+      linkHint.value = 'Signing link copied to clipboard'
+    } catch {
+      // Clipboard blocked — show the URL so user can copy manually
+      linkHint.value = full
+    }
+    window.setTimeout(() => { linkHint.value = '' }, 15000)
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Could not create signing link'
   } finally {
     copyingLinkId.value = null
+  }
+}
+
+async function cancelSubmission() {
+  if (!latestSub.value) return
+  if (!confirm('Cancel this signing request? All signing links will be invalidated.')) return
+  try {
+    await api.delete(`/esigning/submissions/${latestSub.value.id}/`)
+    submissions.value = submissions.value.filter((s: any) => s.id !== latestSub.value.id)
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.detail ?? 'Could not cancel submission'
   }
 }
 
@@ -573,7 +616,7 @@ function buildDefaultSigners(): DraftSigner[] {
       { name: 'Marius du Plessis', email: 'mc@tremly.com', phone: '0821234567', role: 'Tenant', send_email: true },
     ]
   }
-  return tenants.map((t, i) => ({
+  const signers: DraftSigner[] = tenants.map((t, i) => ({
     name:         t.person?.full_name ?? t.full_name ?? '',
     email:        t.person?.email     ?? t.email     ?? '',
     phone:        t.person?.phone     ?? t.phone     ?? '',
@@ -582,6 +625,16 @@ function buildDefaultSigners(): DraftSigner[] {
     personId:     t.person?.id ?? t.id ?? undefined,
     saveToRecord: false,
   }))
+
+  // Auto-add landlord as last signer
+  const ll = props.leaseData?.landlord_info
+  if (ll?.email) {
+    signers.push({
+      name: ll.name ?? '', email: ll.email ?? '', phone: ll.phone ?? '',
+      role: 'Landlord', send_email: false,
+    })
+  }
+  return signers
 }
 
 function openModal() {
@@ -606,9 +659,11 @@ function removeSigner(idx: number) {
 
 // ── Display helpers ──────────────────────────────────────────────────── //
 function formatDate(d: string) {
-  return d
-    ? new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
-    : ''
+  if (!d) return ''
+  const dt = new Date(d)
+  const date = dt.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
+  const time = dt.toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+  return `${date} at ${time}`
 }
 
 // Expose openModal so parent can trigger it via ref

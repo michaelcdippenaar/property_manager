@@ -163,6 +163,42 @@ def _roles_from_template(template_data: dict) -> list[str]:
     return [r for r in roles if r]
 
 
+def _get_landlord_info(lease) -> dict | None:
+    """Resolve landlord name/email/phone from Landlord → PropertyOwnership → Property.owner."""
+    prop = lease.unit.property
+    ownership = None
+    try:
+        ownership = prop.ownerships.filter(is_current=True).select_related('landlord').first()
+    except Exception:
+        pass
+
+    if ownership:
+        # Prefer linked Landlord entity
+        ll = getattr(ownership, 'landlord', None)
+        if ll:
+            name = ll.representative_name or ll.name
+            email = ll.representative_email or ll.email
+            phone = ll.representative_phone or ll.phone
+            if email:
+                return {'name': name or '', 'email': email, 'phone': phone or '', 'landlord_id': ll.pk}
+
+        # Fallback to denormalized fields on PropertyOwnership
+        name = ownership.representative_name or ownership.owner_name
+        email = ownership.representative_email or ownership.owner_email
+        phone = ownership.representative_phone or ownership.owner_phone
+        if email:
+            return {'name': name or '', 'email': email, 'phone': phone or ''}
+
+    # Fallback: Property.owner (Person FK)
+    owner_person = getattr(prop, 'owner', None)
+    if owner_person:
+        email = getattr(owner_person, 'email', '') or ''
+        if email:
+            return {'name': getattr(owner_person, 'full_name', '') or '', 'email': email, 'phone': getattr(owner_person, 'phone', '') or ''}
+
+    return None
+
+
 def build_lease_context(lease) -> dict:
     """Map a Lease ORM object to merge-field key/value pairs."""
     unit = lease.unit
@@ -623,6 +659,18 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
     signer records with locally-assigned IDs.
     """
     from apps.esigning.models import ESigningSubmission
+
+    # Auto-inject landlord as last signer if not already present
+    landlord_roles = {'landlord', 'lessor', 'owner'}
+    has_landlord = any(s.get('role', '').lower() in landlord_roles for s in signers)
+    if not has_landlord:
+        ll_info = _get_landlord_info(lease)
+        if ll_info and ll_info.get('email'):
+            signers = list(signers) + [{
+                'name': ll_info['name'], 'email': ll_info['email'],
+                'phone': ll_info.get('phone', ''), 'role': 'Landlord',
+                'send_email': True,
+            }]
 
     html = generate_lease_html(lease, num_signers=len(signers), native=True)
     doc_hash = hashlib.sha256(html.encode()).hexdigest()

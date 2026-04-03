@@ -91,6 +91,65 @@ class PropertyAgentConfig(models.Model):
         return f"Agent config for {self.property.name}"
 
 
+class Landlord(models.Model):
+    """
+    A landlord entity (individual, company, or trust) that can own multiple properties.
+    Linked to Person for system identity.
+    """
+    class LandlordType(models.TextChoices):
+        INDIVIDUAL = "individual", "Individual"
+        COMPANY = "company", "Company"
+        TRUST = "trust", "Trust"
+
+    person = models.OneToOneField(
+        Person, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='landlord_profile',
+        help_text="Link to Person record for shared identity"
+    )
+    name = models.CharField(max_length=200, help_text="Legal name of landlord/company/trust")
+    landlord_type = models.CharField(max_length=20, choices=LandlordType.choices, default=LandlordType.INDIVIDUAL)
+    id_number = models.CharField(max_length=20, blank=True, help_text="SA ID or passport")
+    registration_number = models.CharField(max_length=50, blank=True, help_text="Company/trust reg number")
+    vat_number = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    address = models.JSONField(default=dict, blank=True, help_text="street, city, province, postal_code")
+
+    # Representative (person who signs leases on behalf of company/trust)
+    representative_name = models.CharField(max_length=200, blank=True)
+    representative_id_number = models.CharField(max_length=20, blank=True)
+    representative_email = models.EmailField(blank=True)
+    representative_phone = models.CharField(max_length=20, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class BankAccount(models.Model):
+    """Bank account linked to a landlord. One landlord can have multiple accounts."""
+    landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='bank_accounts')
+    label = models.CharField(max_length=100, blank=True, help_text="e.g. 'Main rental account'")
+    bank_name = models.CharField(max_length=100)
+    branch_code = models.CharField(max_length=20)
+    account_number = models.CharField(max_length=30)
+    account_type = models.CharField(max_length=30, blank=True, help_text="e.g. Cheque, Savings, Transmission")
+    account_holder = models.CharField(max_length=200)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_default", "label"]
+
+    def __str__(self):
+        return f"{self.bank_name} — {self.account_number[-4:]}" if self.account_number else self.bank_name
+
+
 class PropertyOwnership(models.Model):
     """
     Tracks ownership of a property over time.
@@ -98,6 +157,7 @@ class PropertyOwnership(models.Model):
     remain linked to the ownership record that was active when signed.
     """
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="ownerships")
+    landlord = models.ForeignKey(Landlord, on_delete=models.SET_NULL, null=True, blank=True, related_name='ownerships')
 
     # Owner entity (company/trust/individual that owns the property)
     owner_name = models.CharField(max_length=200, help_text="Company or individual name")

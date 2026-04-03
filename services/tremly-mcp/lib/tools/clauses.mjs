@@ -30,7 +30,7 @@ export function registerClauseTools(server) {
   server.tool(
     'clause_delete',
     'Delete a clause by ID',
-    { id: z.number() },
+    { id: z.coerce.number() },
     async ({ id }) => {
       const result = await apiDelete(`leases/clauses/${id}/`);
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -40,7 +40,7 @@ export function registerClauseTools(server) {
   server.tool(
     'clause_use',
     'Mark a clause as used (increment usage count)',
-    { id: z.number() },
+    { id: z.coerce.number() },
     async ({ id }) => {
       const result = await apiPost(`leases/clauses/${id}/use/`, {});
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };

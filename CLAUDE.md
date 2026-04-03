@@ -50,9 +50,13 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `marketing-strategy` | Write marketing copy, blog posts, campaigns |
 | `sales-enablement` | Sales calls, demo prep, prospect research |
 | `klikk-design-standard` | Build/modify Vue admin UI |
-| `rental-agreement` | Generate SA lease agreements |
-| `docuseal` | E-signing workflows |
-| `tiptap` | Rich text editor in admin |
+| `lease-rental-agreement` | Generate SA lease agreements |
+| `lease-docuseal` | E-signing workflows |
+| `lease-tiptap` | TipTap rich text editor for lease templates |
+| `lease-tiptap-to-pdf` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
+| `lease-format-document` | Format/restructure lease template HTML |
+| `lease-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
+| `lease-test-battery` | Run full lease + e-signing integration test battery |
 | `security-audit` | Security reviews |
 
 ## Conventions

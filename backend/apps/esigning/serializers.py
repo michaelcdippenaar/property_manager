@@ -11,7 +11,8 @@ class ESigningSubmissionSerializer(serializers.ModelSerializer):
         model = ESigningSubmission
         fields = [
             'id', 'lease', 'lease_label', 'docuseal_submission_id', 'docuseal_template_id',
-            'status', 'signing_mode', 'signers', 'signed_pdf_url', 'created_at', 'updated_at',
+            'status', 'signing_mode', 'signing_backend', 'signers', 'signed_pdf_url',
+            'captured_data', 'created_at', 'updated_at',
             'current_signer', 'signing_progress',
         ]
         read_only_fields = [

@@ -1,0 +1,84 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Django API (local venv)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/backend",
+      "runtimeExecutable": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/backend/.venv/bin/daphne",
+      "runtimeArgs": ["-b", "127.0.0.1", "-p", "8000", "config.asgi:application"],
+      "port": 8000
+    },
+    {
+      "name": "Admin SPA (Vite)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/admin",
+      "runtimeExecutable": "/Users/mcdippenaar/.nvm/versions/node/v20.19.4/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--host", "127.0.0.1"],
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "Tenant web app (Vite)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/web_app",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1", "--port", "5174"],
+      "port": 5174
+    },
+    {
+      "name": "PostgreSQL (Docker — db only)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "db"],
+      "port": 5432
+    },
+    {
+      "name": "Docker Compose — full stack (db + backend + admin + docuseal)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up"],
+      "port": 8000
+    },
+    {
+      "name": "DocuSeal (Docker only)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager",
+      "runtimeExecutable": "docker",
+      "runtimeArgs": ["compose", "up", "docuseal"],
+      "port": 3000
+    },
+    {
+      "name": "Flutter tenant_app (pick device in terminal)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/tenant_app",
+      "runtimeExecutable": "/Users/mcdippenaar/flutter/bin/flutter",
+      "runtimeArgs": ["run"],
+      "port": 0
+    },
+    {
+      "name": "Klikk Website (Astro dev)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/website",
+      "runtimeExecutable": "/Users/mcdippenaar/.nvm/versions/node/v22.17.1/bin/node",
+      "runtimeArgs": ["node_modules/.bin/astro", "dev", "--host", "127.0.0.1", "--port", "4321"],
+      "port": 4321
+    },
+    {
+      "name": "Website Preview (static HTML mockup)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/website-preview",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["-e", "const http=require('http'),fs=require('fs'),path=require('path');const port=process.env.PORT||3005;http.createServer((req,res)=>{const f=path.join(__dirname,req.url==='/'?'index.html':req.url);fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);res.end('Not found')}else{res.writeHead(200,{'Content-Type':'text/html'});res.end(d)}})}).listen(port,()=>console.log(`Server on ${port}`))"],
+      "port": 3005,
+      "autoPort": true
+    },
+    {
+      "name": "Admin SPA — worktree (port 5178)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/.claude/worktrees/thirsty-nash/admin",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1", "--port", "5178"],
+      "port": 5178
+    },
+    {
+      "name": "Tremly API MCP (stdio — for Claude Desktop / Cursor MCP, not a browser URL)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/services/tremly-mcp",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["index.mjs"],
+      "port": 0
+    }
+  ]
+}

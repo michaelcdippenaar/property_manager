@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
+from .models import BankAccount, Landlord, Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
 
 
 class UnitSerializer(serializers.ModelSerializer):
@@ -41,8 +41,36 @@ class PropertyAgentConfigSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "updated_at"]
 
 
+class BankAccountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BankAccount
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at']
+
+
+class LandlordSerializer(serializers.ModelSerializer):
+    bank_accounts = BankAccountSerializer(many=True, read_only=True)
+    property_count = serializers.SerializerMethodField()
+    properties = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Landlord
+        fields = '__all__'
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def get_property_count(self, obj):
+        return obj.ownerships.filter(is_current=True).count()
+
+    def get_properties(self, obj):
+        return [
+            {'id': o.property_id, 'name': o.property.name}
+            for o in obj.ownerships.filter(is_current=True).select_related('property')
+        ]
+
+
 class PropertyOwnershipSerializer(serializers.ModelSerializer):
     property_name = serializers.CharField(source="property.name", read_only=True)
+    landlord_name = serializers.CharField(source="landlord.name", read_only=True, default=None)
 
     class Meta:
         model = PropertyOwnership

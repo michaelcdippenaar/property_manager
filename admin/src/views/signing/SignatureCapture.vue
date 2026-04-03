@@ -109,9 +109,10 @@ const canvasWrapperRef = ref<HTMLDivElement | null>(null)
 const typeInputRef = ref<HTMLInputElement | null>(null)
 let signaturePad: SignaturePad | null = null
 let padReady = ref(false)
+const hasDrawn = ref(false)
 
 const canConfirm = computed(() => {
-  if (mode.value === 'draw') return padReady.value && signaturePad ? !signaturePad.isEmpty() : false
+  if (mode.value === 'draw') return padReady.value && hasDrawn.value
   return typedText.value.trim().length > 0
 })
 
@@ -153,6 +154,9 @@ function initCanvas() {
     maxWidth: 3,
     backgroundColor: 'rgba(0,0,0,0)',
   })
+  signaturePad.addEventListener('endStroke', () => {
+    hasDrawn.value = signaturePad ? !signaturePad.isEmpty() : false
+  })
   padReady.value = true
 }
 
@@ -174,6 +178,7 @@ function resizeCanvas() {
 function switchMode(newMode: 'draw' | 'type') {
   mode.value = newMode
   if (newMode === 'draw') {
+    hasDrawn.value = false
     nextTick(() => {
       if (!signaturePad) {
         initCanvas()
@@ -189,6 +194,7 @@ function switchMode(newMode: 'draw' | 'type') {
 function handleClear() {
   if (mode.value === 'draw') {
     signaturePad?.clear()
+    hasDrawn.value = false
   } else {
     typedText.value = ''
   }

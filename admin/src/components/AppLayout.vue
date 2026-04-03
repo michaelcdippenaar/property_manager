@@ -176,7 +176,7 @@ import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import ToastContainer from './ToastContainer.vue'
 import {
-  LayoutDashboard, Building2, Users, Wrench, FileText, FileSignature, Calendar,
+  LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText, FileSignature, Calendar,
   LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck,
   Activity, HelpCircle,
 } from 'lucide-vue-next'
@@ -188,6 +188,7 @@ const collapsed = ref(false)
 
 const primaryNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/landlords', icon: UserCheck, label: 'Landlords' },
   { to: '/properties', icon: Building2, label: 'Properties' },
   { to: '/tenants', icon: Users, label: 'Tenants' },
 ]

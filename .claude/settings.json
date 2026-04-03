@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "tremly": {
+      "command": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/backend/.venv/bin/python",
+      "args": ["/Users/mcdippenaar/PycharmProjects/tremly_property_manager/backend/mcp_server/server.py"],
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/backend",
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "config.settings.local"
+      }
+    },
+    "tremly-e2e": {
+      "command": "/Users/mcdippenaar/.nvm/versions/node/v20.19.4/bin/node",
+      "args": ["services/tremly-mcp/server.mjs"],
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager",
+      "env": {
+        "TREMLY_API_URL": "http://localhost:8000/api/v1/",
+        "TREMLY_FRONTEND_URL": "http://localhost:5173"
+      }
+    }
+  }
+}

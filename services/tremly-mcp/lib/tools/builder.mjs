@@ -5,7 +5,7 @@ export function registerBuilderTools(server) {
   server.tool(
     'builder_session_create',
     'Create a new lease builder session',
-    { template_id: z.number().optional() },
+    { template_id: z.coerce.number().optional() },
     async (args) => {
       const body = {};
       if (args.template_id !== undefined) body.template_id = args.template_id;
@@ -17,7 +17,7 @@ export function registerBuilderTools(server) {
   server.tool(
     'builder_session_message',
     'Send a chat message to a builder session (may take 10-30s for AI response)',
-    { session_id: z.number(), message: z.string() },
+    { session_id: z.coerce.number(), message: z.string() },
     async ({ session_id, message }) => {
       const result = await apiPost(
         `leases/builder/sessions/${session_id}/message/`,
@@ -31,7 +31,7 @@ export function registerBuilderTools(server) {
   server.tool(
     'builder_session_finalize',
     'Finalize a builder session into a lease',
-    { session_id: z.number() },
+    { session_id: z.coerce.number() },
     async ({ session_id }) => {
       const result = await apiPost(`leases/builder/sessions/${session_id}/finalize/`, {});
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -53,7 +53,7 @@ export function registerBuilderTools(server) {
     'Create a new builder draft',
     {
       name: z.string().optional(),
-      template_id: z.number().optional(),
+      template_id: z.coerce.number().optional(),
       data: z.record(z.any()).optional(),
     },
     async (args) => {
@@ -66,7 +66,7 @@ export function registerBuilderTools(server) {
     'builder_draft_update',
     'Update an existing builder draft',
     {
-      id: z.number(),
+      id: z.coerce.number(),
       name: z.string().optional(),
       data: z.record(z.any()).optional(),
     },

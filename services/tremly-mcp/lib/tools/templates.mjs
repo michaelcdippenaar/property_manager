@@ -15,7 +15,7 @@ export function registerTemplateTools(server) {
   server.tool(
     'template_get',
     'Get a template with full content by ID',
-    { id: z.number() },
+    { id: z.coerce.number() },
     async ({ id }) => {
       const result = await apiGet(`leases/templates/${id}/`);
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -43,7 +43,7 @@ export function registerTemplateTools(server) {
     'template_update',
     'Update (patch) a lease template',
     {
-      id: z.number(),
+      id: z.coerce.number(),
       name: z.string().optional(),
       content_html: z.string().optional(),
       header_html: z.string().optional(),
@@ -61,7 +61,7 @@ export function registerTemplateTools(server) {
   server.tool(
     'template_preview',
     'Get template preview data',
-    { id: z.number() },
+    { id: z.coerce.number() },
     async ({ id }) => {
       const result = await apiGet(`leases/templates/${id}/preview/`);
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -71,7 +71,7 @@ export function registerTemplateTools(server) {
   server.tool(
     'template_ai_chat',
     'Send a message to the template AI chat assistant',
-    { id: z.number(), message: z.string() },
+    { id: z.coerce.number(), message: z.string() },
     async ({ id, message }) => {
       const result = await apiPost(`leases/templates/${id}/ai-chat/`, { message }, { timeout: 60000 });
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
@@ -152,6 +152,96 @@ export function registerTemplateTools(server) {
       return {
         content: [{ type: 'text', text: JSON.stringify({ ok: allPassed, data: { checks, templateId }, status: 200 }, null, 2) }],
       };
+    }
+  );
+
+  server.tool(
+    'template_merge_field_audit',
+    `Audit all active templates for merge field mismatches — detects cases where a field
+in an "Email:" row uses a phone field name, a "Phone/Contact:" row uses an email
+field name, or any field whose data-label disagrees with its data-field-name.
+Returns per-template results with specific mismatches highlighted.`,
+    {},
+    async () => {
+      const listRes = await apiGet('leases/templates/');
+      const templates = listRes.data?.results ?? listRes.data ?? [];
+      const results = [];
+
+      // Rules: [rowKeyword, fieldNameMustContain, fieldNameMustNotContain]
+      const rules = [
+        { rowKeyword: /email/i,   fieldMustContain: 'email',  fieldMustNotContain: 'phone' },
+        { rowKeyword: /phone|contact no/i, fieldMustContain: 'phone', fieldMustNotContain: 'email' },
+      ];
+
+      // Label mismatch rules: if data-label contains X, field-name should contain Y
+      const labelRules = [
+        { labelContains: 'email', fieldMustContain: 'email' },
+        { labelContains: 'phone', fieldMustContain: 'phone' },
+        { labelContains: 'name',  fieldMustContain: 'name'  },
+        { labelContains: 'id',    fieldMustContain: 'id'    },
+      ];
+
+      for (const tmpl of templates) {
+        const detail = await apiGet(`leases/templates/${tmpl.id}/`);
+        const contentHtml = detail.data?.content_html || '';
+        let html = contentHtml;
+        // Unwrap JSON envelope if needed
+        try {
+          const parsed = JSON.parse(contentHtml);
+          if (parsed?.html) html = parsed.html;
+        } catch {}
+
+        if (!html) {
+          results.push({ id: tmpl.id, name: tmpl.name, issues: [], note: 'no content_html' });
+          continue;
+        }
+
+        const issues = [];
+
+        // Rule 1: check field name vs row label context
+        for (const rule of rules) {
+          const re = new RegExp(
+            rule.rowKeyword.source + '[^<]{0,20}<span[^>]+data-field-name="([^"]+)"',
+            'gi'
+          );
+          let m;
+          while ((m = re.exec(html)) !== null) {
+            const fieldName = m[1];
+            if (rule.fieldMustNotContain && fieldName.includes(rule.fieldMustNotContain)) {
+              issues.push({
+                type: 'row_field_mismatch',
+                rowContext: m[0].slice(0, 60),
+                fieldName,
+                expected: `field name containing "${rule.fieldMustContain}"`,
+                got: fieldName,
+              });
+            }
+          }
+        }
+
+        // Rule 2: check data-label vs data-field-name agreement
+        const spanRe = /data-label="([^"]+)"[^>]*data-field-name="([^"]+)"|data-field-name="([^"]+)"[^>]*data-label="([^"]+)"/g;
+        let sm;
+        while ((sm = spanRe.exec(html)) !== null) {
+          const label = (sm[1] || sm[4] || '').toLowerCase();
+          const fieldName = (sm[2] || sm[3] || '').toLowerCase();
+          for (const lr of labelRules) {
+            if (label.includes(lr.labelContains) && !fieldName.includes(lr.fieldMustContain)) {
+              issues.push({
+                type: 'label_field_mismatch',
+                label: sm[1] || sm[4],
+                fieldName: sm[2] || sm[3],
+                expected: `field name containing "${lr.fieldMustContain}"`,
+              });
+            }
+          }
+        }
+
+        results.push({ id: tmpl.id, name: tmpl.name, issues, pass: issues.length === 0 });
+      }
+
+      const allPass = results.every(r => r.pass !== false);
+      return { content: [{ type: 'text', text: JSON.stringify({ ok: allPass, results }, null, 2) }] };
     }
   );
 }

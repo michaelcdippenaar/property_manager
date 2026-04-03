@@ -27,8 +27,15 @@ admin/dist/
 services/**/node_modules/
 
 # Local / tooling (do not commit)
-.claude/
+# Claude Code: commit skills + shared JSON; keep machine-only and heavy dirs out
+.claude/worktrees/
+.claude/old/
+.claude/docuseal/
+.claude/settings.local.json
 flutter_logs.txt
+
+# Playwright (local)
+admin/test-results/
 
 # Flutter / Dart
 mobile/.dart_tool/

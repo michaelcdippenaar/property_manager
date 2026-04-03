@@ -3,8 +3,10 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-from .models import Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
+from django.db.models import Q
+from .models import BankAccount, Landlord, Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
 from .serializers import (
+    BankAccountSerializer, LandlordSerializer,
     PropertyAgentConfigSerializer, PropertyGroupSerializer,
     PropertyOwnershipSerializer, PropertySerializer, UnitInfoSerializer, UnitSerializer,
 )
@@ -73,6 +75,30 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
     def current(self, request, property_id=None):
         ownership = get_object_or_404(PropertyOwnership, property_id=property_id, is_current=True)
         return Response(PropertyOwnershipSerializer(ownership).data)
+
+
+class LandlordViewSet(viewsets.ModelViewSet):
+    serializer_class = LandlordSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = Landlord.objects.prefetch_related('bank_accounts', 'ownerships__property')
+        search = self.request.query_params.get('search')
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search))
+        return qs
+
+
+class BankAccountViewSet(viewsets.ModelViewSet):
+    serializer_class = BankAccountSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        qs = BankAccount.objects.select_related('landlord')
+        landlord_id = self.request.query_params.get('landlord')
+        if landlord_id:
+            qs = qs.filter(landlord_id=landlord_id)
+        return qs
 
 
 class PropertyGroupViewSet(viewsets.ModelViewSet):

@@ -191,6 +191,34 @@ class ESigningSubmissionDetailView(ScopedESigningQuerysetMixin, RetrieveAPIView)
     serializer_class = ESigningSubmissionSerializer
     permission_classes = [IsAuthenticated]
 
+    def delete(self, request, pk):
+        if not can_manage_esigning(request.user):
+            return Response(
+                {"detail": "Only staff may cancel signing submissions."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        obj = get_object_or_404(esigning_submissions_for_user(request.user), pk=pk)
+        if obj.status == ESigningSubmission.Status.COMPLETED:
+            return Response(
+                {"detail": "Cannot cancel a completed submission."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Block if any signer has already signed — they must be notified and a
+        # valid reason recorded before cancellation is permitted.
+        signed_signers = [
+            s for s in (obj.signers or [])
+            if (s.get('status') or '').lower() in ('completed', 'signed')
+        ]
+        if signed_signers:
+            names = ', '.join(s.get('name', 'Unknown') for s in signed_signers)
+            return Response(
+                {"detail": f"Cannot cancel: {names} has already signed. "
+                           "Notify all parties and obtain consent before withdrawing a partially-signed document."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        obj.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
 
 class ESigningSignerStatusView(APIView):
     """
