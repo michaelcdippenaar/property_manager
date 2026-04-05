@@ -6,7 +6,7 @@
  *
  * Each instance gets a unique fieldName so multiple initials per party work correctly.
  *
- * HTML export (for DocuSeal):
+ * HTML export:
  *   <span data-type="signature-block" data-field-type="initials" data-signer-role="landlord"
  *         data-field-name="landlord_initials_p2"
  *         style="display:inline-block;width:100px;height:40px;">
@@ -72,7 +72,7 @@ export const SignatureBlock = Node.create({
 
   parseHTML() {
     return [
-      // DocuSeal native tags (round-trip from renderHTML output)
+      // Native signing field tags (round-trip from renderHTML output)
       { tag: 'signature-field', getAttrs: (el: HTMLElement) => ({
         fieldName: el.getAttribute('name') || el.getAttribute('data-field-name'),
         fieldType: 'signature',
@@ -110,7 +110,7 @@ export const SignatureBlock = Node.create({
     const type = HTMLAttributes['data-field-type'] || 'signature'
     const role = HTMLAttributes['data-signer-role'] || 'landlord'
 
-    // Map field type to DocuSeal tag name
+    // Map field type to signing field tag name
     const tagMap: Record<string, string> = {
       signature: 'signature-field',
       initials: 'initials-field',
@@ -139,7 +139,7 @@ export const SignatureBlock = Node.create({
         },
         type === 'signature' ? { format: 'drawn_or_typed' } : {},
       ),
-      ' ',  // DocuSeal requires non-empty content
+      ' ',  // non-empty content required
     ]
   },
 

@@ -228,8 +228,8 @@
       </div>
 
       <!-- ── Editor ──────────────────────────────────────────────────────── -->
-      <div class="flex-1 overflow-y-auto overflow-x-hidden min-w-0 py-6 px-6" style="background:#f1f3f4;">
-        <div class="max-w-[816px] mx-auto relative">
+      <div class="flex-1 overflow-y-auto overflow-x-hidden min-w-0 py-6 pl-6 pr-4" style="background:#f1f3f4;">
+        <div class="tiptap-page-container ml-auto mr-4 relative">
           <editor-content
             :editor="editor"
             class="tiptap-editor bg-white"

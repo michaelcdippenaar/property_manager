@@ -110,6 +110,12 @@ const router = createRouter({
         { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue') },
         // Profile
         { path: 'profile', name: 'profile', component: () => import('../views/auth/ProfileView.vue') },
+        // Testing Portal
+        { path: 'testing', name: 'TestingDashboard', component: () => import('../views/testing/TestingDashboard.vue') },
+        { path: 'testing/module/:module', name: 'TestingModule', component: () => import('../views/testing/TestingModuleView.vue') },
+        { path: 'testing/issues', name: 'TestingIssues', component: () => import('../views/testing/TestingIssuesView.vue') },
+        { path: 'testing/runs', name: 'TestingRuns', component: () => import('../views/testing/TestingRunsView.vue') },
+        { path: 'testing/selfcheck', name: 'TestingSelfCheck', component: () => import('../views/testing/TestingSelfCheckView.vue') },
       ],
     },
 

@@ -51,7 +51,6 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `sales-enablement` | Sales calls, demo prep, prospect research |
 | `klikk-design-standard` | Build/modify Vue admin UI |
 | `lease-rental-agreement` | Generate SA lease agreements |
-| `lease-docuseal` | E-signing workflows |
 | `lease-tiptap` | TipTap rich text editor for lease templates |
 | `lease-tiptap-to-pdf` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
 | `gotenberg` | Gotenberg Docker PDF service, HTML/Office→PDF, merge/split/encrypt |

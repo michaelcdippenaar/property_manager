@@ -1173,7 +1173,7 @@ const chatMessages = ref<{ role: 'user' | 'assistant'; content: string; tools_us
 const showCapabilities = ref(false)
 const editingTools = ['edit_lines', 'update_all', 'apply_formatting', 'insert_toc', 'renumber_sections', 'add_comment', 'highlight_fields']
 const skillTools = ['check_rha_compliance', 'format_sa_standard']
-const externalSkills = ['parse-lease-contract', 'docuseal']
+const externalSkills = ['parse-lease-contract']
 function isSkillTool(name: string): boolean { return skillTools.includes(name) }
 const chatInput    = ref('')
 const chatThinking = ref(false)

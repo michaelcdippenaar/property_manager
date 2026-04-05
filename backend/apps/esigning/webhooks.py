@@ -1,188 +1,19 @@
-import hashlib
-import hmac
-import json
 import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from django.utils.decorators import method_decorator
-from django.views import View
-from django.views.decorators.csrf import csrf_exempt
 
 from .models import ESigningPublicLink, ESigningSubmission
 
 logger = logging.getLogger(__name__)
 
 
-@method_decorator(csrf_exempt, name='dispatch')
-class DocuSealWebhookView(View):
-    """
-    POST /api/v1/esigning/webhook/
-    DocuSeal sends events here. We update submission status accordingly,
-    broadcast real-time updates via WebSocket, and — for sequential signing —
-    notify the next signer when the previous one completes.
-    """
-
-    def get(self, request):
-        """Reachability check from browser or uptime tools; DocuSeal still must POST events."""
-        return JsonResponse({
-            'detail': 'Tremly DocuSeal webhook receiver. Configure POST URL in DocuSeal to this path.',
-        })
-
-    def head(self, request):
-        return HttpResponse(status=200)
-
-    def post(self, request):
-        secret = (getattr(settings, 'DOCUSEAL_WEBHOOK_SECRET', '') or '').strip()
-        header_name = (getattr(settings, 'DOCUSEAL_WEBHOOK_HEADER_NAME', '') or '').strip()
-        if secret:
-            if header_name:
-                incoming = request.headers.get(header_name, '')
-                if not incoming or not hmac.compare_digest(incoming, secret):
-                    return HttpResponse('Invalid webhook secret header', status=400)
-            else:
-                sig = request.headers.get('X-Docuseal-Signature', '')
-                expected = hmac.new(secret.encode(), request.body, hashlib.sha256).hexdigest()
-                if not hmac.compare_digest(sig, expected):
-                    return HttpResponse('Invalid signature', status=400)
-
-        try:
-            payload = json.loads(request.body)
-        except json.JSONDecodeError:
-            return HttpResponse('Bad JSON', status=400)
-
-        event_type = payload.get('event_type', '')
-        data       = payload.get('data', {})
-
-        logger.info("DocuSeal webhook: %s", event_type)
-
-        submission_id = (
-            data.get('submission_id') or
-            data.get('submission', {}).get('id') or
-            data.get('id', '')
-        )
-        if not submission_id:
-            return HttpResponse('ok')
-
-        try:
-            obj = ESigningSubmission.objects.select_related(
-                'lease__unit__property',
-            ).get(docuseal_submission_id=str(submission_id))
-        except ESigningSubmission.DoesNotExist:
-            return HttpResponse('ok')
-
-        obj.webhook_payload = payload
-        ws_event = None  # Will be broadcast after save
-
-        if event_type == 'submission.completed':
-            obj.status = ESigningSubmission.Status.COMPLETED
-            # Prefer the actual signed document over the audit log
-            signed_url = (
-                data.get('documents', [{}])[0].get('url', '')
-                or data.get('audit_log_url', '')
-            )
-            if signed_url:
-                obj.signed_pdf_url = signed_url
-            obj.signers = _sync_signer_statuses(obj.signers, data.get('submitters', []))
-
-            # Activate the lease now that all parties have signed
-            _activate_lease(obj)
-
-            ws_event = {
-                'type': 'submission_completed',
-                'submission_id': obj.pk,
-                'signed_pdf_url': obj.signed_pdf_url,
-                'signers': obj.signers,
-            }
-
-        elif event_type == 'form.completed':
-            submitter = data.get('submitter') or data
-            submitter_id = str(submitter.get('id', ''))
-            obj.signers = _update_single_signer(obj.signers, submitter_id, {
-                'status': 'completed',
-                'completed_at': submitter.get('completed_at'),
-            })
-            if obj.status == ESigningSubmission.Status.PENDING:
-                obj.status = ESigningSubmission.Status.IN_PROGRESS
-
-            # Determine who just signed
-            completed_signer = _find_signer(obj.signers, submitter_id)
-
-            # In sequential mode, notify the next signer
-            next_signer = None
-            if obj.signing_mode == ESigningSubmission.SigningMode.SEQUENTIAL:
-                next_signer = _get_next_signer(obj.signers)
-                if next_signer:
-                    _notify_next_signer(obj, next_signer)
-
-            ws_event = {
-                'type': 'signer_completed',
-                'submission_id': obj.pk,
-                'completed_signer': completed_signer,
-                'next_signer': _safe_signer_info(next_signer) if next_signer else None,
-                'completed_count': sum(
-                    1 for s in obj.signers
-                    if (s.get('status') or '').lower() in ('completed', 'signed')
-                ),
-                'total_signers': len(obj.signers or []),
-                'signers': obj.signers,
-            }
-
-        elif event_type == 'submission.declined':
-            obj.status = ESigningSubmission.Status.DECLINED
-            submitter = data.get('submitter') or {}
-            submitter_id = str(submitter.get('id', ''))
-            if submitter_id:
-                obj.signers = _update_single_signer(obj.signers, submitter_id, {
-                    'status': 'declined',
-                })
-            ws_event = {
-                'type': 'signer_declined',
-                'submission_id': obj.pk,
-                'declined_signer': _find_signer(obj.signers, submitter_id),
-                'signers': obj.signers,
-            }
-
-        elif event_type in ('form.viewed', 'form.started'):
-            if obj.status == ESigningSubmission.Status.PENDING:
-                obj.status = ESigningSubmission.Status.IN_PROGRESS
-            submitter = data.get('submitter') or data
-            submitter_id = str(submitter.get('id', ''))
-            if submitter_id:
-                obj.signers = _update_single_signer(obj.signers, submitter_id, {
-                    'status': 'opened',
-                })
-            ws_event = {
-                'type': 'signer_viewed',
-                'submission_id': obj.pk,
-                'signer': _find_signer(obj.signers, submitter_id),
-                'signers': obj.signers,
-            }
-
-        obj.save()
-
-        # Broadcast via WebSocket
-        if ws_event:
-            _broadcast_ws(obj.pk, ws_event)
-
-        # Notify agent/admin who created the submission
-        if event_type in ('form.completed', 'submission.completed', 'submission.declined'):
-            _notify_staff(obj, event_type, data)
-
-        # Email signed copy to all signers when fully completed
-        if event_type == 'submission.completed':
-            _email_signed_copy_to_signers(obj, data)
-
-        return HttpResponse('ok')
-
-
 # ── Signer helpers ────────────────────────────────────────────────────
 
 
 def _sync_signer_statuses(signers: list, submitters: list) -> list:
-    """Bulk-update signer records from a list of DocuSeal submitters."""
+    """Bulk-update signer records from a list of submitter dicts."""
     updated = []
     for s in signers:
         matching = next(
@@ -200,7 +31,7 @@ def _sync_signer_statuses(signers: list, submitters: list) -> list:
 
 
 def _update_single_signer(signers: list, submitter_id: str, updates: dict) -> list:
-    """Update a single signer record by DocuSeal submitter ID."""
+    """Update a single signer record by signer ID."""
     if not submitter_id:
         return signers
     updated = []
@@ -212,7 +43,7 @@ def _update_single_signer(signers: list, submitter_id: str, updates: dict) -> li
 
 
 def _find_signer(signers: list, submitter_id: str) -> dict | None:
-    """Return signer dict by submitter ID, or None."""
+    """Return signer dict by ID, or None."""
     if not submitter_id:
         return None
     for s in signers or []:
@@ -222,7 +53,7 @@ def _find_signer(signers: list, submitter_id: str) -> dict | None:
 
 
 def _safe_signer_info(signer: dict) -> dict:
-    """Return signer dict safe for WebSocket/API (no embed_src leak)."""
+    """Return signer dict safe for WebSocket/API."""
     return {
         'id': signer.get('id'),
         'name': signer.get('name', ''),
@@ -279,18 +110,17 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
     """
     email = (next_signer.get('email') or '').strip()
     name = (next_signer.get('name') or '').strip()
-    submitter_id = next_signer.get('id')
+    signer_role = next_signer.get('role', '')
 
-    if not submitter_id:
-        logger.warning("Next signer has no submitter ID, cannot notify")
+    if not signer_role:
+        logger.warning("Next signer has no role, cannot notify")
         return
 
     # Create public signing link
     default_days = int(getattr(settings, 'ESIGNING_PUBLIC_LINK_EXPIRY_DAYS', 14))
     link = ESigningPublicLink.objects.create(
         submission=submission,
-        submitter_id=int(submitter_id),
-        signer_role=next_signer.get('role', ''),
+        signer_role=signer_role,
         expires_at=timezone.now() + timedelta(days=default_days),
     )
 
@@ -370,8 +200,8 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
             logger.exception("Failed to send next-signer SMS for submission %s", submission.pk)
 
     logger.info(
-        "Next signer notified: %s (submitter %s) for submission %s",
-        name or email, submitter_id, submission.pk,
+        "Next signer notified: %s for submission %s",
+        name or email, submission.pk,
     )
 
 
@@ -402,7 +232,6 @@ def _broadcast_ws(submission_pk: int, event: dict):
 def _notify_staff(submission: ESigningSubmission, event_type: str, data: dict):
     """
     Notify the agent/admin who created the submission about signing progress.
-    Uses email. Push notifications can be added when FCM is configured.
     """
     creator = submission.created_by
     if not creator or not creator.email:
@@ -431,8 +260,11 @@ def _notify_staff(submission: ESigningSubmission, event_type: str, data: dict):
             f"All signers have completed signing for {doc_title}.\n"
             f"The signed document is ready for download."
         )
-        if submission.signed_pdf_url:
-            body += f"\n\nSigned PDF: {submission.signed_pdf_url}"
+        if submission.signed_pdf_file:
+            try:
+                body += f"\n\nSigned PDF: {submission.signed_pdf_file.url}"
+            except Exception:
+                pass
     elif event_type == 'submission.declined':
         subject = f"Signing declined: {doc_title}"
         body = f"{signer_name} has declined to sign the document for {doc_title}."
@@ -453,44 +285,28 @@ def _email_signed_copy_to_signers(submission: ESigningSubmission, data: dict):
     """
     When a submission is fully completed, email a link to the signed PDF
     to every signer so they have a copy for their records.
-
-    DocuSeal file URLs contain time-limited tokens, so we fetch a fresh
-    URL from the API to ensure the download link in the email works.
     """
-    from . import services as esigning_services
-
     signed_url = None
 
-    # Fetch fresh URL from DocuSeal API (most reliable)
-    docuseal_id = submission.docuseal_submission_id
-    if docuseal_id:
+    # Use local signed PDF file URL
+    if submission.signed_pdf_file:
         try:
-            sub_data = esigning_services._docuseal_get(f'/submissions/{docuseal_id}')
-            docs = sub_data.get('documents') or []
-            if docs:
-                signed_url = docs[0].get('url', '')
+            signed_url = submission.signed_pdf_file.url
         except Exception:
-            logger.warning("Could not fetch fresh signed URL from DocuSeal for submission %s", submission.pk)
+            pass
 
-    # Fallback: use webhook data or stored URL
-    if not signed_url:
-        docs = data.get('documents') or []
-        if docs:
-            signed_url = docs[0].get('url', '')
-    if not signed_url:
-        signed_url = submission.signed_pdf_url
-    if not signed_url:
-        logger.warning(
-            "No signed PDF URL for submission %s — cannot email signers",
-            submission.pk,
-        )
-        return
-
-    # Ensure relative URLs (from local signed_pdf_file) become absolute
-    if signed_url.startswith('/'):
+    # Ensure relative URLs become absolute
+    if signed_url and signed_url.startswith('/'):
         from django.conf import settings
         base = getattr(settings, 'SITE_URL', '') or 'http://localhost:8000'
         signed_url = f"{base.rstrip('/')}{signed_url}"
+
+    if not signed_url:
+        logger.warning(
+            "No signed PDF for submission %s — cannot email signers",
+            submission.pk,
+        )
+        return
 
     prop = submission.lease.unit.property
     doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"

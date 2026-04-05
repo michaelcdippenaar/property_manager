@@ -122,6 +122,24 @@
           </div>
         </div>
 
+        <!-- Testing -->
+        <div>
+          <div v-if="!collapsed" class="sidebar-section-label">Developer</div>
+          <div class="space-y-0.5">
+            <RouterLink
+              v-for="item in testingItems"
+              :key="item.to"
+              :to="item.to"
+              class="sidebar-link"
+              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
+              :title="collapsed ? item.label : undefined"
+            >
+              <component :is="item.icon" :size="18" class="flex-shrink-0" />
+              <span v-if="!collapsed">{{ item.label }}</span>
+            </RouterLink>
+          </div>
+        </div>
+
         <!-- Setup -->
         <div>
           <div v-if="!collapsed" class="sidebar-section-label">Setup</div>
@@ -198,7 +216,7 @@ import ToastContainer from './ToastContainer.vue'
 import {
   LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText, FileSignature, Calendar,
   LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck,
-  Activity, HelpCircle, ShieldCheck, User,
+  Activity, HelpCircle, ShieldCheck, User, FlaskConical,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -233,6 +251,10 @@ const adminItems = [
   { to: '/admin/users', icon: ShieldCheck, label: 'Users' },
 ]
 
+const testingItems = [
+  { to: '/testing', icon: FlaskConical, label: 'Testing Portal' },
+]
+
 const propertyInfoSubItems = [
   { to: '/property-info/agent', icon: Sparkles, label: 'Agent Context' },
   { to: '/property-info/skills', icon: BookOpen, label: 'Skill Library' },
@@ -246,6 +268,7 @@ const allNavItems = [
   ...maintenanceSubItems,
   ...lifecycleItems,
   ...adminItems,
+  ...testingItems,
   ...propertyInfoSubItems,
   { to: '/profile', icon: User, label: 'Profile' },
 ]

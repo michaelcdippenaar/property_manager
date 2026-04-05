@@ -1,11 +1,17 @@
 # ═══════════════════════════════════════════════════════════════
-# THE KLIKK RENTAL LIFECYCLE — 15 stages, one platform
+# KLIKK LIFECYCLES
+#
+# Two lifecycle tracks:
+#   rental_lifecycle  — 15 stages, one platform
+#   sales_lifecycle   — Selling made simple
 #
 # Each step references a feature in features.yaml via feature_ref.
 # Status is resolved from features.yaml — never duplicated here.
 # ═══════════════════════════════════════════════════════════════
 
-lifecycle:
+# ── KLIKK RENTALS — 15 stages, one platform ────────────────
+
+rental_lifecycle:
   - step: 1
     title: Advertise
     description: "List vacancies on Property24 and Private Property"
@@ -80,3 +86,61 @@ lifecycle:
     title: Refund
     description: "Calculate deductions, refund within 14 days"
     feature_ref: deposit_refund
+
+# ── KLIKK REAL ESTATE — Selling made simple ─────────────────
+
+sales_lifecycle:
+  - step: 1
+    title: Prospect
+    description: "Find motivated sellers via referrals, farming, and digital leads"
+    feature_ref: sales_prospecting
+
+  - step: 2
+    title: Valuate
+    description: "Comparative Market Analysis and professional valuation"
+    feature_ref: property_valuation
+
+  - step: 3
+    title: Sign Mandate
+    description: "Sole, open, or dual mandate with mandatory disclosure"
+    feature_ref: mandate_signing
+
+  - step: 4
+    title: List & Market
+    description: "Property24, Private Property, social media, show days"
+    feature_ref: sales_listing_marketing
+
+  - step: 5
+    title: Viewings
+    description: "Show days, private viewings, buyer pre-screening"
+    feature_ref: sales_viewings
+
+  - step: 6
+    title: Negotiate
+    description: "Receive offers, counter-offer, agree on price and terms"
+    feature_ref: offer_negotiation
+
+  - step: 7
+    title: Sign OTP
+    description: "Execute Offer to Purchase with suspensive conditions"
+    feature_ref: otp_signing
+
+  - step: 8
+    title: Buyer Documents
+    description: "Collect FICA-compliant buyer documentation"
+    feature_ref: buyer_documentation
+
+  - step: 9
+    title: Bond Approval
+    description: "Track bond application, bank valuation, and approval"
+    feature_ref: bond_approval_tracking
+
+  - step: 10
+    title: Legal & Compliance
+    description: "Conveyancing, compliance certificates, rates and levy clearance"
+    feature_ref: legal_compliance_certs
+
+  - step: 11
+    title: Transfer
+    description: "Deeds Office registration, fund distribution, keys handover"
+    feature_ref: property_transfer

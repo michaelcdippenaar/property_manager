@@ -66,11 +66,9 @@ export interface Lease {
 export interface SigningSubmission {
   id: number
   lease: { id: number }
-  docuseal_submission_id: string
   status: SigningStatus
   signing_mode: 'parallel' | 'sequential'
   signers: { id: number; name: string; email: string; status: string }[]
-  signed_pdf_url: string
   created_at: string
   updated_at: string
 }
@@ -141,8 +139,7 @@ const BUILDER_FIELDS = `
 `
 
 const SIGNING_FIELDS = `
-  id status signingMode signers signedPdfUrl
-  docusealSubmissionId createdAt updatedAt
+  id status signingMode signers createdAt updatedAt
 `
 
 // ── Store ─────────────────────────────────────────────────────────────────

@@ -10,14 +10,13 @@ class ESigningSubmissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = ESigningSubmission
         fields = [
-            'id', 'lease', 'lease_label', 'docuseal_submission_id', 'docuseal_template_id',
-            'status', 'signing_mode', 'signing_backend', 'signers', 'signed_pdf_url',
+            'id', 'lease', 'lease_label',
+            'status', 'signing_mode', 'signing_backend', 'signers',
             'captured_data', 'created_at', 'updated_at',
             'current_signer', 'signing_progress',
         ]
         read_only_fields = [
-            'docuseal_submission_id', 'docuseal_template_id', 'status',
-            'signers', 'signed_pdf_url', 'created_at', 'updated_at',
+            'status', 'signers', 'created_at', 'updated_at',
         ]
 
     def get_lease_label(self, obj):

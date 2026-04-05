@@ -20,6 +20,7 @@ import { Highlight } from '@tiptap/extension-highlight'
 import { Placeholder } from '@tiptap/extension-placeholder'
 
 import { PaginationPlus } from 'tiptap-pagination-plus'
+import { PAGINATION_CONFIG } from '../config/tiptapSettings'
 import { MergeField } from '../extensions/MergeFieldNode'
 import { SignatureBlock } from '../extensions/SignatureBlockNode'
 import { PageBreak } from '../extensions/PageBreakNode'
@@ -102,24 +103,8 @@ export function useTiptapEditor(options: TiptapEditorOptions = {}) {
       FontSize,
       Placeholder.configure({ placeholder: options.placeholder || 'Start editing your lease template...' }),
       // Pagination — Google Docs-style page breaks
-      PaginationPlus.configure({
-        pageHeight: 1123,           // A4 height in px
-        pageWidth: 794,             // A4 width in px
-        pageGap: 40,                // gray gap between pages
-        pageGapBorderSize: 1,
-        pageGapBorderColor: '#c4c7c5',
-        pageBreakBackground: '#f8f9fa',
-        marginTop: 48,
-        marginBottom: 48,
-        marginLeft: 56,
-        marginRight: 56,
-        contentMarginTop: 0,
-        contentMarginBottom: 0,
-        footerRight: '{page}',
-        footerLeft: '',
-        headerRight: '',
-        headerLeft: '',
-      }),
+      // Config from shared tiptapSettings.ts — single source of truth
+      PaginationPlus.configure(PAGINATION_CONFIG),
       // Custom lease extensions
       MergeField,
       SignatureBlock,
@@ -143,7 +128,7 @@ export function useTiptapEditor(options: TiptapEditorOptions = {}) {
     isDirty.value = false
   }
 
-  /** Get clean HTML suitable for backend storage / DocuSeal */
+  /** Get clean HTML suitable for backend storage */
   function getHTML(): string {
     return editor.value?.getHTML() || ''
   }

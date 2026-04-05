@@ -2,6 +2,7 @@
 # KLIKK FEATURE REGISTRY — Single Source of Truth
 #
 # Status values: BUILT | IN_PROGRESS | PLANNED | BETA
+# Product values: rentals | real_estate | bi | shared
 #
 # When you ship a feature:
 #   1. Change status to BUILT
@@ -11,6 +12,10 @@
 
 features:
 
+  # ══════════════════════════════════════════════════════════════
+  # KLIKK RENTALS
+  # ══════════════════════════════════════════════════════════════
+
   # ── Lease Management ──────────────────────────────────────
 
   ai_lease_generation:
@@ -18,6 +23,8 @@ features:
     slug: ai-lease-generation
     status: BUILT
     shipped_date: 2026-03-15
+    product: rentals
+    release: v1
     category: leases
     backend_app: leases
     key_files:
@@ -38,6 +45,8 @@ features:
     slug: document-intelligence
     status: BUILT
     shipped_date: 2026-03-10
+    product: shared
+    release: v1
     category: leases
     backend_app: leases
     key_files:
@@ -58,6 +67,8 @@ features:
     slug: template-editor
     status: BUILT
     shipped_date: 2026-03-15
+    product: shared
+    release: v1
     category: leases
     backend_app: leases
     key_files:
@@ -78,6 +89,8 @@ features:
     slug: clause-library
     status: BUILT
     shipped_date: 2026-03-15
+    product: rentals
+    release: v1
     category: leases
     backend_app: leases
     key_files:
@@ -92,13 +105,15 @@ features:
     homepage_section: null
     lifecycle_step: null
 
-  # ── E-Signing ─────────────────────────────────────────────
+  # ── E-Signing (Shared) ───────────────────────────────────
 
   native_esigning:
     name: "Native E-Signing"
     slug: native-esigning
     status: BUILT
     shipped_date: 2026-03-20
+    product: shared
+    release: v1
     category: esigning
     backend_app: esigning
     key_files:
@@ -122,6 +137,8 @@ features:
     slug: supplier-matching
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
+    release: v1
     category: maintenance
     backend_app: maintenance
     key_files:
@@ -141,6 +158,8 @@ features:
     slug: maintenance-workflow
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
+    release: v1
     category: maintenance
     backend_app: maintenance
     key_files:
@@ -162,6 +181,7 @@ features:
     slug: tenant-app
     status: BUILT
     shipped_date: 2026-02-15
+    product: rentals
     category: tenant
     backend_app: null
     key_files:
@@ -182,6 +202,8 @@ features:
     slug: realtime-chat
     status: BUILT
     shipped_date: 2026-02-15
+    product: shared
+    release: v1
     category: tenant
     backend_app: maintenance
     key_files:
@@ -203,6 +225,7 @@ features:
     slug: owner-dashboard
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
     category: portals
     backend_app: accounts
     key_files:
@@ -222,6 +245,7 @@ features:
     slug: supplier-portal
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
     category: portals
     backend_app: maintenance
     key_files:
@@ -243,6 +267,7 @@ features:
     slug: tenant-onboarding
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
     category: onboarding
     backend_app: accounts
     key_files: []
@@ -263,6 +288,7 @@ features:
     slug: rent-tracking
     status: BUILT
     shipped_date: 2026-02-01
+    product: rentals
     category: financials
     backend_app: leases
     key_files: []
@@ -281,6 +307,7 @@ features:
     slug: lease-renewal
     status: BUILT
     shipped_date: 2026-03-01
+    product: rentals
     category: leases
     backend_app: leases
     key_files: []
@@ -294,13 +321,14 @@ features:
     homepage_section: null
     lifecycle_step: 12
 
-  # ── PLANNED Features ──────────────────────────────────────
+  # ── PLANNED Rental Features ──────────────────────────────
 
   property_advertising:
     name: "Vacancy Advertising"
     slug: vacancy-advertising
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: marketing
     backend_app: null
     key_files: []
@@ -319,6 +347,7 @@ features:
     slug: property-viewings
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: marketing
     backend_app: null
     key_files: []
@@ -337,6 +366,7 @@ features:
     slug: tenant-screening
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: onboarding
     backend_app: null
     key_files: []
@@ -357,6 +387,7 @@ features:
     slug: deposit-management
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: financials
     backend_app: null
     key_files: []
@@ -375,6 +406,7 @@ features:
     slug: incoming-inspection
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: inspections
     backend_app: null
     key_files: []
@@ -393,6 +425,7 @@ features:
     slug: notice-management
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: leases
     backend_app: null
     key_files: []
@@ -411,6 +444,7 @@ features:
     slug: outgoing-inspection
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: inspections
     backend_app: null
     key_files: []
@@ -429,6 +463,7 @@ features:
     slug: deposit-refund
     status: PLANNED
     shipped_date: null
+    product: rentals
     category: financials
     backend_app: null
     key_files: []
@@ -441,3 +476,291 @@ features:
     show_on_homepage: true
     homepage_section: lifecycle
     lifecycle_step: 15
+
+  # ══════════════════════════════════════════════════════════════
+  # KLIKK REAL ESTATE — Selling made simple
+  # ══════════════════════════════════════════════════════════════
+
+  sales_prospecting:
+    name: "Seller Prospecting"
+    slug: seller-prospecting
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Seller Prospecting"
+    tagline: "Find motivated sellers, faster"
+    description: >
+      Capture seller leads from referrals, expired listings, geographic
+      farming, and digital channels. FICA pre-screening at first contact.
+    icon: target
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S1
+
+  property_valuation:
+    name: "Property Valuation (CMA)"
+    slug: property-valuation
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Property Valuation"
+    tagline: "Data-driven pricing, every time"
+    description: >
+      Comparative Market Analysis using recent comparable sales. Calculate
+      price per m², adjust for property-specific factors, and present a
+      professional valuation report to the seller.
+    icon: trending-up
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S2
+
+  mandate_signing:
+    name: "Mandate Signing"
+    slug: mandate-signing
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Mandate Signing"
+    tagline: "Sole, open, or dual — digitally signed"
+    description: >
+      Generate and sign sole, open, or dual mandates with mandatory
+      property disclosure form attached. PPA and CPA compliant.
+      Commission terms, marketing permissions, and period defined.
+    icon: file-signature
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S3
+
+  sales_listing_marketing:
+    name: "Listing & Marketing"
+    slug: sales-listing-marketing
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Listing & Marketing"
+    tagline: "List once, reach every buyer"
+    description: >
+      Publish to Property24, Private Property, and social media from one
+      dashboard. Professional photo management, virtual tours, show day
+      scheduling, and signage tracking.
+    icon: megaphone
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S4
+
+  sales_viewings:
+    name: "Sales Viewings"
+    slug: sales-viewings
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Sales Viewings"
+    tagline: "Schedule, show, convert"
+    description: >
+      Schedule show days and private viewings. Register attendees, capture
+      buyer feedback, pre-screen for affordability, and track
+      viewing-to-offer conversion rates.
+    icon: calendar
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S5
+
+  offer_negotiation:
+    name: "Offer Negotiation"
+    slug: offer-negotiation
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Offer Negotiation"
+    tagline: "Every offer, presented and tracked"
+    description: >
+      Receive and manage written Offers to Purchase. Present all offers
+      to the seller, facilitate counter-offers, and negotiate price,
+      occupation date, and suspensive conditions — all documented.
+    icon: message-circle
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S6
+
+  otp_signing:
+    name: "OTP Signing"
+    slug: otp-signing
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "OTP Signing"
+    tagline: "Offer to Purchase, signed and sealed"
+    description: >
+      Generate and sign Offers to Purchase per the Alienation of Land Act.
+      Suspensive conditions, fixtures, voetstoots clause, and mandatory
+      disclosure form included. Track condition deadlines automatically.
+    icon: pen-tool
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S7
+
+  buyer_documentation:
+    name: "Buyer Documentation (FICA)"
+    slug: buyer-documentation
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Buyer Documentation"
+    tagline: "FICA-compliant, hassle-free"
+    description: >
+      Collect and verify buyer FICA documents: certified ID, proof of
+      address, income, bank statements, marriage certificate/ANC. Support
+      for natural persons and juristic entities (companies, trusts).
+    icon: folder-check
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S8
+
+  bond_approval_tracking:
+    name: "Bond Approval Tracking"
+    slug: bond-approval-tracking
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Bond Approval Tracking"
+    tagline: "Application to approval, tracked"
+    description: >
+      Track bond applications across banks and originators. Monitor NCA
+      affordability assessment, bank valuation status, and approval
+      progress. Automatic alerts on suspensive condition deadlines.
+    icon: landmark
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S9
+
+  legal_compliance_certs:
+    name: "Legal & Compliance Certificates"
+    slug: legal-compliance-certs
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Legal & Compliance"
+    tagline: "Every certificate, every clearance"
+    description: >
+      Track conveyancing progress, compliance certificates (electrical,
+      gas, beetle, electric fence, plumbing), rates clearance, levy
+      clearance, and transfer duty payment. Nothing falls through the cracks.
+    icon: shield-check
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S10
+
+  property_transfer:
+    name: "Property Transfer"
+    slug: property-transfer
+    status: PLANNED
+    shipped_date: null
+    product: real_estate
+    category: sales
+    backend_app: null
+    key_files: []
+    headline: "Property Transfer"
+    tagline: "Lodgement to keys, tracked end-to-end"
+    description: >
+      Track Deeds Office lodgement, examination, and registration.
+      Automated fund distribution on registration: purchase price to
+      seller, commission to agent, clearances to municipality. Occupation
+      handover and key management.
+    icon: home
+    show_on_homepage: true
+    homepage_section: lifecycle
+    lifecycle_step: S11
+
+  # ══════════════════════════════════════════════════════════════
+  # KLIKK BI — Data-driven property decisions
+  # ══════════════════════════════════════════════════════════════
+
+  market_analytics:
+    name: "Market Analytics"
+    slug: market-analytics
+    status: PLANNED
+    shipped_date: null
+    product: bi
+    category: analytics
+    backend_app: null
+    key_files: []
+    headline: "Market Analytics"
+    tagline: "Know the market before it moves"
+    description: >
+      CMA tools, area price trends, comparable sales data, and market
+      reports. Suburb-level supply/demand indicators and property value
+      forecasts to support valuations and client conversations.
+    icon: bar-chart
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  agency_dashboard:
+    name: "Agency Operations Dashboard"
+    slug: agency-dashboard
+    status: PLANNED
+    shipped_date: null
+    product: bi
+    category: analytics
+    backend_app: null
+    key_files: []
+    headline: "Agency Dashboard"
+    tagline: "Your agency at a glance"
+    description: >
+      Agent performance dashboards, pipeline tracking (leads to transfers),
+      commission forecasting, revenue analytics, team KPIs, and
+      leaderboards. Built for agency principals and franchise owners.
+    icon: layout-dashboard
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  lead_analytics:
+    name: "Lead Analytics"
+    slug: lead-analytics
+    status: PLANNED
+    shipped_date: null
+    product: bi
+    category: analytics
+    backend_app: null
+    key_files: []
+    headline: "Lead Analytics"
+    tagline: "From lead to close, measured"
+    description: >
+      Track lead sources, conversion funnels, cost per lead, and
+      agent response times. Identify top-performing channels and
+      optimise marketing spend with data.
+    icon: funnel
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null

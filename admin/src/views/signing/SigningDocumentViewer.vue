@@ -1,6 +1,6 @@
 <template>
   <div class="signing-document-viewer" style="background:#f1f3f4;">
-    <div class="max-w-[816px] mx-auto py-6 px-4">
+    <div class="tiptap-page-container mx-auto py-6">
       <editor-content
         :editor="editor"
         class="tiptap-editor bg-white"

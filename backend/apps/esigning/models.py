@@ -18,7 +18,6 @@ class ESigningSubmission(models.Model):
         SEQUENTIAL = "sequential", "Sequential — one after the other"
 
     class SigningBackend(models.TextChoices):
-        DOCUSEAL = "docuseal", "DocuSeal"
         NATIVE = "native", "Native"
 
     lease = models.ForeignKey(
@@ -30,8 +29,6 @@ class ESigningSubmission(models.Model):
         default=SigningBackend.NATIVE,
         help_text="Which signing engine handles this submission.",
     )
-    docuseal_submission_id = models.CharField(max_length=100, blank=True)
-    docuseal_template_id = models.CharField(max_length=100, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     signing_mode = models.CharField(
         max_length=12,
@@ -40,7 +37,6 @@ class ESigningSubmission(models.Model):
         help_text="Sequential: signers proceed in order. Parallel: all sign at once.",
     )
     signers = models.JSONField(default=list)
-    signed_pdf_url = models.TextField(blank=True, help_text="URL to the signed PDF on DocuSeal (can be long)")
     document_html = models.TextField(
         blank=True,
         help_text="Snapshot of filled lease HTML at submission time (native signing).",
@@ -74,24 +70,7 @@ class ESigningSubmission(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        return f"Submission {self.docuseal_submission_id or self.pk} ({self.status})"
-
-    def get_signer_by_submitter_id(self, submitter_id):
-        """Return the signer dict from JSON for this DocuSeal submitter id, or None."""
-        try:
-            tid = int(submitter_id)
-        except (TypeError, ValueError):
-            return None
-        for row in self.signers or []:
-            rid = row.get("id")
-            if rid is None:
-                continue
-            try:
-                if int(rid) == tid:
-                    return row
-            except (TypeError, ValueError):
-                continue
-        return None
+        return f"Submission {self.pk} ({self.status})"
 
 
 class ESigningAuditEvent(models.Model):
@@ -104,6 +83,9 @@ class ESigningAuditEvent(models.Model):
         SIGNING_COMPLETED = "signing_completed", "Signing Completed"
         DOCUMENT_COMPLETED = "document_completed", "Document Completed"
         LINK_EXPIRED = "link_expired", "Link Expired"
+        DRAFT_SAVED = "draft_saved", "Draft Saved"
+        SUPPORTING_DOC_UPLOADED = "supporting_doc_uploaded", "Supporting Document Uploaded"
+        SUPPORTING_DOC_DELETED = "supporting_doc_deleted", "Supporting Document Deleted"
 
     submission = models.ForeignKey(ESigningSubmission, on_delete=models.CASCADE, related_name="audit_events")
     signer_role = models.CharField(max_length=100, blank=True)
@@ -125,24 +107,16 @@ class ESigningAuditEvent(models.Model):
 
 
 class ESigningPublicLink(models.Model):
-    """
-    Unguessable link (UUID) for passwordless signing in the admin SPA.
-    Scoped to one DocuSeal submitter on one submission.
-    """
+    """Unguessable link (UUID) for passwordless signing in the admin SPA."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     submission = models.ForeignKey(
         ESigningSubmission, on_delete=models.CASCADE, related_name="public_links"
     )
-    submitter_id = models.PositiveIntegerField(
-        null=True,
-        blank=True,
-        help_text="DocuSeal submitter id (matches signers[].id on the submission JSON).",
-    )
     signer_role = models.CharField(
         max_length=50,
         blank=True,
-        help_text="Signer role for native signing (e.g. 'tenant_1', 'landlord').",
+        help_text="Signer role (e.g. 'tenant_1', 'landlord').",
     )
     expires_at = models.DateTimeField()
     created_at = models.DateTimeField(auto_now_add=True)
@@ -155,3 +129,84 @@ class ESigningPublicLink(models.Model):
 
     def is_expired(self):
         return timezone.now() >= self.expires_at
+
+
+class SigningDraft(models.Model):
+    """
+    Persists a tenant's partial signing progress between sessions.
+    Created/overwritten whenever the tenant clicks "Save & Continue Later".
+    Keyed 1-to-1 on the ESigningPublicLink so each signer has their own draft.
+    """
+
+    public_link = models.OneToOneField(
+        ESigningPublicLink,
+        on_delete=models.CASCADE,
+        related_name="draft",
+    )
+    # Serialised signature state: {fieldName: {imageData: str, signedAt: ISO}}
+    signed_fields_data = models.JSONField(
+        default=dict,
+        help_text="Partially captured signature fields keyed by field name.",
+    )
+    # Serialised merge-field state: {fieldName: value}
+    captured_fields_data = models.JSONField(
+        default=dict,
+        help_text="Partially captured merge-field (text) values.",
+    )
+    saved_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Signing Draft"
+
+    def __str__(self):
+        return f"Draft for link {self.public_link_id} (saved {self.saved_at:%Y-%m-%d %H:%M})"
+
+
+class SupportingDocument(models.Model):
+    """
+    Supporting documents uploaded by a tenant during the signing flow.
+    Examples: 3-month bank statement, copy of ID, proof of address.
+    Scoped to both the public link (who uploaded) and the submission (what lease).
+    """
+
+    class DocumentType(models.TextChoices):
+        BANK_STATEMENT = "bank_statement", "Bank Statement (3 months)"
+        ID_COPY = "id_copy", "Copy of ID"
+        PROOF_OF_ADDRESS = "proof_of_address", "Proof of Address"
+        OTHER = "other", "Other"
+
+    public_link = models.ForeignKey(
+        ESigningPublicLink,
+        on_delete=models.CASCADE,
+        related_name="supporting_documents",
+    )
+    submission = models.ForeignKey(
+        ESigningSubmission,
+        on_delete=models.CASCADE,
+        related_name="supporting_documents",
+    )
+    document_type = models.CharField(
+        max_length=30,
+        choices=DocumentType.choices,
+        default=DocumentType.OTHER,
+    )
+    file = models.FileField(
+        upload_to="esigning/supporting_docs/%Y/%m/",
+        help_text="Accepted: PDF, JPEG, PNG — max 10 MB.",
+    )
+    original_filename = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(default=0, help_text="File size in bytes.")
+    notes = models.TextField(blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by_role = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Signer role from ESigningPublicLink (e.g. 'tenant_1').",
+    )
+
+    class Meta:
+        ordering = ["document_type", "uploaded_at"]
+        verbose_name = "Supporting Document"
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} — {self.original_filename}"

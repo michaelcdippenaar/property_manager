@@ -277,6 +277,26 @@
                 Save contact to tenant record
               </label>
             </div>
+
+            <!-- Required documents -->
+            <div class="pt-2 border-t border-gray-100">
+              <p class="text-micro font-medium text-gray-500 mb-1.5 uppercase tracking-wide">Required Documents</p>
+              <div class="flex flex-wrap gap-3">
+                <label
+                  v-for="doc in SIGNER_DOC_TYPES"
+                  :key="doc.key"
+                  class="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    class="rounded"
+                    :checked="(signer.required_documents ?? []).includes(doc.key)"
+                    @change="toggleSignerDoc(signer, doc.key, ($event.target as HTMLInputElement).checked)"
+                  />
+                  {{ doc.label }}
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -316,6 +336,20 @@ import {
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
 
+// ── Document type config ─────────────────────────────────────────────── //
+const SIGNER_DOC_TYPES = [
+  { key: 'bank_statement',   label: 'Bank Statement (3 months)' },
+  { key: 'id_copy',          label: 'Copy of ID / Passport' },
+  { key: 'proof_of_address', label: 'Proof of Address' },
+]
+
+function toggleSignerDoc(signer: DraftSigner, key: string, checked: boolean) {
+  const docs = [...(signer.required_documents ?? [])]
+  if (checked && !docs.includes(key)) docs.push(key)
+  else if (!checked) { const i = docs.indexOf(key); if (i > -1) docs.splice(i, 1) }
+  signer.required_documents = docs
+}
+
 const props = defineProps<{
   leaseId: number
   leaseTenants?: any[]
@@ -343,6 +377,7 @@ interface DraftSigner {
   send_email: boolean
   personId?: number
   saveToRecord?: boolean
+  required_documents?: string[]
 }
 const draftSigners = ref<DraftSigner[]>([])
 
@@ -617,13 +652,15 @@ function buildDefaultSigners(): DraftSigner[] {
     ]
   }
   const signers: DraftSigner[] = tenants.map((t, i) => ({
-    name:         t.person?.full_name ?? t.full_name ?? '',
-    email:        t.person?.email     ?? t.email     ?? '',
-    phone:        t.person?.phone     ?? t.phone     ?? '',
-    role:         i === 0 ? 'Tenant' : 'Co-Tenant',
-    send_email:   true,
-    personId:     t.person?.id ?? t.id ?? undefined,
-    saveToRecord: false,
+    name:               t.person?.full_name ?? t.full_name ?? '',
+    email:              t.person?.email     ?? t.email     ?? '',
+    phone:              t.person?.phone     ?? t.phone     ?? '',
+    role:               i === 0 ? 'Tenant' : 'Co-Tenant',
+    send_email:         true,
+    personId:           t.person?.id ?? t.id ?? undefined,
+    saveToRecord:       false,
+    // Default to all doc types when not set — agent can untick in the modal
+    required_documents: t.required_documents?.length ? t.required_documents : SIGNER_DOC_TYPES.map(d => d.key),
   }))
 
   // Auto-add landlord as last signer
@@ -650,7 +687,10 @@ function closeModal() {
 }
 
 function addSigner() {
-  draftSigners.value.push({ name: '', email: '', phone: '', role: 'Signer', send_email: true })
+  draftSigners.value.push({
+    name: '', email: '', phone: '', role: 'Signer', send_email: true,
+    required_documents: SIGNER_DOC_TYPES.map(d => d.key),
+  })
 }
 
 function removeSigner(idx: number) {

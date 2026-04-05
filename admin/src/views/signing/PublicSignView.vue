@@ -18,7 +18,7 @@
         v-if="showForm && !completed && !errorMsg"
         class="flex-shrink-0 text-xs text-white/50 hidden sm:block"
       >
-        <template v-if="signingBackend === 'native' && signingFields.length">
+        <template v-if="signingFields.length">
           Field {{ currentFieldIndex + 1 }} of {{ signingFields.length }}
         </template>
         <template v-else>
@@ -144,8 +144,166 @@
       </div>
     </div>
 
-    <!-- ══════════════ NATIVE SIGNING FORM ══════════════ -->
-    <template v-else-if="signingBackend === 'native' && showForm">
+    <!-- ══════════════ DOCUMENTS STEP ══════════════ -->
+    <div v-else-if="showDocumentsStep" class="flex-1 overflow-auto">
+      <div class="max-w-lg mx-auto px-4 py-8 space-y-5">
+
+        <!-- Header -->
+        <div class="text-center">
+          <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-navy/10 flex items-center justify-center">
+            <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </div>
+          <h2 class="text-lg font-semibold text-gray-900">Upload Supporting Documents</h2>
+          <p class="text-sm text-gray-500 mt-1">
+            Please upload the following documents before signing.
+          </p>
+        </div>
+
+        <!-- Document type cards -->
+        <div class="space-y-3">
+          <div
+            v-for="docType in DOCUMENT_TYPES"
+            :key="docType.key"
+            class="bg-white rounded-xl border border-gray-200 overflow-hidden"
+          >
+            <div class="px-4 py-3 flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3 min-w-0">
+                <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                     :class="uploadedByType[docType.key]?.length ? 'bg-green-50' : 'bg-navy/5'">
+                  <!-- Uploaded: green check -->
+                  <svg v-if="uploadedByType[docType.key]?.length" class="w-4.5 h-4.5 text-green-600"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                  </svg>
+                  <!-- Bank statement icon -->
+                  <svg v-else-if="docType.key === 'bank_statement'" class="w-4.5 h-4.5 text-navy/60"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+                  </svg>
+                  <!-- ID icon -->
+                  <svg v-else-if="docType.key === 'id_copy'" class="w-4.5 h-4.5 text-navy/60"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c0 2.21 4 3 4 3"/>
+                  </svg>
+                  <!-- Proof of address icon -->
+                  <svg v-else class="w-4.5 h-4.5 text-navy/60"
+                       fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                      d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                  </svg>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm font-medium text-gray-900">{{ docType.label }}</span>
+                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                          :class="docType.required ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'">
+                      {{ docType.required ? 'Required' : 'Optional' }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-0.5">{{ docType.hint }}</p>
+
+                  <!-- Uploaded files list -->
+                  <div v-if="uploadedByType[docType.key]?.length" class="mt-2 space-y-1">
+                    <div v-for="doc in uploadedByType[docType.key]" :key="doc.id"
+                         class="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">
+                      <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      <span class="flex-1 truncate font-mono">{{ doc.original_filename }}</span>
+                      <span class="text-gray-400 flex-shrink-0">{{ formatFileSize(doc.file_size) }}</span>
+                      <button @click="removeDocument(doc.id)" :disabled="uploadingFor === docType.key"
+                              class="text-red-400 hover:text-red-600 flex-shrink-0 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Upload button -->
+              <div class="flex-shrink-0">
+                <label :for="`upload-${docType.key}`"
+                       class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                       :class="uploadingFor === docType.key
+                         ? 'border-navy/20 text-navy/50 bg-navy/5 cursor-not-allowed'
+                         : 'border-navy/30 text-navy hover:bg-navy/5'">
+                  <svg v-if="uploadingFor !== docType.key" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  {{ uploadingFor === docType.key ? 'Uploading…' : 'Upload' }}
+                </label>
+                <input :id="`upload-${docType.key}`" type="file"
+                       accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                       class="hidden"
+                       :disabled="uploadingFor === docType.key"
+                       @change="(e) => onFileSelected(e, docType.key)" />
+              </div>
+            </div>
+
+            <!-- Upload error for this type -->
+            <div v-if="uploadErrorFor === docType.key"
+                 class="px-4 pb-3 text-xs text-red-600">
+              {{ uploadError }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Accepted formats note -->
+        <p class="text-center text-xs text-gray-400">
+          Accepted: PDF, JPEG, PNG &middot; Max 10 MB per file
+        </p>
+
+        <!-- Continue button -->
+        <div class="space-y-2 pt-1">
+          <button
+            @click="onContinueToSigning"
+            class="w-full py-3 rounded-xl text-sm font-semibold text-white transition-all bg-navy hover:bg-navy/90 shadow-sm"
+          >
+            Continue to Signing
+            <span v-if="missingRequiredDocs > 0" class="ml-1 opacity-70 font-normal">
+              ({{ missingRequiredDocs }} required doc{{ missingRequiredDocs > 1 ? 's' : '' }} missing)
+            </span>
+          </button>
+          <p v-if="missingRequiredDocs > 0" class="text-center text-xs text-amber-600">
+            You can continue without all documents, but they may be requested later.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════ SIGNING FORM ══════════════ -->
+    <template v-else-if="showForm">
+
+      <!-- Draft restore banner (shown until dismissed) -->
+      <div v-if="showDraftRestoredBanner"
+           class="bg-blue-50 border-b border-blue-200 px-5 py-2.5 flex items-center justify-between">
+        <div class="flex items-center gap-2 text-xs text-blue-700">
+          <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>Progress restored from your last session ({{ draftSavedAt }}).</span>
+        </div>
+        <button @click="showDraftRestoredBanner = false"
+                class="text-blue-400 hover:text-blue-600 ml-4 flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
       <div class="flex-1 overflow-auto relative">
         <SigningDocumentViewer
           :html="documentHtml"
@@ -158,19 +316,43 @@
         />
 
         <!-- Floating action bar -->
-        <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-5 py-3 flex items-center justify-between">
-          <div class="text-xs text-gray-500">
-            <template v-if="unfilledMergeFieldCount > 0">
-              {{ unfilledMergeFieldCount }} info field{{ unfilledMergeFieldCount > 1 ? 's' : '' }} to fill
-            </template>
-            <template v-else-if="unsignedFieldCount > 0">
-              {{ unsignedFieldCount }} signature{{ unsignedFieldCount > 1 ? 's' : '' }} remaining
-            </template>
-            <template v-else>
-              All fields complete
-            </template>
+        <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-5 py-3 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="text-xs text-gray-500 truncate">
+              <template v-if="unfilledMergeFieldCount > 0">
+                {{ unfilledMergeFieldCount }} info field{{ unfilledMergeFieldCount > 1 ? 's' : '' }} to fill
+              </template>
+              <template v-else-if="unsignedFieldCount > 0">
+                {{ unsignedFieldCount }} signature{{ unsignedFieldCount > 1 ? 's' : '' }} remaining
+              </template>
+              <template v-else>
+                All fields complete
+              </template>
+            </div>
+            <!-- Save toast -->
+            <Transition name="fade-toast">
+              <span v-if="savedToast" class="text-xs text-green-600 font-medium flex-shrink-0">
+                ✓ Saved
+              </span>
+            </Transition>
           </div>
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Save progress -->
+            <button
+              @click="saveDraft"
+              :disabled="savingDraft"
+              class="px-3 py-2 text-xs font-medium text-gray-500 hover:text-navy rounded-lg transition-colors border border-gray-200 hover:border-navy/30"
+              title="Save your progress and continue later"
+            >
+              <svg v-if="!savingDraft" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
+              </svg>
+              <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+              </svg>
+            </button>
             <button
               v-if="unsignedFieldCount > 0 || unfilledMergeFieldCount > 0"
               @click="scrollToNextField"
@@ -211,28 +393,6 @@
       />
     </template>
 
-    <!-- ══════════════ DOCUSEAL SIGNING FORM (backward compat) ══════════════ -->
-    <div v-else-if="signingBackend === 'docuseal' && embedSrc && showForm" class="flex-1 overflow-auto">
-      <DocusealForm
-        :src="embedSrc"
-        :email="signerEmail"
-        :role="signerRole"
-        :expand="true"
-        :with-title="false"
-        :with-send-copy-button="false"
-        :with-download-button="true"
-        :with-field-names="false"
-        :go-to-last="false"
-        :allow-to-resubmit="false"
-        :allow-typed-signature="true"
-        :autoscroll-fields="true"
-        background-color="#f9fafb"
-        :custom-css="formCss"
-        @completed="onCompleted"
-        @declined="onDeclined"
-        class="w-full h-full"
-      />
-    </div>
   </div>
 </template>
 
@@ -240,23 +400,28 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import axios from 'axios'
-import { DocusealForm } from '@docuseal/vue'
 import SigningDocumentViewer from './SigningDocumentViewer.vue'
 import SignatureCapture from './SignatureCapture.vue'
 
+// ── Document type master list ────────────────────────────────────────
+const ALL_DOC_TYPE_META: Record<string, { label: string; hint: string }> = {
+  bank_statement:   { label: 'Bank Statement', hint: '3 months most recent — confirms income & affordability' },
+  id_copy:          { label: 'Copy of ID / Passport', hint: 'South African ID document or valid passport' },
+  proof_of_address: { label: 'Proof of Address', hint: 'Utility bill or bank letter not older than 3 months' },
+}
+
+// Set by API on load — keys of doc types the landlord requires for this signer
+const requiredDocKeys = ref<string[]>(['bank_statement', 'id_copy', 'proof_of_address'])
+
+// Computed list used by the documents step template
+const DOCUMENT_TYPES = computed(() =>
+  requiredDocKeys.value
+    .filter(k => ALL_DOC_TYPE_META[k])
+    .map(k => ({ key: k, ...ALL_DOC_TYPE_META[k], required: true }))
+)
+
 const route = useRoute()
 const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
-
-// DocuSeal custom CSS (kept for backward compat)
-const formCss = `
-  .form-container { max-height: 260px !important; padding: 10px 12px !important; }
-  .draw-canvas { max-height: 100px !important; }
-  .steps-form { gap: 4px !important; }
-  .submit-form-button, .base-button {
-    background-color: #1e3a5f !important; border-radius: 8px !important; font-weight: 600 !important;
-  }
-  .submit-form-button:hover, .base-button:hover { background-color: #2d4a6f !important; }
-`
 
 // State
 const loading = ref(true)
@@ -267,12 +432,11 @@ const consentGiven = ref(false)
 const submitting = ref(false)
 
 // Document / signer info
-const signingBackend = ref<'native' | 'docuseal'>('native')
+const signingBackend = ref<'native'>('native')
 const docTitle = ref('')
 const signerName = ref('')
 const signerEmail = ref('')
 const signerRole = ref('')
-const embedSrc = ref('')
 
 // Native signing state
 const documentHtml = ref('')
@@ -292,6 +456,154 @@ const editableMergeFields = ref<Array<{ fieldName: string; category: string; edi
 
 function onMergeFieldChange(fieldName: string, value: string) {
   capturedFields[fieldName] = value
+}
+
+// ── Documents step state ────────────────────────────────────────────
+const showDocumentsStep = ref(false)
+const uploadedDocs = ref<Array<{
+  id: number
+  document_type: string
+  document_type_label: string
+  original_filename: string
+  file_size: number
+  notes: string
+}>>([])
+const uploadingFor = ref('')
+const uploadError = ref('')
+const uploadErrorFor = ref('')
+
+const uploadedByType = computed(() => {
+  const map: Record<string, typeof uploadedDocs.value> = {}
+  for (const doc of uploadedDocs.value) {
+    if (!map[doc.document_type]) map[doc.document_type] = []
+    map[doc.document_type].push(doc)
+  }
+  return map
+})
+
+const missingRequiredDocs = computed(() =>
+  DOCUMENT_TYPES.filter(
+    t => t.required && !(uploadedByType.value[t.key]?.length)
+  ).length
+)
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+async function onFileSelected(event: Event, docType: string) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  input.value = '' // reset so same file can be reselected
+  uploadingFor.value = docType
+  uploadError.value = ''
+  uploadErrorFor.value = ''
+
+  const form = new FormData()
+  form.append('file', file)
+  form.append('document_type', docType)
+
+  try {
+    const res = await axios.post(
+      `${apiBase}/esigning/public-sign/${token.value}/documents/`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    uploadedDocs.value.push(res.data)
+  } catch (e: any) {
+    const d = e?.response?.data
+    uploadError.value =
+      (typeof d?.detail === 'string' && d.detail) ||
+      e?.message ||
+      'Upload failed. Please try again.'
+    uploadErrorFor.value = docType
+  } finally {
+    uploadingFor.value = ''
+  }
+}
+
+async function removeDocument(docId: number) {
+  try {
+    await axios.delete(`${apiBase}/esigning/public-sign/${token.value}/documents/${docId}/`)
+    uploadedDocs.value = uploadedDocs.value.filter(d => d.id !== docId)
+  } catch {
+    // silent — file may already be gone
+  }
+}
+
+async function loadUploadedDocs() {
+  try {
+    const res = await axios.get(`${apiBase}/esigning/public-sign/${token.value}/documents/`)
+    uploadedDocs.value = res.data.documents || []
+    if (res.data.required_documents?.length) {
+      requiredDocKeys.value = res.data.required_documents
+    }
+  } catch {
+    // non-fatal
+  }
+}
+
+function onContinueToSigning() {
+  showDocumentsStep.value = false
+}
+
+// ── Draft save / restore ────────────────────────────────────────────
+const savingDraft = ref(false)
+const savedToast = ref(false)
+const showDraftRestoredBanner = ref(false)
+const draftSavedAt = ref('')
+
+async function saveDraft() {
+  if (savingDraft.value) return
+  savingDraft.value = true
+  const signedFieldsObj: Record<string, { imageData: string; signedAt: string }> = {}
+  signedFieldsMap.forEach((val, key) => { signedFieldsObj[key] = val })
+  try {
+    await axios.post(
+      `${apiBase}/esigning/public-sign/${token.value}/draft/`,
+      {
+        signed_fields: signedFieldsObj,
+        captured_fields: { ...capturedFields },
+      },
+    )
+    savedToast.value = true
+    setTimeout(() => { savedToast.value = false }, 2500)
+  } catch {
+    // non-fatal — user can try again
+  } finally {
+    savingDraft.value = false
+  }
+}
+
+async function checkForDraft() {
+  try {
+    const res = await axios.get(`${apiBase}/esigning/public-sign/${token.value}/draft/`)
+    if (res.data?.has_draft) {
+      // Restore signed fields
+      const fields = res.data.signed_fields || {}
+      Object.entries(fields).forEach(([k, v]: [string, any]) => {
+        signedFieldsMap.set(k, v)
+      })
+      // Restore captured merge fields
+      const captured = res.data.captured_fields || {}
+      Object.assign(capturedFields, captured)
+      // Show restored banner
+      const savedDate = res.data.saved_at ? new Date(res.data.saved_at) : null
+      if (savedDate) {
+        draftSavedAt.value = savedDate.toLocaleString('en-ZA', {
+          day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+        })
+      }
+      if (Object.keys(fields).length > 0 || Object.keys(captured).length > 0) {
+        showDraftRestoredBanner.value = true
+      }
+    }
+  } catch {
+    // non-fatal
+  }
 }
 
 const signerLine = computed(() => {
@@ -326,15 +638,14 @@ onMounted(async () => {
       { headers: { Accept: 'application/json' } },
     )
 
-    signingBackend.value = res.data.signing_backend || 'docuseal'
+    signingBackend.value = 'native'
     docTitle.value = res.data.document_title || ''
     signerName.value = res.data.signer_name || ''
     signerEmail.value = res.data.signer_email || ''
     signerRole.value = res.data.signer_role || ''
-    embedSrc.value = res.data.embed_src || ''
-
-    if (signingBackend.value === 'docuseal' && !embedSrc.value) {
-      errorMsg.value = 'Signing is not available yet. Try again later.'
+    // Set required document types from landlord config (falls back to all 3)
+    if (res.data.required_documents?.length) {
+      requiredDocKeys.value = res.data.required_documents
     }
   } catch (e: any) {
     const d = e?.response?.data
@@ -348,44 +659,50 @@ onMounted(async () => {
 })
 
 async function onGetStarted() {
-  showForm.value = true
   consentTimestamp.value = new Date().toISOString()
 
-  if (signingBackend.value === 'native') {
-    // Fetch document HTML and field info
-    loading.value = true
-    try {
-      const res = await axios.get(
+  // Fetch document HTML, field info, and draft in parallel
+  loading.value = true
+  try {
+    const [docRes] = await Promise.all([
+      axios.get(
         `${apiBase}/esigning/public-sign/${token.value}/document/`,
         { headers: { Accept: 'application/json' } },
-      )
-      documentHtml.value = res.data.html || ''
-      signingFields.value = res.data.fields || []
-      alreadySignedFields.value = res.data.already_signed || []
-      editableMergeFields.value = res.data.editable_merge_fields || []
-      // Pre-populate with already captured data from previous signers
-      Object.assign(capturedFields, res.data.already_captured || {})
+      ),
+      loadUploadedDocs(),
+    ])
+    documentHtml.value = docRes.data.html || ''
+    signingFields.value = docRes.data.fields || []
+    alreadySignedFields.value = docRes.data.already_signed || []
+    editableMergeFields.value = docRes.data.editable_merge_fields || []
+    // Pre-populate with already captured data from previous signers
+    Object.assign(capturedFields, docRes.data.already_captured || {})
 
       // Auto-sign date fields
       for (const field of signingFields.value) {
         if (field.fieldType === 'date') {
           signedFieldsMap.set(field.fieldName, {
-            imageData: '', // Dates don't need an image
+            imageData: '',
             signedAt: new Date().toISOString(),
           })
         }
       }
+
+      // Restore draft state (overlays on top of auto-signed dates)
+      await checkForDraft()
+
+      // Show documents step before signing
+      showDocumentsStep.value = true
+      showForm.value = true
     } catch (e: any) {
       const d = e?.response?.data
       errorMsg.value =
         (typeof d?.detail === 'string' && d.detail) ||
         e?.message ||
         'Could not load document.'
-      showForm.value = false
     } finally {
       loading.value = false
     }
-  }
 }
 
 function onFieldClick(fieldName: string, fieldType: string) {
@@ -493,19 +810,6 @@ async function submitSignatures() {
   }
 }
 
-// DocuSeal callbacks (backward compat)
-function onCompleted(_data: any) {
-  completed.value = true
-  axios.post(
-    `${apiBase}/esigning/public-sign/${token.value}/completed/`,
-    {},
-    { headers: { Accept: 'application/json' } },
-  ).catch(() => {})
-}
-
-function onDeclined(_data: any) {
-  errorMsg.value = 'You have declined to sign this document.'
-}
 </script>
 
 <style>
@@ -516,4 +820,11 @@ function onDeclined(_data: any) {
 .klikk-dot {
   animation: klikk-bounce 0.8s ease-in-out infinite;
 }
+
+/* Save toast fade */
+.fade-toast-enter-active, .fade-toast-leave-active { transition: opacity 0.3s ease; }
+.fade-toast-enter-from, .fade-toast-leave-to { opacity: 0; }
+
+/* Document icon colours */
+.doc-icon { width: 18px; height: 18px; }
 </style>

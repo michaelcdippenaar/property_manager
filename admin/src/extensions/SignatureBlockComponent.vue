@@ -7,9 +7,18 @@
 
     <!-- ══════════════ SIGNING MODE ══════════════ -->
     <template v-if="signingContext">
+      <!-- My date field: auto-filled with today's date (check BEFORE signed/unsigned) -->
+      <span
+        v-if="isMyField && node.attrs.fieldType === 'date'"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-700 text-xs font-semibold align-middle"
+      >
+        <Calendar :size="11" />
+        {{ todayFormatted }}
+      </span>
+
       <!-- My field: already signed — show signature image -->
       <span
-        v-if="isMyField && mySignedData"
+        v-else-if="isMyField && mySignedData"
         class="inline-flex items-center rounded border border-green-300 bg-green-50/60 align-baseline"
         :class="isInitials ? 'px-0.5 py-0 gap-0 max-h-[18px]' : 'px-1.5 py-0.5 gap-1'"
         :style="isInitials ? 'line-height: 1' : ''"
@@ -39,15 +48,6 @@
         <component :is="iconComponent" :size="isInitials ? 10 : 14" />
         {{ signButtonLabel }}
       </button>
-
-      <!-- My date field: auto-filled -->
-      <span
-        v-else-if="isMyField && node.attrs.fieldType === 'date'"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-700 text-xs font-semibold align-middle"
-      >
-        <Calendar :size="11" />
-        {{ todayFormatted }}
-      </span>
 
       <!-- Other signer's completed field -->
       <span

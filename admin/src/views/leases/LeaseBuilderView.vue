@@ -379,7 +379,7 @@
         </template>
 
         <div v-else-if="templateHtml" class="flex-1 bg-[#f8f9fa] overflow-y-auto">
-          <div class="tiptap-editor mx-auto" style="max-width: 850px; padding: 32px 0;">
+          <div class="tiptap-editor tiptap-page-container mx-auto" style="padding: 32px 0;">
             <EditorContent :editor="previewEditor" />
           </div>
         </div>
@@ -472,6 +472,42 @@ const LeaseFormFields = defineComponent({
       emit('update:form', { ...props.form, [field]: val })
     }
 
+    const DOC_TYPES = [
+      { key: 'bank_statement',   label: 'Bank Statement (3 months)' },
+      { key: 'id_copy',          label: 'Copy of ID / Passport' },
+      { key: 'proof_of_address', label: 'Proof of Address' },
+    ]
+
+    function docCheckboxes(person: any, onUpdate: (v: any) => void) {
+      return h('div', { class: 'mt-2 pt-2 border-t border-navy/10' }, [
+        h('div', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide mb-1.5 flex items-center gap-1.5' }, [
+          h('svg', { class: 'w-3 h-3', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
+            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2',
+              d: 'M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }),
+          ),
+          'Required Documents',
+        ]),
+        h('div', { class: 'space-y-1' },
+          DOC_TYPES.map(dt =>
+            h('label', { class: 'flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none' }, [
+              h('input', {
+                type: 'checkbox',
+                class: 'rounded border-gray-300 text-navy focus:ring-navy/30',
+                checked: (person?.required_documents ?? []).includes(dt.key),
+                onChange: (e: any) => {
+                  const docs: string[] = [...(person?.required_documents ?? [])]
+                  if (e.target.checked) { if (!docs.includes(dt.key)) docs.push(dt.key) }
+                  else { const i = docs.indexOf(dt.key); if (i > -1) docs.splice(i, 1) }
+                  onUpdate({ ...person, required_documents: docs })
+                },
+              }),
+              dt.label,
+            ])
+          )
+        ),
+      ])
+    }
+
     return () => {
       const f = props.form as any
       const errs = props.errors as string[]
@@ -522,6 +558,7 @@ const LeaseFormFields = defineComponent({
               h('span', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
             ]),
             h(PersonBlock, { modelValue: f.primary_tenant, hasError: errs.includes('primary_tenant'), 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) }),
+            docCheckboxes(f.primary_tenant, (v: any) => updForm('primary_tenant', v)),
           ]),
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>
             h('div', { key: i, class: 'relative border border-navy/20 rounded-lg p-3 bg-navy/5' }, [
@@ -533,9 +570,10 @@ const LeaseFormFields = defineComponent({
                 }, h(X, { size: 12 })),
               ]),
               h(PersonBlock, {
-                  modelValue: ct,
-                  'onUpdate:modelValue': (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c)),
-                }),
+                modelValue: ct,
+                'onUpdate:modelValue': (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c)),
+              }),
+              docCheckboxes(ct, (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c))),
             ])
           ),
         ]),
@@ -739,8 +777,20 @@ const validationErrors = ref<string[]>([])
 const createdLeaseNumber = ref('')
 const createdLeaseId = ref<number | null>(null)
 
+const REQUIRED_DOC_TYPES = [
+  { key: 'bank_statement', label: 'Bank Statement (3 months)' },
+  { key: 'id_copy',        label: 'Copy of ID / Passport' },
+  { key: 'proof_of_address', label: 'Proof of Address' },
+]
+
 function emptyPerson() {
-  return { full_name: '', id_number: '', phone: '', email: '' }
+  return {
+    full_name: '',
+    id_number: '',
+    phone: '',
+    email: '',
+    required_documents: ['bank_statement', 'id_copy', 'proof_of_address'] as string[],
+  }
 }
 
 const form = ref({

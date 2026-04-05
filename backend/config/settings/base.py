@@ -48,6 +48,7 @@ LOCAL_APPS = [
     "apps.ai",
     "apps.tenant_portal",
     "apps.notifications",
+    "apps.test_hub",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -247,17 +248,6 @@ LOGGING = {
         },
     },
 }
-
-# DocuSeal e-signing
-DOCUSEAL_API_URL        = config("DOCUSEAL_API_URL", default="https://api.docuseal.com")
-DOCUSEAL_API_KEY        = config("DOCUSEAL_API_KEY", default="")
-DOCUSEAL_WEBHOOK_SECRET = config("DOCUSEAL_WEBHOOK_SECRET", default="")
-# If set, verify webhook with this header == DOCUSEAL_WEBHOOK_SECRET (DocuSeal “Add secret” key/value mode).
-DOCUSEAL_WEBHOOK_HEADER_NAME = config("DOCUSEAL_WEBHOOK_HEADER_NAME", default="").strip()
-# Optional: DocuSeal admin URL to configure webhooks (UI only; DocuSeal POSTs to Tremly, not here).
-DOCUSEAL_HOOK_URL = config("DOCUSEAL_HOOK_URL", default="").strip().rstrip("/")
-# Public URL DocuSeal must call (HTTPS). If empty, staff API falls back to the current request host.
-ESIGNING_WEBHOOK_PUBLIC_URL = config("ESIGNING_WEBHOOK_PUBLIC_URL", default="").strip().rstrip("/")
 
 # Passwordless signing page (admin SPA /sign/<uuid>/) — full URL for SMS/email if set
 ESIGNING_PUBLIC_LINK_EXPIRY_DAYS = config("ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", default=14, cast=int)

@@ -19,6 +19,7 @@ COLLECTION_NAME = "contracts"
 AGENT_QA_COLLECTION = "agent_qa"
 CHAT_KNOWLEDGE_COLLECTION = "chat_knowledge"
 MAINTENANCE_ISSUES_COLLECTION = "maintenance_issues"
+TEST_CONTEXT_COLLECTION = "test_context"
 
 
 def _root() -> Path:
@@ -103,6 +104,104 @@ def get_maintenance_issues_collection():
         metadata={"description": "Maintenance issues for RAG similarity search"},
         embedding_function=get_embedding_function(),
     )
+
+
+def get_test_context_collection():
+    """Collection for test_hub context documents — the AI entry point for writing tests."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=TEST_CONTEXT_COLLECTION,
+        metadata={"description": "Test context: module docs, conventions, bug workflow, issue history"},
+        embedding_function=get_embedding_function(),
+    )
+
+
+def ingest_test_context_document(
+    doc_id: str,
+    text: str,
+    module: str,
+    doc_type: str,
+    source_path: str,
+    chunk_size: int = 1200,
+    overlap: int = 150,
+) -> bool:
+    """
+    Ingest a single test context document into the test_context ChromaDB collection.
+
+    Args:
+        doc_id:      Unique identifier (e.g. "module:accounts", "bug:leases:2026-04-04_dates")
+        text:        Full markdown text of the document
+        module:      Module name: accounts, leases, maintenance, etc. (or "global")
+        doc_type:    One of: module_context, convention, bug_workflow, issue, architecture
+        source_path: Relative path to the source .md file
+        chunk_size:  Characters per chunk (default 1200)
+        overlap:     Overlap between chunks (default 150)
+    """
+    try:
+        collection = get_test_context_collection()
+        chunks = chunk_text(text, size=chunk_size, overlap=overlap)
+        if not chunks:
+            return False
+
+        ids, docs, metas = [], [], []
+        for idx, chunk in enumerate(chunks):
+            chunk_hash = hashlib.sha256(f"{doc_id}|{idx}|{chunk[:80]}".encode()).hexdigest()[:16]
+            ids.append(f"tc_{doc_id}_{idx}_{chunk_hash}")
+            docs.append(chunk)
+            metas.append({
+                "doc_id": doc_id,
+                "module": module,
+                "doc_type": doc_type,
+                "source": source_path,
+                "chunk": idx,
+            })
+
+        collection.upsert(ids=ids, documents=docs, metadatas=metas)
+        logger.info("test_context: ingested %d chunks from %s", len(chunks), source_path)
+        return True
+    except Exception:
+        logger.exception("test_context: failed to ingest %s", source_path)
+        return False
+
+
+def query_test_context(query: str, module: str | None = None, n_results: int = 5) -> list[dict]:
+    """
+    Query the test_context collection. Used by AI agents as the entry point before writing tests.
+
+    Args:
+        query:     Natural language query, e.g. "what should I test in the leases module?"
+        module:    Optional filter to a specific module
+        n_results: Number of results to return
+
+    Returns:
+        List of dicts with keys: text, module, doc_type, source, distance
+    """
+    try:
+        collection = get_test_context_collection()
+        where = {"module": module} if module else None
+        results = collection.query(
+            query_texts=[query],
+            n_results=n_results,
+            where=where,
+            include=["documents", "metadatas", "distances"],
+        )
+        output = []
+        for doc, meta, dist in zip(
+            results["documents"][0],
+            results["metadatas"][0],
+            results["distances"][0],
+        ):
+            output.append({
+                "text": doc,
+                "module": meta.get("module"),
+                "doc_type": meta.get("doc_type"),
+                "source": meta.get("source"),
+                "distance": dist,
+            })
+        return output
+    except Exception:
+        logger.exception("test_context: query failed")
+        return []
 
 
 def chunk_text(text: str, size: int = 1200, overlap: int = 150) -> list[str]:

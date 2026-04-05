@@ -2,7 +2,7 @@
  * MergeField — inline atomic node for template merge fields like {{landlord_name}}.
  *
  * In the editor it renders as a coloured chip via the Vue component.
- * When exported to HTML (for DocuSeal / lease generation) it becomes:
+ * When exported to HTML (for lease generation) it becomes:
  *   <span data-type="merge-field" data-field-name="landlord_name">{{landlord_name}}</span>
  *
  * The backend regex `\{\{\s*(\w+)\s*\}\}` picks these up during lease HTML generation.

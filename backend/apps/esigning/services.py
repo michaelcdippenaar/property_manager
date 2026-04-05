@@ -5,162 +5,17 @@ import requests
 from django.conf import settings
 from django.utils import timezone
 
+from apps.esigning.pdf_settings import (
+    PAGE_SIZE as _PAGE_SIZE,
+    MARGIN_TOP_MM as _MT, MARGIN_BOTTOM_MM as _MB,
+    MARGIN_LEFT_MM as _ML, MARGIN_RIGHT_MM as _MR,
+    FONT_FAMILY as _FF, FONT_SIZE as _FS,
+    LINE_HEIGHT as _LH, TEXT_COLOR as _TC,
+    H1_FONT_SIZE as _H1, H2_FONT_SIZE as _H2, H3_FONT_SIZE as _H3,
+)
+
 logger = logging.getLogger(__name__)
 
-
-def _docuseal_headers():
-    key = (getattr(settings, 'DOCUSEAL_API_KEY', '') or '').strip()
-    if not key:
-        raise ValueError(
-            'DOCUSEAL_API_KEY is empty. Set it in backend/.env to the API token from your DocuSeal '
-            'instance (same token that works in Postman), then restart Django.'
-        )
-    return {'X-Auth-Token': key, 'Content-Type': 'application/json'}
-
-
-def _docuseal_base():
-    return getattr(settings, 'DOCUSEAL_API_URL', 'https://api.docuseal.com').rstrip('/')
-
-
-def _docuseal_post(path, payload, *, timeout=30):
-    url = f"{_docuseal_base()}{path}"
-    resp = requests.post(url, headers=_docuseal_headers(), json=payload, timeout=timeout)
-    if not resp.ok:
-        body = (resp.text or '')[:2000]
-        logger.error('DocuSeal API error %s %s — %s', resp.status_code, url, body)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _docuseal_get(path, *, timeout=15):
-    url = f"{_docuseal_base()}{path}"
-    resp = requests.get(url, headers=_docuseal_headers(), timeout=timeout)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def _docuseal_put(path, payload, *, timeout=30):
-    url = f"{_docuseal_base()}{path}"
-    resp = requests.put(url, headers=_docuseal_headers(), json=payload, timeout=timeout)
-    if not resp.ok:
-        body = (resp.text or '')[:2000]
-        logger.error('DocuSeal API error %s %s — %s', resp.status_code, url, body)
-    resp.raise_for_status()
-    return resp.json()
-
-
-def get_submitter(submitter_id: int) -> dict:
-    """Fetch submitter details from DocuSeal (includes documents, status)."""
-    return _docuseal_get(f'/submitters/{submitter_id}')
-
-
-def get_template_fields(template_id: int) -> dict:
-    """Fetch template details including field definitions and positions."""
-    return _docuseal_get(f'/templates/{template_id}')
-
-
-def submit_signature(submitter_id: int, fields: list) -> dict:
-    """
-    Submit signature data to DocuSeal and mark the submitter as completed.
-
-    fields = [
-        {'name': 'Signature (First Party)', 'default_value': 'data:image/png;base64,...'},
-        {'name': 'Date (First Party)', 'default_value': '2026-03-26'},
-    ]
-    """
-    return _docuseal_put(f'/submitters/{submitter_id}', {
-        'completed': True,
-        'fields': fields,
-    })
-
-
-def get_document_pdf_url(submitter_id: int) -> str | None:
-    """
-    Get the PDF URL for a submitter's document from DocuSeal.
-
-    Tries multiple sources in order:
-    1. Submitter's own documents (post-signing — signed copy attached)
-    2. Submission documents via GET /submissions/{id}/documents
-       (works for submissions created via POST /submissions/html)
-    3. Template documents (for submissions created via POST /submissions)
-    """
-    data = get_submitter(submitter_id)
-
-    # 1. Signed document already attached to submitter (post-signing)
-    docs = data.get('documents') or []
-    if docs:
-        return docs[0].get('url')
-
-    # 2. Submission documents (pre-signing — works for /submissions/html)
-    submission_id = data.get('submission_id')
-    if submission_id:
-        try:
-            sub_docs = _docuseal_get(f'/submissions/{submission_id}/documents')
-            doc_list = sub_docs.get('documents') or []
-            if doc_list:
-                return doc_list[0].get('url')
-        except Exception:
-            logger.debug('Could not fetch submission %s documents', submission_id)
-
-    # 3. Fall back to the template PDF (for template-based submissions)
-    template = data.get('template') or {}
-    template_id = template.get('id')
-    if template_id:
-        try:
-            tmpl = get_template_fields(int(template_id))
-            tmpl_docs = tmpl.get('documents') or []
-            if tmpl_docs:
-                return tmpl_docs[0].get('url')
-        except Exception:
-            logger.debug('Could not fetch template %s documents', template_id)
-
-    return None
-
-
-def _extract_template_fields(content_html: str) -> list:
-    """Extract the signing fields array from a v1 JSON template content."""
-    import json
-    raw = (content_html or '').strip()
-    if not raw or not raw.startswith('{'):
-        return []
-    try:
-        doc = json.loads(raw)
-        if isinstance(doc, dict) and doc.get('v') in (1, 2):
-            return doc.get('fields', [])
-    except (json.JSONDecodeError, TypeError):
-        pass
-    return []
-
-
-
-def create_submission(
-    template_id: int,
-    submitters: list,
-    send_email: bool = True,
-    order: str = 'random',
-) -> dict:
-    """
-    Create a DocuSeal submission.
-    submitters = [{'name': '...', 'email': '...', 'role': '...', 'send_email': True, 'order': 0}]
-
-    order: 'preserved' for sequential signing (respects per-submitter order values),
-           'random' for parallel (everyone signs at once, default).
-
-    Returns the submissions list from DocuSeal.
-    """
-    return _docuseal_post('/submissions', {
-        'template_id': template_id,
-        'send_email': send_email,
-        'order': order,
-        'submitters': submitters,
-    })
-
-
-def _roles_from_template(template_data: dict) -> list[str]:
-    """DocuSeal `role` on each submitter must match `submitters[].name` on the template."""
-    subs = template_data.get('submitters') or []
-    roles = [s.get('name') for s in subs if s.get('name')]
-    return [r for r in roles if r]
 
 
 def _get_landlord_info(lease) -> dict | None:
@@ -176,7 +31,7 @@ def _get_landlord_info(lease) -> dict | None:
         # Prefer linked Landlord entity
         ll = getattr(ownership, 'landlord', None)
         if ll:
-            name = ll.representative_name or ll.name
+            name = ll.name
             email = ll.representative_email or ll.email
             phone = ll.representative_phone or ll.phone
             # Resolve default bank account
@@ -475,34 +330,6 @@ def _docuseal_field_tag(field: dict, num_signers: int, *, block: bool = True) ->
 
 
 
-def _map_signing_roles(html: str, num_signers: int) -> str:
-    """Replace TipTap signer roles with DocuSeal role names in signing field tags.
-
-    TipTap uses: landlord, tenant_1, tenant_2, witness_1, etc.
-    DocuSeal uses: First Party, Signer 2, Signer 3, etc.
-    """
-    role_map: dict[str, str] = {
-        'landlord': 'First Party',
-        'lessor': 'First Party',
-    }
-    for i in range(1, max(num_signers, 4) + 1):
-        ds_role = f'Signer {i + 1}' if (i + 1) <= num_signers else 'First Party'
-        role_map[f'tenant_{i}'] = ds_role
-        role_map[f'tenant'] = role_map.get('tenant', ds_role)  # bare "tenant" → first tenant role
-    for i in range(1, 4):
-        role_map[f'witness_{i}'] = f'Signer {num_signers + i}'
-
-    def replace_role(m: re.Match) -> str:
-        role = m.group(1)
-        return f'role="{role_map.get(role, role)}"'
-
-    # Only replace role attributes inside signing field tags
-    return re.sub(
-        r'(<(?:signature|initials|date)-field\b[^>]*?)role="([^"]+)"',
-        lambda m: m.group(1) + f'role="{role_map.get(m.group(2), m.group(2))}"',
-        html,
-    )
-
 
 def _deduplicate_field_names(html: str) -> str:
     """Ensure every signing field tag has a unique name attribute.
@@ -659,10 +486,6 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             html_body, flags=re.DOTALL,
         )
 
-        # ── Map TipTap signer roles to DocuSeal roles (skip for native signing) ──
-        if not native:
-            html_body = _map_signing_roles(html_body, num_signers)
-
         # ── Deduplicate signing field names ──────────────────────────
         html_body = _deduplicate_field_names(html_body)
 
@@ -678,24 +501,24 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             f'{rows}</table>'
         )
 
-    css = """
-        @page { size: A4; margin: 20mm 18mm 22mm 18mm; }
-        body {
-            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-            font-size: 10.5pt; line-height: 1.6; color: #1a1a1a;
+    css = f"""
+        @page {{ size: {_PAGE_SIZE}; margin: {_MT}mm {_MR}mm {_MB}mm {_ML}mm; }}
+        body {{
+            font-family: {_FF};
+            font-size: {_FS}; line-height: {_LH}; color: {_TC};
             margin: 0; padding: 0;
-        }
-        h1 { font-size: 15pt; font-weight: 700; text-align: center; margin: 0 0 6pt; letter-spacing: -0.01em; }
-        h2 { font-size: 11.5pt; font-weight: 700; margin: 14pt 0 4pt; border-bottom: 0.5pt solid #d0d0d0; padding-bottom: 2pt; }
-        h3 { font-size: 10.5pt; font-weight: 700; margin: 10pt 0 3pt; }
-        p { margin: 3pt 0; orphans: 3; widows: 3; }
-        li { margin: 2pt 0; }
-        ul, ol { padding-left: 20pt; margin: 4pt 0; }
-        table { border-collapse: collapse; width: 100%; margin: 6pt 0; page-break-inside: auto; }
-        thead { display: table-header-group; }
-        tr { page-break-inside: avoid; }
-        td, th { border: 0.5pt solid #c0c0c0; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }
-        th { background-color: #f5f5f5; font-weight: 600; text-align: left; }
+        }}
+        h1 {{ font-size: {_H1}; font-weight: 700; text-align: center; margin: 0 0 6pt; letter-spacing: -0.01em; }}
+        h2 {{ font-size: {_H2}; font-weight: 700; margin: 8pt 0 3pt; border-bottom: 0.5pt solid #d0d0d0; padding-bottom: 2pt; }}
+        h3 {{ font-size: {_H3}; font-weight: 700; margin: 6pt 0 2pt; }}
+        p {{ margin: 3pt 0; orphans: 3; widows: 3; }}
+        li {{ margin: 2pt 0; }}
+        ul, ol {{ padding-left: 20pt; margin: 4pt 0; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 6pt 0; page-break-inside: auto; }}
+        thead {{ display: table-header-group; }}
+        tr {{ page-break-inside: avoid; }}
+        td, th {{ border: 0.5pt solid #c0c0c0; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }}
+        th {{ background-color: #f5f5f5; font-weight: 600; text-align: left; }}
     """
 
     return (
@@ -704,78 +527,8 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
     )
 
 
-def upload_html_template(html: str, name: str) -> dict:
-    """Upload HTML to DocuSeal as a template. DocuSeal auto-detects signing fields."""
-    return _docuseal_post('/templates/html', {
-        'name': name,
-        'documents': [{
-            'name': name,
-            'html': html,
-            'size': 'A4',
-        }],
-    }, timeout=120)
 
-
-def create_lease_submission(lease, signers: list, signing_mode: str = 'sequential') -> dict:
-    """
-    High-level function — two-step flow:
-    1. Generate filled lease HTML with embedded signing field tags
-    2. Upload to DocuSeal as an HTML template (auto-detects fields + positions)
-    3. Create a submission from that template
-
-    We use the two-step approach (template then submission) instead of the
-    single-call POST /submissions/html because only templates expose field
-    positions via GET /templates/{id}, which our custom signing UI needs
-    to render field overlays on the PDF.
-
-    signing_mode:
-      - 'sequential' (default): signers go in order; DocuSeal's
-        order='preserved' ensures each signer waits for the previous.
-      - 'parallel': everyone signs at once.
-
-    Returns {'template': {...}, 'submission': [...]}
-    """
-    tenant_name = lease.primary_tenant.full_name if lease.primary_tenant else 'Tenant'
-    name = f"Lease - {tenant_name} - {lease.unit.property.name} Unit {lease.unit.unit_number}"
-
-    # Step 1: Generate filled HTML with embedded DocuSeal signing field tags
-    html = generate_lease_html(lease, num_signers=len(signers))
-
-    # Step 2: Upload as HTML template — DocuSeal renders to PDF and
-    # auto-detects field positions from the custom HTML tags
-    template_data = upload_html_template(html, name)
-    template_id = template_data['id']
-
-    # Step 3: Create submission from the template
-    # Role names must match the role attributes on the field tags in the HTML.
-    docuseal_roles = _roles_from_template(template_data)
-
-    submitters = []
-    for idx, s in enumerate(signers):
-        if docuseal_roles and idx < len(docuseal_roles):
-            role = docuseal_roles[idx]
-        else:
-            role = 'First Party' if idx == 0 else f'Signer {idx + 1}'
-        entry = {
-            'name': s['name'],
-            'email': s['email'],
-            'role': role,
-            # Never let DocuSeal send emails — Tremly sends its own emails
-            # with links to the custom Vue signing page (/sign/<uuid>/).
-            'send_email': False,
-        }
-        if signing_mode == 'sequential':
-            entry['order'] = s.get('order', idx)
-        submitters.append(entry)
-
-    ds_order = 'preserved' if signing_mode == 'sequential' else 'random'
-    submission_data = create_submission(template_id, submitters,
-                                       send_email=False, order=ds_order)
-
-    return {'template': template_data, 'submission': submission_data}
-
-
-# ─── Native signing (no DocuSeal) ───────────────────────────────────────────
+# ─── Native signing ───────────────────────────────────────────────────────────
 
 def create_native_submission(lease, signers: list, signing_mode: str = 'sequential') -> 'ESigningSubmission':
     """Create a native signing submission — no DocuSeal involved.
@@ -823,6 +576,7 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
             'completed_at': None,
             'signed_fields': [],
             'audit': None,
+            'required_documents': s.get('required_documents', []),
         })
 
     submission = ESigningSubmission.objects.create(
@@ -1175,207 +929,208 @@ def _clean_tiptap_html_for_print(html: str) -> str:
 
 # ── Professional print CSS for signed lease PDFs ────────────────────────
 # Gotenberg uses Chromium, so we have full modern CSS support.
-_SIGNED_PDF_CSS = """
-@page {
-    size: A4;
-    margin: 20mm 18mm 22mm 18mm;
-}
+# Values from pdf_settings.py — must match admin/src/config/tiptapSettings.ts
+_SIGNED_PDF_CSS = f"""
+@page {{
+    size: {_PAGE_SIZE};
+    margin: {_MT}mm {_MR}mm {_MB}mm {_ML}mm;
+}}
 
 /* ── Base typography — professional legal document ── */
-body {
-    font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-    font-size: 10.5pt;
-    line-height: 1.6;
-    color: #1a1a1a;
+body {{
+    font-family: {_FF};
+    font-size: {_FS};
+    line-height: {_LH};
+    color: {_TC};
     margin: 0;
     padding: 0;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
-}
+}}
 
 /* ── Headings ── */
-h1 {
-    font-size: 15pt;
+h1 {{
+    font-size: {_H1};
     font-weight: 700;
     text-align: center;
     margin: 0 0 6pt;
-    color: #111;
+    color: {_TC};
     letter-spacing: -0.01em;
-}
+}}
 
-h2 {
-    font-size: 11.5pt;
+h2 {{
+    font-size: {_H2};
     font-weight: 700;
-    margin: 14pt 0 4pt;
-    color: #1a1a1a;
+    margin: 8pt 0 3pt;
+    color: {_TC};
     border-bottom: 0.5pt solid #d0d0d0;
     padding-bottom: 2pt;
-}
+}}
 
-h3 {
-    font-size: 10.5pt;
+h3 {{
+    font-size: {_H3};
     font-weight: 700;
-    margin: 10pt 0 3pt;
-    color: #1a1a1a;
-}
+    margin: 6pt 0 2pt;
+    color: {_TC};
+}}
 
 /* ── Paragraphs and lists ── */
-p {
+p {{
     margin: 3pt 0;
     orphans: 3;
     widows: 3;
-}
+}}
 
-li {
+li {{
     margin: 2pt 0;
-}
+}}
 
-ul, ol {
+ul, ol {{
     padding-left: 20pt;
     margin: 4pt 0;
-}
+}}
 
 /* ── Tables ── */
-table {
+table {{
     border-collapse: collapse;
     width: 100%;
     margin: 6pt 0;
     page-break-inside: auto;
-}
+}}
 
-thead {
+thead {{
     display: table-header-group;
-}
+}}
 
-tr {
+tr {{
     page-break-inside: avoid;
-}
+}}
 
-td, th {
+td, th {{
     border: 0.5pt solid #c0c0c0;
     padding: 5pt 7pt;
     font-size: 10pt;
     vertical-align: top;
-}
+}}
 
-th {
+th {{
     background-color: #f5f5f5;
     font-weight: 600;
     text-align: left;
-}
+}}
 
 /* ── Signatures ── */
-img[src^="data:image"] {
+img[src^="data:image"] {{
     max-width: 220px;
     max-height: 80px;
-}
+}}
 
 /* ── Filled merge field values ── */
-.pdf-field-value {
+.pdf-field-value {{
     font-weight: 600;
-    color: #111;
-}
+    color: {_TC};
+}}
 
 /* ── Unfilled field placeholder ── */
-.pdf-field-blank {
+.pdf-field-blank {{
     display: inline-block;
     min-width: 80px;
     border-bottom: 0.5pt solid #999;
     height: 1em;
     vertical-align: baseline;
-}
+}}
 
 /* ── Unsigned signature placeholder ── */
-.pdf-sig-blank {
+.pdf-sig-blank {{
     display: inline-block;
     width: 180px;
     border-bottom: 0.5pt solid #999;
     height: 1.2em;
     vertical-align: middle;
-}
+}}
 
-.pdf-initials-blank {
+.pdf-initials-blank {{
     display: inline-block;
     width: 50px;
     border-bottom: 0.5pt solid #bbb;
     height: 1em;
     vertical-align: baseline;
-}
+}}
 
-.pdf-date-blank {
+.pdf-date-blank {{
     color: #999;
     letter-spacing: 0.5pt;
-}
+}}
 
 /* ── Horizontal rule styling ── */
-hr {
+hr {{
     border: none;
     border-top: 0.5pt solid #d0d0d0;
     margin: 8pt 0;
-}
+}}
 
 /* ── Audit trail page ── */
-.audit-trail {
+.audit-trail {{
     page-break-before: always;
     padding-top: 8pt;
-}
+}}
 
-.audit-trail h2 {
+.audit-trail h2 {{
     font-size: 13pt;
     font-weight: 700;
-    color: #1a1a1a;
+    color: {_TC};
     margin: 0 0 4pt;
     padding-bottom: 4pt;
     border-bottom: 1.5pt solid #2B2D6E;
-}
+}}
 
-.audit-trail .audit-meta {
+.audit-trail .audit-meta {{
     font-size: 8pt;
     color: #666;
     margin: 2pt 0 10pt;
     font-family: 'Courier New', monospace;
     word-break: break-all;
-}
+}}
 
-.audit-trail table {
+.audit-trail table {{
     font-size: 8.5pt;
     margin-top: 6pt;
-}
+}}
 
-.audit-trail td, .audit-trail th {
+.audit-trail td, .audit-trail th {{
     padding: 4pt 6pt;
     font-size: 8.5pt;
     border: 0.5pt solid #d0d0d0;
-}
+}}
 
-.audit-trail th {
+.audit-trail th {{
     background: #f0f0f4;
     color: #2B2D6E;
     font-weight: 600;
     font-size: 8pt;
     text-transform: uppercase;
     letter-spacing: 0.3pt;
-}
+}}
 
-.audit-trail .audit-ua {
+.audit-trail .audit-ua {{
     font-size: 7pt;
     color: #888;
     word-break: break-all;
     max-width: 120pt;
-}
+}}
 
-.audit-trail .audit-footer {
+.audit-trail .audit-footer {{
     margin-top: 16pt;
     padding-top: 8pt;
     border-top: 0.5pt solid #e0e0e0;
     font-size: 7.5pt;
     color: #888;
     line-height: 1.5;
-}
+}}
 
-.audit-trail .audit-footer strong {
+.audit-trail .audit-footer strong {{
     color: #555;
-}
+}}
 """
 
 

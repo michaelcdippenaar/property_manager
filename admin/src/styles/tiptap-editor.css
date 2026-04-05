@@ -1,12 +1,18 @@
-/* Shared TipTap editor styles — used by both TiptapEditorView and LeaseBuilderView */
+/* Shared TipTap editor styles — used by TiptapEditorView, LeaseBuilderView, and SigningDocumentViewer */
+/* Typography and page dimensions come from CSS custom properties set by tiptapSettings.ts */
+
+/* Locked page-width container — all 3 TipTap views MUST use this class */
+.tiptap-page-container {
+  max-width: var(--tiptap-page-width);
+}
 
 .tiptap-editor .tiptap {
   outline: none;
   min-height: 800px;
-  font-family: Arial, sans-serif;
-  font-size: 10.5pt;
-  line-height: 1.55;
-  color: #111;
+  font-family: var(--tiptap-font-family);
+  font-size: var(--tiptap-font-size);
+  line-height: var(--tiptap-line-height);
+  color: var(--tiptap-text-color);
   position: relative;
 }
 
