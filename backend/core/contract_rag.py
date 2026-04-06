@@ -20,6 +20,10 @@ AGENT_QA_COLLECTION = "agent_qa"
 CHAT_KNOWLEDGE_COLLECTION = "chat_knowledge"
 MAINTENANCE_ISSUES_COLLECTION = "maintenance_issues"
 TEST_CONTEXT_COLLECTION = "test_context"
+# Market data collections
+MARKET_LISTINGS_COLLECTION = "market_listings"
+AREA_NEWS_COLLECTION = "area_news"
+MUNICIPAL_BYLAWS_COLLECTION = "municipal_bylaws"
 
 
 def _root() -> Path:
@@ -113,6 +117,36 @@ def get_test_context_collection():
         name=TEST_CONTEXT_COLLECTION,
         metadata={"description": "Test context: module docs, conventions, bug workflow, issue history"},
         embedding_function=get_embedding_function(),
+    )
+
+
+def get_market_listings_collection():
+    """Vectorized market property listings for semantic search."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=MARKET_LISTINGS_COLLECTION,
+        embedding_function=get_embedding_function(),
+        metadata={"hnsw:space": "cosine", "description": "Market property listings — Cape Peninsula & Winelands"},
+    )
+
+
+def get_area_news_collection():
+    """Vectorized area news articles for RAG-powered market insights."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=AREA_NEWS_COLLECTION,
+        embedding_function=get_embedding_function(),
+        metadata={"hnsw:space": "cosine", "description": "Cape Peninsula & Winelands property news"},
+    )
+
+
+def get_municipal_bylaws_collection():
+    """Vectorized municipal bylaws for RAG-powered compliance queries."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=MUNICIPAL_BYLAWS_COLLECTION,
+        embedding_function=get_embedding_function(),
+        metadata={"hnsw:space": "cosine", "description": "City of Cape Town & Stellenbosch bylaws"},
     )
 
 

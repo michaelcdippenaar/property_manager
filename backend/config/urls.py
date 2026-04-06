@@ -17,4 +17,5 @@ urlpatterns = [
     path("api/v1/ai/", include("apps.ai.urls")),
     path("api/v1/stats/", StatsView.as_view(), name="stats"),
     path("api/v1/test-hub/", include("apps.test_hub.urls")),
+    path("api/v1/market-data/", include("apps.market_data.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -6,10 +6,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.models import Person, User
-from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep
+from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep, InventoryItem, InventoryTemplate
 from .serializers import (
     LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
     LeaseOccupantSerializer, LeaseGuarantorSerializer, OnboardingStepSerializer, PersonSerializer,
+    InventoryItemSerializer, InventoryTemplateSerializer,
 )
 from .events import generate_lease_events, generate_onboarding_steps
 
@@ -244,6 +245,59 @@ class LeaseViewSet(viewsets.ModelViewSet):
             step.notes = request.data["notes"]
         step.save()
         return Response(OnboardingStepSerializer(step).data)
+
+    # ── Inventory ──
+
+    @action(detail=True, methods=["get", "post"], url_path="inventory")
+    def inventory(self, request, pk=None):
+        lease = self.get_object()
+        if request.method == "GET":
+            return Response(InventoryItemSerializer(lease.inventory_items.all(), many=True).data)
+        serializer = InventoryItemSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(lease=lease)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch", "delete"], url_path="inventory/(?P<item_id>[^/.]+)")
+    def update_inventory_item(self, request, pk=None, item_id=None):
+        lease = self.get_object()
+        item = get_object_or_404(InventoryItem, pk=item_id, lease=lease)
+        if request.method == "DELETE":
+            item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = InventoryItemSerializer(item, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="inventory/from-template")
+    def inventory_from_template(self, request, pk=None):
+        """Copy items from a template into this lease's inventory."""
+        lease = self.get_object()
+        template_id = request.data.get("template_id")
+        tmpl = get_object_or_404(InventoryTemplate, pk=template_id)
+        created = []
+        for item_data in tmpl.items:
+            created.append(InventoryItem.objects.create(
+                lease=lease,
+                name=item_data.get("name", ""),
+                category=item_data.get("category", "other"),
+                quantity=item_data.get("qty", 1),
+                notes=item_data.get("notes", ""),
+            ))
+        return Response({
+            "items_created": len(created),
+            "items": InventoryItemSerializer(created, many=True).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+class InventoryTemplateViewSet(viewsets.ModelViewSet):
+    serializer_class = InventoryTemplateSerializer
+    permission_classes = [IsAuthenticated]
+    queryset = InventoryTemplate.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class LeaseCalendarView:

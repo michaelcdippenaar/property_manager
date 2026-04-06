@@ -19,31 +19,94 @@
       <table v-else-if="filteredProperties.length" class="table-wrap">
         <thead>
           <tr>
-            <th>Property</th>
-            <th>Type</th>
-            <th>City</th>
-            <th class="text-right">Units</th>
-            <th>Occupancy</th>
+            <th scope="col">Unit</th>
+            <th scope="col">Tenant</th>
+            <th scope="col">Status</th>
+            <th scope="col">Lease Expiry</th>
+            <th scope="col">Maintenance</th>
+            <th scope="col" class="text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="p in filteredProperties" :key="p.id" class="cursor-pointer hover:bg-gray-50" @click="openProperty(p)">
-            <td>
-              <div class="font-medium text-gray-900">{{ p.name }}</div>
-              <div class="text-xs text-gray-400 mt-0.5">{{ p.address }}</div>
-            </td>
-            <td><span class="badge-gray capitalize">{{ p.property_type }}</span></td>
-            <td class="text-gray-600">{{ p.city }}</td>
-            <td class="text-right text-gray-600">{{ p.unit_count ?? 0 }}</td>
-            <td class="min-w-[120px]">
-              <div class="flex items-center gap-2">
-                <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div class="h-full bg-navy rounded-full transition-all" :style="`width:${occupancyPercent(p)}%`" />
+          <template v-for="p in filteredProperties" :key="p.id">
+            <tr
+              v-for="u in (p.units?.length ? p.units : [{ id: 0, unit_number: '—', status: 'available', active_lease_info: null }])"
+              :key="`${p.id}-${u.id}`"
+              class="cursor-pointer hover:bg-gray-50"
+              @click="router.push(`/properties/${p.id}`)"
+            >
+              <td>
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                    <img v-if="p.cover_photo" :src="p.cover_photo" class="w-full h-full object-cover" :alt="p.name" />
+                    <div v-else class="w-full h-full flex items-center justify-center">
+                      <Building2 :size="18" class="text-gray-300" />
+                    </div>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-gray-900">{{ p.address || p.name }}<span v-if="u.unit_number && u.unit_number !== '—'" class="text-gray-500 font-normal">, {{ u.unit_number }}</span></div>
+                    <div class="text-xs text-gray-400 mt-0.5 truncate">{{ p.city }}<span v-if="p.province">, {{ p.province }}</span></div>
+                  </div>
                 </div>
-                <span class="text-xs text-gray-500 w-8 text-right">{{ occupancyPercent(p) }}%</span>
-              </div>
-            </td>
-          </tr>
+              </td>
+              <td>
+                <template v-if="u.active_lease_info?.tenant_name">
+                  <div class="text-sm text-gray-900">{{ u.active_lease_info.tenant_name }}</div>
+                  <div class="text-xs text-gray-400">R{{ Number(u.active_lease_info.monthly_rent).toLocaleString('en-ZA', { maximumFractionDigits: 0 }) }}/mo</div>
+                </template>
+                <span v-else class="text-xs text-gray-300">Vacant</span>
+              </td>
+              <td>
+                <span
+                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  :class="{
+                    'bg-success-50 text-success-700': u.status === 'occupied',
+                    'bg-info-50 text-info-600': u.status === 'available',
+                    'bg-warning-50 text-warning-600': u.status === 'maintenance',
+                  }"
+                >{{ u.status === 'occupied' ? 'Occupied' : u.status === 'maintenance' ? 'Maintenance' : 'Available' }}</span>
+              </td>
+              <td class="min-w-[140px]">
+                <template v-if="u.active_lease_info">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="text-xs font-semibold px-2 py-0.5 rounded-full"
+                      :class="expiryBadge(u.active_lease_info.end_date)"
+                    >{{ daysUntil(u.active_lease_info.end_date) }}d</span>
+                    <span class="text-xs text-gray-500">{{ leasePct(u.active_lease_info) }}%</span>
+                  </div>
+                  <div class="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      class="h-full rounded-full transition-all"
+                      :class="leasePct(u.active_lease_info) >= 90 ? 'bg-danger-400' : leasePct(u.active_lease_info) >= 75 ? 'bg-warning-400' : 'bg-navy'"
+                      :style="`width:${leasePct(u.active_lease_info)}%`"
+                    />
+                  </div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">{{ fmtDate(u.active_lease_info.end_date) }}</div>
+                </template>
+                <span v-else class="text-xs text-gray-300">No lease</span>
+              </td>
+              <td>
+                <span
+                  v-if="u.open_maintenance_count > 0"
+                  class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-danger-50 text-danger-600"
+                >
+                  <Wrench :size="11" />
+                  {{ u.open_maintenance_count }}
+                </span>
+                <span v-else class="text-xs text-gray-300">—</span>
+              </td>
+              <td class="text-right">
+                <button
+                  class="btn-ghost btn-xs text-danger-500 hover:bg-danger-50"
+                  aria-label="Delete property"
+                  @click.stop="confirmDelete(p)"
+                >
+                  <Trash2 :size="14" />
+                </button>
+              </td>
+            </tr>
+          </template>
         </tbody>
       </table>
 
@@ -107,26 +170,36 @@
       </template>
     </BaseModal>
 
-    <!-- Property Detail Drawer -->
-    <PropertyDrawer
-      :open="drawerOpen"
-      :property="selectedProperty"
-      @close="drawerOpen = false"
-    />
+    <!-- Delete confirmation -->
+    <BaseModal :open="deleteDialog" title="Delete property?" @close="deleteDialog = false">
+      <p class="text-sm text-gray-600">
+        Are you sure you want to delete <strong>{{ deletingProperty?.name }}</strong>? This will remove all units, leases, and documents associated with this property. This action cannot be undone.
+      </p>
+      <template #footer>
+        <button class="btn-ghost" @click="deleteDialog = false">Cancel</button>
+        <button class="btn-danger" :disabled="deleting" @click="doDelete">
+          <Loader2 v-if="deleting" :size="14" class="animate-spin" />
+          Delete property
+        </button>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import BaseModal from '../../components/BaseModal.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
-import PropertyDrawer from './PropertyDrawer.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
-import { Plus, Building2, Loader2 } from 'lucide-vue-next'
+import { Plus, Building2, Loader2, Trash2, Wrench } from 'lucide-vue-next'
+
+const router = useRouter()
 
 const toast = useToast()
 const loading = ref(true)
@@ -137,6 +210,9 @@ const properties = ref<any[]>([])
 const propertyTypes = ['apartment', 'house', 'townhouse', 'commercial']
 const newProperty = ref({ name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' })
 const selectedAddress = ref<AddressResult | null>(null)
+const deleteDialog = ref(false)
+const deleting = ref(false)
+const deletingProperty = ref<any>(null)
 
 function onAddressSelect(addr: AddressResult) {
   selectedAddress.value = addr
@@ -145,14 +221,6 @@ function onAddressSelect(addr: AddressResult) {
   newProperty.value.province = addr.province
   newProperty.value.postal_code = addr.postal_code
 }
-const drawerOpen = ref(false)
-const selectedProperty = ref<any>(null)
-
-function openProperty(p: any) {
-  selectedProperty.value = p
-  drawerOpen.value = true
-}
-
 onMounted(() => loadProperties())
 
 async function loadProperties() {
@@ -182,16 +250,66 @@ async function createProperty() {
   }
 }
 
-const filteredProperties = computed(() =>
-  properties.value.filter(p =>
-    p.name.toLowerCase().includes(search.value.toLowerCase()) ||
-    (p.city ?? '').toLowerCase().includes(search.value.toLowerCase())
+const filteredProperties = computed(() => {
+  const q = search.value.toLowerCase()
+  if (!q) return properties.value
+  return properties.value.filter(p =>
+    p.name.toLowerCase().includes(q) ||
+    (p.address ?? '').toLowerCase().includes(q) ||
+    (p.city ?? '').toLowerCase().includes(q) ||
+    p.units?.some((u: any) => u.unit_number?.toLowerCase().includes(q))
   )
-)
+})
+
+function confirmDelete(p: any) {
+  deletingProperty.value = p
+  deleteDialog.value = true
+}
+
+async function doDelete() {
+  if (!deletingProperty.value) return
+  deleting.value = true
+  const id = deletingProperty.value.id
+  try {
+    await api.delete(`/properties/${id}/`)
+    properties.value = properties.value.filter(p => p.id !== id)
+    deleteDialog.value = false
+    deletingProperty.value = null
+    toast.success('Property deleted')
+  } catch (err: any) {
+    const msg = err.response?.data?.detail || err.response?.data?.message || 'Failed to delete property'
+    toast.error(typeof msg === 'string' ? msg : 'Failed to delete property')
+  } finally {
+    deleting.value = false
+  }
+}
 
 function occupancyPercent(p: any) {
   if (!p.unit_count) return 0
   const occupied = p.units?.filter((u: any) => u.status === 'occupied').length ?? 0
   return Math.round((occupied / p.unit_count) * 100)
+}
+
+function daysUntil(iso: string): number {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000))
+}
+
+function leasePct(lease: { start_date: string; end_date: string }): number {
+  const start = new Date(lease.start_date).getTime()
+  const end = new Date(lease.end_date).getTime()
+  if (end <= start) return 100
+  return Math.min(100, Math.max(0, Math.round(((Date.now() - start) / (end - start)) * 100)))
+}
+
+function expiryBadge(iso: string): string {
+  const d = daysUntil(iso)
+  if (d <= 30) return 'bg-danger-50 text-danger-600'
+  if (d <= 90) return 'bg-warning-50 text-warning-600'
+  return 'bg-success-50 text-success-700'
+}
+
+function fmtDate(iso: string): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleDateString('en-ZA', { dateStyle: 'medium' })
 }
 </script>

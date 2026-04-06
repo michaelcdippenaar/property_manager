@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Rental Pipeline — Klikk</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700;800&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+
+  :root {
+    --navy: #2B2D6E;
+    --navy-dark: #1a1c4e;
+    --accent: #FF3D7F;
+    --accent-soft: rgba(255,61,127,0.12);
+    --white: #fff;
+    --light: #F5F5FA;
+    --mid: #C8C8D2;
+    --text-muted: #8888A0;
+    --teal: #00D4AA;
+    --amber: #FFB347;
+    --blue-soft: #E8EEFF;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--white);
+    color: var(--navy);
+    overflow-x: hidden;
+  }
+
+  .infographic {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%);
+    padding: 80px 0 60px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.05);
+    animation: pulse-ring 4s ease-in-out infinite;
+  }
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: -50px; left: -50px;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,61,127,0.15);
+    animation: pulse-ring 6s ease-in-out infinite reverse;
+  }
+
+  @keyframes pulse-ring {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.15); opacity: 1; }
+  }
+
+  .hero-content {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hero h1 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 4rem;
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    animation: slideUp 0.8s ease-out;
+  }
+  .hero h1 span { color: var(--accent); }
+
+  .hero-subtitle {
+    color: rgba(255,255,255,0.65);
+    font-size: 1.15rem;
+    margin-top: 12px;
+    animation: slideUp 0.8s ease-out 0.15s both;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .hero-pills {
+    display: flex;
+    gap: 12px;
+    margin-top: 28px;
+    flex-wrap: wrap;
+    animation: slideUp 0.8s ease-out 0.3s both;
+  }
+  .pill {
+    padding: 8px 20px;
+    border-radius: 100px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .pill-accent { background: var(--accent); color: var(--white); }
+  .pill-outline { background: transparent; color: var(--white); border: 1.5px solid rgba(255,255,255,0.3); }
+
+  /* ─── Floating doodle illustrations in hero ─── */
+  .doodle {
+    position: absolute;
+    z-index: 0;
+    opacity: 0.15;
+  }
+  .doodle svg { width: 100%; height: 100%; }
+
+  .doodle-doc {
+    top: 30px; right: 80px;
+    width: 120px; height: 140px;
+    animation: float 5s ease-in-out infinite;
+  }
+  .doodle-key {
+    bottom: 20px; right: 200px;
+    width: 80px; height: 80px;
+    animation: float 6s ease-in-out 1s infinite;
+  }
+  .doodle-shield {
+    top: 80px; right: 260px;
+    width: 70px; height: 80px;
+    animation: float 7s ease-in-out 0.5s infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-12px) rotate(2deg); }
+    75% { transform: translateY(8px) rotate(-2deg); }
+  }
+
+  /* ─── STATS BAR ─── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    background: var(--light);
+    border-bottom: 3px solid var(--light);
+  }
+  .stat-item {
+    background: var(--white);
+    text-align: center;
+    padding: 32px 16px;
+    position: relative;
+  }
+  .stat-num {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 2.4rem;
+    font-weight: 800;
+    color: var(--navy);
+  }
+  .stat-num.accent { color: var(--accent); }
+  .stat-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+  }
+  /* Animated counter */
+  .stat-item { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+  .stat-item:nth-child(1) { animation-delay: 0.5s; }
+  .stat-item:nth-child(2) { animation-delay: 0.65s; }
+  .stat-item:nth-child(3) { animation-delay: 0.8s; }
+  .stat-item:nth-child(4) { animation-delay: 0.95s; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── TWO WAYS IN ─── */
+  .section { padding: 60px 0; }
+  .section-label {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--mid);
+  }
+
+  .two-paths {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .path-card {
+    border-radius: 16px;
+    padding: 36px;
+    position: relative;
+    overflow: hidden;
+    opacity: 0;
+    animation: slideIn 0.6s ease-out forwards;
+  }
+  .path-card:nth-child(1) { animation-delay: 0.2s; }
+  .path-card:nth-child(2) { animation-delay: 0.4s; }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .path-generate {
+    background: linear-gradient(135deg, var(--navy), var(--navy-dark));
+    color: var(--white);
+  }
+  .path-upload {
+    background: var(--white);
+    border: 2px solid var(--light);
+    color: var(--navy);
+  }
+
+  .path-icon {
+    width: 64px; height: 64px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .path-tag {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.6;
+    margin-bottom: 4px;
+  }
+
+  .path-title {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .path-desc {
+    font-size: 0.88rem;
+    opacity: 0.75;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .path-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .path-feature {
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-weight: 500;
+  }
+  .path-generate .path-feature {
+    background: rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.85);
+  }
+  .path-upload .path-feature {
+    background: var(--light);
+    color: var(--text-muted);
+  }
+
+  /* Doodle illustrations on path cards */
+  .path-card .card-doodle {
+    position: absolute;
+    opacity: 0.08;
+    pointer-events: none;
+  }
+  .path-generate .card-doodle {
+    bottom: -20px; right: -20px;
+    width: 180px; height: 180px;
+    opacity: 0.1;
+  }
+  .path-upload .card-doodle {
+    bottom: -15px; right: -10px;
+    width: 150px; height: 150px;
+    opacity: 0.06;
+  }
+
+  /* ─── PIPELINE STEPS ─── */
+  .pipeline {
+    padding: 20px 0 40px;
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: 60px 1fr;
+    gap: 24px;
+    margin-bottom: 0;
+    position: relative;
+    opacity: 0;
+    animation: stepIn 0.6s ease-out forwards;
+  }
+  .step:nth-child(1) { animation-delay: 0.1s; }
+  .step:nth-child(2) { animation-delay: 0.3s; }
+  .step:nth-child(3) { animation-delay: 0.5s; }
+  .step:nth-child(4) { animation-delay: 0.7s; }
+  .step:nth-child(5) { animation-delay: 0.9s; }
+
+  @keyframes stepIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+  }
+  .step-number {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--white);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 4px 20px rgba(255,61,127,0.3);
+  }
+  .step-line {
+    width: 2px;
+    flex: 1;
+    background: linear-gradient(to bottom, var(--accent), var(--mid));
+    margin-top: -2px;
+  }
+
+  /* Animated pulse on step numbers */
+  .step-number::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    opacity: 0;
+    animation: step-pulse 2s ease-out infinite;
+  }
+  @keyframes step-pulse {
+    0% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.5); opacity: 0; }
+  }
+
+  .step-content {
+    background: var(--white);
+    border: 1.5px solid var(--light);
+    border-radius: 16px;
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    transition: transform 0.3s, box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .step-content:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(43,45,110,0.08);
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .step-title {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .step-badge {
+    font-size: 0.65rem;
+    padding: 3px 10px;
+    border-radius: 100px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .step-desc {
+    font-size: 0.88rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .step-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .tag {
+    font-size: 0.72rem;
+    padding: 4px 12px;
+    border-radius: 100px;
+    background: var(--light);
+    color: var(--text-muted);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tag-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--teal);
+    display: inline-block;
+  }
+
+  /* Step doodle illustrations */
+  .step-illustration {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    transform: translateY(-50%);
+    opacity: 0.07;
+    pointer-events: none;
+  }
+
+  /* ─── COMPLIANCE ENGINE (special card) ─── */
+  .compliance-engine {
+    background: linear-gradient(135deg, var(--navy), var(--navy-dark));
+    border-color: var(--navy);
+    color: var(--white);
+    padding: 36px;
+  }
+  .compliance-engine .step-title { color: var(--white); }
+  .compliance-engine .step-desc { color: rgba(255,255,255,0.65); }
+  .compliance-engine .step-badge { background: rgba(255,61,127,0.2); }
+  .compliance-engine .tag {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.75);
+  }
+  .compliance-engine .tag-dot { background: var(--accent); }
+
+  .compliance-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 20px;
+  }
+  .compliance-card {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .compliance-card h4 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compliance-card p {
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.55);
+    line-height: 1.5;
+  }
+
+  /* Animated scanning line */
+  .compliance-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,61,127,0.05), transparent);
+    animation: scan 3s ease-in-out infinite;
+  }
+  @keyframes scan {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  /* ─── TENANT AI ASSISTANT ─── */
+  .ai-assistant {
+    padding: 60px 0;
+  }
+  .ai-chat-container {
+    background: var(--light);
+    border-radius: 20px;
+    padding: 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-chat-container::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--accent), var(--navy), var(--accent));
+    background-size: 200% 100%;
+    animation: gradient-shift 3s ease infinite;
+  }
+  @keyframes gradient-shift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .ai-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .ai-avatar {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .ai-avatar::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 2px solid var(--accent);
+    animation: pulse-ring 3s ease-in-out infinite;
+  }
+  .ai-header-text h3 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+  .ai-header-text p {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .chat-bubble {
+    max-width: 85%;
+    padding: 14px 20px;
+    border-radius: 16px;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    opacity: 0;
+    animation: chatIn 0.4s ease-out forwards;
+  }
+  .chat-bubble:nth-child(1) { animation-delay: 1.2s; }
+  .chat-bubble:nth-child(2) { animation-delay: 1.8s; }
+  .chat-bubble:nth-child(3) { animation-delay: 2.6s; }
+  .chat-bubble:nth-child(4) { animation-delay: 3.2s; }
+
+  @keyframes chatIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .chat-user {
+    align-self: flex-end;
+    background: var(--navy);
+    color: var(--white);
+    border-bottom-right-radius: 4px;
+  }
+  .chat-ai {
+    align-self: flex-start;
+    background: var(--white);
+    color: var(--navy);
+    border: 1px solid var(--mid);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-ref {
+    display: inline-block;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  /* Typing indicator */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 14px 20px;
+    align-self: flex-start;
+    opacity: 0;
+    animation: chatIn 0.4s ease-out 3.8s forwards;
+  }
+  .typing-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mid);
+    animation: typing 1.4s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes typing {
+    0%, 100% { opacity: 0.3; transform: translateY(0); }
+    50% { opacity: 1; transform: translateY(-4px); }
+  }
+
+  /* ─── CTA FOOTER ─── */
+  .cta-footer {
+    background: linear-gradient(135deg, var(--navy), var(--navy-dark));
+    padding: 60px 0;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-footer h2 {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--white);
+    margin-bottom: 8px;
+  }
+  .cta-footer p {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.92rem;
+    margin-bottom: 28px;
+  }
+  .cta-button {
+    display: inline-block;
+    padding: 14px 36px;
+    background: var(--accent);
+    color: var(--white);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 8px 30px rgba(255,61,127,0.4);
+  }
+  .cta-button::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transform: translateX(-100%);
+    animation: shimmer 2.5s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  .cta-sub {
+    font-size: 0.78rem;
+    color: rgba(255,255,255,0.4);
+    margin-top: 16px;
+  }
+
+  /* ─── Decorative background particles ─── */
+  .particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.06;
+    animation: drift linear infinite;
+  }
+  @keyframes drift {
+    0% { transform: translateY(100vh) rotate(0deg); }
+    100% { transform: translateY(-100px) rotate(360deg); }
+  }
+
+  /* ─── ANIMATED SVG ILLUSTRATIONS ─── */
+  .svg-icon {
+    display: inline-block;
+  }
+
+  /* Draw-on animation for SVG paths */
+  .draw-on {
+    stroke-dasharray: 200;
+    stroke-dashoffset: 200;
+    animation: drawPath 1.5s ease-out forwards;
+  }
+  @keyframes drawPath {
+    to { stroke-dashoffset: 0; }
+  }
+
+  /* ─── Process flow connector between sections ─── */
+  .flow-connector {
+    display: flex;
+    justify-content: center;
+    padding: 0;
+    position: relative;
+  }
+  .flow-arrow {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--accent), transparent);
+    position: relative;
+  }
+  .flow-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: -4px;
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 8px solid var(--accent);
+  }
+
+  /* ─── Mobile ─── */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2.5rem; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .two-paths { grid-template-columns: 1fr; }
+    .compliance-grid { grid-template-columns: 1fr; }
+    .step { grid-template-columns: 48px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- HERO                                                        -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <!-- Floating doodle illustrations -->
+  <div class="doodle doodle-doc">
+    <svg viewBox="0 0 120 140" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+      <rect x="10" y="10" width="80" height="110" rx="6" class="draw-on" style="animation-delay:0.5s"/>
+      <line x1="25" y1="35" x2="75" y2="35" class="draw-on" style="animation-delay:0.8s"/>
+      <line x1="25" y1="50" x2="65" y2="50" class="draw-on" style="animation-delay:0.9s"/>
+      <line x1="25" y1="65" x2="70" y2="65" class="draw-on" style="animation-delay:1s"/>
+      <line x1="25" y1="80" x2="55" y2="80" class="draw-on" style="animation-delay:1.1s"/>
+      <path d="M60 95 l10 10 l20-25" stroke="#FF3D7F" stroke-width="3" class="draw-on" style="animation-delay:1.3s"/>
+    </svg>
+  </div>
+  <div class="doodle doodle-shield">
+    <svg viewBox="0 0 70 80" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+      <path d="M35 5 L65 20 V50 C65 65 50 75 35 80 C20 75 5 65 5 50 V20 Z" class="draw-on" style="animation-delay:0.6s"/>
+      <path d="M25 42 l8 8 l15-18" stroke="#FF3D7F" stroke-width="3" class="draw-on" style="animation-delay:1.2s"/>
+    </svg>
+  </div>
+  <div class="doodle doodle-key">
+    <svg viewBox="0 0 80 80" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+      <circle cx="30" cy="30" r="18" class="draw-on" style="animation-delay:0.7s"/>
+      <line x1="44" y1="44" x2="72" y2="72" class="draw-on" style="animation-delay:0.9s"/>
+      <line x1="62" y1="72" x2="72" y2="62" class="draw-on" style="animation-delay:1.1s"/>
+      <line x1="55" y1="65" x2="65" y2="55" class="draw-on" style="animation-delay:1.2s"/>
+    </svg>
+  </div>
+
+  <div class="hero-content">
+    <h1>AI RENTAL<br><span>PIPELINE</span></h1>
+    <p class="hero-subtitle">Compliant leases, zero mistakes, seamless for every party</p>
+    <div class="hero-pills">
+      <span class="pill pill-accent">SA Compliant</span>
+      <span class="pill pill-outline">Zero Re-entry</span>
+      <span class="pill pill-outline">E-sign Anywhere</span>
+    </div>
+  </div>
+
+  <!-- Background particles -->
+  <div class="particles">
+    <div class="particle" style="width:6px;height:6px;background:var(--accent);left:10%;animation-duration:12s;animation-delay:0s;"></div>
+    <div class="particle" style="width:4px;height:4px;background:white;left:25%;animation-duration:18s;animation-delay:2s;"></div>
+    <div class="particle" style="width:8px;height:8px;background:var(--accent);left:50%;animation-duration:15s;animation-delay:4s;"></div>
+    <div class="particle" style="width:5px;height:5px;background:white;left:70%;animation-duration:20s;animation-delay:1s;"></div>
+    <div class="particle" style="width:3px;height:3px;background:var(--accent);left:85%;animation-duration:14s;animation-delay:3s;"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- STATS BAR                                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="stats-bar infographic">
+  <div class="stat-item">
+    <div class="stat-num accent">0</div>
+    <div class="stat-label">Data re-entry</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">100%</div>
+    <div class="stat-label">SA law compliant</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num accent">3 min</div>
+    <div class="stat-label">To sign from any device</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">All</div>
+    <div class="stat-label">Parties get instant access</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TWO WAYS IN                                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="section infographic">
+  <div class="section-label">Two ways in</div>
+  <div class="two-paths">
+
+    <!-- PATH A: Generate -->
+    <div class="path-card path-generate">
+      <div class="path-icon">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="4" width="36" height="48" rx="4" opacity="0.5"/>
+          <rect x="20" y="12" width="36" height="48" rx="4"/>
+          <line x1="28" y1="28" x2="48" y2="28" opacity="0.7"/>
+          <line x1="28" y1="36" x2="44" y2="36" opacity="0.5"/>
+          <line x1="28" y1="44" x2="40" y2="44" opacity="0.3"/>
+          <circle cx="46" cy="50" r="10" fill="#FF3D7F" stroke="#FF3D7F"/>
+          <path d="M42 50 h8 M46 46 v8" stroke="white" stroke-width="2.5"/>
+        </svg>
+      </div>
+      <div class="path-tag">Path A</div>
+      <div class="path-title">Generate New Lease</div>
+      <div class="path-desc">AI drafts a fully compliant lease from templates. Tenant, property, and owner data auto-populated from your database — no re-entering details.</div>
+      <div class="path-features">
+        <span class="path-feature">✦ Template Library</span>
+        <span class="path-feature">✦ AI Clause Drafting</span>
+        <span class="path-feature">✦ DB Auto-fill</span>
+        <span class="path-feature">✦ Custom Terms</span>
+      </div>
+      <!-- Decorative doodle -->
+      <div class="card-doodle">
+        <svg viewBox="0 0 180 180" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.6">
+          <path d="M20 160 Q50 20, 160 40" stroke-dasharray="4 6"/>
+          <circle cx="160" cy="40" r="12"/>
+          <path d="M155 40 l5 5 l10-12"/>
+          <circle cx="20" cy="160" r="8"/>
+          <circle cx="90" cy="80" r="5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- PATH B: Upload -->
+    <div class="path-card path-upload">
+      <div class="path-icon">
+        <svg width="64" height="64" viewBox="0 0 64 64" fill="none" stroke="#2B2D6E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="12" y="8" width="40" height="52" rx="4"/>
+          <path d="M24 20 l8-8 l8 8" stroke-width="2.5"/>
+          <line x1="32" y1="12" x2="32" y2="36"/>
+          <line x1="20" y1="44" x2="44" y2="44" opacity="0.4"/>
+          <line x1="20" y1="50" x2="38" y2="50" opacity="0.3"/>
+          <circle cx="46" cy="50" r="10" fill="none" stroke="#FF3D7F"/>
+          <path d="M41 50 l4 4 l7-8" stroke="#FF3D7F" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="path-tag">Path B</div>
+      <div class="path-title">Upload Existing Lease</div>
+      <div class="path-desc">Upload any PDF or DOCX lease. AI extracts data, syncs to your database records, and runs a full compliance validation.</div>
+      <div class="path-features">
+        <span class="path-feature">✦ PDF / DOCX Parsing</span>
+        <span class="path-feature">✦ Data Extraction</span>
+        <span class="path-feature">✦ Compliance Audit</span>
+        <span class="path-feature">✦ Validity Check</span>
+      </div>
+      <div class="card-doodle">
+        <svg viewBox="0 0 150 150" fill="none" stroke="#2B2D6E" stroke-width="1.2" stroke-linecap="round">
+          <path d="M20 130 C40 40, 110 40, 130 130" stroke-dasharray="4 6"/>
+          <rect x="55" y="50" width="40" height="50" rx="4"/>
+          <path d="M65 70 h20 M65 80 h15 M65 90 h18"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FLOW CONNECTOR                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="flow-connector"><div class="flow-arrow"></div></div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PIPELINE STEPS                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="section infographic">
+  <div class="section-label">How it works</div>
+  <div class="pipeline">
+
+    <!-- Step 1: Data Pre-filled -->
+    <div class="step">
+      <div class="step-indicator">
+        <div class="step-number">01</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-header">
+          <div class="step-title">Data Pre-filled, Zero Mistakes</div>
+          <span class="step-badge">Reduces risk</span>
+        </div>
+        <div class="step-desc">Tenant, property, owner, and agent details are pulled directly from your database. No copying, no typos, no mismatched records. Select the parties — the lease populates itself instantly.</div>
+        <div class="step-tags">
+          <span class="tag"><span class="tag-dot"></span> Tenant details from DB</span>
+          <span class="tag"><span class="tag-dot"></span> Property address & rules</span>
+          <span class="tag"><span class="tag-dot"></span> Owner info</span>
+          <span class="tag"><span class="tag-dot"></span> Agent details</span>
+        </div>
+        <!-- Illustration: DB → Lease flow -->
+        <div class="step-illustration">
+          <svg width="110" height="100" viewBox="0 0 110 100" fill="none" stroke="#2B2D6E" stroke-width="1.5" stroke-linecap="round">
+            <ellipse cx="30" cy="22" rx="22" ry="8"/>
+            <path d="M8 22 v20 c0 4 10 7 22 7 s22-3 22-7 V22"/>
+            <path d="M56 32 l16 10" stroke="#FF3D7F" stroke-width="2"/>
+            <path d="M72 42 l-4-1 l0-4" stroke="#FF3D7F" stroke-width="1.5"/>
+            <rect x="68" y="48" width="32" height="42" rx="4"/>
+            <line x1="74" y1="58" x2="94" y2="58" opacity="0.4"/>
+            <line x1="74" y1="65" x2="90" y2="65" opacity="0.4"/>
+            <line x1="74" y1="72" x2="88" y2="72" opacity="0.4"/>
+            <path d="M74 80 l4 4 l8-9" stroke="#FF3D7F" stroke-width="2"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: AI Compliance -->
+    <div class="step">
+      <div class="step-indicator">
+        <div class="step-number">02</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content compliance-engine">
+        <div class="step-header">
+          <div class="step-title">AI Checks Compliance For You</div>
+          <span class="step-badge">✦ Reduces risk</span>
+        </div>
+        <div class="step-desc">Before anyone signs, AI validates every clause against SA legislation and real court cases. Mistakes that would cost you in a tribunal are caught automatically — protecting landlord, agent, and tenant.</div>
+
+        <div class="compliance-grid">
+          <div class="compliance-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#FF3D7F" stroke-width="1.5" stroke-linecap="round">
+                <rect x="3" y="1" width="14" height="18" rx="2"/>
+                <line x1="6" y1="6" x2="14" y2="6"/>
+                <line x1="6" y1="9" x2="14" y2="9"/>
+                <line x1="6" y1="12" x2="11" y2="12"/>
+              </svg>
+              Legislation Check
+            </h4>
+            <p>Every clause cross-referenced against the Rental Housing Act, POPIA, and Consumer Protection Act. Non-compliant clauses flagged before signing.</p>
+            <div style="margin-top:10px">
+              <span class="tag"><span class="tag-dot"></span> RHA</span>
+              <span class="tag"><span class="tag-dot"></span> POPIA</span>
+              <span class="tag"><span class="tag-dot"></span> CPA</span>
+            </div>
+          </div>
+          <div class="compliance-card">
+            <h4>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#FF3D7F" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="10" cy="10" r="8"/>
+                <path d="M7 10 l2 2 l4-5"/>
+              </svg>
+              Tested Against Case Law
+            </h4>
+            <p>Clauses compared to past tribunal and High Court rulings. If a clause has been struck down before, you'll know before you sign — not after.</p>
+            <div style="margin-top:10px">
+              <span class="tag"><span class="tag-dot"></span> Tribunal Rulings</span>
+              <span class="tag"><span class="tag-dot"></span> Court Precedents</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Animated legislation ticker -->
+        <div style="margin-top:20px; overflow:hidden; border-radius:8px; background:rgba(255,255,255,0.04); padding:8px 0;">
+          <div style="display:flex; gap:24px; animation: ticker 20s linear infinite; white-space:nowrap;">
+            <span style="font-size:0.72rem; opacity:0.4;">§4 RHA — Unfair practices</span>
+            <span style="font-size:0.72rem; opacity:0.4;">§5 POPIA — Processing limitation</span>
+            <span style="font-size:0.72rem; opacity:0.4;">§14 CPA — Right to fair terms</span>
+            <span style="font-size:0.72rem; opacity:0.4;">Mpumalanga Tribunal 2023/415</span>
+            <span style="font-size:0.72rem; opacity:0.4;">Gauteng HC 2022/891 — Deposit ruling</span>
+            <span style="font-size:0.72rem; opacity:0.4;">§4 RHA — Unfair practices</span>
+            <span style="font-size:0.72rem; opacity:0.4;">§5 POPIA — Processing limitation</span>
+            <span style="font-size:0.72rem; opacity:0.4;">§14 CPA — Right to fair terms</span>
+          </div>
+        </div>
+        <style>
+          @keyframes ticker {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+        </style>
+      </div>
+    </div>
+
+    <!-- Step 3: Seamless Signing -->
+    <div class="step">
+      <div class="step-indicator">
+        <div class="step-number">03</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-header">
+          <div class="step-title">Easy for All Parties to Sign</div>
+          <span class="step-badge">E-sign anywhere</span>
+        </div>
+        <div class="step-desc">Tenant, landlord, and agent each get a signing link. Open on any phone, tablet, or laptop — sign in under a minute. No printing, no scanning, no chasing signatures. Automatic reminders keep everyone on track.</div>
+        <div class="step-tags">
+          <span class="tag"><span class="tag-dot"></span> Sign from any device</span>
+          <span class="tag"><span class="tag-dot"></span> Tenant signs on phone</span>
+          <span class="tag"><span class="tag-dot"></span> Auto-reminders</span>
+          <span class="tag"><span class="tag-dot"></span> Real-time status</span>
+        </div>
+        <div class="step-illustration">
+          <svg width="110" height="100" viewBox="0 0 110 100" fill="none" stroke="#2B2D6E" stroke-width="1.5" stroke-linecap="round">
+            <!-- Phone -->
+            <rect x="5" y="20" width="28" height="50" rx="4"/>
+            <path d="M15 52 Q20 42 25 50" stroke="#FF3D7F" stroke-width="2"/>
+            <line x1="14" y1="58" x2="26" y2="58" opacity="0.4"/>
+            <!-- Tablet -->
+            <rect x="42" y="15" width="30" height="40" rx="3"/>
+            <path d="M50 38 Q55 30 60 36" stroke="#FF3D7F" stroke-width="2"/>
+            <line x1="49" y1="44" x2="65" y2="44" opacity="0.4"/>
+            <!-- Laptop -->
+            <rect x="78" y="22" width="28" height="20" rx="2"/>
+            <path d="M72 42 h40" stroke-width="2"/>
+            <path d="M85 34 Q89 28 93 33" stroke="#FF3D7F" stroke-width="2"/>
+            <!-- Check marks -->
+            <circle cx="19" cy="76" r="6" stroke="#FF3D7F"/>
+            <path d="M16 76 l2 2 l4-5" stroke="#FF3D7F" stroke-width="1.5"/>
+            <circle cx="57" cy="62" r="6" stroke="#FF3D7F"/>
+            <path d="M54 62 l2 2 l4-5" stroke="#FF3D7F" stroke-width="1.5"/>
+            <circle cx="92" cy="50" r="6" stroke="#FF3D7F"/>
+            <path d="M89 50 l2 2 l4-5" stroke="#FF3D7F" stroke-width="1.5"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Tenant Understands Everything -->
+    <div class="step">
+      <div class="step-indicator">
+        <div class="step-number">04</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-header">
+          <div class="step-title">Tenant Can Ask AI Anything</div>
+          <span class="step-badge">Seamless experience</span>
+        </div>
+        <div class="step-desc">Before and after signing, tenants can ask the AI assistant any question about their lease in plain language. Clause references and legal rights explained clearly — no confusion, no surprises, complete transparency.</div>
+        <div class="step-tags">
+          <span class="tag"><span class="tag-dot"></span> Plain language answers</span>
+          <span class="tag"><span class="tag-dot"></span> Clause references</span>
+          <span class="tag"><span class="tag-dot"></span> Legal rights explained</span>
+          <span class="tag"><span class="tag-dot"></span> Available 24/7</span>
+        </div>
+        <div class="step-illustration">
+          <svg width="100" height="100" viewBox="0 0 100 100" fill="none" stroke="#2B2D6E" stroke-width="1.5" stroke-linecap="round">
+            <!-- Chat bubbles -->
+            <rect x="5" y="10" width="50" height="25" rx="8"/>
+            <path d="M15 35 l5 8 l5-8"/>
+            <line x1="14" y1="20" x2="46" y2="20" opacity="0.4"/>
+            <line x1="14" y1="27" x2="38" y2="27" opacity="0.3"/>
+            <rect x="35" y="48" width="55" height="25" rx="8" stroke="#FF3D7F"/>
+            <path d="M75 73 l5 8 l5-8" stroke="#FF3D7F"/>
+            <line x1="44" y1="58" x2="82" y2="58" opacity="0.4" stroke="#FF3D7F"/>
+            <line x1="44" y1="65" x2="72" y2="65" opacity="0.3" stroke="#FF3D7F"/>
+            <!-- AI sparkle -->
+            <circle cx="82" cy="18" r="3" fill="#FF3D7F" opacity="0.6"/>
+            <path d="M82 12 v-4 M82 24 v4 M88 18 h4 M76 18 h-4" stroke="#FF3D7F" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: All Parties Get Access -->
+    <div class="step">
+      <div class="step-indicator">
+        <div class="step-number">05</div>
+        <div class="step-line" style="background:transparent;"></div>
+      </div>
+      <div class="step-content">
+        <div class="step-header">
+          <div class="step-title">Everyone Has the Information</div>
+          <span class="step-badge">Instant access</span>
+        </div>
+        <div class="step-desc">The moment a lease is signed, every party gets instant access to the documents they need. Tenant sees it in their app, owner sees it on their dashboard, agent has it in their records. No emailing PDFs around — it's just there.</div>
+        <div class="step-tags">
+          <span class="tag"><span class="tag-dot"></span> Tenant mobile app</span>
+          <span class="tag"><span class="tag-dot"></span> Owner dashboard</span>
+          <span class="tag"><span class="tag-dot"></span> Agent records</span>
+          <span class="tag"><span class="tag-dot"></span> Compliance certificate</span>
+          <span class="tag"><span class="tag-dot"></span> Full audit trail</span>
+        </div>
+        <div class="step-illustration">
+          <svg width="110" height="100" viewBox="0 0 110 100" fill="none" stroke="#2B2D6E" stroke-width="1.5" stroke-linecap="round">
+            <!-- Central doc -->
+            <rect x="40" y="5" width="28" height="36" rx="3"/>
+            <path d="M47 16 h14 M47 22 h10 M47 28 h12" opacity="0.4"/>
+            <path d="M47 33 l3 3 l6-7" stroke="#FF3D7F" stroke-width="1.5"/>
+            <!-- Distribution arrows -->
+            <path d="M54 44 l-30 20" stroke="#FF3D7F" stroke-width="1.5"/>
+            <path d="M54 44 v22" stroke="#FF3D7F" stroke-width="1.5"/>
+            <path d="M54 44 l30 20" stroke="#FF3D7F" stroke-width="1.5"/>
+            <!-- Person icons -->
+            <circle cx="22" cy="72" r="8"/>
+            <path d="M14 88 Q14 80 22 80 Q30 80 30 88"/>
+            <text x="16" y="74" font-size="7" fill="#2B2D6E" font-family="DM Sans" opacity="0.5">T</text>
+            <circle cx="54" cy="74" r="8"/>
+            <path d="M46 90 Q46 82 54 82 Q62 82 62 90"/>
+            <text x="49" y="76" font-size="7" fill="#2B2D6E" font-family="DM Sans" opacity="0.5">O</text>
+            <circle cx="86" cy="72" r="8"/>
+            <path d="M78 88 Q78 80 86 80 Q94 80 94 88"/>
+            <text x="81" y="74" font-size="7" fill="#2B2D6E" font-family="DM Sans" opacity="0.5">A</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TENANT AI ASSISTANT                                          -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="ai-assistant infographic">
+  <div class="section-label">What the tenant sees</div>
+  <div class="ai-chat-container">
+    <div class="ai-header">
+      <div class="ai-avatar">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M8 9 Q12 5 16 9"/>
+          <circle cx="9" cy="12" r="1" fill="white"/>
+          <circle cx="15" cy="12" r="1" fill="white"/>
+          <path d="M9 16 Q12 19 15 16"/>
+        </svg>
+      </div>
+      <div class="ai-header-text">
+        <h3>Tenant AI Assistant</h3>
+        <p>A seamless experience — tenants understand their lease, ask questions, and sign from their phone</p>
+      </div>
+    </div>
+
+    <div class="chat-messages">
+      <div class="chat-bubble chat-user">
+        What happens if my landlord doesn't return my deposit in time?
+      </div>
+      <div class="chat-bubble chat-ai">
+        According to <strong>your lease (§12.3)</strong> and the <strong>Rental Housing Act §5(3)(g)</strong>, your landlord must refund your deposit within <strong>14 days</strong> of lease termination (or 21 days if an inspection is needed). If they don't, you can lodge a complaint with the Rental Housing Tribunal.
+        <br><span class="chat-ref">📖 RHA §5(3)(g) — Deposit refund</span>
+        <span class="chat-ref">⚖️ Tribunal Case 2023/287</span>
+      </div>
+      <div class="chat-bubble chat-user">
+        What happens if my lease is not renewed?
+      </div>
+      <div class="chat-bubble chat-ai">
+        Your lease (§8.1) converts to a <strong>month-to-month periodic tenancy</strong> on the same terms when it expires without renewal. Neither party can change conditions without written notice. Under the RHA, your landlord needs to give you <strong>1 calendar month's written notice</strong> to terminate a periodic lease.
+        <br><span class="chat-ref">📖 Your Lease §8.1 — Renewal terms</span>
+        <span class="chat-ref">📖 RHA §5(5) — Periodic tenancy</span>
+      </div>
+      <div class="typing-indicator">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CTA FOOTER                                                   -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<section class="cta-footer">
+  <div class="particles">
+    <div class="particle" style="width:4px;height:4px;background:var(--accent);left:15%;animation-duration:16s;"></div>
+    <div class="particle" style="width:6px;height:6px;background:white;left:40%;animation-duration:22s;animation-delay:3s;"></div>
+    <div class="particle" style="width:5px;height:5px;background:var(--accent);left:65%;animation-duration:14s;animation-delay:5s;"></div>
+    <div class="particle" style="width:3px;height:3px;background:white;left:80%;animation-duration:18s;animation-delay:2s;"></div>
+  </div>
+  <div class="infographic" style="position:relative;z-index:1;">
+    <h2>Start managing leases intelligently</h2>
+    <p>Free for up to 5 units. No credit card required.</p>
+    <a href="#" class="cta-button">Get Started Free →</a>
+    <div class="cta-sub">klikk.co.za</div>
+  </div>
+</section>
+
+</body>
+</html>

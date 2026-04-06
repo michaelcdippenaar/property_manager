@@ -61,8 +61,8 @@
 
           <!-- Collapsed row -->
           <div
-            class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/60 transition-colors select-none"
-            :class="expanded.includes(lease.id) ? 'bg-slate-50 border-l-2 border-l-navy' : ''"
+            class="flex items-center gap-4 px-5 py-3.5 cursor-pointer hover:bg-gray-50/60 transition-colors select-none border-l-2"
+            :class="[expanded.includes(lease.id) ? 'bg-slate-50' : '', leaseLineClass(lease)]"
             @click="toggle(lease.id)"
           >
             <!-- Dates -->
@@ -94,10 +94,20 @@
               R{{ Number(lease.monthly_rent).toLocaleString() }}
             </div>
 
-            <!-- Status -->
+            <!-- Status + signing CTA -->
             <div class="flex items-center gap-1.5 flex-shrink-0">
               <span :class="statusBadge(lease.status)">{{ lease.status }}</span>
+              <button
+                v-if="signingNarrative(lease.id).label === 'Needs signing' && lease.status === 'active'"
+                class="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-navy/10 text-navy hover:bg-navy hover:text-white transition-colors"
+                @click.stop="expandAndSign(lease.id)"
+                aria-label="Send for signing"
+              >
+                <FileSignature :size="11" />
+                Send for signing
+              </button>
               <span
+                v-else
                 :class="signingNarrative(lease.id).badge"
                 class="text-micro"
               >{{ signingNarrative(lease.id).label }}</span>
@@ -257,6 +267,23 @@
           </div>
         </div>
         </template>
+
+        <!-- Expired leases toggle (All tab only) -->
+        <div
+          v-if="activeTab === 'all' && expiredCount > 0"
+          class="flex items-center justify-center gap-2 px-5 py-3 border-t border-gray-100 cursor-pointer hover:bg-navy/5 transition-colors select-none group"
+          @click="showExpiredInAll = !showExpiredInAll"
+        >
+          <ChevronDown
+            :size="13"
+            class="text-navy transition-transform duration-200"
+            :class="showExpiredInAll ? 'rotate-180' : ''"
+          />
+          <span class="text-xs text-navy font-semibold group-hover:underline">
+            {{ showExpiredInAll ? 'Hide' : 'Show' }} {{ expiredCount }} expired lease{{ expiredCount !== 1 ? 's' : '' }}
+          </span>
+        </div>
+
       </div>
     </div>
 
@@ -444,7 +471,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated } from 'vue'
+import { ref, computed, onMounted, onActivated, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, FolderOpen } from 'lucide-vue-next'
@@ -488,11 +515,19 @@ const deletingId = ref<number | null>(null)
 const loadingDrafts = ref(false)
 const drafts = ref<any[]>([])
 
+const showExpiredInAll = ref(false)
+const expiredCount = computed(() =>
+  leases.value.filter(l => l.status === 'expired' || l.status === 'terminated').length
+)
+
 // Filter leases by active tab
 const filteredLeases = computed(() => {
   if (activeTab.value === 'active') return leases.value.filter(l => l.status === 'active')
   if (activeTab.value === 'expired') return leases.value.filter(l => l.status === 'expired' || l.status === 'terminated')
-  return leases.value
+  // 'all' tab: hide expired/terminated by default, reveal with toggle
+  const nonExpired = leases.value.filter(l => l.status !== 'expired' && l.status !== 'terminated')
+  const expired = leases.value.filter(l => l.status === 'expired' || l.status === 'terminated')
+  return showExpiredInAll.value ? [...nonExpired, ...expired] : nonExpired
 })
 
 // Group filtered leases by property
@@ -641,6 +676,11 @@ function toggle(id: number) {
   else expanded.value.splice(idx, 1)
 }
 
+function expandAndSign(id: number) {
+  if (!expanded.value.includes(id)) expanded.value.push(id)
+  nextTick(() => signingPanelRefs.value[id]?.openModal())
+}
+
 function openCreateDialog() {
   primaryTenantName.value = ''
   Object.assign(newLease.value, {
@@ -770,6 +810,21 @@ async function onEditDone(_updated: any) {
 
 function statusBadge(s: string) {
   return { active: 'badge-green', pending: 'badge-amber', expired: 'badge-red', terminated: 'badge-gray' }[s] ?? 'badge-gray'
+}
+
+function leaseDaysLeft(lease: any): number {
+  if (!lease.end_date) return Infinity
+  return Math.ceil((new Date(lease.end_date).getTime() - Date.now()) / 86400000)
+}
+
+function leaseLineClass(lease: any): string {
+  if (lease.status === 'expired' || lease.status === 'terminated') return 'border-l-gray-200'
+  const days = leaseDaysLeft(lease)
+  const isSigned = signingData.value.get(lease.id)?.status === 'completed'
+  if (!isSigned) return 'border-l-gray-300'
+  if (days <= 30) return 'border-l-danger-400'
+  if (days <= 90) return 'border-l-warning-400'
+  return 'border-l-success-400'
 }
 function docTypeBadge(t: string) {
   return { signed_lease: 'badge-purple', id_copy: 'badge-blue', other: 'badge-gray' }[t] ?? 'badge-gray'

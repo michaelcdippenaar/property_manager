@@ -58,6 +58,7 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `lease-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
 | `lease-test-battery` | Run full lease + e-signing integration test battery |
 | `security-audit` | Security reviews |
+| `stellenbosch-property-intel` | Scrape, enrich, classify, deduplicate and map Winelands properties |
 
 ## Conventions
 

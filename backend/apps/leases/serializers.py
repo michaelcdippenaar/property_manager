@@ -1,7 +1,7 @@
 import re
 from rest_framework import serializers
 from apps.accounts.models import Person
-from .models import Lease, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession, OnboardingStep, ReusableClause
+from .models import Lease, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession, OnboardingStep, ReusableClause, InventoryItem, InventoryTemplate
 
 
 def _detect_and_group(content_html):
@@ -214,3 +214,22 @@ class OnboardingStepSerializer(serializers.ModelSerializer):
             "is_completed", "completed_at", "completed_by", "notes", "order", "created_at",
         ]
         read_only_fields = ["id", "created_at"]
+
+
+class InventoryItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InventoryItem
+        fields = "__all__"
+        read_only_fields = ["id", "created_at"]
+
+
+class InventoryTemplateSerializer(serializers.ModelSerializer):
+    item_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InventoryTemplate
+        fields = ["id", "name", "items", "item_count", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_item_count(self, obj):
+        return len(obj.items) if obj.items else 0

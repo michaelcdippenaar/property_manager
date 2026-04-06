@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework import generics, permissions
-from .views import LeaseViewSet, LeaseCalendarAPIView
+from .views import LeaseViewSet, LeaseCalendarAPIView, InventoryTemplateViewSet
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
 from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView
@@ -57,6 +57,10 @@ urlpatterns = [
     path("clauses/extract/", ExtractClausesView.as_view(), name="clauses-extract"),
     path("clauses/<int:pk>/", ReusableClauseDestroyView.as_view(), name="clause-destroy"),
     path("clauses/<int:pk>/use/", ReusableClauseUseView.as_view(), name="clause-use"),
+    # Misc lists
+    # Inventory templates
+    path("inventory-templates/", InventoryTemplateViewSet.as_view({"get": "list", "post": "create"}), name="inventory-templates"),
+    path("inventory-templates/<int:pk>/", InventoryTemplateViewSet.as_view({"get": "retrieve", "put": "update", "delete": "destroy"}), name="inventory-template-detail"),
     # Misc lists
     path("co-tenants/", LeaseTenantList.as_view(), name="lease-co-tenants"),
     path("occupants/", LeaseOccupantList.as_view(), name="lease-occupants"),

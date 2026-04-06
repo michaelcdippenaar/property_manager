@@ -30,6 +30,11 @@ fastmcp>=2.0.0
 # GraphQL API (co-exists with DRF for flexible lease/template queries)
 graphene-django>=3.2.0
 google-auth
+# HTML parsing for market data scrapers
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+# RSS/Atom news feed parsing
+feedparser>=6.0.0
 # Testing
 pytest>=8.0
 pytest-django>=4.8

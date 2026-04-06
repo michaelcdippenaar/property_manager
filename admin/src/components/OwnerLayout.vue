@@ -41,7 +41,7 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { LayoutDashboard, Building2, LogOut } from 'lucide-vue-next'
+import { LayoutDashboard, Building2, FileText, LogOut } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,6 +50,7 @@ const auth = useAuthStore()
 const navItems = [
   { to: '/owner',            icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/owner/properties', icon: Building2,       label: 'Properties' },
+  { to: '/owner/leases',     icon: FileText,        label: 'Leases' },
 ]
 
 function isActive(to: string) {

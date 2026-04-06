@@ -1,16 +1,48 @@
 from rest_framework import serializers
-from .models import BankAccount, Landlord, Property, PropertyAgentConfig, PropertyGroup, PropertyOwnership, Unit, UnitInfo
+from .models import (
+    BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, Property,
+    PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
+    PropertyPhoto, PropertyValuation, Unit, UnitInfo,
+)
 
 
 class UnitSerializer(serializers.ModelSerializer):
+    active_lease_info = serializers.SerializerMethodField()
+    open_maintenance_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Unit
         fields = "__all__"
+
+    def get_open_maintenance_count(self, obj):
+        from apps.maintenance.models import MaintenanceRequest
+        return MaintenanceRequest.objects.filter(
+            unit=obj, status__in=["open", "in_progress"]
+        ).count()
+
+    def get_active_lease_info(self, obj):
+        from apps.leases.models import Lease
+        lease = (
+            Lease.objects.filter(unit=obj, status="active")
+            .select_related("primary_tenant")
+            .order_by("-start_date")
+            .first()
+        )
+        if not lease:
+            return None
+        return {
+            "start_date": lease.start_date.isoformat(),
+            "end_date": lease.end_date.isoformat(),
+            "tenant_name": lease.primary_tenant.full_name if lease.primary_tenant else None,
+            "monthly_rent": str(lease.monthly_rent),
+        }
 
 
 class PropertySerializer(serializers.ModelSerializer):
     units = UnitSerializer(many=True, read_only=True)
     unit_count = serializers.IntegerField(source="units.count", read_only=True)
+    nearest_lease_expiry = serializers.SerializerMethodField()
+    cover_photo = serializers.SerializerMethodField()
 
     class Meta:
         model = Property
@@ -20,6 +52,30 @@ class PropertySerializer(serializers.ModelSerializer):
         if "agent" not in validated_data:
             validated_data["agent"] = self.context["request"].user
         return super().create(validated_data)
+
+    def get_nearest_lease_expiry(self, obj):
+        from apps.leases.models import Lease
+        lease = (
+            Lease.objects.filter(unit__property=obj, status="active")
+            .order_by("end_date")
+            .values("start_date", "end_date")
+            .first()
+        )
+        if not lease:
+            return None
+        return {
+            "start_date": lease["start_date"].isoformat(),
+            "end_date": lease["end_date"].isoformat(),
+        }
+
+    def get_cover_photo(self, obj):
+        photo = obj.photos.first()
+        if photo and photo.photo:
+            request = self.context.get("request")
+            if request:
+                return request.build_absolute_uri(photo.photo.url)
+            return photo.photo.url
+        return None
 
 
 class UnitInfoSerializer(serializers.ModelSerializer):
@@ -76,6 +132,94 @@ class PropertyOwnershipSerializer(serializers.ModelSerializer):
         model = PropertyOwnership
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class PropertyPhotoSerializer(serializers.ModelSerializer):
+    photo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PropertyPhoto
+        fields = ["id", "property", "unit", "photo", "photo_url", "caption", "category", "position", "is_cover", "uploaded_at"]
+        read_only_fields = ["id", "uploaded_at"]
+
+    def get_photo_url(self, obj):
+        request = self.context.get("request")
+        if obj.photo and request:
+            return request.build_absolute_uri(obj.photo.url)
+        return None
+
+
+class PropertyDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PropertyDocument
+        fields = ["id", "property", "unit", "document", "file_url", "doc_type", "name", "notes", "uploaded_at"]
+        read_only_fields = ["id", "uploaded_at"]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.document and request:
+            return request.build_absolute_uri(obj.document.url)
+        return None
+
+
+class ComplianceCertificateSerializer(serializers.ModelSerializer):
+    cert_type_display = serializers.CharField(source="get_cert_type_display", read_only=True)
+    status = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ComplianceCertificate
+        fields = [
+            "id", "property", "cert_type", "cert_type_display", "certificate_number",
+            "issued_date", "expiry_date", "contractor_name", "contractor_phone",
+            "contractor_email", "registration_number", "document", "file_url",
+            "notes", "created_at", "status",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+    def get_status(self, obj):
+        return obj.get_status()
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.document and request:
+            return request.build_absolute_uri(obj.document.url)
+        return None
+
+
+class InsurancePolicySerializer(serializers.ModelSerializer):
+    policy_type_display = serializers.CharField(source="get_policy_type_display", read_only=True)
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = InsurancePolicy
+        fields = [
+            "id", "property", "policy_type", "policy_type_display", "insurer",
+            "policy_number", "broker", "broker_email", "broker_phone",
+            "sum_insured", "monthly_premium", "excess", "start_date", "end_date",
+            "is_active", "document", "file_url", "notes", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_file_url(self, obj):
+        request = self.context.get("request")
+        if obj.document and request:
+            return request.build_absolute_uri(obj.document.url)
+        return None
+
+
+class PropertyValuationSerializer(serializers.ModelSerializer):
+    valuation_type_display = serializers.CharField(source="get_valuation_type_display", read_only=True)
+
+    class Meta:
+        model = PropertyValuation
+        fields = [
+            "id", "property", "valuation_type", "valuation_type_display",
+            "amount", "valuation_date", "valuator", "notes", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
 
 
 class PropertyGroupSerializer(serializers.ModelSerializer):

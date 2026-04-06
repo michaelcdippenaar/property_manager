@@ -35,10 +35,14 @@ class Lease(models.Model):
     notice_period_days = models.PositiveSmallIntegerField(default=20)
     early_termination_penalty_months = models.PositiveSmallIntegerField(default=3)
 
+    # Renewal tracking — set when a renewal addendum is created
+    renewal_start_date = models.DateField(null=True, blank=True, help_text="Start of renewed period; dots after this date shown as unsigned/pending")
+
     # Human-readable lease reference, e.g. L-202601-0001 (auto-generated on import)
     lease_number = models.CharField(max_length=50, blank=True)
 
-    # Payment reference (e.g. "18 Irene - Smith")
+    # Payment terms
+    rent_due_day = models.PositiveSmallIntegerField(default=1, help_text="Day of month rent is due (1–28)")
     payment_reference = models.CharField(max_length=100, blank=True)
 
     # Raw AI extraction result stored for audit / re-use
@@ -270,6 +274,66 @@ class OnboardingStep(models.Model):
     def __str__(self):
         status = "Done" if self.is_completed else "Pending"
         return f"{self.title} [{status}]"
+
+
+class InventoryTemplate(models.Model):
+    """Reusable preset list of items to copy into a new lease inventory."""
+    name = models.CharField(max_length=200, help_text="e.g. 'Furnished flat', 'Unfurnished house'")
+    items = models.JSONField(
+        default=list,
+        help_text='[{"name": "Fridge", "category": "appliance", "qty": 1, "notes": "Samsung 350L"}]',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="inventory_templates",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({len(self.items)} items)"
+
+
+class InventoryItem(models.Model):
+    """Individual item tracked per lease period — condition at move-in vs move-out."""
+
+    class Category(models.TextChoices):
+        APPLIANCE   = "appliance",   "Appliance"
+        FURNITURE   = "furniture",   "Furniture"
+        FIXTURE     = "fixture",     "Fixture"
+        ELECTRONICS = "electronics", "Electronics"
+        LINEN       = "linen",       "Linen / Bedding"
+        KITCHEN     = "kitchen",     "Kitchenware"
+        KEYS        = "keys",        "Keys / Remotes"
+        OTHER       = "other",       "Other"
+
+    class Condition(models.TextChoices):
+        NEW       = "new",       "New"
+        GOOD      = "good",      "Good"
+        FAIR      = "fair",      "Fair"
+        POOR      = "poor",      "Poor"
+        DAMAGED   = "damaged",   "Damaged"
+        MISSING   = "missing",   "Missing"
+
+    lease       = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="inventory_items")
+    name        = models.CharField(max_length=200)
+    category    = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
+    quantity    = models.PositiveSmallIntegerField(default=1)
+    barcode     = models.CharField(max_length=100, blank=True, help_text="Barcode / serial / asset tag")
+    notes       = models.TextField(blank=True, help_text="Description, brand, model, serial number")
+    condition_in  = models.CharField(max_length=10, choices=Condition.choices, default=Condition.GOOD, help_text="Condition at move-in")
+    condition_out = models.CharField(max_length=10, choices=Condition.choices, blank=True, help_text="Condition at move-out")
+    photo_in    = models.ImageField(upload_to="inventory/in/", null=True, blank=True)
+    photo_out   = models.ImageField(upload_to="inventory/out/", null=True, blank=True)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["category", "name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.get_condition_in_display()})"
 
 
 class LeaseDocument(models.Model):

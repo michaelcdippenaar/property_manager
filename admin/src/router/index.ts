@@ -49,6 +49,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
         { path: 'properties', name: 'properties', component: () => import('../views/properties/PropertiesView.vue') },
+        { path: 'properties/:id', name: 'property-detail', component: () => import('../views/properties/PropertyDetailView.vue') },
         { path: 'landlords', name: 'landlords', component: () => import('../views/properties/LandlordsView.vue') },
         { path: 'tenants', name: 'tenants', component: () => import('../views/tenants/TenantsView.vue') },
         { path: 'maintenance', redirect: '/maintenance/issues' },
@@ -153,6 +154,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'owner-dashboard', component: () => import('../views/owner/OwnerDashboard.vue') },
         { path: 'properties', name: 'owner-properties', component: () => import('../views/owner/OwnerPropertiesView.vue') },
+        { path: 'leases', name: 'owner-lease-builder', component: () => import('../views/leases/LeaseBuilderView.vue') },
       ],
     },
 

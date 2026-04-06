@@ -51,6 +51,9 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             prop_ids = get_accessible_property_ids(user)
             qs = qs.filter(unit__property_id__in=prop_ids)
         # admin sees all
+        property_id = self.request.query_params.get("property")
+        if property_id:
+            qs = qs.filter(unit__property_id=property_id)
         exclude_status = self.request.query_params.get("exclude_status")
         if exclude_status:
             qs = qs.exclude(status=exclude_status)
@@ -299,7 +302,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     filterset_fields = ["is_active"]
 
     def get_queryset(self):
-        return Supplier.objects.prefetch_related("trades", "documents", "property_links__property").annotate(
+        qs = Supplier.objects.prefetch_related("trades", "documents", "property_links__property").annotate(
             active_jobs_count=Count(
                 "assigned_requests",
                 filter=Q(assigned_requests__status__in=["open", "in_progress"]),
@@ -313,6 +316,10 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 )
             ),
         )
+        prop_id = self.request.query_params.get("property")
+        if prop_id:
+            qs = qs.filter(property_links__property_id=prop_id)
+        return qs
 
     def get_serializer_class(self):
         if self.action == "list":

@@ -49,6 +49,7 @@ LOCAL_APPS = [
     "apps.tenant_portal",
     "apps.notifications",
     "apps.test_hub",
+    "apps.market_data",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -170,7 +171,10 @@ CORS_ALLOWED_ORIGINS = [
 GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
 
 # Anthropic Claude API
-ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY", default="")
+# Read directly from .env repo data to avoid decouple's issues with '--' in values
+_env_data = _env_repo.data if _env_path.is_file() else {}
+ANTHROPIC_API_KEY = _env_data.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
+GOOGLE_MAPS_API_KEY = _env_data.get("GOOGLE_MAPS_API_KEY", os.environ.get("GOOGLE_MAPS_API_KEY", ""))
 
 # Local contract / policy RAG (ChromaDB under RAG_CHROMA_PATH)
 CONTRACT_DOCUMENTS_ROOT = Path(
