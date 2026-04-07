@@ -1,0 +1,17 @@
+{
+  "eval_id": 3,
+  "eval_name": "close-corporation",
+  "prompt": "We need to onboard Paarl Building Supplies CC as a landlord on the system. Their docs are in /tmp/za-doc-test/close_corporation/ — please process them.",
+  "assertions": [
+    {"text": "Output JSON has entity_type = 'Close Corporation'"},
+    {"text": "CK1 document is classified under CIPC bucket"},
+    {"text": "Both member ID documents (Willem and Greta) are classified under FICA bucket"},
+    {"text": "CK1 extracts both members with interest percentages (60% and 40%)"},
+    {"text": "CC name 'PAARL BUILDING SUPPLIES CC' is correctly extracted"},
+    {"text": "CK number CK1998/034521/23 is correctly extracted"},
+    {"text": "Missing: SARS Tax Number is listed in fica.missing"},
+    {"text": "Missing: Bank Confirmation Letter is listed in fica.missing"},
+    {"text": "FICA status is 'incomplete' due to missing tax number and bank letter"},
+    {"text": "CIPC status is 'complete' — CK1 is present"}
+  ]
+}

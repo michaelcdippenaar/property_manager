@@ -1,0 +1,263 @@
+{
+  "classification_run": {
+    "date": "2026-04-06",
+    "source_directory": "/tmp/za-doc-test/trust_owned_company/",
+    "owner_type": "trust_owned_company",
+    "entities": {
+      "company": {
+        "name": "STELLENBOSCH WINE ESTATES (PTY) LTD",
+        "registration_number": "2015/234567/07",
+        "type": "private_company",
+        "status": "Active"
+      },
+      "trust": {
+        "name": "THE BOLAND PROPERTY TRUST",
+        "trust_number": "IT4521/2010",
+        "master_reference": "IT4521/2010",
+        "relationship": "100% shareholder of company"
+      },
+      "natural_persons": [
+        {
+          "name": "FRANCOIS PETRUS DU TOIT",
+          "id_number": "6809125034083",
+          "roles": ["Company Managing Director", "Trust Founder", "Trustee"]
+        },
+        {
+          "name": "SOPHIA ELEANOR DU TOIT",
+          "id_number": "7002170089080",
+          "roles": ["Trustee"]
+        },
+        {
+          "name": "HENDRIK JACOBUS MEYER",
+          "id_number": "8104175067081",
+          "roles": ["Company Director"]
+        }
+      ]
+    }
+  },
+  "documents": [
+    {
+      "filename": "cor14_3.txt",
+      "document_type": "company_registration",
+      "sub_type": "certificate_of_incorporation",
+      "cipc_form": "CoR14.3",
+      "entity": "company",
+      "entity_name": "STELLENBOSCH WINE ESTATES (PTY) LTD",
+      "registration_number": "2015/234567/07",
+      "date": "2015-09-22",
+      "issuing_authority": "CIPC — Companies and Intellectual Property Commission",
+      "fica_relevant": true,
+      "fica_category": "proof_of_legal_existence",
+      "status": "valid",
+      "expiry": "does_not_expire",
+      "notes": "Primary company registration document. Confirms active status. Required for FICA entity verification of the Pty Ltd."
+    },
+    {
+      "filename": "cor39_directors.txt",
+      "document_type": "company_registration",
+      "sub_type": "notice_of_directors",
+      "cipc_form": "CoR39",
+      "entity": "company",
+      "entity_name": "STELLENBOSCH WINE ESTATES (PTY) LTD",
+      "registration_number": "2015/234567/07",
+      "filing_date": "2015-09-22",
+      "issuing_authority": "CIPC",
+      "fica_relevant": true,
+      "fica_category": "beneficial_ownership_and_control",
+      "directors_listed": [
+        {
+          "name": "FRANCOIS PETRUS DU TOIT",
+          "id_number": "6809125034083",
+          "designation": "Managing Director",
+          "appointed": "2015-09-22"
+        },
+        {
+          "name": "HENDRIK JACOBUS MEYER",
+          "id_number": "8104175067081",
+          "designation": "Director",
+          "appointed": "2020-01-10"
+        }
+      ],
+      "status": "valid",
+      "expiry": "does_not_expire",
+      "notes": "Confirms directors and managing director of the company. FICA requires verification of all directors as natural persons. CoR39 may be stale if directors changed — should be verified against current CIPC records."
+    },
+    {
+      "filename": "francois_id.txt",
+      "document_type": "fica",
+      "sub_type": "identity_document",
+      "fica_category": "proof_of_identity",
+      "entity": "natural_person",
+      "entity_name": "FRANCOIS PETRUS DU TOIT",
+      "id_number": "6809125034083",
+      "date_of_birth": "1968-09-12",
+      "certified_copy": true,
+      "certification_date": "2026-02-10",
+      "commissioner_of_oaths": "A. Jacobs",
+      "status": "valid",
+      "expiry_assessment": {
+        "is_expired": false,
+        "assessment_date": "2026-04-06",
+        "months_since_certification": 1.9,
+        "standard_validity_months": 3,
+        "notes": "Certified copy dated 2026-02-10. As of 2026-04-06 this is approximately 55 days old — within the standard 3-month certification validity window."
+      },
+      "coverage": "Covers Francois Du Toit in all roles: Managing Director of company, Trustee and Founder of trust.",
+      "notes": "Valid certified copy. ID number matches CoR39 and Letters of Authority — consistent across documents."
+    },
+    {
+      "filename": "letters_of_authority.txt",
+      "document_type": "trust_registration",
+      "sub_type": "letters_of_authority",
+      "fica_category": "proof_of_trust_existence_and_trustees",
+      "entity": "trust",
+      "entity_name": "THE BOLAND PROPERTY TRUST",
+      "trust_number": "IT4521/2010",
+      "master_reference": "IT4521/2010",
+      "issuing_authority": "Master of the High Court — Western Cape Division",
+      "issued_date": "2010-03-15",
+      "trustees": [
+        {
+          "name": "FRANCOIS PETRUS DU TOIT",
+          "id_number": "6809125034083",
+          "appointed": "2010-03-15"
+        },
+        {
+          "name": "SOPHIA ELEANOR DU TOIT",
+          "id_number": "7002170089080",
+          "appointed": "2010-03-15"
+        }
+      ],
+      "legal_basis": "Section 6(1) of the Trust Property Control Act 57 of 1988",
+      "status": "valid",
+      "expiry_assessment": {
+        "is_expired": false,
+        "notes": "Letters of Authority do not expire unless trustees change. However, these were issued in 2010 (16 years ago). Best practice is to confirm no trustee changes have occurred since issue. If trustees have changed, a fresh Letters of Authority reflecting current trustees must be obtained."
+      },
+      "notes": "Required FICA document for trust entity verification. Confirms trust exists, is registered with the Master of the High Court, and names authorised trustees."
+    },
+    {
+      "filename": "proof_of_address_old.txt",
+      "document_type": "fica",
+      "sub_type": "proof_of_address",
+      "fica_category": "proof_of_residential_or_business_address",
+      "entity": "company",
+      "entity_name": "STELLENBOSCH WINE ESTATES (PTY) LTD",
+      "address": "Erf 445, Devon Valley Road, Stellenbosch, 7600",
+      "document_source": "City of Stellenbosch Municipality — Municipal Rates Account",
+      "statement_date": "2025-09-30",
+      "status": "EXPIRED",
+      "expiry_assessment": {
+        "is_expired": true,
+        "assessment_date": "2026-04-06",
+        "document_date": "2025-09-30",
+        "age_days": 188,
+        "standard_validity_days": 90,
+        "days_overdue": 98,
+        "notes": "Document is dated 2025-09-30. As of 2026-04-06 this is 188 days old — exceeds the standard FICA requirement of not older than 3 months (90 days). File itself notes it is 'more than 6 months ago'."
+      },
+      "action_required": "REPLACE — obtain a current utility bill, municipal rates statement, or bank statement not older than 3 months."
+    },
+    {
+      "filename": "trust_deed.txt",
+      "document_type": "trust_registration",
+      "sub_type": "deed_of_trust",
+      "fica_category": "trust_instrument",
+      "entity": "trust",
+      "entity_name": "THE BOLAND PROPERTY TRUST",
+      "trust_number": "IT4521/2010",
+      "founding_date": "2010-03-01",
+      "founder": {
+        "name": "FRANCOIS PETRUS DU TOIT",
+        "id_number": "6809125034083"
+      },
+      "trustees": [
+        {
+          "name": "FRANCOIS PETRUS DU TOIT",
+          "id_number": "6809125034083"
+        },
+        {
+          "name": "SOPHIA ELEANOR DU TOIT",
+          "id_number": "7002170089080"
+        }
+      ],
+      "beneficiaries": "The Du Toit family and their descendants",
+      "ownership_link": "Trust holds 100% of shares in STELLENBOSCH WINE ESTATES (PTY) LTD (Reg: 2015/234567/07)",
+      "status": "valid",
+      "expiry": "does_not_expire",
+      "notes": "Critical document establishing the trust and its link to the company. Confirms the ownership chain: trust owns 100% of the Pty Ltd. This document is the instrument that FICA examiners use to trace beneficial ownership through the trust to the natural persons behind it."
+    }
+  ],
+  "completeness_assessment": {
+    "company_documents": {
+      "certificate_of_incorporation": {"present": true, "valid": true, "filename": "cor14_3.txt"},
+      "notice_of_directors_cor39": {"present": true, "valid": true, "filename": "cor39_directors.txt"},
+      "proof_of_address_company": {"present": true, "valid": false, "filename": "proof_of_address_old.txt", "issue": "Expired — older than 3 months"},
+      "memorandum_of_incorporation": {"present": false, "valid": false, "issue": "MOI (CoR15.1A or equivalent) not provided — may be required for full FICA compliance"},
+      "share_register_or_shareholder_proof": {"present": false, "valid": false, "issue": "No share register or proof of shareholding by trust provided — important to formally confirm trust is shareholder"}
+    },
+    "trust_documents": {
+      "letters_of_authority": {"present": true, "valid": true, "filename": "letters_of_authority.txt", "caveat": "Issued 2010 — confirm no trustee changes since issue"},
+      "trust_deed": {"present": true, "valid": true, "filename": "trust_deed.txt"},
+      "proof_of_address_trust": {"present": false, "valid": false, "issue": "No proof of address for the trust itself (trust's registered address)"}
+    },
+    "natural_person_documents": {
+      "francois_du_toit_id": {"present": true, "valid": true, "filename": "francois_id.txt"},
+      "sophia_du_toit_id": {"present": false, "valid": false, "issue": "No ID document provided for Sophia Eleanor Du Toit (Trustee)"},
+      "hendrik_meyer_id": {"present": false, "valid": false, "issue": "No ID document provided for Hendrik Jacobus Meyer (Director)"},
+      "sophia_du_toit_proof_of_address": {"present": false, "valid": false, "issue": "No proof of address for Sophia Du Toit"},
+      "francois_du_toit_proof_of_address": {"present": false, "valid": false, "issue": "No proof of address for Francois Du Toit (as natural person/trustee)"}
+    }
+  },
+  "overall_status": "INCOMPLETE",
+  "issues": [
+    {
+      "severity": "HIGH",
+      "document": "proof_of_address_old.txt",
+      "issue": "Proof of address for company is expired (188 days old, limit is 90 days)",
+      "action": "Obtain current proof of address — municipal account, utility bill, or bank statement — not older than 3 months"
+    },
+    {
+      "severity": "HIGH",
+      "document": "MISSING",
+      "issue": "No identity document for Sophia Eleanor Du Toit (Trustee)",
+      "action": "Obtain certified copy of SA ID for Sophia Du Toit"
+    },
+    {
+      "severity": "HIGH",
+      "document": "MISSING",
+      "issue": "No identity document for Hendrik Jacobus Meyer (Director)",
+      "action": "Obtain certified copy of SA ID for Hendrik Meyer"
+    },
+    {
+      "severity": "MEDIUM",
+      "document": "MISSING",
+      "issue": "No proof of residential address for Francois Du Toit (natural person/trustee)",
+      "action": "Obtain proof of address not older than 3 months for Francois Du Toit"
+    },
+    {
+      "severity": "MEDIUM",
+      "document": "MISSING",
+      "issue": "No proof of residential address for Sophia Du Toit (trustee)",
+      "action": "Obtain proof of address not older than 3 months for Sophia Du Toit"
+    },
+    {
+      "severity": "MEDIUM",
+      "document": "MISSING",
+      "issue": "No Memorandum of Incorporation (MOI) provided for the company",
+      "action": "Obtain MOI from CIPC or company records"
+    },
+    {
+      "severity": "MEDIUM",
+      "document": "MISSING",
+      "issue": "No formal share register or proof confirming trust holds 100% of company shares",
+      "action": "Provide share register extract or share certificate confirming trust shareholding"
+    },
+    {
+      "severity": "LOW",
+      "document": "letters_of_authority.txt",
+      "issue": "Letters of Authority issued in 2010 — no evidence of trustee changes confirmed",
+      "action": "Confirm with Master of the High Court that trustees have not changed; obtain updated Letters of Authority if any changes occurred"
+    }
+  ]
+}

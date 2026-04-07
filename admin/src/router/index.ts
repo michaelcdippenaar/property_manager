@@ -47,60 +47,65 @@ const router = createRouter({
       component: () => import('../components/AppLayout.vue'),
       meta: { requiresAuth: true, roles: ['agent', 'admin'] },
       children: [
-        { path: '', name: 'dashboard', component: () => import('../views/dashboard/DashboardView.vue') },
-        { path: 'properties', name: 'properties', component: () => import('../views/properties/PropertiesView.vue') },
-        { path: 'properties/:id', name: 'property-detail', component: () => import('../views/properties/PropertyDetailView.vue') },
-        { path: 'landlords', name: 'landlords', component: () => import('../views/properties/LandlordsView.vue') },
-        { path: 'tenants', name: 'tenants', component: () => import('../views/tenants/TenantsView.vue') },
+        { path: '', name: 'dashboard', component: () => import('../views/dashboard/DashboardView.vue'), meta: { title: 'Dashboard' } },
+        { path: 'properties', name: 'properties', component: () => import('../views/properties/PropertiesView.vue'), meta: { title: 'Properties' } },
+        { path: 'properties/:id', name: 'property-detail', component: () => import('../views/properties/PropertyDetailView.vue'), meta: { title: 'Property' } },
+        { path: 'landlords', name: 'landlords', component: () => import('../views/properties/LandlordsView.vue'), meta: { title: 'Owners' } },
+        { path: 'landlords/:id', name: 'landlord-detail', component: () => import('../views/properties/LandlordDetailView.vue'), meta: { title: 'Owner' } },
+        { path: 'tenants', name: 'tenants', component: () => import('../views/tenants/TenantsView.vue'), meta: { title: 'Tenants' } },
         { path: 'maintenance', redirect: '/maintenance/issues' },
         {
           path: 'maintenance/issues',
           name: 'maintenance-issues',
           component: () => import('../views/maintenance/RequestsView.vue'),
+          meta: { title: 'Maintenance Issues' },
         },
         {
           path: 'maintenance/suppliers',
           name: 'maintenance-suppliers',
           component: () => import('../views/maintenance/SuppliersView.vue'),
+          meta: { title: 'Maintenance Suppliers' },
         },
         {
           path: 'maintenance/questions',
           name: 'maintenance-questions',
           component: () => import('../views/maintenance/QuestionsView.vue'),
+          meta: { title: 'Maintenance Questions' },
         },
         {
           path: 'suppliers',
           component: () => import('../views/suppliers/SuppliersLayout.vue'),
           children: [
-            { path: '', name: 'suppliers', component: () => import('../views/suppliers/DirectoryView.vue') },
-            { path: 'dispatch', name: 'dispatch', component: () => import('../views/suppliers/DispatchView.vue') },
+            { path: '', name: 'suppliers', component: () => import('../views/suppliers/DirectoryView.vue'), meta: { title: 'Suppliers' } },
+            { path: 'dispatch', name: 'dispatch', component: () => import('../views/suppliers/DispatchView.vue'), meta: { title: 'Dispatch' } },
           ],
         },
-        { path: 'leases/overview', name: 'lease-overview', component: () => import('../views/leases/LeaseOverviewView.vue') },
-        { path: 'leases', name: 'leases', component: () => import('../views/leases/LeasesView.vue') },
-        { path: 'leases/templates', name: 'lease-templates', component: () => import('../views/leases/LeaseTemplatesView.vue') },
+        { path: 'leases/overview', name: 'lease-overview', component: () => import('../views/leases/LeaseOverviewView.vue'), meta: { title: 'Lease Overview' } },
+        { path: 'leases', name: 'leases', component: () => import('../views/leases/LeasesView.vue'), meta: { title: 'Leases' } },
+        { path: 'leases/templates', name: 'lease-templates', component: () => import('../views/leases/LeaseTemplatesView.vue'), meta: { title: 'Lease Templates' } },
         { path: 'leases/status', redirect: '/leases' },
-        { path: 'leases/calendar', name: 'lease-calendar', component: () => import('../views/leases/LeaseCalendarView.vue') },
+        { path: 'leases/calendar', name: 'lease-calendar', component: () => import('../views/leases/LeaseCalendarView.vue'), meta: { title: 'Lease Calendar' } },
         {
           path: 'leases/templates/:id/edit',
           name: 'lease-template-edit',
           component: () => import('../views/leases/TiptapEditorView.vue'),
+          meta: { title: 'Edit Template' },
         },
         {
           path: 'leases/build',
           name: 'lease-builder',
           component: () => import('../views/leases/LeaseBuilderView.vue'),
+          meta: { title: 'Build Lease' },
         },
-        // Redirect old path
         { path: 'leases/submit', redirect: '/leases' },
         {
           path: 'property-info',
           component: () => import('../views/properties/PropertyInfoSection.vue'),
           children: [
-            { path: 'agent', name: 'property-info-agent', component: () => import('../views/properties/PropertyAgentView.vue') },
-            { path: 'skills', name: 'property-info-skills', component: () => import('../views/maintenance/SkillLibraryView.vue') },
-            { path: 'unit-info', name: 'property-info-unit-info', component: () => import('../views/properties/UnitTenantInfoView.vue') },
-            { path: 'monitor', name: 'property-info-monitor', component: () => import('../views/setup/AgentMonitorView.vue') },
+            { path: 'agent', name: 'property-info-agent', component: () => import('../views/properties/PropertyAgentView.vue'), meta: { title: 'Agent Context' } },
+            { path: 'skills', name: 'property-info-skills', component: () => import('../views/maintenance/SkillLibraryView.vue'), meta: { title: 'Skill Library' } },
+            { path: 'unit-info', name: 'property-info-unit-info', component: () => import('../views/properties/UnitTenantInfoView.vue'), meta: { title: 'Property Info' } },
+            { path: 'monitor', name: 'property-info-monitor', component: () => import('../views/setup/AgentMonitorView.vue'), meta: { title: 'Agent Monitor' } },
             { path: '', redirect: { name: 'property-info-agent' } },
           ],
         },
@@ -108,15 +113,16 @@ const router = createRouter({
         { path: 'unit-tenant-info', redirect: '/property-info/unit-info' },
         { path: 'skills', redirect: '/property-info/skills' },
         // Admin
-        { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue') },
+        { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue'), meta: { title: 'Users' } },
+        { path: 'admin/agency', name: 'admin-agency', component: () => import('../views/admin/AgencySettingsView.vue'), meta: { title: 'Agency Settings' } },
         // Profile
-        { path: 'profile', name: 'profile', component: () => import('../views/auth/ProfileView.vue') },
+        { path: 'profile', name: 'profile', component: () => import('../views/auth/ProfileView.vue'), meta: { title: 'Profile' } },
         // Testing Portal
-        { path: 'testing', name: 'TestingDashboard', component: () => import('../views/testing/TestingDashboard.vue') },
-        { path: 'testing/module/:module', name: 'TestingModule', component: () => import('../views/testing/TestingModuleView.vue') },
-        { path: 'testing/issues', name: 'TestingIssues', component: () => import('../views/testing/TestingIssuesView.vue') },
-        { path: 'testing/runs', name: 'TestingRuns', component: () => import('../views/testing/TestingRunsView.vue') },
-        { path: 'testing/selfcheck', name: 'TestingSelfCheck', component: () => import('../views/testing/TestingSelfCheckView.vue') },
+        { path: 'testing', name: 'TestingDashboard', component: () => import('../views/testing/TestingDashboard.vue'), meta: { title: 'Testing Portal' } },
+        { path: 'testing/module/:module', name: 'TestingModule', component: () => import('../views/testing/TestingModuleView.vue'), meta: { title: 'Test Module' } },
+        { path: 'testing/issues', name: 'TestingIssues', component: () => import('../views/testing/TestingIssuesView.vue'), meta: { title: 'Test Issues' } },
+        { path: 'testing/runs', name: 'TestingRuns', component: () => import('../views/testing/TestingRunsView.vue'), meta: { title: 'Test Runs' } },
+        { path: 'testing/selfcheck', name: 'TestingSelfCheck', component: () => import('../views/testing/TestingSelfCheckView.vue'), meta: { title: 'Self Check' } },
       ],
     },
 
@@ -192,6 +198,11 @@ router.beforeEach(async (to) => {
   if (allowedRoles && !allowedRoles.includes(auth.user?.role ?? '')) {
     return { path: auth.homeRoute }
   }
+})
+
+router.afterEach((to) => {
+  const title = to.meta.title as string | undefined
+  document.title = title ? `${title} · Klikk` : 'Klikk'
 })
 
 export default router

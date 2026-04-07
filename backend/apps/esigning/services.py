@@ -559,6 +559,7 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
         'tenant': 'tenant_1', 'tenant 1': 'tenant_1', 'co-tenant': 'tenant_2',
         'tenant 2': 'tenant_2', 'tenant 3': 'tenant_3',
         'witness': 'witness', 'agent': 'agent',
+        'owner': 'owner',  # used by rental mandate signing
     }
 
     signer_records = []

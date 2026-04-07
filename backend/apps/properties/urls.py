@@ -7,6 +7,9 @@ from .views import (
     UnitInfoViewSet, UnitViewSet,
 )
 from .owner_views import OwnerDashboardView, OwnerPropertiesView
+from .classify_view import LandlordClassifyView, LandlordClassifyRegistrationView
+from .municipal_bill_view import ParseMunicipalBillView
+from .mandate_views import RentalMandateViewSet
 
 router = DefaultRouter()
 router.register("landlords", LandlordViewSet, basename="landlord")
@@ -19,6 +22,7 @@ router.register("agent-config", PropertyAgentConfigViewSet, basename="agent-conf
 router.register("compliance-certs", ComplianceCertificateViewSet, basename="compliance-cert")
 router.register("insurance-policies", InsurancePolicyViewSet, basename="insurance-policy")
 router.register("valuations", PropertyValuationViewSet, basename="property-valuation")
+router.register("mandates", RentalMandateViewSet, basename="rental-mandate")
 router.register("", PropertyViewSet, basename="property")
 
 owner_urls = [
@@ -28,5 +32,8 @@ owner_urls = [
 
 urlpatterns = [
     path("owner/", include(owner_urls)),
+    path("landlords/<int:pk>/classify/", LandlordClassifyView.as_view(), name="landlord-classify"),
+    path("landlords/<int:pk>/classify-registration/", LandlordClassifyRegistrationView.as_view(), name="landlord-classify-registration"),
+    path("parse-municipal-bill/", ParseMunicipalBillView.as_view(), name="parse-municipal-bill"),
     path("", include(router.urls)),
 ]

@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, Person
+from .models import User, Person, Agency
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -88,6 +88,19 @@ class InviteUserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(choices=User.Role.choices)
     first_name = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class AgencySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Agency
+        fields = [
+            "id", "name", "registration_number", "eaab_ffc_number",
+            "contact_number", "email", "physical_address",
+            "trust_account_number", "trust_bank_name",
+            "statement_date", "disbursement_date", "information_officer_email",
+            "logo", "updated_at",
+        ]
+        read_only_fields = ["id", "updated_at"]
 
 
 class OTPSendSerializer(serializers.Serializer):

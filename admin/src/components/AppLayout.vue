@@ -1,206 +1,198 @@
 <template>
-  <div class="flex h-screen bg-surface overflow-hidden">
+  <div class="flex flex-col h-screen bg-surface overflow-hidden">
 
-    <!-- ── Sidebar ── -->
-    <aside
-      class="flex flex-col bg-white border-r border-gray-200 flex-shrink-0 transition-all duration-200 z-40"
-      :class="collapsed ? 'w-[60px]' : 'w-56'"
-    >
-      <!-- Logo + collapse toggle -->
-      <div class="flex items-center h-14 px-3 border-b border-gray-100 flex-shrink-0">
-        <RouterLink to="/" class="flex items-center gap-2 min-w-0">
-          <div class="w-8 h-8 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
-            <span class="text-white font-bold text-sm">K</span>
-          </div>
-          <span v-if="!collapsed" class="font-bold text-gray-900 text-sm truncate">
+    <!-- ── Header with navigation ── -->
+    <header class="header-nav flex-shrink-0 z-50">
+      <div class="h-16 flex items-center px-5 gap-2">
+        <!-- Logo -->
+        <RouterLink to="/" class="flex items-center gap-2 mr-3 flex-shrink-0">
+          <span class="font-extrabold text-white text-lg tracking-tight">
             Klikk<span class="text-accent">.</span>
           </span>
         </RouterLink>
-        <button
-          @click="collapsed = !collapsed"
-          class="ml-auto p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
-          :class="collapsed ? 'mx-auto' : ''"
-        >
-          <component :is="collapsed ? ChevronsRight : ChevronsLeft" :size="16" />
-        </button>
-      </div>
 
-      <!-- Navigation -->
-      <nav class="flex-1 overflow-y-auto py-3 px-2 space-y-5">
-        <!-- Primary -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Main</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in primaryNavItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Leases -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Leases</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in leaseSubItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Maintenance -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Maintenance</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in maintenanceSubItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed" class="flex-1">{{ item.label }}</span>
-              <span
-                v-if="item.badgeKey && badges[item.badgeKey]"
-                class="min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none"
-                :class="collapsed ? 'absolute top-0.5 right-0.5' : ''"
-              >{{ badges[item.badgeKey] }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Life Cycle -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Life Cycle</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in lifecycleItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Admin (admin only) -->
-        <div v-if="auth.user?.role === 'admin'">
-          <div v-if="!collapsed" class="sidebar-section-label">Admin</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in adminItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Testing -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Developer</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in testingItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- Setup -->
-        <div>
-          <div v-if="!collapsed" class="sidebar-section-label">Setup</div>
-          <div class="space-y-0.5">
-            <RouterLink
-              v-for="item in propertyInfoSubItems"
-              :key="item.to"
-              :to="item.to"
-              class="sidebar-link"
-              :class="[isActive(item.to) ? 'sidebar-link-active' : '', collapsed ? 'justify-center px-0' : '']"
-              :title="collapsed ? item.label : undefined"
-            >
-              <component :is="item.icon" :size="18" class="flex-shrink-0" />
-              <span v-if="!collapsed">{{ item.label }}</span>
-            </RouterLink>
-          </div>
-        </div>
-      </nav>
-
-      <!-- User + Logout at bottom -->
-      <div class="border-t border-gray-100 p-2 flex-shrink-0">
-        <div
-          class="flex items-center gap-2.5 px-2 py-2 rounded-lg"
-          :class="collapsed ? 'justify-center' : ''"
-        >
-          <div class="w-8 h-8 rounded-full bg-navy flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            {{ initials }}
-          </div>
-          <div v-if="!collapsed" class="min-w-0 flex-1">
-            <RouterLink to="/profile" class="block">
-              <div class="text-sm font-medium text-gray-900 truncate hover:text-navy">{{ auth.user?.full_name || 'Admin' }}</div>
-              <div class="text-xs text-gray-400 truncate">{{ auth.user?.email }}</div>
-            </RouterLink>
-          </div>
-          <button
-            @click="handleLogout"
-            class="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0"
-            :title="collapsed ? 'Logout' : undefined"
+        <!-- Primary navigation -->
+        <nav class="flex items-center gap-1 flex-1">
+          <!-- Dashboard -->
+          <RouterLink
+            to="/"
+            class="header-nav-link"
+            :class="route.path === '/' ? 'header-nav-link-active' : ''"
           >
-            <LogOut :size="16" />
+            <LayoutDashboard :size="15" />
+            Dashboard
+          </RouterLink>
+
+          <!-- Section dropdowns -->
+          <div
+            v-for="section in primaryNav"
+            :key="section.key"
+            class="relative"
+            @mouseenter="openDropdown = section.key"
+            @mouseleave="openDropdown = null"
+          >
+            <button
+              class="header-nav-link"
+              :class="isSectionActive(section) ? 'header-nav-link-active' : ''"
+            >
+              <span class="whitespace-nowrap">{{ section.label }}</span>
+              <span v-if="activeSectionChild(section)" class="opacity-60 font-normal whitespace-nowrap">· {{ activeSectionChild(section) }}</span>
+              <ChevronDown :size="12" class="opacity-50 flex-shrink-0" />
+            </button>
+
+            <Transition
+              enter-active-class="transition ease-out duration-100"
+              enter-from-class="opacity-0 scale-95 -translate-y-1"
+              enter-to-class="opacity-100 scale-100 translate-y-0"
+              leave-active-class="transition ease-in duration-75"
+              leave-from-class="opacity-100 scale-100 translate-y-0"
+              leave-to-class="opacity-0 scale-95 -translate-y-1"
+            >
+              <div
+                v-if="openDropdown === section.key"
+                class="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 origin-top-left"
+              >
+                <RouterLink
+                  v-for="item in section.items"
+                  :key="item.to"
+                  :to="item.to"
+                  class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                  :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                  @click="openDropdown = null"
+                >
+                  <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                  <span class="flex-1">{{ item.label }}</span>
+                  <span
+                    v-if="item.badgeKey && badges[item.badgeKey]"
+                    class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
+                  >{{ badges[item.badgeKey] }}</span>
+                </RouterLink>
+              </div>
+            </Transition>
+          </div>
+        </nav>
+
+        <!-- ── User menu ── -->
+        <div
+          class="relative ml-auto flex-shrink-0"
+          @mouseenter="openDropdown = 'user'"
+          @mouseleave="openDropdown = null"
+        >
+          <button
+            class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="User menu"
+          >
+            <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
+              {{ initials }}
+            </div>
+            <div class="text-sm text-white/70 hidden sm:block">{{ auth.user?.full_name || 'Admin' }}</div>
+            <ChevronDown :size="12" class="text-white/40 hidden sm:block" />
           </button>
+
+          <!-- User dropdown -->
+          <Transition
+            enter-active-class="transition ease-out duration-100"
+            enter-from-class="opacity-0 scale-95 -translate-y-1"
+            enter-to-class="opacity-100 scale-100 translate-y-0"
+            leave-active-class="transition ease-in duration-75"
+            leave-from-class="opacity-100 scale-100 translate-y-0"
+            leave-to-class="opacity-0 scale-95 -translate-y-1"
+          >
+            <div
+              v-if="openDropdown === 'user'"
+              class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 origin-top-right"
+            >
+              <!-- Profile -->
+              <RouterLink
+                to="/profile"
+                class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                :class="isActive('/profile') ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                @click="openDropdown = null"
+              >
+                <User :size="16" class="flex-shrink-0 text-gray-400" />
+                <span>Profile</span>
+              </RouterLink>
+
+              <div class="my-1 border-t border-gray-100" />
+
+              <!-- Admin items (admin only) -->
+              <template v-if="auth.user?.role === 'admin'">
+                <p class="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
+                <RouterLink
+                  v-for="item in adminItems"
+                  :key="item.to"
+                  :to="item.to"
+                  class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                  :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                  @click="openDropdown = null"
+                >
+                  <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                  <span>{{ item.label }}</span>
+                </RouterLink>
+
+                <!-- Developer -->
+                <RouterLink
+                  v-for="item in developerItems"
+                  :key="item.to"
+                  :to="item.to"
+                  class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                  :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                  @click="openDropdown = null"
+                >
+                  <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                  <span>{{ item.label }}</span>
+                </RouterLink>
+
+                <div class="my-1 border-t border-gray-100" />
+              </template>
+
+              <!-- Knowledge Base -->
+              <p class="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Knowledge Base</p>
+              <RouterLink
+                v-for="item in propertyInfoSubItems"
+                :key="item.to"
+                :to="item.to"
+                class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                @click="openDropdown = null"
+              >
+                <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                <span>{{ item.label }}</span>
+              </RouterLink>
+
+              <div class="my-1 border-t border-gray-100" />
+
+              <!-- Logout -->
+              <button
+                class="flex items-center gap-2.5 px-3 py-2 text-sm w-full text-left text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                @click="handleLogout"
+              >
+                <LogOut :size="16" class="flex-shrink-0 text-gray-400" />
+                <span>Log out</span>
+              </button>
+            </div>
+          </Transition>
         </div>
       </div>
-    </aside>
+    </header>
 
     <!-- ── Main content ── -->
-    <div class="flex-1 flex flex-col min-w-0">
-      <!-- Top bar -->
-      <header class="h-14 bg-white border-b border-gray-200 flex items-center px-6 flex-shrink-0 gap-4">
-        <h1 class="text-lg font-semibold text-gray-900">{{ currentPageTitle }}</h1>
-      </header>
+    <main class="flex-1 overflow-y-auto p-6">
+      <RouterView v-slot="{ Component }">
+        <KeepAlive exclude="TemplateEditorView,TiptapEditorView,LeaseBuilderView">
+          <component :is="Component" />
+        </KeepAlive>
+      </RouterView>
+    </main>
 
-      <!-- Page content -->
-      <main class="flex-1 overflow-y-auto p-6">
-        <RouterView v-slot="{ Component }">
-          <KeepAlive exclude="TemplateEditorView,TiptapEditorView,LeaseBuilderView">
-            <component :is="Component" />
-          </KeepAlive>
-        </RouterView>
-      </main>
-    </div>
+    <!-- AI assistant FAB -->
+    <RouterLink
+      to="/property-info/agent"
+      class="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-full bg-navy shadow-lg shadow-navy/25 flex items-center justify-center text-white hover:bg-navy-dark hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
+      aria-label="Ask AI assistant"
+    >
+      <Sparkles :size="18" />
+    </RouterLink>
 
     <!-- Toast notifications -->
     <ToastContainer />
@@ -215,18 +207,18 @@ import api from '../api'
 import ToastContainer from './ToastContainer.vue'
 import {
   LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText, FileSignature, Calendar,
-  LogOut, Sparkles, BookOpen, Info, ChevronsLeft, ChevronsRight, Truck,
-  Activity, HelpCircle, ShieldCheck, User, FlaskConical,
+  LogOut, Sparkles, BookOpen, Info, ChevronDown, Truck,
+  Activity, HelpCircle, ShieldCheck, User, FlaskConical, Settings,
 } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const collapsed = ref(false)
+const openDropdown = ref<string | null>(null)
 
-const primaryNavItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/landlords', icon: UserCheck, label: 'Landlords' },
+// ── Primary nav (always visible in header) ────────────────────────────────────
+const entityNavItems = [
+  { to: '/landlords', icon: UserCheck, label: 'Owners' },
   { to: '/properties', icon: Building2, label: 'Properties' },
   { to: '/tenants', icon: Users, label: 'Tenants' },
 ]
@@ -235,9 +227,6 @@ const leaseSubItems = [
   { to: '/leases/overview', icon: LayoutDashboard, label: 'Overview' },
   { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
   { to: '/leases', icon: FileText, label: 'Leases' },
-]
-
-const lifecycleItems = [
   { to: '/leases/calendar', icon: Calendar, label: 'Calendar' },
 ]
 
@@ -247,11 +236,25 @@ const maintenanceSubItems = [
   { to: '/maintenance/suppliers', icon: Truck, label: 'Suppliers' },
 ]
 
+interface NavSection {
+  key: string
+  label: string
+  items: typeof entityNavItems
+}
+
+const primaryNav = computed<NavSection[]>(() => [
+  { key: 'entities', label: 'Entities', items: entityNavItems },
+  { key: 'leases', label: 'Leases', items: leaseSubItems },
+  { key: 'maintenance', label: 'Maintenance', items: maintenanceSubItems },
+])
+
+// ── User menu items (under avatar dropdown) ───────────────────────────────────
 const adminItems = [
   { to: '/admin/users', icon: ShieldCheck, label: 'Users' },
+  { to: '/admin/agency', icon: Settings, label: 'Agency Settings' },
 ]
 
-const testingItems = [
+const developerItems = [
   { to: '/testing', icon: FlaskConical, label: 'Testing Portal' },
 ]
 
@@ -262,16 +265,14 @@ const propertyInfoSubItems = [
   { to: '/property-info/monitor', icon: Activity, label: 'Agent Monitor' },
 ]
 
-const allNavItems = [
-  ...primaryNavItems,
-  ...leaseSubItems,
-  ...maintenanceSubItems,
-  ...lifecycleItems,
-  ...adminItems,
-  ...testingItems,
-  ...propertyInfoSubItems,
-  { to: '/profile', icon: User, label: 'Profile' },
-]
+function isSectionActive(section: NavSection): boolean {
+  return section.items.some(item => isActive(item.to))
+}
+
+function activeSectionChild(section: NavSection): string | null {
+  const active = section.items.find(item => isActive(item.to))
+  return active ? active.label : null
+}
 
 const badges = ref<Record<string, number>>({})
 
@@ -286,7 +287,6 @@ onMounted(() => {
   loadBadges()
   setInterval(loadBadges, 60_000)
 
-  // Live badge updates via WebSocket
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
   const token = localStorage.getItem('access_token') || ''
   const ws = new WebSocket(`${wsUrl}/ws/maintenance/updates/?token=${token}`)
@@ -301,25 +301,14 @@ function isActive(to: string) {
   return route.path === to || route.path.startsWith(`${to}/`)
 }
 
-const pageTitleOverrides: Record<string, string> = {
-  '/leases/build': 'New Lease',
-}
-
-const currentPageTitle = computed(() => {
-  const override = pageTitleOverrides[route.path]
-  if (override) return override
-  const active = allNavItems.find(item => isActive(item.to))
-  return active?.label ?? ''
-})
-
 const initials = computed(() => {
   const name = auth.user?.full_name || auth.user?.email || 'A'
   return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 })
 
 function handleLogout() {
+  openDropdown.value = null
   auth.logout()
   router.push('/login')
 }
 </script>
-

@@ -59,6 +59,8 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `lease-test-battery` | Run full lease + e-signing integration test battery |
 | `security-audit` | Security reviews |
 | `stellenbosch-property-intel` | Scrape, enrich, classify, deduplicate and map Winelands properties |
+| `za-municipal-bill-extractor` | Extract property data from SA municipal bills (tool_use pattern) |
+| `za-company-doc-classifier` | Classify SA owner docs (FICA/CIPC), extract fields, persons graph |
 
 ## Conventions
 

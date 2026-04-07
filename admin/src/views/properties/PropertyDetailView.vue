@@ -1,5 +1,5 @@
 <template>
-  <div class="space-y-0">
+  <div class="space-y-5">
 
     <!-- ── Page header ── -->
     <div class="flex items-center justify-between mb-6">
@@ -12,7 +12,7 @@
           <ArrowLeft :size="18" />
         </button>
         <div>
-          <h2 class="text-lg font-semibold text-gray-900">{{ property?.name ?? '…' }}</h2>
+          <h1 class="text-xl font-bold text-gray-900">{{ property?.name ?? '…' }}</h1>
           <div v-if="property?.units?.length" class="flex items-center gap-1.5 mt-0.5">
             <select
               :value="activeUnit"
@@ -52,10 +52,19 @@
           leave-to-class="opacity-0 scale-95 -translate-y-1"
         >
           <div v-if="menuOpen" class="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 origin-top-right">
+            <button class="menu-item" @click="menuOpen = false; $router.push('/leases/build')">
+              <FileSignature :size="15" class="text-gray-400" /> Create lease
+            </button>
+            <button class="menu-item" @click="handleAdvertise">
+              <Megaphone :size="15" class="text-gray-400" /> Advertise unit
+            </button>
             <button class="menu-item" @click="handleGenerateLease">
-              <FilePlus2 :size="15" class="text-gray-400" /> Generate next period lease
+              <FilePlus2 :size="15" class="text-gray-400" /> Renew lease
             </button>
             <div class="my-1 border-t border-gray-100" />
+            <button class="menu-item text-warning-600 hover:bg-warning-50" @click="handleArchive">
+              <FolderOpen :size="15" /> Archive property
+            </button>
             <button class="menu-item text-danger-500 hover:bg-danger-50" @click="handleVoidLease">
               <Ban :size="15" /> Void lease
             </button>
@@ -174,14 +183,11 @@
               >
                 <td class="font-medium text-gray-900">Unit {{ unit.unit_number }}</td>
                 <td>
-                  <span
-                    class="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
-                    :class="{
-                      'bg-success-50 text-success-700': unit.status === 'occupied',
-                      'bg-info-50 text-info-600':       unit.status === 'available',
-                      'bg-warning-50 text-warning-600': unit.status === 'maintenance',
-                    }"
-                  >{{ unit.status }}</span>
+                  <span :class="{
+                    'badge-green': unit.status === 'occupied',
+                    'badge-blue':  unit.status === 'available',
+                    'badge-amber': unit.status === 'maintenance',
+                  }">{{ unit.status }}</span>
                 </td>
                 <td class="text-gray-700">{{ unit.active_lease_info?.tenant_name ?? '—' }}</td>
                 <td class="text-gray-700">
@@ -258,14 +264,11 @@
                     <span class="text-xs text-gray-400">
                       {{ cert.expiry_date ? 'Expires ' + fmtDate(cert.expiry_date) : 'No expiry date' }}
                     </span>
-                    <span
-                      class="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
-                      :class="{
-                        'bg-success-50 text-success-700': cert.status === 'valid',
-                        'bg-danger-50 text-danger-600':   cert.status === 'expired',
-                        'bg-warning-50 text-warning-600': cert.status === 'pending',
-                      }"
-                    >{{ cert.status }}</span>
+                    <span :class="{
+                      'badge-green': cert.status === 'valid',
+                      'badge-red':   cert.status === 'expired',
+                      'badge-amber': cert.status === 'pending',
+                    }">{{ cert.status }}</span>
                   </div>
                 </div>
               </div>
@@ -307,14 +310,11 @@
                     <div class="text-sm text-gray-800 truncate">{{ req.title }}</div>
                     <div class="text-xs text-gray-400 mt-0.5">{{ req.category }}</div>
                   </div>
-                  <span
-                    class="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize flex-shrink-0"
-                    :class="{
-                      'bg-danger-50 text-danger-600':   req.priority === 'urgent',
-                      'bg-warning-50 text-warning-600': req.priority === 'high',
-                      'bg-gray-100 text-gray-500':      req.priority === 'medium' || req.priority === 'low',
-                    }"
-                  >{{ req.priority }}</span>
+                  <span class="flex-shrink-0" :class="{
+                    'badge-red':   req.priority === 'urgent',
+                    'badge-amber': req.priority === 'high',
+                    'badge-gray':  req.priority === 'medium' || req.priority === 'low',
+                  }">{{ req.priority }}</span>
                 </div>
               </div>
 
@@ -434,7 +434,7 @@
               <div v-if="loadingTemplate" class="h-4 bg-gray-100 rounded animate-pulse" />
               <div v-else-if="linkedTemplate" class="space-y-2">
                 <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-lg bg-navy/10 flex items-center justify-center flex-shrink-0">
+                  <div class="w-7 h-7 rounded-lg bg-surface-secondary flex items-center justify-center flex-shrink-0">
                     <FileSignature :size="13" class="text-navy" />
                   </div>
                   <div class="min-w-0">
@@ -456,6 +456,11 @@
       </div>
 
       <!-- ── Documentation tab ── -->
+      <!-- ── Mandate tab ── -->
+      <div v-else-if="activeSection === 'mandate'">
+        <MandateTab :property-id="Number(route.params.id)" />
+      </div>
+
       <div v-else-if="activeSection === 'documentation'" class="space-y-4">
         <div class="flex items-center justify-between">
           <p class="text-sm text-gray-500">Property documents required for purchase, compliance, and management in South Africa.</p>
@@ -475,7 +480,7 @@
                   <span class="text-xs font-semibold text-gray-800">{{ cat.label }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span v-if="docsByCategory[cat.key]?.length" class="text-[10px] font-semibold text-navy bg-navy/10 px-1.5 py-0.5 rounded-full">{{ docsByCategory[cat.key].length }}</span>
+                  <span v-if="docsByCategory[cat.key]?.length" class="text-[10px] font-semibold text-navy bg-surface-secondary px-1.5 py-0.5 rounded-full">{{ docsByCategory[cat.key].length }}</span>
                   <label class="text-navy hover:underline cursor-pointer" aria-label="Upload to this category">
                     <Upload :size="12" />
                     <input type="file" class="hidden" @change="(e: Event) => uploadDocForCategory(e, cat.types[0])" />
@@ -506,8 +511,8 @@
               </div>
             </div>
 
-            <div v-else class="px-4 py-4 text-center">
-              <p class="text-xs text-gray-400">No documents uploaded.</p>
+            <div v-else class="px-4 py-2">
+              <EmptyState title="No documents" description="Upload documents for this category." :icon="FileText" />
             </div>
           </div>
         </div>
@@ -744,9 +749,8 @@
             </div>
           </div>
 
-          <div v-else class="text-center py-8">
-            <ImagePlus :size="28" class="mx-auto text-gray-200 mb-2" />
-            <p class="text-xs text-gray-400">No photos uploaded for this unit.</p>
+          <div v-else class="py-4">
+            <EmptyState title="No photos yet" description="Upload photos to showcase this unit in listings." :icon="ImagePlus" />
           </div>
         </div>
       </div>
@@ -766,7 +770,7 @@
             <div class="card p-5 space-y-3">
               <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner Entity</div>
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-navy/10 flex items-center justify-center flex-shrink-0">
+                <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
                   <Building2 :size="18" class="text-navy" />
                 </div>
                 <div class="min-w-0">
@@ -808,7 +812,7 @@
 
               <div v-if="owner.representative_name" class="space-y-3">
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-navy/10 flex items-center justify-center flex-shrink-0">
+                  <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
                     <span class="text-navy font-bold text-sm">{{ initials(owner.representative_name) }}</span>
                   </div>
                   <div class="min-w-0">
@@ -924,7 +928,7 @@
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-full bg-navy/10 flex items-center justify-center flex-shrink-0">
+                <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
                   <Truck :size="16" class="text-navy" />
                 </div>
                 <div class="min-w-0">
@@ -1183,6 +1187,7 @@ import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import BaseModal from '../../components/BaseModal.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import MandateTab from './MandateTab.vue'
 import {
   ArrowLeft, MoreHorizontal, FilePlus2, Ban, Upload, FileText,
   FileSignature, Loader2, Calendar, Wrench, Phone, Mail, ImagePlus,
@@ -1226,10 +1231,11 @@ const loadingValuation   = ref(false)
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
 const activeUnit = ref<number | null>(null)
-const activeSection = ref<'overview' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
+const activeSection = ref<'overview' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
 
 const sectionTabs = [
   { key: 'overview', label: 'Overview', icon: Wrench },
+  { key: 'mandate', label: 'Mandate', icon: FileSignature },
   { key: 'landlord', label: 'Landlord', icon: Building2 },
   { key: 'documentation', label: 'Documentation', icon: FolderOpen },
   { key: 'inventory', label: 'Inventory', icon: ClipboardList },
@@ -1925,6 +1931,16 @@ function handleVoidLease() {
   menuOpen.value = false
   if (!activeLease.value) { toast.error('No active lease to void'); return }
   voidModal.value = true
+}
+
+function handleAdvertise() {
+  menuOpen.value = false
+  toast.info('Advertising feature coming soon')
+}
+
+function handleArchive() {
+  menuOpen.value = false
+  toast.info('Archive feature coming soon')
 }
 
 async function confirmVoid() {

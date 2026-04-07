@@ -21,9 +21,18 @@
               <label class="label">Type</label>
               <select v-model="local.landlord_type" class="input">
                 <option value="individual">Individual</option>
-                <option value="company">Company</option>
+                <option value="company">Company (Pty Ltd / NPC)</option>
                 <option value="trust">Trust</option>
+                <option value="cc">Close Corporation (CC)</option>
+                <option value="partnership">Partnership</option>
               </select>
+            </div>
+            <div v-if="local.landlord_type === 'company' || local.landlord_type === 'cc'" class="col-span-2">
+              <label class="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" v-model="local.owned_by_trust" class="rounded text-navy" />
+                <span class="text-sm text-gray-700">This entity is wholly or partly owned by a Trust</span>
+              </label>
+              <p class="text-xs text-gray-400 mt-1 ml-5">Enables FICA trust document requirements for beneficial ownership tracing.</p>
             </div>
             <div>
               <label class="label">{{ local.landlord_type === 'individual' ? 'SA ID / Passport' : 'Registration no.' }}</label>

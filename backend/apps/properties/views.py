@@ -8,15 +8,16 @@ from django.shortcuts import get_object_or_404
 from django.db.models import Q
 from .access import get_accessible_property_ids
 from .models import (
-    BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, Property,
-    PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
+    BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
+    Property, PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
     PropertyPhoto, PropertyValuation, Unit, UnitInfo,
 )
 from .serializers import (
     BankAccountSerializer, ComplianceCertificateSerializer, InsurancePolicySerializer,
-    LandlordSerializer, PropertyAgentConfigSerializer, PropertyDocumentSerializer,
-    PropertyGroupSerializer, PropertyOwnershipSerializer, PropertyPhotoSerializer,
-    PropertySerializer, PropertyValuationSerializer, UnitInfoSerializer, UnitSerializer,
+    LandlordDocumentSerializer, LandlordSerializer, PropertyAgentConfigSerializer,
+    PropertyDocumentSerializer, PropertyGroupSerializer, PropertyOwnershipSerializer,
+    PropertyPhotoSerializer, PropertySerializer, PropertyValuationSerializer,
+    UnitInfoSerializer, UnitSerializer,
 )
 
 
@@ -173,6 +174,65 @@ class LandlordViewSet(viewsets.ModelViewSet):
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search))
         return qs
+
+    @action(detail=True, methods=['post'], url_path='upload-document', parser_classes=[parsers.MultiPartParser])
+    def upload_document(self, request, pk=None):
+        landlord = self.get_object()
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        # Delete old file if exists
+        if landlord.registration_document:
+            landlord.registration_document.delete(save=False)
+        landlord.registration_document = file
+        landlord.registration_document_name = file.name
+        landlord.save(update_fields=['registration_document', 'registration_document_name'])
+        return Response({
+            'registration_document': request.build_absolute_uri(landlord.registration_document.url),
+            'registration_document_name': landlord.registration_document_name,
+        })
+
+    @action(detail=True, methods=['delete'], url_path='delete-document')
+    def delete_document(self, request, pk=None):
+        landlord = self.get_object()
+        if landlord.registration_document:
+            landlord.registration_document.delete(save=False)
+        landlord.registration_document_name = ''
+        landlord.save(update_fields=['registration_document', 'registration_document_name'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True, methods=['get', 'post'],
+        url_path='fica-documents',
+        parser_classes=[parsers.MultiPartParser, parsers.FormParser],
+    )
+    def fica_documents(self, request, pk=None):
+        """List or upload FICA/CIPC supporting documents for this landlord."""
+        landlord = self.get_object()
+        if request.method == 'GET':
+            docs = landlord.documents.all()
+            return Response(LandlordDocumentSerializer(docs, many=True, context={'request': request}).data)
+
+        files = request.FILES.getlist('files')
+        if not files:
+            return Response({'error': 'No files provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        created = []
+        for f in files:
+            doc = LandlordDocument.objects.create(landlord=landlord, file=f, filename=f.name)
+            created.append(doc)
+        return Response(
+            LandlordDocumentSerializer(created, many=True, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=['delete'], url_path=r'fica-documents/(?P<doc_id>[0-9]+)')
+    def delete_fica_document(self, request, pk=None, doc_id=None):
+        """Delete a single FICA/CIPC supporting document."""
+        landlord = self.get_object()
+        doc = get_object_or_404(LandlordDocument, pk=doc_id, landlord=landlord)
+        doc.file.delete(save=False)
+        doc.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class BankAccountViewSet(viewsets.ModelViewSet):

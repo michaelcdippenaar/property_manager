@@ -1,0 +1,119 @@
+{
+  "entity_type": "Close Corporation",
+  "entity_subtype": "CC",
+  "owned_by_trust": false,
+  "trust_entity": null,
+  "fica": {
+    "status": "incomplete",
+    "documents": [
+      {
+        "type": "SA ID",
+        "filename": "willem_id.txt",
+        "extracted": {
+          "full_name": "Willem Adriaan Botha",
+          "id_number": "6505085034085",
+          "date_of_birth": "1965-05-08",
+          "nationality": "South African",
+          "document_type": "SA ID",
+          "certified_date": "2026-01-20"
+        },
+        "status": "found"
+      },
+      {
+        "type": "SA ID",
+        "filename": "greta_id.txt",
+        "extracted": {
+          "full_name": "Greta Susanna Botha",
+          "id_number": "6703040089083",
+          "date_of_birth": "1967-03-04",
+          "nationality": "South African",
+          "document_type": "SA ID",
+          "certified_date": "2026-01-20"
+        },
+        "status": "found"
+      },
+      {
+        "type": "Proof of Address",
+        "filename": "proof_of_address.txt",
+        "extracted": {
+          "account_holder": "Paarl Building Supplies CC",
+          "address": "12 Dal Josafat Road, Paarl, 7646",
+          "document_type": "Municipal Rates and Services Account",
+          "issuer": "Drakenstein Municipality",
+          "statement_date": "2026-03-15"
+        },
+        "status": "found",
+        "age_check": "valid — dated 2026-03-15, within 3 months of 2026-04-06"
+      }
+    ],
+    "missing": [
+      "Bank Confirmation Letter",
+      "SARS Income Tax Number for the CC"
+    ],
+    "flags": []
+  },
+  "cipc": {
+    "status": "needs_review",
+    "documents": [
+      {
+        "type": "CK1",
+        "filename": "ck1.txt",
+        "extracted": {
+          "cc_name": "Paarl Building Supplies CC",
+          "ck_number": "CK1998/034521/23",
+          "registration_date": "1998-11-03",
+          "nature_of_business": "Supply and retail of building materials",
+          "members": [
+            {
+              "full_name": "Willem Adriaan Botha",
+              "id_number": "6505085034085",
+              "interest_percentage": "60",
+              "contribution": "R 60,000"
+            },
+            {
+              "full_name": "Greta Susanna Botha",
+              "id_number": "6703040089083",
+              "interest_percentage": "40",
+              "contribution": "R 40,000"
+            }
+          ],
+          "accounting_officer": "Winelands Accounting Services CC (Practice No. SW/2345)",
+          "business_address": "12 Dal Josafat Road, Paarl, 7646"
+        },
+        "status": "found"
+      }
+    ],
+    "missing": [
+      "CK2 (Amended Founding Statement) — recommended if any changes since 1998"
+    ],
+    "flags": [
+      "CC registered 1998-11-03 — no CK2 amendment documents found; verify with CIPC whether amendments were filed",
+      "CC registered in 1998 (pre-2011) — no annual return (CoR123) found in folder; however CCs use a separate CIPC maintenance system — confirm active status with CIPC"
+    ]
+  },
+  "extracted_data": {
+    "cc_name": "Paarl Building Supplies CC",
+    "ck_number": "CK1998/034521/23",
+    "registration_date": "1998-11-03",
+    "nature_of_business": "Supply and retail of building materials",
+    "members": [
+      {
+        "full_name": "Willem Adriaan Botha",
+        "id_number": "6505085034085",
+        "interest_percentage": "60",
+        "nationality": "South African"
+      },
+      {
+        "full_name": "Greta Susanna Botha",
+        "id_number": "6703040089083",
+        "interest_percentage": "40",
+        "nationality": "South African"
+      }
+    ],
+    "address": "12 Dal Josafat Road, Paarl, 7646",
+    "accounting_officer": "Winelands Accounting Services CC (Practice No. SW/2345)",
+    "tax_number": "",
+    "vat_number": ""
+  },
+  "classified_at": "2026-04-06T00:00:00Z"
+}

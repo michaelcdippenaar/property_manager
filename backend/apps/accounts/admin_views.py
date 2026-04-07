@@ -3,9 +3,11 @@ from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import User, UserInvite
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+
+from .models import User, UserInvite, Agency
 from .permissions import IsAdmin
-from .serializers import AdminUserSerializer, AdminUserUpdateSerializer, InviteUserSerializer
+from .serializers import AdminUserSerializer, AdminUserUpdateSerializer, InviteUserSerializer, AgencySerializer
 
 
 class UserListView(generics.ListAPIView):
@@ -151,3 +153,29 @@ class InviteUserView(APIView):
             {"detail": "Invitation sent.", "token": str(invite.token)},
             status=status.HTTP_201_CREATED,
         )
+
+
+class AgencySettingsView(APIView):
+    """
+    GET  → retrieve the singleton Agency record (or empty {}).
+    PUT  → create-or-update (upsert) the Agency record.
+    Supports multipart/form-data for logo uploads.
+    """
+    permission_classes = [IsAdmin]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        agency = Agency.get_solo()
+        if not agency:
+            return Response({}, status=status.HTTP_200_OK)
+        return Response(AgencySerializer(agency).data)
+
+    def put(self, request):
+        agency = Agency.get_solo()
+        if agency:
+            serializer = AgencySerializer(agency, data=request.data, partial=True)
+        else:
+            serializer = AgencySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)

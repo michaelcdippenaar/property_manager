@@ -1,0 +1,17 @@
+{
+  "eval_id": 1,
+  "eval_name": "pty-ltd-complete",
+  "prompt": "I need to add a new owner to the system. The owner is a company called Bergvliet Properties. I've dropped all their documents into /tmp/za-doc-test/pty_ltd_complete/ — can you classify them for me?",
+  "assertions": [
+    {"text": "Output JSON contains entity_type = 'Company' and entity_subtype = 'Pty Ltd'"},
+    {"text": "CoR14.3 registration certificate is classified under CIPC bucket"},
+    {"text": "Both SA ID documents (Pieter and Annelie) are classified under FICA bucket"},
+    {"text": "Bank Confirmation Letter is classified under FICA bucket"},
+    {"text": "Directors list in extracted_data contains both VAN DER BERG directors"},
+    {"text": "Registration number 2019/087432/07 is correctly extracted"},
+    {"text": "FICA status is 'complete' — all required docs present"},
+    {"text": "CIPC status is 'complete' — CoR14.3, CoR39, and MOI all found"},
+    {"text": "No red flags raised (all docs valid and current)"},
+    {"text": "owner_classification.json is written to the output folder"}
+  ]
+}

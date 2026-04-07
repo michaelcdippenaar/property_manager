@@ -1,0 +1,17 @@
+{
+  "eval_id": 2,
+  "eval_name": "trust-owned-company",
+  "prompt": "Classify the owner documents at /tmp/za-doc-test/trust_owned_company/ — the company is a Pty Ltd that is owned by a trust called The Boland Property Trust.",
+  "assertions": [
+    {"text": "Output JSON has owned_by_trust = true"},
+    {"text": "trust_entity block is populated with trust name 'THE BOLAND PROPERTY TRUST'"},
+    {"text": "Letter of Authority is classified under CIPC bucket (trust sub-section)"},
+    {"text": "Trust Deed is classified under CIPC bucket (trust sub-section)"},
+    {"text": "Proof of address from September 2025 is flagged as potentially expired (>3 months old)"},
+    {"text": "Missing: Sophia/Annelie ID copy is flagged as missing FICA document"},
+    {"text": "Missing: Hendrik Meyer ID copy is flagged as missing"},
+    {"text": "Missing: Bank Confirmation Letter is listed in fica.missing"},
+    {"text": "FICA status is 'incomplete' due to missing documents"},
+    {"text": "CIPC status is 'complete' — CoR14.3, CoR39, LoA, and Trust Deed all found"}
+  ]
+}

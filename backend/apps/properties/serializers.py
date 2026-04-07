@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
-    BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, Property,
-    PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
+    BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
+    Property, PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
     PropertyPhoto, PropertyValuation, Unit, UnitInfo,
 )
 
@@ -102,6 +102,21 @@ class BankAccountSerializer(serializers.ModelSerializer):
         model = BankAccount
         fields = '__all__'
         read_only_fields = ['id', 'created_at']
+
+
+class LandlordDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LandlordDocument
+        fields = ['id', 'landlord', 'filename', 'file_url', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at', 'file_url']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return None
 
 
 class LandlordSerializer(serializers.ModelSerializer):

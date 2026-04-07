@@ -2,6 +2,8 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils import timezone
 
 
@@ -21,7 +23,12 @@ class ESigningSubmission(models.Model):
         NATIVE = "native", "Native"
 
     lease = models.ForeignKey(
-        "leases.Lease", on_delete=models.CASCADE, related_name="signing_submissions"
+        "leases.Lease", on_delete=models.CASCADE, related_name="signing_submissions",
+        null=True, blank=True,
+    )
+    mandate = models.ForeignKey(
+        "properties.RentalMandate", on_delete=models.CASCADE, related_name="signing_submissions",
+        null=True, blank=True,
     )
     signing_backend = models.CharField(
         max_length=10,
@@ -210,3 +217,36 @@ class SupportingDocument(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.original_filename}"
+
+
+# ---------------------------------------------------------------------------
+# Signals
+# ---------------------------------------------------------------------------
+
+@receiver(post_save, sender=ESigningSubmission)
+def sync_mandate_status(sender, instance, **kwargs):
+    """
+    Keep RentalMandate.status in sync with ESigningSubmission.status.
+    Fires whenever a submission is saved — guards against no-mandate submissions cheaply.
+    """
+    if not instance.mandate_id:
+        return
+
+    _status_map = {
+        ESigningSubmission.Status.COMPLETED:   "active",
+        ESigningSubmission.Status.DECLINED:    "cancelled",
+        ESigningSubmission.Status.IN_PROGRESS: "partially_signed",
+    }
+    new_status = _status_map.get(instance.status)
+    if not new_status:
+        return
+
+    mandate = instance.mandate
+    update_fields = ["status", "updated_at"]
+    mandate.status = new_status
+
+    if new_status == "active" and instance.signed_pdf_file:
+        mandate.signed_document = instance.signed_pdf_file
+        update_fields.append("signed_document")
+
+    mandate.save(update_fields=update_fields)

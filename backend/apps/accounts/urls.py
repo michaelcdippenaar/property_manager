@@ -6,8 +6,9 @@ from .views import (
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
     AcceptInviteView,
 )
-from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, AgencySettingsView
 from .oauth_views import GoogleAuthView
+from .lookup_views import EntityLookupView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
@@ -32,4 +33,8 @@ urlpatterns = [
     path("password-reset/", PasswordResetRequestView.as_view(), name="auth-password-reset"),
     path("password-reset/confirm/", PasswordResetConfirmView.as_view(), name="auth-password-reset-confirm"),
     path("accept-invite/", AcceptInviteView.as_view(), name="auth-accept-invite"),
+    # Cross-entity lookup by ID number or company registration number
+    path("lookup/", EntityLookupView.as_view(), name="entity-lookup"),
+    # Agency settings (singleton)
+    path("agency/", AgencySettingsView.as_view(), name="agency-settings"),
 ]

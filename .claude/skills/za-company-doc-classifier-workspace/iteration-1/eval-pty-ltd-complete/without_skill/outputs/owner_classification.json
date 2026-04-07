@@ -1,0 +1,236 @@
+{
+  "owner": {
+    "entity_type": "company",
+    "company_name": "BERGVLIET PROPERTIES (PTY) LTD",
+    "registration_number": "2019/087432/07",
+    "date_of_incorporation": "2019-05-14",
+    "company_status": "Active",
+    "registered_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+    "financial_year_end": "28 February",
+    "tax_reference_number": "9876543210"
+  },
+  "documents": [
+    {
+      "filename": "registration_certificate.txt",
+      "category": "CIPC",
+      "document_type": "Certificate of Incorporation",
+      "form_reference": "CoR14.3",
+      "issuer": "Companies and Intellectual Property Commission (CIPC)",
+      "status": "PASS",
+      "fields_extracted": {
+        "company_name": "BERGVLIET PROPERTIES (PTY) LTD",
+        "registration_number": "2019/087432/07",
+        "date_of_incorporation": "2019-05-14",
+        "company_status": "Active",
+        "registered_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+        "verification_reference": "CIPC-2019-BER-087432"
+      },
+      "notes": "Definitive CIPC incorporation document. Confirms company is active under Companies Act 71 of 2008."
+    },
+    {
+      "filename": "moi.txt",
+      "category": "CIPC",
+      "document_type": "Memorandum of Incorporation",
+      "form_reference": "CoR15.1A",
+      "issuer": "Bergvliet Properties (Pty) Ltd (adopted in terms of Companies Act 71 of 2008)",
+      "status": "PASS",
+      "fields_extracted": {
+        "company_name": "BERGVLIET PROPERTIES (PTY) LTD",
+        "registration_number": "2019/087432/07",
+        "date_of_adoption": "2019-05-14",
+        "company_type": "Private Company (Pty) Ltd",
+        "share_capital": "1,000 ordinary shares of no par value",
+        "financial_year_end": "28 February",
+        "minimum_directors": 1
+      },
+      "notes": "Standard MOI for private company. Confirms governance structure and no public share offering."
+    },
+    {
+      "filename": "directors_notice.txt",
+      "category": "CIPC",
+      "document_type": "Notice of Directors",
+      "form_reference": "CoR39",
+      "issuer": "Companies Act, 2008",
+      "status": "PASS",
+      "fields_extracted": {
+        "company_name": "BERGVLIET PROPERTIES (PTY) LTD",
+        "registration_number": "2019/087432/07",
+        "filing_date": "2019-05-14",
+        "directors": [
+          {
+            "full_name": "PIETER JOHANNES VAN DER BERG",
+            "identity_number": "7503065023082",
+            "nationality": "South African",
+            "designation": "Director",
+            "date_appointed": "2019-05-14",
+            "residential_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945"
+          },
+          {
+            "full_name": "ANNELIE VAN DER BERG",
+            "identity_number": "7811190045087",
+            "nationality": "South African",
+            "designation": "Director",
+            "date_appointed": "2019-05-14",
+            "residential_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945"
+          }
+        ]
+      },
+      "notes": "Lists two directors, both appointed at founding. IDs match the certified copies provided."
+    },
+    {
+      "filename": "pieter_id.txt",
+      "category": "FICA",
+      "document_type": "Certified Copy of South African Identity Document",
+      "issuer": "Republic of South Africa — Department of Home Affairs",
+      "status": "PASS",
+      "fields_extracted": {
+        "surname": "VAN DER BERG",
+        "first_names": "PIETER JOHANNES",
+        "identity_number": "7503065023082",
+        "date_of_birth": "1975-03-06",
+        "sex": "Male",
+        "citizenship": "South African Citizen",
+        "country_of_birth": "South Africa",
+        "certification_date": "2026-01-15",
+        "commissioner_of_oaths": "J. Swart (Notary Public)"
+      },
+      "id_number_dob_match": true,
+      "notes": "Certified copy dated 2026-01-15, within 3-month FICA threshold from reference date 2026-04-06. Identity number cross-references CoR39 directors notice — match confirmed."
+    },
+    {
+      "filename": "annelie_id.txt",
+      "category": "FICA",
+      "document_type": "Certified Copy of South African Identity Document",
+      "issuer": "Republic of South Africa — Department of Home Affairs",
+      "status": "PASS",
+      "fields_extracted": {
+        "surname": "VAN DER BERG",
+        "first_names": "ANNELIE",
+        "identity_number": "7811190045087",
+        "date_of_birth": "1978-11-19",
+        "sex": "Female",
+        "citizenship": "South African Citizen",
+        "country_of_birth": "South Africa",
+        "certification_date": "2026-01-15",
+        "commissioner_of_oaths": "J. Swart (Notary Public)"
+      },
+      "id_number_dob_match": true,
+      "notes": "Certified copy dated 2026-01-15, within 3-month FICA threshold from reference date 2026-04-06. Identity number cross-references CoR39 directors notice — match confirmed."
+    },
+    {
+      "filename": "proof_of_address.txt",
+      "category": "FICA",
+      "document_type": "Municipal Account Statement (Proof of Address)",
+      "issuer": "City of Cape Town Metropolitan Municipality",
+      "status": "PASS",
+      "fields_extracted": {
+        "account_holder": "BERGVLIET PROPERTIES (PTY) LTD",
+        "property_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+        "account_number": "CCT-089234-B",
+        "statement_date": "2026-03-31",
+        "total_due_zar": 5447.00
+      },
+      "notes": "Statement dated 2026-03-31, within 3-month FICA threshold from reference date 2026-04-06. Address matches registered office on CoR14.3 and directors' address on CoR39. Explicitly states it serves as official proof of address."
+    },
+    {
+      "filename": "bank_confirmation.txt",
+      "category": "FICA",
+      "document_type": "Bank Confirmation Letter",
+      "issuer": "Nedbank Limited",
+      "status": "PASS",
+      "fields_extracted": {
+        "account_holder": "BERGVLIET PROPERTIES (PTY) LTD",
+        "account_type": "Business Current Account",
+        "account_number_masked": "****3847",
+        "branch_code": "198765",
+        "branch_name": "Claremont",
+        "account_active_since": "2019-06-01",
+        "letter_date": "2026-03-10"
+      },
+      "notes": "Letter dated 2026-03-10, within 3-month FICA threshold. Business account opened shortly after incorporation (2019-06-01 vs 2019-05-14). Account number partially masked per banking convention."
+    },
+    {
+      "filename": "tax_certificate.txt",
+      "category": "CIPC",
+      "document_type": "Income Tax Registration Confirmation",
+      "issuer": "South African Revenue Service (SARS)",
+      "status": "PASS",
+      "fields_extracted": {
+        "entity_name": "BERGVLIET PROPERTIES (PTY) LTD",
+        "registration_number": "2019/087432/07",
+        "income_tax_reference_number": "9876543210",
+        "registration_date": "2019-07-01",
+        "tax_type": "Company Income Tax"
+      },
+      "notes": "SARS tax registration. Registration number matches CIPC documents. Strictly a SARS document but classified alongside CIPC company docs as it evidences the company's legal/tax standing rather than individual identity verification."
+    }
+  ],
+  "completeness_check": {
+    "reference_date": "2026-04-06",
+    "fica_requirements": {
+      "id_documents_for_all_directors": {
+        "required": true,
+        "status": "PASS",
+        "detail": "Both directors (Pieter Johannes van der Berg, Annelie van der Berg) have certified ID copies on file."
+      },
+      "proof_of_address_for_entity": {
+        "required": true,
+        "status": "PASS",
+        "detail": "Municipal account statement dated 2026-03-31 — within 3 months."
+      },
+      "bank_confirmation": {
+        "required": true,
+        "status": "PASS",
+        "detail": "Nedbank confirmation letter dated 2026-03-10 — within 3 months."
+      },
+      "id_documents_not_expired": {
+        "status": "PASS",
+        "detail": "SA green/smart ID documents do not expire. Certified copies dated 2026-01-15 (< 3 months old)."
+      }
+    },
+    "cipc_requirements": {
+      "certificate_of_incorporation": {
+        "required": true,
+        "status": "PASS",
+        "detail": "CoR14.3 present, company status Active."
+      },
+      "memorandum_of_incorporation": {
+        "required": true,
+        "status": "PASS",
+        "detail": "CoR15.1A present."
+      },
+      "notice_of_directors": {
+        "required": true,
+        "status": "PASS",
+        "detail": "CoR39 present, both directors listed."
+      },
+      "tax_registration": {
+        "required": false,
+        "status": "PASS",
+        "detail": "SARS income tax reference provided — supports KYC due diligence."
+      }
+    },
+    "cross_reference_checks": {
+      "registration_number_consistent": {
+        "status": "PASS",
+        "detail": "2019/087432/07 appears on CoR14.3, CoR15.1A, CoR39, and SARS certificate — all consistent."
+      },
+      "director_id_numbers_match_cor39": {
+        "status": "PASS",
+        "detail": "Pieter: 7503065023082 matches. Annelie: 7811190045087 matches."
+      },
+      "address_consistency": {
+        "status": "PASS",
+        "detail": "34 Vineyard Close, Bergvliet, Cape Town, 7945 appears on CoR14.3 (registered office), CoR39 (directors), and municipal proof of address — all consistent."
+      },
+      "company_name_consistent": {
+        "status": "PASS",
+        "detail": "BERGVLIET PROPERTIES (PTY) LTD used consistently across all 8 documents."
+      }
+    },
+    "overall_status": "COMPLETE",
+    "missing_documents": [],
+    "flags": [],
+    "recommendation": "All FICA and CIPC requirements satisfied. Owner record for Bergvliet Properties (Pty) Ltd may be created."
+  }
+}

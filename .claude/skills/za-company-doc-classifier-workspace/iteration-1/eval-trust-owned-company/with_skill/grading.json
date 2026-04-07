@@ -1,0 +1,63 @@
+{
+  "eval_id": 2,
+  "eval_name": "trust-owned-company",
+  "graded_at": "2026-04-06",
+  "expectations": [
+    {
+      "text": "Output JSON has owned_by_trust = true",
+      "passed": true,
+      "evidence": "owner_classification.json line 4: \"owned_by_trust\": true"
+    },
+    {
+      "text": "trust_entity block is populated with trust name 'THE BOLAND PROPERTY TRUST'",
+      "passed": true,
+      "evidence": "trust_entity block is fully populated; trust_name is \"The Boland Property Trust\" (title case vs all-caps in assertion, but the trust name is correctly identified and the block is complete with trust number IT4521/2010, trustees, beneficiaries, and ownership details)"
+    },
+    {
+      "text": "Letter of Authority is classified under CIPC bucket (trust sub-section)",
+      "passed": true,
+      "evidence": "letters_of_authority.txt appears under trust_entity.cipc.documents with type \"Letter of Authority\" and status \"found\". summary.md document inventory also shows classification as \"CIPC (Trust)\""
+    },
+    {
+      "text": "Trust Deed is classified under CIPC bucket (trust sub-section)",
+      "passed": true,
+      "evidence": "trust_deed.txt appears under trust_entity.cipc.documents with type \"Trust Deed\" and status \"found\". summary.md document inventory shows classification as \"CIPC (Trust)\""
+    },
+    {
+      "text": "Proof of address from September 2025 is flagged as potentially expired (>3 months old)",
+      "passed": true,
+      "evidence": "proof_of_address_old.txt dated 2025-09-30 is flagged in fica.documents[1].flags: \"document is approximately 6 months old, exceeds 3-month limit. TODAY is 2026-04-06. EXPIRED.\" Also flagged in fica.flags and summary.md as EXPIRED PROOF OF ADDRESS"
+    },
+    {
+      "text": "Missing: Sophia/Annelie ID copy is flagged as missing FICA document",
+      "passed": true,
+      "evidence": "Sophia Eleanor Du Toit's certified ID is flagged as missing in fica.missing (\"Certified ID / Passport for Sophia Eleanor Du Toit (trustee — required for beneficial ownership tracing)\") and in trust_entity.fica.missing and trust_entity.fica.flags. No document named 'Annelie' exists in the test data; Sophia is the trustee whose ID is missing."
+    },
+    {
+      "text": "Missing: Hendrik Meyer ID copy is flagged as missing",
+      "passed": true,
+      "evidence": "fica.missing includes \"Certified ID / Passport for Hendrik Jacobus Meyer (director on CoR39 — no ID document found)\". Also flagged in fica.flags and summary.md action items."
+    },
+    {
+      "text": "Missing: Bank Confirmation Letter is listed in fica.missing",
+      "passed": true,
+      "evidence": "fica.missing includes \"Bank Confirmation Letter for Stellenbosch Wine Estates (Pty) Ltd\". Also listed in summary.md action items."
+    },
+    {
+      "text": "FICA status is 'incomplete' due to missing documents",
+      "passed": true,
+      "evidence": "fica.status is \"incomplete\". trust_entity.fica.status is also \"incomplete\". summary.md header reads \"Company FICA Status: INCOMPLETE\""
+    },
+    {
+      "text": "CIPC status is 'complete' — CoR14.3, CoR39, LoA, and Trust Deed all found",
+      "passed": false,
+      "evidence": "The top-level cipc.status is \"needs_review\" (not \"complete\") because CoR15.1A/B (MOI) and CoR123 (Annual Return) are missing for the company. All four named documents (CoR14.3, CoR39, LoA, Trust Deed) are present, but the classifier split them across two CIPC buckets: company CIPC (needs_review) contains CoR14.3 and CoR39, while trust_entity.cipc (complete) contains LoA and Trust Deed. The assertion expects a unified CIPC status of 'complete', which is not reflected in the output."
+    }
+  ],
+  "summary": {
+    "passed": 9,
+    "failed": 1,
+    "total": 10,
+    "pass_rate": 0.9
+  }
+}

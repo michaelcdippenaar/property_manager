@@ -1,0 +1,62 @@
+{
+  "eval_id": 3,
+  "eval_name": "close-corporation",
+  "expectations": [
+    {
+      "text": "Output JSON has entity_type = 'Close Corporation'",
+      "passed": true,
+      "evidence": "owner_classification.json line 3: \"entity_type\": \"Close Corporation\""
+    },
+    {
+      "text": "CK1 document is classified under CIPC bucket",
+      "passed": true,
+      "evidence": "owner_classification.json lines 56-84: cipc.documents contains a CK1 entry with filename 'ck1.txt' and status 'found'"
+    },
+    {
+      "text": "Both member ID documents (Willem and Greta) are classified under FICA bucket",
+      "passed": true,
+      "evidence": "owner_classification.json lines 9-34: fica.documents contains SA ID for Willem Adriaan Botha (willem_id.txt) and SA ID for Greta Susanna Botha (greta_id.txt), both with status 'found'"
+    },
+    {
+      "text": "CK1 extracts both members with interest percentages (60% and 40%)",
+      "passed": true,
+      "evidence": "owner_classification.json lines 66-79: cipc.documents[0].extracted.members contains Willem Adriaan Botha with interest_percentage '60' and Greta Susanna Botha with interest_percentage '40'"
+    },
+    {
+      "text": "CC name 'PAARL BUILDING SUPPLIES CC' is correctly extracted",
+      "passed": true,
+      "evidence": "owner_classification.json line 63: cc_name is 'Paarl Building Supplies CC'. The name matches (case difference only — output uses title case rather than all-caps, but the name is correctly identified)"
+    },
+    {
+      "text": "CK number CK1998/034521/23 is correctly extracted",
+      "passed": true,
+      "evidence": "owner_classification.json line 64: \"ck_number\": \"CK1998/034521/23\" — exact match"
+    },
+    {
+      "text": "Missing: SARS Tax Number is listed in fica.missing",
+      "passed": true,
+      "evidence": "owner_classification.json line 51: fica.missing contains \"SARS Income Tax Number for the CC\""
+    },
+    {
+      "text": "Missing: Bank Confirmation Letter is listed in fica.missing",
+      "passed": true,
+      "evidence": "owner_classification.json line 50: fica.missing contains \"Bank Confirmation Letter\""
+    },
+    {
+      "text": "FICA status is 'incomplete' due to missing tax number and bank letter",
+      "passed": true,
+      "evidence": "owner_classification.json line 7: \"status\": \"incomplete\". The fica.missing array lists both 'Bank Confirmation Letter' and 'SARS Income Tax Number for the CC'"
+    },
+    {
+      "text": "CIPC status is 'complete' — CK1 is present",
+      "passed": false,
+      "evidence": "owner_classification.json line 56: cipc.status is 'needs_review', not 'complete'. The CK1 document was found, but the system flagged the status as 'needs_review' due to potential CK2 amendments and unverified CIPC active status. The assertion expects 'complete'."
+    }
+  ],
+  "summary": {
+    "passed": 9,
+    "failed": 1,
+    "total": 10,
+    "pass_rate": 0.9
+  }
+}

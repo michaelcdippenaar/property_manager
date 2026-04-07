@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.5; margin: 0; padding: 0; }
+  h1 { font-size: 16pt; font-weight: bold; text-align: center; margin-bottom: 4px; }
+  h2 { font-size: 12pt; font-weight: bold; margin-top: 20px; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+  h3 { font-size: 11pt; font-weight: bold; margin-top: 14px; margin-bottom: 4px; }
+  p  { margin: 6px 0; }
+  .subtitle { text-align: center; font-size: 9pt; color: #555; margin-bottom: 18px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  td, th { border: 1px solid #ccc; padding: 5px 8px; font-size: 10.5pt; vertical-align: top; }
+  td:first-child { width: 42%; font-weight: 600; background: #f7f7f7; }
+  .mandate-type-row td:first-child { width: 6%; background: #f7f7f7; text-align: center; font-size: 13pt; }
+  .active-type { font-weight: bold; }
+  .inactive-type { color: #999; }
+  .section-label { font-weight: bold; margin-top: 14px; margin-bottom: 2px; }
+  .signature-block table td:first-child { width: 38%; }
+  .footer { font-size: 8.5pt; color: #777; text-align: center; margin-top: 24px; border-top: 1px solid #ddd; padding-top: 8px; }
+  ol { margin: 6px 0 6px 20px; padding: 0; }
+  li { margin-bottom: 4px; }
+  .parties-heading { font-weight: bold; font-size: 11pt; margin: 12px 0 4px; }
+</style>
+</head>
+<body>
+
+<h1>RENTAL MANDATE AGREEMENT</h1>
+<p class="subtitle">Governing legislation: Rental Housing Act 50 of 1999 &bull; Consumer Protection Act 68 of 2008 &bull; POPIA 4 of 2013 &bull; Estate Agency Affairs Act 112 of 1976</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>1. PARTIES</h2>
+
+<p class="parties-heading">THE OWNER (PRINCIPAL)</p>
+<table>
+  <tr><td>Full name / Entity name</td><td>{{owner_full_name}}</td></tr>
+  <tr><td>Identity / Registration number</td><td>{{owner_id_reg_number}}</td></tr>
+  <tr><td>Contact number</td><td>{{owner_contact_number}}</td></tr>
+  <tr><td>Email address</td><td>{{owner_email_address}}</td></tr>
+  <tr><td>Physical / Postal address</td><td>{{owner_address}}</td></tr>
+</table>
+
+<p class="parties-heading">THE AGENT (RENTAL AGENCY)</p>
+<table>
+  <tr><td>Agency name</td><td>{{agency_name}}</td></tr>
+  <tr><td>Registration number</td><td>{{agency_registration_number}}</td></tr>
+  <tr><td>EAAB Fidelity Fund Certificate number</td><td>{{agency_ffc_number}}</td></tr>
+  <tr><td>Contact number</td><td>{{agency_contact_number}}</td></tr>
+  <tr><td>Email address</td><td>{{agency_email_address}}</td></tr>
+  <tr><td>Physical address</td><td>{{agency_physical_address}}</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>2. PROPERTY</h2>
+<table>
+  <tr><td>Physical address</td><td>{{property_address}}</td></tr>
+  <tr><td>Erf / Stand number</td><td>{{erf_number}}</td></tr>
+  <tr><td>Section / Unit number (if applicable)</td><td>{{unit_number}}</td></tr>
+  <tr><td>Sectional title scheme (if applicable)</td><td>{{scheme_name}}</td></tr>
+  <tr><td>Description</td><td>{{property_description}}</td></tr>
+  <tr><td>Proposed monthly rental</td><td>R {{monthly_rental_amount}}</td></tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>3. MANDATE TYPE</h2>
+<p>The Owner hereby appoints the Agent on the following basis:</p>
+<table>
+  <tr class="mandate-type-row">
+    <td>{{mandate_type_full_management_check}}</td>
+    <td class="{{mandate_type_full_management_class}}"><strong>Full Management Mandate</strong> — The Agent is authorised to market the property, screen and place tenants, collect rent, arrange maintenance and repairs, conduct inspections, and manage all day-to-day rental administration on behalf of the Owner.</td>
+  </tr>
+  <tr class="mandate-type-row">
+    <td>{{mandate_type_letting_only_check}}</td>
+    <td class="{{mandate_type_letting_only_class}}"><strong>Letting Only Mandate</strong> — The Agent is authorised to market the property, screen applicants, and secure a suitable tenant only. All ongoing management remains the sole responsibility of the Owner after the lease is signed.</td>
+  </tr>
+  <tr class="mandate-type-row">
+    <td>{{mandate_type_rent_collection_check}}</td>
+    <td class="{{mandate_type_rent_collection_class}}"><strong>Rent Collection Only Mandate</strong> — The Agent is authorised to collect monthly rental from the existing tenant, reconcile the trust account, and disburse funds to the Owner.</td>
+  </tr>
+  <tr class="mandate-type-row">
+    <td>{{mandate_type_finders_fee_check}}</td>
+    <td class="{{mandate_type_finders_fee_class}}"><strong>Finders Fee</strong> — The Agent is authorised to market the property and source a suitable tenant only. A once-off finders fee is payable upon lease signature. No further obligation on the Agent thereafter.</td>
+  </tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>4. MANDATE DURATION &amp; TERMINATION</h2>
+<p>4.1 This mandate commences on <strong>{{commencement_date}}</strong> and shall remain in force for <strong>{{mandate_duration}}</strong>, whereafter it shall continue on a month-to-month basis unless terminated in accordance with clause 4.2.</p>
+<p>4.2 Either party may terminate this mandate by giving the other party <strong>{{notice_period}} calendar days'</strong> written notice. Notice shall be delivered by hand, registered post, or email to the addresses set out in clause 1.</p>
+<p>4.3 Notwithstanding termination, the Agent shall remain entitled to commission on any lease concluded with a tenant introduced by the Agent during the mandate period, for the full duration of that lease and any renewal thereof.</p>
+<p>4.4 The Owner may not terminate this mandate in order to circumvent the payment of commission. Should the Owner conclude a lease directly with a tenant sourced by the Agent, full commission shall remain payable.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>5. EXCLUSIVITY</h2>
+<p>The Owner appoints the Agent on the following exclusivity basis:</p>
+<table>
+  <tr class="mandate-type-row">
+    <td>{{exclusivity_sole_check}}</td>
+    <td class="{{exclusivity_sole_class}}"><strong>Sole Mandate</strong> — The Owner appoints the Agent as the <strong>sole and exclusive</strong> agent to let the property for the duration of this mandate. Commission is payable to the Agent regardless of who introduces the successful tenant.</td>
+  </tr>
+  <tr class="mandate-type-row">
+    <td>{{exclusivity_open_check}}</td>
+    <td class="{{exclusivity_open_class}}"><strong>Open Mandate</strong> — The Owner retains the right to market the property through multiple agents and/or directly. Commission is payable only to the agent who introduces the successful tenant.</td>
+  </tr>
+</table>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>6. AGENT'S AUTHORITY &amp; OBLIGATIONS</h2>
+<p>6.1 The Agent is authorised to:</p>
+<ol type="a">
+  <li>Market and advertise the property on appropriate platforms at the Agent's cost (unless otherwise agreed in writing);</li>
+  <li>Receive and process rental applications and conduct tenant screening, including credit checks, employment verification, and reference checks in accordance with the National Credit Act 34 of 2005;</li>
+  <li>Conclude lease agreements on behalf of the Owner using the Agency's standard lease template, subject to the Owner's approval of material terms;</li>
+  <li><em>(Full Management / Rent Collection only)</em> Open and operate a dedicated trust account for the property in compliance with the Estate Agency Affairs Act and receive rental payments therein;</li>
+  <li><em>(Full Management only)</em> Authorise maintenance and repair expenditure up to <strong>R {{maintenance_threshold}}</strong> per incident without prior Owner approval; expenditure above this threshold requires written Owner consent;</li>
+  <li><em>(Full Management only)</em> Conduct ingoing, periodic, and outgoing inspections and prepare condition reports;</li>
+  <li><em>(Full Management only)</em> Issue breach notices, demand letters, and, subject to Owner instruction, initiate eviction proceedings under the PIE Act.</li>
+</ol>
+<p>6.2 The Agent shall:</p>
+<ol type="a">
+  <li>Act in the best interests of the Owner at all times and maintain confidentiality of the Owner's personal information;</li>
+  <li>Comply with all applicable legislation, including the EAAB Code of Conduct;</li>
+  <li>Provide monthly statements of account to the Owner within <strong>{{statement_date}}</strong> of each month;</li>
+  <li>Disburse net rental proceeds to the Owner by no later than <strong>{{disbursement_date}}</strong> of each month.</li>
+</ol>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>7. OWNER'S OBLIGATIONS</h2>
+<p>7.1 The Owner warrants that:</p>
+<ol type="a">
+  <li>The Owner is the registered owner of the property or is duly authorised to grant this mandate;</li>
+  <li>The property complies with all applicable by-laws, health and safety regulations, and occupancy requirements;</li>
+  <li>All rates, taxes, levies, and municipal accounts are current and will remain so during the tenancy;</li>
+  <li>The property is fit for habitation and complies with the minimum standards prescribed under the Rental Housing Act.</li>
+</ol>
+<p>7.2 The Owner shall:</p>
+<ol type="a">
+  <li>Provide all keys, access cards, and remote controls required for the property;</li>
+  <li>Maintain adequate building insurance for the property;</li>
+  <li>Promptly advise the Agent of any change of ownership, bondholder instructions, or encumbrances affecting the property;</li>
+  <li>Cooperate with the Agent in all matters necessary for the proper performance of this mandate.</li>
+</ol>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>8. COMMISSION &amp; FEES</h2>
+<p>Commission rates are determined by the Mandate Type selected in clause 3.</p>
+
+<h3>8.1 Full Management Mandate</h3>
+<table>
+  <tr><td>Monthly management commission</td><td><strong>10% of the gross monthly rental (excl. VAT)</strong></td></tr>
+  <tr><td>Annual escalation administration</td><td>Included</td></tr>
+  <tr><td>Lease renewal fee</td><td>Included</td></tr>
+</table>
+
+<h3>8.2 Letting Only Mandate</h3>
+<table>
+  <tr><td>Letting / placement fee</td><td><strong>One (1) month's gross rental (excl. VAT)</strong> — payable once-off upon signature of the lease by all parties</td></tr>
+</table>
+
+<h3>8.3 Rent Collection Only Mandate</h3>
+<table>
+  <tr><td>Monthly rent collection commission</td><td><strong>5% of the gross monthly rental (excl. VAT)</strong></td></tr>
+</table>
+
+<h3>8.4 Finders Fee</h3>
+<table>
+  <tr><td>Finders fee</td><td><strong>{{commission_rate_display}}</strong> — payable once-off upon signature of the lease by all parties</td></tr>
+</table>
+
+<h3>8.5 Additional Fees (All Mandate Types — where applicable)</h3>
+<table>
+  <tr><td>VAT</td><td>15% on all fees where applicable</td></tr>
+  <tr><td>Court filing fees / eviction disbursements</td><td>At cost — Owner's account</td></tr>
+</table>
+<p>8.6 All commission and fees shall be deducted from monies held in trust before disbursement. Where insufficient funds are held in trust, the Owner shall pay the Agent's fees within <strong>7 (seven) days</strong> of invoice.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>9. TRUST ACCOUNT &amp; DISBURSEMENTS</h2>
+<p>9.1 <em>(Full Management and Rent Collection mandates)</em> All rental and deposit monies shall be received into the Agent's registered trust account bearing account number <strong>{{trust_account_number}}</strong> held at <strong>{{trust_bank_name}}</strong>.</p>
+<p>9.2 The rental deposit shall be invested in an interest-bearing account in the tenant's name as required by section 5 of the Rental Housing Act and shall be refunded in accordance with that Act at the termination of the lease.</p>
+<p>9.3 The Agent shall not commingle trust funds with operating funds and shall maintain records in accordance with the Estate Agency Affairs Act.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>10. MAINTENANCE &amp; REPAIRS</h2>
+<p><em>(Applicable to Full Management Mandate)</em></p>
+<p>10.1 The Agent shall arrange necessary maintenance and repairs to keep the property in a habitable condition.</p>
+<p>10.2 Routine maintenance below the threshold in clause 6.1(e) shall be arranged without prior approval.</p>
+<p>10.3 Emergency repairs necessary to prevent imminent damage or risk to life may be authorised by the Agent without Owner consent, and the Owner shall be notified as soon as practicable thereafter.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>11. INSURANCE</h2>
+<p>11.1 The Owner is responsible for maintaining adequate building insurance. The Agent carries no liability for uninsured loss or damage to the property.</p>
+<p>11.2 The Agent maintains professional indemnity insurance and fidelity cover as required by the EAAB.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>12. LIABILITY</h2>
+<p>12.1 The Agent shall not be liable for any loss suffered by the Owner arising from: (a) a tenant's failure to pay rent or comply with the lease; (b) damage caused by a tenant beyond the amount of the deposit held; (c) any act or omission by a third-party contractor appointed in good faith; (d) circumstances beyond the Agent's reasonable control.</p>
+<p>12.2 The Owner indemnifies the Agent against any claim arising from the Owner's breach of this mandate or any warranty given herein.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>13. PROTECTION OF PERSONAL INFORMATION (POPIA)</h2>
+<p>13.1 Both parties acknowledge their obligations under the Protection of Personal Information Act 4 of 2013 (POPIA).</p>
+<p>13.2 The Owner authorises the Agent to collect, process, and store the personal information of prospective and current tenants for the purposes of tenant screening, lease administration, and compliance with applicable law.</p>
+<p>13.3 The Agent shall implement reasonable technical and organisational measures to protect personal information and shall not share it with unauthorised third parties.</p>
+<p>13.4 Tenants and the Owner may request access to, correction of, or deletion of their personal information by contacting the Agent's Information Officer at <strong>{{information_officer_email}}</strong>.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>14. DISPUTE RESOLUTION</h2>
+<p>14.1 In the event of a dispute, the parties shall first attempt to resolve it by way of good-faith negotiation within <strong>14 (fourteen) days</strong> of written notice.</p>
+<p>14.2 If the dispute is not resolved, either party may refer the matter to: (a) the <strong>Rental Housing Tribunal</strong> (for matters within its jurisdiction); or (b) <strong>Arbitration</strong> under the rules of AFSA, with a single arbitrator. The arbitrator's award shall be final and binding.</p>
+<p>14.3 Nothing in this clause shall prevent either party from approaching a court of competent jurisdiction for urgent or interim relief.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>15. GENERAL</h2>
+<p>15.1 <strong>Whole agreement.</strong> This agreement constitutes the entire mandate between the parties and supersedes all prior negotiations, representations, and agreements relating to its subject matter.</p>
+<p>15.2 <strong>Amendment.</strong> No amendment shall be of any force or effect unless reduced to writing and signed by both parties.</p>
+<p>15.3 <strong>Domicilium.</strong> The parties choose the addresses set out in clause 1 as their <em>domicilia citandi et executandi</em>.</p>
+<p>15.4 <strong>Cession.</strong> Neither party may cede, assign, or delegate any right or obligation without the prior written consent of the other party.</p>
+<p>15.5 <strong>Severability.</strong> If any provision is found to be invalid, it shall be severed and the remaining provisions shall continue in full force and effect.</p>
+<p>15.6 <strong>Applicable law.</strong> This mandate shall be governed by the laws of the Republic of South Africa.</p>
+<p>15.7 <strong>Costs.</strong> Each party shall bear its own legal costs in connection with the preparation and signing of this mandate.</p>
+
+<!-- ════════════════════════════════════════════ -->
+<h2>16. SIGNATURES</h2>
+<p><em>The parties declare that they have read and understood this mandate and agree to be bound by its terms.</em></p>
+
+<div class="signature-block">
+  <h3>SIGNED BY THE OWNER</h3>
+  <table>
+    <tr><td>Full name</td><td>{{owner_full_name}}</td></tr>
+    <tr><td>Capacity</td><td>Owner / Authorised representative</td></tr>
+    <tr>
+      <td>Signature</td>
+      <td>
+        <signature-field
+          name="owner_signature"
+          role="owner"
+          required="true"
+          format="drawn_or_typed"
+          style="width:220px;height:64px;display:inline-block;border:1px solid #ccc;">
+        </signature-field>
+      </td>
+    </tr>
+    <tr><td>Date</td><td><capture-field name="owner_signed_date" role="owner" type="date" /></td></tr>
+    <tr><td>Place</td><td><capture-field name="owner_signed_place" role="owner" type="text" placeholder="City" /></td></tr>
+  </table>
+
+  <h3>SIGNED BY THE AGENT</h3>
+  <table>
+    <tr><td>Agency name</td><td>{{agency_name}}</td></tr>
+    <tr><td>Representative</td><td>{{agent_name}}</td></tr>
+    <tr>
+      <td>Signature</td>
+      <td>
+        <signature-field
+          name="agent_signature"
+          role="agent"
+          required="true"
+          format="drawn_or_typed"
+          style="width:220px;height:64px;display:inline-block;border:1px solid #ccc;">
+        </signature-field>
+      </td>
+    </tr>
+    <tr><td>Date</td><td><capture-field name="agent_signed_date" role="agent" type="date" /></td></tr>
+    <tr><td>Place</td><td><capture-field name="agent_signed_place" role="agent" type="text" placeholder="City" /></td></tr>
+  </table>
+</div>
+
+<div class="footer">
+  <p>This document was prepared for use in the Republic of South Africa. It does not constitute legal advice. Parties are encouraged to obtain independent legal counsel before signing.</p>
+</div>
+
+</body>
+</html>

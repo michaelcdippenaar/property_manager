@@ -64,7 +64,7 @@ const allInclude: string[] = data.all_plans_include;
               </li>
             ))}
           </ul>
-          <a href="#" class={`tier-cta${tier.highlight ? ' tier-cta-primary' : ''}`}>
+          <a href={tier.price_monthly === null ? '#' : 'http://localhost:5173/login'} target={tier.price_monthly === null ? undefined : '_blank'} class={`tier-cta${tier.highlight ? ' tier-cta-primary' : ''}`}>
             {tier.price_monthly === null ? 'Contact Sales' : tier.price_monthly === 0 ? 'Start Free' : 'Get Started'}
           </a>
         </div>

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from apps.accounts.models import User, Person
@@ -105,6 +106,8 @@ class Landlord(models.Model):
         INDIVIDUAL = "individual", "Individual"
         COMPANY = "company", "Company"
         TRUST = "trust", "Trust"
+        CC = "cc", "Close Corporation"
+        PARTNERSHIP = "partnership", "Partnership"
 
     person = models.OneToOneField(
         Person, on_delete=models.SET_NULL, null=True, blank=True,
@@ -113,6 +116,8 @@ class Landlord(models.Model):
     )
     name = models.CharField(max_length=200, help_text="Legal name of landlord/company/trust")
     landlord_type = models.CharField(max_length=20, choices=LandlordType.choices, default=LandlordType.INDIVIDUAL)
+    owned_by_trust = models.BooleanField(default=False, help_text="For companies/CCs — indicates beneficial ownership through a trust (triggers trust FICA/CIPC doc requirements)")
+    classification_data = models.JSONField(null=True, blank=True, help_text="Structured output from the AI document classifier (owner_classification.json)")
     id_number = models.CharField(max_length=20, blank=True, help_text="SA ID or passport")
     registration_number = models.CharField(max_length=50, blank=True, help_text="Company/trust reg number")
     vat_number = models.CharField(max_length=30, blank=True)
@@ -126,6 +131,27 @@ class Landlord(models.Model):
     representative_email = models.EmailField(blank=True)
     representative_phone = models.CharField(max_length=20, blank=True)
 
+    # Registration document (CIPC, trust deed, ID copy, etc.)
+    registration_document = models.FileField(
+        upload_to='landlords/registration_docs/', blank=True, null=True,
+        help_text="CIPC certificate, trust deed, or ID document"
+    )
+    registration_document_name = models.CharField(max_length=255, blank=True, help_text="Original filename")
+
+    # DEPRECATED: Use RentalMandate model (per-property) instead.
+    # These fields will be removed in a future migration after data migration.
+    mandate_document = models.FileField(
+        upload_to='landlords/mandates/', blank=True, null=True,
+        help_text="DEPRECATED — use RentalMandate. Signed management mandate / agency agreement"
+    )
+    mandate_document_name = models.CharField(max_length=255, blank=True, help_text="DEPRECATED — original filename")
+    mandate_start_date = models.DateField(null=True, blank=True)
+    mandate_end_date = models.DateField(null=True, blank=True)
+    mandate_status = models.CharField(
+        max_length=20, blank=True, default='',
+        choices=[('', '—'), ('active', 'Active'), ('expired', 'Expired'), ('pending', 'Pending')],
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -134,6 +160,20 @@ class Landlord(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class LandlordDocument(models.Model):
+    """A supporting document uploaded for owner FICA/CIPC compliance (multiple per landlord)."""
+    landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to='landlords/documents/')
+    filename = models.CharField(max_length=255)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.landlord.name} — {self.filename}"
 
 
 class BankAccount(models.Model):
@@ -200,6 +240,88 @@ class PropertyOwnership(models.Model):
 
     def __str__(self):
         return f"{self.owner_name} → {self.property.name} ({'current' if self.is_current else 'ended'})"
+
+
+class RentalMandate(models.Model):
+    """
+    A digitally signed rental management mandate between a property owner and the agency.
+    One mandate per property — the authoritative record replacing the deprecated Landlord
+    mandate fields. Required before a property can be listed or managed.
+    """
+
+    class MandateType(models.TextChoices):
+        FULL_MANAGEMENT = "full_management", "Full Management"
+        LETTING_ONLY    = "letting_only",    "Letting Only"
+        RENT_COLLECTION = "rent_collection", "Rent Collection Only"
+        FINDERS_FEE     = "finders_fee",     "Finders Fee"
+
+    class Exclusivity(models.TextChoices):
+        SOLE = "sole", "Sole Mandate"
+        OPEN = "open", "Open Mandate"
+
+    class CommissionPeriod(models.TextChoices):
+        MONTHLY  = "monthly",  "Monthly"
+        ONCE_OFF = "once_off", "Once-off"
+
+    class Status(models.TextChoices):
+        DRAFT            = "draft",            "Draft"
+        SENT             = "sent",             "Sent for Signing"
+        PARTIALLY_SIGNED = "partially_signed", "Partially Signed"
+        ACTIVE           = "active",           "Active"
+        EXPIRED          = "expired",          "Expired"
+        CANCELLED        = "cancelled",        "Cancelled"
+
+    property  = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="mandates")
+    landlord  = models.ForeignKey(
+        Landlord, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="mandates",
+        help_text="Linked landlord entity (denormalised from PropertyOwnership for convenience)",
+    )
+
+    mandate_type      = models.CharField(max_length=20, choices=MandateType.choices)
+    exclusivity       = models.CharField(max_length=10, choices=Exclusivity.choices, default=Exclusivity.SOLE)
+    commission_rate   = models.DecimalField(
+        max_digits=6, decimal_places=2,
+        help_text="Percentage for monthly mandates (e.g. 10.00 = 10%) or month count for once-off (e.g. 1.00 = 1 month)",
+    )
+    commission_period = models.CharField(max_length=10, choices=CommissionPeriod.choices, default=CommissionPeriod.MONTHLY)
+    start_date        = models.DateField()
+    end_date          = models.DateField(null=True, blank=True)
+    notice_period_days = models.PositiveSmallIntegerField(
+        default=60,
+        help_text="Days' written notice required to terminate the mandate",
+    )
+    maintenance_threshold = models.DecimalField(
+        max_digits=10, decimal_places=2, default=2000,
+        help_text="Full Management: max spend per incident the agent may authorise without owner approval (ZAR)",
+    )
+
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+
+    esigning_submission = models.OneToOneField(
+        "esigning.ESigningSubmission",
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",  # reverse accessor suppressed — use submission.mandate (FK) instead
+        help_text="The e-signing submission that captured both owner and agent signatures",
+    )
+    signed_document = models.FileField(
+        upload_to="mandates/signed/", blank=True, null=True,
+        help_text="Final countersigned mandate PDF (auto-populated when e-signing completes)",
+    )
+    notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="created_mandates",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.get_mandate_type_display()} — {self.property.name} ({self.status})"
 
 
 class PropertyGroup(models.Model):

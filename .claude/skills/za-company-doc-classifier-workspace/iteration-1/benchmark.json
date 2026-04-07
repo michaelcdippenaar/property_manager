@@ -1,0 +1,109 @@
+{
+  "skill_name": "za-company-doc-classifier",
+  "iteration": 1,
+  "configurations": [
+    {
+      "name": "with_skill",
+      "label": "With Skill",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "pty-ltd-complete",
+          "passed": 8,
+          "failed": 2,
+          "total": 10,
+          "pass_rate": 0.80,
+          "notes": "2 failures are correct skill behavior — assertions were too lenient (expected 'complete' but annual return absence correctly caused 'needs_review'; expected no flags but skill correctly flagged CoR123 and VAT gaps)",
+          "duration_seconds": 88.2,
+          "total_tokens": 32537
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "trust-owned-company",
+          "passed": 9,
+          "failed": 1,
+          "total": 10,
+          "pass_rate": 0.90,
+          "notes": "1 failure: assertion expected unified CIPC 'complete' but skill correctly splits company vs trust CIPC buckets. owned_by_trust, trust_entity block, expired address flag, all missing docs caught.",
+          "duration_seconds": 95.0,
+          "total_tokens": 32502
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "close-corporation",
+          "passed": 9,
+          "failed": 1,
+          "total": 10,
+          "pass_rate": 0.90,
+          "notes": "1 failure: 1998 CC correctly set to needs_review (CIPC status unverified). Assertion expected 'complete'. All extractions, member percentages, and missing docs correct.",
+          "duration_seconds": 69.4,
+          "total_tokens": 29163
+        }
+      ],
+      "aggregate": {
+        "mean_pass_rate": 0.867,
+        "total_passed": 26,
+        "total_assertions": 30,
+        "mean_duration_seconds": 84.2,
+        "total_tokens": 94202
+      }
+    },
+    {
+      "name": "without_skill",
+      "label": "Baseline (No Skill)",
+      "evals": [
+        {
+          "eval_id": 1,
+          "eval_name": "pty-ltd-complete",
+          "passed": 8,
+          "failed": 2,
+          "total": 10,
+          "pass_rate": 0.80,
+          "notes": "Failures: no entity_subtype field; no structured fica_status field. Schema is ad-hoc. Also missed annual return flag (wrongly passed 'no red flags'). Score inflated by simple assertions.",
+          "duration_seconds": 86.8,
+          "total_tokens": 23308
+        },
+        {
+          "eval_id": 2,
+          "eval_name": "trust-owned-company",
+          "passed": 4,
+          "failed": 6,
+          "total": 10,
+          "pass_rate": 0.40,
+          "notes": "Major schema gaps: no owned_by_trust boolean, no fica.missing array, no CIPC bucket separation. Domain logic was ok (caught expired address, missing IDs) but output unparseable by downstream systems.",
+          "duration_seconds": 95.5,
+          "total_tokens": 23672
+        },
+        {
+          "eval_id": 3,
+          "eval_name": "close-corporation",
+          "passed": 5,
+          "failed": 5,
+          "total": 10,
+          "pass_rate": 0.50,
+          "notes": "Missed SARS Tax Number requirement entirely. entity_type snake_case not title case. No fica.missing structure. Used CONDITIONALLY_COMPLETE instead of 'incomplete'.",
+          "duration_seconds": 79.3,
+          "total_tokens": 20529
+        }
+      ],
+      "aggregate": {
+        "mean_pass_rate": 0.567,
+        "total_passed": 17,
+        "total_assertions": 30,
+        "mean_duration_seconds": 87.2,
+        "total_tokens": 67509
+      }
+    }
+  ],
+  "delta": {
+    "pass_rate_improvement": 0.300,
+    "skill_advantage": "Skill scores 30 percentage points higher overall. Gap is largest on nested trust-owned company scenario (+50pp). Skill enforces typed schema, FICA/CIPC bucket separation, 3-month address age check, director ID cross-check, and annual return flag for old companies.",
+    "token_cost": "Skill uses ~40% more tokens (94k vs 68k) for better coverage and structured output."
+  },
+  "analyst_notes": [
+    "Assertion calibration needed: Several 'failures' on the with_skill runs are actually correct behavior being penalized by over-lenient assertions. Update assertions to expect 'needs_review' for old companies without annual returns.",
+    "Skill improvement identified: Add individual proof-of-address requirement for CC members / company shareholders with 25%+ interest (spotted by baseline on eval 3).",
+    "Non-discriminating assertion: 'owner_classification.json is written to output folder' passes for both — trivial to satisfy. Consider replacing with a content check.",
+    "The trust-owned company scenario (eval 2) is the best discriminator: 90% vs 40% — clear proof the skill adds real value for complex nested entity structures."
+  ]
+}

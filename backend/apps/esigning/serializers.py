@@ -20,7 +20,11 @@ class ESigningSubmissionSerializer(serializers.ModelSerializer):
         ]
 
     def get_lease_label(self, obj):
-        return f"{obj.lease.unit.property.name} — Unit {obj.lease.unit.unit_number}"
+        if obj.lease_id:
+            return f"{obj.lease.unit.property.name} — Unit {obj.lease.unit.unit_number}"
+        if obj.mandate_id:
+            return f"Rental Mandate — {obj.mandate.property.name}"
+        return "—"
 
     def get_current_signer(self, obj):
         """Return the signer whose turn it is (sequential) or None."""

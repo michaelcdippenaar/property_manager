@@ -1,0 +1,63 @@
+{
+  "eval_id": 1,
+  "eval_name": "pty-ltd-complete",
+  "run_type": "without_skill",
+  "expectations": [
+    {
+      "text": "Output JSON contains entity_type = 'Company' and entity_subtype = 'Pty Ltd'",
+      "passed": false,
+      "evidence": "owner_classification.json has entity_type = 'company' (lowercase, not 'Company') and no entity_subtype field at all. The company type is inferred only from the company_name string 'BERGVLIET PROPERTIES (PTY) LTD' and from the MOI fields_extracted.company_type = 'Private Company (Pty) Ltd', but no top-level entity_subtype key exists in the owner object."
+    },
+    {
+      "text": "CoR14.3 registration certificate is classified under CIPC bucket",
+      "passed": true,
+      "evidence": "registration_certificate.txt is classified with category = 'CIPC' and form_reference = 'CoR14.3'. Confirmed in both owner_classification.json (line 15-16) and summary.md table."
+    },
+    {
+      "text": "Both SA ID documents (Pieter and Annelie) are classified under FICA bucket",
+      "passed": true,
+      "evidence": "pieter_id.txt has category = 'FICA' and annelie_id.txt has category = 'FICA'. Both confirmed in owner_classification.json (lines 82 and 101) and the summary.md table."
+    },
+    {
+      "text": "Bank Confirmation Letter is classified under FICA bucket",
+      "passed": true,
+      "evidence": "bank_confirmation.txt has category = 'FICA' and document_type = 'Bank Confirmation Letter'. Confirmed in owner_classification.json (line 137) and summary.md table."
+    },
+    {
+      "text": "Directors list in extracted_data contains both VAN DER BERG directors",
+      "passed": true,
+      "evidence": "directors_notice.txt (CoR39) fields_extracted.directors contains both 'PIETER JOHANNES VAN DER BERG' (ID: 7503065023082) and 'ANNELIE VAN DER BERG' (ID: 7811190045087). Both listed in summary.md Directors table as well."
+    },
+    {
+      "text": "Registration number 2019/087432/07 is correctly extracted",
+      "passed": true,
+      "evidence": "Registration number '2019/087432/07' appears in owner.registration_number, and is extracted in fields_extracted of registration_certificate.txt, moi.txt, directors_notice.txt, and tax_certificate.txt. Also confirmed in the cross_reference_checks section and summary.md."
+    },
+    {
+      "text": "FICA status is 'complete' — all required docs present",
+      "passed": false,
+      "evidence": "There is no top-level 'fica_status' field set to 'complete' in owner_classification.json. The completeness_check.overall_status is 'COMPLETE' (covering both FICA and CIPC combined), but no dedicated fica_status field exists. Individual FICA requirement checks all show 'PASS' but the assertion requires a field explicitly set to 'complete' for FICA."
+    },
+    {
+      "text": "CIPC status is 'complete' — CoR14.3, CoR39, and MOI all found",
+      "passed": true,
+      "evidence": "All three CIPC documents are present and classified: CoR14.3 (registration_certificate.txt, PASS), CoR39 (directors_notice.txt, PASS), and MOI/CoR15.1A (moi.txt, PASS). completeness_check.cipc_requirements all show PASS. overall_status = 'COMPLETE'. No dedicated cipc_status field, but all three required docs are confirmed found and passing."
+    },
+    {
+      "text": "No red flags raised (all docs valid and current)",
+      "passed": true,
+      "evidence": "completeness_check.flags = [] (empty array) and missing_documents = [] (empty array). All 8 documents have status = 'PASS'. The recommendation explicitly states all requirements are satisfied. summary.md 'Flags / Concerns' section states 'None identified.' The baseline correctly assessed all documents as valid and current."
+    },
+    {
+      "text": "owner_classification.json is written to the output folder",
+      "passed": true,
+      "evidence": "File exists at /Users/mcdippenaar/PycharmProjects/tremly_property_manager/.claude/skills/za-company-doc-classifier-workspace/iteration-1/eval-pty-ltd-complete/without_skill/outputs/owner_classification.json with 236 lines of valid JSON content."
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 2,
+    "total": 10,
+    "pass_rate": 0.8
+  }
+}

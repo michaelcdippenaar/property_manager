@@ -1,0 +1,186 @@
+{
+  "entity_type": "Company",
+  "entity_subtype": "Pty Ltd",
+  "owned_by_trust": false,
+  "trust_entity": null,
+  "fica": {
+    "status": "complete",
+    "documents": [
+      {
+        "type": "SA ID",
+        "filename": "pieter_id.txt",
+        "extracted": {
+          "full_name": "Pieter Johannes Van der Berg",
+          "id_number": "7503065023082",
+          "date_of_birth": "1975-03-06",
+          "sex": "Male",
+          "nationality": "South African",
+          "document_type": "SA ID (Certified Copy)",
+          "certified_date": "2026-01-15",
+          "certifying_officer": "J. Swart (Notary Public)"
+        },
+        "status": "found"
+      },
+      {
+        "type": "SA ID",
+        "filename": "annelie_id.txt",
+        "extracted": {
+          "full_name": "Annelie Van der Berg",
+          "id_number": "7811190045087",
+          "date_of_birth": "1978-11-19",
+          "sex": "Female",
+          "nationality": "South African",
+          "document_type": "SA ID (Certified Copy)",
+          "certified_date": "2026-01-15",
+          "certifying_officer": "J. Swart (Notary Public)"
+        },
+        "status": "found"
+      },
+      {
+        "type": "Bank Confirmation Letter",
+        "filename": "bank_confirmation.txt",
+        "extracted": {
+          "account_holder": "Bergvliet Properties (Pty) Ltd",
+          "bank": "Nedbank Limited",
+          "account_type": "Business Current Account",
+          "account_number_last4": "3847",
+          "branch_code": "198765",
+          "branch_name": "Claremont",
+          "account_active_since": "2019-06-01",
+          "letter_date": "2026-03-10"
+        },
+        "status": "found"
+      },
+      {
+        "type": "Proof of Address",
+        "filename": "proof_of_address.txt",
+        "extracted": {
+          "account_holder": "Bergvliet Properties (Pty) Ltd",
+          "address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+          "document_type": "Municipal Account Statement",
+          "issuer": "City of Cape Town Metropolitan Municipality",
+          "statement_date": "2026-03-31",
+          "account_number": "CCT-089234-B"
+        },
+        "status": "found"
+      },
+      {
+        "type": "Tax Certificate",
+        "filename": "tax_certificate.txt",
+        "extracted": {
+          "entity_name": "Bergvliet Properties (Pty) Ltd",
+          "registration_number": "2019/087432/07",
+          "tax_number": "9876543210",
+          "tax_type": "Company Income Tax",
+          "registration_date": "2019-07-01"
+        },
+        "status": "found"
+      }
+    ],
+    "missing": [],
+    "flags": [
+      "No VAT registration document found — acceptable if company is not VAT registered, but should be confirmed",
+      "No shareholder register (CoR14.1) or equivalent found — unable to verify if persons holding 25%+ beneficial interest other than the two directors have been identified and their IDs collected"
+    ]
+  },
+  "cipc": {
+    "status": "needs_review",
+    "documents": [
+      {
+        "type": "CoR14.3",
+        "filename": "registration_certificate.txt",
+        "extracted": {
+          "registration_number": "2019/087432/07",
+          "company_name": "Bergvliet Properties (Pty) Ltd",
+          "entity_type": "Pty Ltd",
+          "registration_date": "2019-05-14",
+          "registered_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+          "cipc_status": "Active",
+          "registrar_reference": "CIPC-2019-BER-087432"
+        },
+        "status": "found"
+      },
+      {
+        "type": "CoR39",
+        "filename": "directors_notice.txt",
+        "extracted": {
+          "company_name": "Bergvliet Properties (Pty) Ltd",
+          "registration_number": "2019/087432/07",
+          "filing_date": "2019-05-14",
+          "directors": [
+            {
+              "full_name": "Pieter Johannes Van der Berg",
+              "id_number": "7503065023082",
+              "nationality": "South African",
+              "appointed_date": "2019-05-14",
+              "designation": "Director",
+              "residential_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945"
+            },
+            {
+              "full_name": "Annelie Van der Berg",
+              "id_number": "7811190045087",
+              "nationality": "South African",
+              "appointed_date": "2019-05-14",
+              "designation": "Director",
+              "residential_address": "34 Vineyard Close, Bergvliet, Cape Town, 7945"
+            }
+          ]
+        },
+        "status": "found"
+      },
+      {
+        "type": "CoR15.1A",
+        "filename": "moi.txt",
+        "extracted": {
+          "company_name": "Bergvliet Properties (Pty) Ltd",
+          "registration_number": "2019/087432/07",
+          "entity_type": "Private Company (Pty) Ltd",
+          "share_structure": "1,000 ordinary shares of no par value",
+          "profit_distribution_allowed": true,
+          "financial_year_end": "28 February",
+          "amendment_date": "2019-05-14",
+          "non_profit_clauses_present": false
+        },
+        "status": "found"
+      }
+    ],
+    "missing": [
+      "CoR123 (Annual Return) — company registered in 2019, over 1 year ago; no annual return found"
+    ],
+    "flags": [
+      "No CoR123 Annual Return found — company registered 2019-05-14 (nearly 7 years ago); annual returns should have been filed annually with CIPC. Absence may indicate compliance lapse."
+    ]
+  },
+  "extracted_data": {
+    "registration_number": "2019/087432/07",
+    "company_name": "Bergvliet Properties (Pty) Ltd",
+    "registration_date": "2019-05-14",
+    "cipc_status": "Active",
+    "directors": [
+      {
+        "full_name": "Pieter Johannes Van der Berg",
+        "id_number": "7503065023082",
+        "nationality": "South African",
+        "appointed_date": "2019-05-14",
+        "designation": "Director"
+      },
+      {
+        "full_name": "Annelie Van der Berg",
+        "id_number": "7811190045087",
+        "nationality": "South African",
+        "appointed_date": "2019-05-14",
+        "designation": "Director"
+      }
+    ],
+    "address": "34 Vineyard Close, Bergvliet, Cape Town, 7945",
+    "tax_number": "9876543210",
+    "vat_number": "",
+    "bank": {
+      "institution": "Nedbank Limited",
+      "account_type": "Business Current Account",
+      "account_number_last4": "3847",
+      "branch_code": "198765"
+    }
+  },
+  "classified_at": "2026-04-06T00:00:00Z"
+}

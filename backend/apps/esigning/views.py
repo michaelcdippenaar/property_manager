@@ -45,9 +45,15 @@ def accessible_leases_queryset(user):
 
 
 def esigning_submissions_for_user(user):
-    base = ESigningSubmission.objects.select_related("lease__unit__property")
+    from apps.properties.access import get_accessible_property_ids
+    prop_ids = get_accessible_property_ids(user)
     lease_ids = accessible_leases_queryset(user).values_list("pk", flat=True)
-    return base.filter(lease_id__in=lease_ids)
+    return ESigningSubmission.objects.select_related(
+        "lease__unit__property", "mandate__property"
+    ).filter(
+        Q(lease_id__in=lease_ids) |
+        Q(mandate__property_id__in=prop_ids)
+    )
 
 
 def can_manage_esigning(user):
@@ -126,8 +132,13 @@ def _auto_send_signing_links(submission, original_signers, request):
         )
         base_url = f"{request.scheme}://{request.get_host()}"
 
-    prop = submission.lease.unit.property
-    doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    if submission.lease_id:
+        prop = submission.lease.unit.property
+        doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    elif submission.mandate_id:
+        doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+    else:
+        doc_title = "Document"
 
     for signer in submission.signers:
         order = signer.get("order", 0)
@@ -160,9 +171,10 @@ def _auto_send_signing_links(submission, original_signers, request):
         salutation = f"Hello {name}," if name else "Hello,"
 
         subject = f"Please sign: {doc_title}"
+        doc_description = "a rental mandate" if submission.mandate_id else "a lease agreement"
         plain = (
             f"{salutation}\n\n"
-            f"You have been invited to review and sign a lease agreement "
+            f"You have been invited to review and sign {doc_description} "
             f"for {doc_title}.\n\n"
             f"Please sign using this link:\n{signing_url}\n\n"
             f"This link expires on {exp}.\n\n"
@@ -170,7 +182,7 @@ def _auto_send_signing_links(submission, original_signers, request):
         )
         html = (
             f"<p>{salutation}</p>"
-            f"<p>You have been invited to review and sign a lease agreement "
+            f"<p>You have been invited to review and sign {doc_description} "
             f"for <strong>{doc_title}</strong>.</p>"
             f'<p><a href="{signing_url}" style="display:inline-block;padding:12px 24px;'
             f'background:#1e3a5f;color:#fff;text-decoration:none;border-radius:8px;'

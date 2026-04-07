@@ -1,0 +1,23 @@
+{
+  "skill_name": "za-company-doc-classifier",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I need to add a new owner to the system. The owner is a company called Bergvliet Properties. I've dropped all their documents into /tmp/za-doc-test/pty_ltd_complete/ — can you classify them for me?",
+      "expected_output": "Agent asks entity type (or infers Company), classifies 7 documents into FICA/CIPC buckets, extracts fields from CoR14.3 and CoR39, validates completeness, outputs owner_classification.json with both directors in extracted_data, FICA and CIPC both complete, no red flags.",
+      "files": ["/tmp/za-doc-test/pty_ltd_complete/"]
+    },
+    {
+      "id": 2,
+      "prompt": "Classify the owner documents at /tmp/za-doc-test/trust_owned_company/ — the company is a Pty Ltd that is owned by a trust called The Boland Property Trust.",
+      "expected_output": "Agent handles nested ownership, classifies 6 documents, separates trust docs (LoA + deed) into trust_entity block, flags old proof of address (Sept 2025 = >3 months old), flags missing: Sophie ID, Hendrik ID, bank confirmation letter, trust address proof. FICA incomplete, CIPC complete.",
+      "files": ["/tmp/za-doc-test/trust_owned_company/"]
+    },
+    {
+      "id": 3,
+      "prompt": "We need to onboard Paarl Building Supplies CC as a landlord on the system. Their docs are in /tmp/za-doc-test/close_corporation/ — please process them.",
+      "expected_output": "Agent identifies entity type as Close Corporation, classifies CK1 as CIPC document, extracts 2 members from CK1 (60%/40%), finds both ID copies and proof of address for FICA, flags missing: SARS tax number, bank confirmation letter. CIPC complete (CK1 present), FICA incomplete.",
+      "files": ["/tmp/za-doc-test/close_corporation/"]
+    }
+  ]
+}

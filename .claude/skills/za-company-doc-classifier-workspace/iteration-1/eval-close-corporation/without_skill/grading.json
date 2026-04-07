@@ -1,0 +1,63 @@
+{
+  "eval_id": 3,
+  "eval_name": "close-corporation",
+  "run": "without_skill",
+  "expectations": [
+    {
+      "text": "Output JSON has entity_type = 'Close Corporation'",
+      "passed": false,
+      "evidence": "JSON has entity_type = 'close_corporation' (snake_case lowercase). The assertion expects 'Close Corporation' (title case with space). Value is semantically correct but does not match the expected string format."
+    },
+    {
+      "text": "CK1 document is classified under CIPC bucket",
+      "passed": true,
+      "evidence": "documents array entry for ck1.txt has classification = 'CIPC'."
+    },
+    {
+      "text": "Both member ID documents (Willem and Greta) are classified under FICA bucket",
+      "passed": true,
+      "evidence": "willem_id.txt has classification = 'FICA' and greta_id.txt has classification = 'FICA'."
+    },
+    {
+      "text": "CK1 extracts both members with interest percentages (60% and 40%)",
+      "passed": true,
+      "evidence": "members array contains Willem Adriaan Botha with member_interest_pct = 60 and Greta Susanna Botha with member_interest_pct = 40."
+    },
+    {
+      "text": "CC name 'PAARL BUILDING SUPPLIES CC' is correctly extracted",
+      "passed": true,
+      "evidence": "entity.name = 'PAARL BUILDING SUPPLIES CC'."
+    },
+    {
+      "text": "CK number CK1998/034521/23 is correctly extracted",
+      "passed": true,
+      "evidence": "entity.registration_number = 'CK1998/034521/23'."
+    },
+    {
+      "text": "Missing: SARS Tax Number is listed in fica.missing",
+      "passed": false,
+      "evidence": "No 'fica.missing' key exists in the JSON. The completeness.missing array contains only: 'CK2 (Amended Founding Statement)', 'Individual proof of address for each member', and 'Bank confirmation letter'. SARS Tax Number is not mentioned anywhere in the missing list."
+    },
+    {
+      "text": "Missing: Bank Confirmation Letter is listed in fica.missing",
+      "passed": false,
+      "evidence": "No 'fica.missing' key exists in the JSON. Bank confirmation letter does appear in completeness.missing ('Bank confirmation letter — required for landlord banking detail verification before rental disbursements'), but the assertion specifically checks fica.missing which is absent."
+    },
+    {
+      "text": "FICA status is 'incomplete' due to missing tax number and bank letter",
+      "passed": false,
+      "evidence": "overall_status = 'CONDITIONALLY_COMPLETE', not 'incomplete'. The SARS Tax Number is not flagged as missing at all, so the stated reason (missing tax number and bank letter) is only half-correct."
+    },
+    {
+      "text": "CIPC status is 'complete' — CK1 is present",
+      "passed": true,
+      "evidence": "completeness.cipc_score = '1/1' and CK1 Founding Statement is listed in completeness.present. The CIPC documentation is effectively marked complete."
+    }
+  ],
+  "summary": {
+    "passed": 5,
+    "failed": 5,
+    "total": 10,
+    "pass_rate": 0.5
+  }
+}

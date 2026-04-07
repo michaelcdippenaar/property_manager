@@ -1,0 +1,107 @@
+{
+  "processed_at": "2026-04-06",
+  "entity": {
+    "name": "PAARL BUILDING SUPPLIES CC",
+    "entity_type": "close_corporation",
+    "registration_number": "CK1998/034521/23",
+    "date_of_registration": "1998-11-03",
+    "nature_of_business": "Supply and retail of building materials",
+    "registered_address": "12 Dal Josafat Road, Paarl, 7646",
+    "accounting_officer": {
+      "name": "WINELANDS ACCOUNTING SERVICES CC",
+      "practice_number": "SW/2345"
+    }
+  },
+  "members": [
+    {
+      "full_name": "Willem Adriaan Botha",
+      "identity_number": "6505085034085",
+      "date_of_birth": "1965-05-08",
+      "sex": "Male",
+      "citizenship": "South African Citizen",
+      "member_interest_pct": 60,
+      "contribution_zar": 60000
+    },
+    {
+      "full_name": "Greta Susanna Botha",
+      "identity_number": "6703040089083",
+      "date_of_birth": "1967-03-04",
+      "sex": "Female",
+      "citizenship": "South African Citizen",
+      "member_interest_pct": 40,
+      "contribution_zar": 40000
+    }
+  ],
+  "documents": [
+    {
+      "filename": "ck1.txt",
+      "document_type": "CK1",
+      "classification": "CIPC",
+      "description": "Founding Statement — Close Corporations Act 69 of 1984",
+      "issuer": "CIPRO (Companies and Intellectual Property Registration Office)",
+      "status": "present",
+      "notes": "Primary CIPC registration document for a Close Corporation. Confirms entity name, CK number, members, and registered address."
+    },
+    {
+      "filename": "willem_id.txt",
+      "document_type": "SA_ID",
+      "classification": "FICA",
+      "description": "South African Identity Document — Willem Adriaan Botha",
+      "issuer": "Republic of South Africa",
+      "certification_date": "2026-01-20",
+      "id_number": "6505085034085",
+      "id_matches_ck1": true,
+      "status": "present",
+      "notes": "Certified copy dated 2026-01-20. ID number matches CK1 member entry. Covers 60% member interest holder."
+    },
+    {
+      "filename": "greta_id.txt",
+      "document_type": "SA_ID",
+      "classification": "FICA",
+      "description": "South African Identity Document — Greta Susanna Botha",
+      "issuer": "Republic of South Africa",
+      "certification_date": "2026-01-20",
+      "id_number": "6703040089083",
+      "id_matches_ck1": true,
+      "status": "present",
+      "notes": "Certified copy dated 2026-01-20. ID number matches CK1 member entry. Covers 40% member interest holder."
+    },
+    {
+      "filename": "proof_of_address.txt",
+      "document_type": "MUNICIPAL_RATES_ACCOUNT",
+      "classification": "FICA",
+      "description": "Drakenstein Municipality Rates and Services Account — entity proof of address",
+      "issuer": "Drakenstein Municipality",
+      "statement_date": "2026-03-15",
+      "account_holder": "PAARL BUILDING SUPPLIES CC",
+      "address": "12 Dal Josafat Road, Paarl, 7646",
+      "address_matches_ck1": true,
+      "within_3_months": true,
+      "status": "present",
+      "notes": "Dated 2026-03-15 — within 3 months of processing date 2026-04-06. Address matches CK1 registered address. Satisfies FICA entity proof of address requirement."
+    }
+  ],
+  "completeness": {
+    "overall_status": "CONDITIONALLY_COMPLETE",
+    "fica_score": "3/4",
+    "cipc_score": "1/1",
+    "present": [
+      "CK1 Founding Statement",
+      "Certified SA ID — Willem Adriaan Botha (60% member)",
+      "Certified SA ID — Greta Susanna Botha (40% member)",
+      "Entity proof of address (municipal rates account, within 3 months)"
+    ],
+    "missing": [
+      "CK2 (Amended Founding Statement) — required if any amendments were made post-registration; not provided; entity should confirm none exist or supply latest CK2",
+      "Individual proof of address for each member — best-practice FICA KYC for beneficial owners with >= 25% interest",
+      "Bank confirmation letter — required for landlord banking detail verification before rental disbursements"
+    ],
+    "blockers": [],
+    "recommendations": [
+      "Request confirmation from entity that no CK2 amendments exist, or supply the latest CK2 document.",
+      "Request a proof of address (not older than 3 months) for Willem Botha and Greta Botha individually.",
+      "Request a bank confirmation letter or cancelled cheque for the CC's rental disbursement account.",
+      "CK numbers use the format CK[year]/[sequence]/23 — the trailing '23' denotes a Close Corporation; confirm CK number validity via CIPC e-services."
+    ]
+  }
+}

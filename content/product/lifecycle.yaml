@@ -12,6 +12,11 @@
 # ── KLIKK RENTALS — 15 stages, one platform ────────────────
 
 rental_lifecycle:
+  - step: 0
+    title: Mandate
+    description: "Owner and agent digitally sign the rental mandate before the property is listed or managed"
+    feature_ref: rental_mandate_signing
+
   - step: 1
     title: Advertise
     description: "List vacancies on Property24 and Private Property"

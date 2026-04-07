@@ -181,6 +181,57 @@ class AuthAuditLog(models.Model):
         return f"{self.event_type} — {self.user_id} at {self.created_at}"
 
 
+class Agency(models.Model):
+    """
+    Singleton agency record.  Stores the details that appear on
+    mandates, leases and other generated documents.
+    """
+    name = models.CharField(max_length=200)
+    registration_number = models.CharField(max_length=50, blank=True)
+    eaab_ffc_number = models.CharField(
+        max_length=50, blank=True,
+        help_text="EAAB Fidelity Fund Certificate number",
+    )
+    contact_number = models.CharField(max_length=30, blank=True)
+    email = models.EmailField(blank=True)
+    physical_address = models.TextField(blank=True)
+    # Trust account
+    trust_account_number = models.CharField(max_length=50, blank=True)
+    trust_bank_name = models.CharField(max_length=100, blank=True)
+    # Financial cycle
+    statement_date = models.CharField(
+        max_length=30, blank=True, default="the 5th",
+        help_text='e.g. "the 5th"',
+    )
+    disbursement_date = models.CharField(
+        max_length=30, blank=True, default="the 7th",
+        help_text='e.g. "the 7th"',
+    )
+    information_officer_email = models.EmailField(blank=True)
+    # Branding
+    logo = models.ImageField(upload_to="agency/", null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "agencies"
+
+    def __str__(self):
+        return self.name or "Agency"
+
+    def save(self, *args, **kwargs):
+        # Singleton: prevent creating a second record
+        if not self.pk and Agency.objects.exists():
+            raise ValueError("Only one Agency record is allowed.")
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_solo(cls):
+        """Return the singleton instance, or None if not yet configured."""
+        return cls.objects.first()
+
+
 class LoginAttempt(models.Model):
     email = models.EmailField()
     ip_address = models.GenericIPAddressField(null=True, blank=True)

@@ -16,6 +16,34 @@ features:
   # KLIKK RENTALS
   # ══════════════════════════════════════════════════════════════
 
+  # ── Mandate ───────────────────────────────────────────────
+
+  rental_mandate_signing:
+    name: "Rental Mandate E-Signing"
+    slug: rental-mandate-signing
+    status: IN_PROGRESS
+    product: rentals
+    release: v2
+    category: mandates
+    backend_app: properties
+    key_files:
+      - backend/apps/properties/models.py
+      - backend/apps/properties/mandate_views.py
+      - backend/apps/properties/mandate_services.py
+      - backend/apps/properties/templates/mandates/rental_mandate.html
+      - admin/src/views/properties/MandateTab.vue
+      - admin/src/views/properties/MandateSigningPanel.vue
+    headline: "Digital Rental Mandates"
+    tagline: "Owner and agent sign digitally before the first tenant moves in"
+    description: >
+      Generate a legally compliant rental mandate (Full Management, Letting Only,
+      Rent Collection, or Finders Fee), send it to the property owner and agent
+      for sequential digital signing, and store the countersigned PDF automatically.
+      Required before any property can be listed or managed.
+    icon: file-signature
+    show_on_homepage: false
+    lifecycle_step: 0
+
   # ── Lease Management ──────────────────────────────────────
 
   ai_lease_generation:

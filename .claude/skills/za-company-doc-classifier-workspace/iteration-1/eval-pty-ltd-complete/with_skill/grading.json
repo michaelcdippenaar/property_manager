@@ -1,0 +1,63 @@
+{
+  "eval_id": 1,
+  "eval_name": "pty-ltd-complete",
+  "graded_at": "2026-04-06T00:00:00Z",
+  "expectations": [
+    {
+      "text": "Output JSON contains entity_type = 'Company' and entity_subtype = 'Pty Ltd'",
+      "passed": true,
+      "evidence": "owner_classification.json has \"entity_type\": \"Company\" and \"entity_subtype\": \"Pty Ltd\" at the top level."
+    },
+    {
+      "text": "CoR14.3 registration certificate is classified under CIPC bucket",
+      "passed": true,
+      "evidence": "cipc.documents contains an entry with \"type\": \"CoR14.3\" and \"filename\": \"registration_certificate.txt\" with status \"found\"."
+    },
+    {
+      "text": "Both SA ID documents (Pieter and Annelie) are classified under FICA bucket",
+      "passed": true,
+      "evidence": "fica.documents contains two entries with \"type\": \"SA ID\" — pieter_id.txt (Pieter Johannes Van der Berg) and annelie_id.txt (Annelie Van der Berg), both with status \"found\"."
+    },
+    {
+      "text": "Bank Confirmation Letter is classified under FICA bucket",
+      "passed": true,
+      "evidence": "fica.documents contains an entry with \"type\": \"Bank Confirmation Letter\" and \"filename\": \"bank_confirmation.txt\" with status \"found\"."
+    },
+    {
+      "text": "Directors list in extracted_data contains both VAN DER BERG directors",
+      "passed": true,
+      "evidence": "extracted_data.directors contains both \"Pieter Johannes Van der Berg\" (ID 7503065023082) and \"Annelie Van der Berg\" (ID 7811190045087)."
+    },
+    {
+      "text": "Registration number 2019/087432/07 is correctly extracted",
+      "passed": true,
+      "evidence": "extracted_data.registration_number is \"2019/087432/07\". Also appears in cipc.documents[0].extracted.registration_number and cipc.documents[1].extracted.registration_number."
+    },
+    {
+      "text": "FICA status is 'complete' — all required docs present",
+      "passed": true,
+      "evidence": "fica.status is \"complete\" and fica.missing is an empty array []. Advisory flags are present but do not change the complete status."
+    },
+    {
+      "text": "CIPC status is 'complete' — CoR14.3, CoR39, and MOI all found",
+      "passed": false,
+      "evidence": "cipc.status is \"needs_review\", not \"complete\". CoR14.3, CoR39 (directors_notice.txt), and CoR15.1A (MOI) are all found, but the classifier flagged a missing CoR123 Annual Return and set the status to needs_review rather than complete."
+    },
+    {
+      "text": "No red flags raised (all docs valid and current)",
+      "passed": false,
+      "evidence": "Two advisory flags in fica.flags (missing VAT registration, no shareholder register CoR14.1) and one flag in cipc.flags (no CoR123 Annual Return). cipc.missing also lists \"CoR123 (Annual Return)\"."
+    },
+    {
+      "text": "owner_classification.json is written to the output folder",
+      "passed": true,
+      "evidence": "The file exists at .claude/skills/za-company-doc-classifier-workspace/iteration-1/eval-pty-ltd-complete/with_skill/outputs/owner_classification.json and was successfully read. summary.md also confirms it was written to that path."
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 2,
+    "total": 10,
+    "pass_rate": 0.8
+  }
+}

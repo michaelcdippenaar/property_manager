@@ -101,9 +101,10 @@ export function getHomepageFeatures(): Feature[] {
 export function getLifecycle(): LifecycleStep[] {
   const features = getFeatures();
   const raw = fs.readFileSync(path.join(CONTENT_DIR, 'product/lifecycle.yaml'), 'utf8');
-  const data = yaml.load(raw) as { lifecycle: Array<{ step: number; title: string; description: string; feature_ref: string }> };
+  const data = yaml.load(raw) as { rental_lifecycle?: Array<{ step: number; title: string; description: string; feature_ref: string }>; lifecycle?: Array<{ step: number; title: string; description: string; feature_ref: string }> };
 
-  return data.lifecycle.map(step => ({
+  const steps = data.rental_lifecycle || data.lifecycle || [];
+  return steps.map(step => ({
     ...step,
     status: features[step.feature_ref]?.status || 'PLANNED',
     icon: features[step.feature_ref]?.icon || 'circle',

@@ -57,14 +57,11 @@
                 <span v-else class="text-xs text-gray-300">Vacant</span>
               </td>
               <td>
-                <span
-                  class="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  :class="{
-                    'bg-success-50 text-success-700': u.status === 'occupied',
-                    'bg-info-50 text-info-600': u.status === 'available',
-                    'bg-warning-50 text-warning-600': u.status === 'maintenance',
-                  }"
-                >{{ u.status === 'occupied' ? 'Occupied' : u.status === 'maintenance' ? 'Maintenance' : 'Available' }}</span>
+                <span :class="{
+                  'badge-green': u.status === 'occupied',
+                  'badge-blue':  u.status === 'available',
+                  'badge-amber': u.status === 'maintenance',
+                }">{{ u.status === 'occupied' ? 'Occupied' : u.status === 'maintenance' ? 'Maintenance' : 'Available' }}</span>
               </td>
               <td class="min-w-[140px]">
                 <template v-if="u.active_lease_info">
@@ -125,6 +122,32 @@
     <!-- Add Property Dialog -->
     <BaseModal :open="dialog" title="Add Property" @close="dialog = false">
       <div class="space-y-4">
+
+        <!-- Municipal bill upload -->
+        <div class="border border-dashed border-gray-200 rounded-xl p-4 transition-colors"
+             :class="parsingBill ? 'border-navy/30 bg-navy/5' : 'hover:border-navy/40'">
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
+              <Sparkles :size="12" /> Auto-fill from Municipal Bill
+            </div>
+            <span v-if="billFilename" class="text-[10px] text-gray-400 truncate max-w-[160px]">{{ billFilename }}</span>
+          </div>
+          <p class="text-xs text-gray-500 mb-2">Upload a rates bill — AI will extract the address, erf number, and property details.</p>
+          <label class="btn-ghost btn-sm cursor-pointer inline-flex items-center gap-1.5"
+                 :class="parsingBill ? 'pointer-events-none opacity-60' : ''">
+            <Loader2 v-if="parsingBill" :size="12" class="animate-spin" />
+            <Upload v-else :size="12" />
+            {{ parsingBill ? 'Reading bill…' : 'Upload Municipal Bill' }}
+            <input type="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" @change="parseMunicipalBill" />
+          </label>
+          <p v-if="billError" class="text-xs text-danger-600 mt-1.5 flex items-center gap-1">
+            <AlertTriangle :size="11" /> {{ billError }}
+          </p>
+          <div v-if="billExtracted" class="mt-2 flex items-center gap-1.5 text-xs text-success-600">
+            <CheckCircle2 :size="12" /> Fields auto-filled from {{ billFilename }}
+          </div>
+        </div>
+
         <div>
           <label class="label">Property name <span class="text-danger-500">*</span></label>
           <input v-model="newProperty.name" class="input" placeholder="18 Irene Park" required />
@@ -197,7 +220,7 @@ import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
-import { Plus, Building2, Loader2, Trash2, Wrench } from 'lucide-vue-next'
+import { AlertTriangle, CheckCircle2, Loader2, Plus, Building2, Sparkles, Trash2, Upload, Wrench } from 'lucide-vue-next'
 
 const router = useRouter()
 
@@ -213,6 +236,41 @@ const selectedAddress = ref<AddressResult | null>(null)
 const deleteDialog = ref(false)
 const deleting = ref(false)
 const deletingProperty = ref<any>(null)
+
+// Municipal bill parser
+const parsingBill = ref(false)
+const billError = ref('')
+const billFilename = ref('')
+const billExtracted = ref(false)
+
+async function parseMunicipalBill(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  parsingBill.value = true
+  billError.value = ''
+  billExtracted.value = false
+  billFilename.value = file.name
+  try {
+    const form = new FormData()
+    form.append('file', file)
+    const { data } = await api.post('/properties/parse-municipal-bill/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    const ext = data.extracted
+    if (ext.property_name && !newProperty.value.name) newProperty.value.name = ext.property_name
+    if (ext.address) newProperty.value.address = ext.address
+    if (ext.city) newProperty.value.city = ext.city
+    if (ext.province) newProperty.value.province = ext.province
+    if (ext.postal_code) newProperty.value.postal_code = ext.postal_code
+    if (ext.property_type && propertyTypes.includes(ext.property_type)) newProperty.value.property_type = ext.property_type
+    billExtracted.value = true
+  } catch (err: any) {
+    billError.value = err?.response?.data?.detail || 'Failed to parse municipal bill.'
+  } finally {
+    parsingBill.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
 
 function onAddressSelect(addr: AddressResult) {
   selectedAddress.value = addr

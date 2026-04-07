@@ -1,0 +1,64 @@
+{
+  "eval_id": 2,
+  "eval_name": "trust-owned-company",
+  "graded_by": "claude-sonnet-4-6",
+  "grading_date": "2026-04-06",
+  "expectations": [
+    {
+      "text": "Output JSON has owned_by_trust = true",
+      "passed": false,
+      "evidence": "The output JSON does not contain an 'owned_by_trust' field at all. The structure uses 'owner_type': 'trust_owned_company' and a nested 'trust' block under 'entities', but no explicit boolean 'owned_by_trust' field is present."
+    },
+    {
+      "text": "trust_entity block is populated with trust name 'THE BOLAND PROPERTY TRUST'",
+      "passed": true,
+      "evidence": "The output JSON contains entities.trust.name = 'THE BOLAND PROPERTY TRUST', with trust_number 'IT4521/2010' and relationship '100% shareholder of company'. The field is named 'trust' not 'trust_entity', but the block is fully populated with the correct trust name."
+    },
+    {
+      "text": "Letter of Authority is classified under CIPC bucket (trust sub-section)",
+      "passed": false,
+      "evidence": "The Letter of Authority (letters_of_authority.txt) is classified with document_type 'trust_registration', not under a 'CIPC bucket'. It is correctly associated with the trust entity, but the classification uses 'trust_registration' as the bucket, not 'CIPC'. The CIPC bucket only contains company registration documents (cor14_3.txt and cor39_directors.txt). Letters of Authority are issued by the Master of the High Court, not CIPC — however, the assertion expects CIPC classification."
+    },
+    {
+      "text": "Trust Deed is classified under CIPC bucket (trust sub-section)",
+      "passed": false,
+      "evidence": "The Trust Deed (trust_deed.txt) is classified with document_type 'trust_registration', not under a 'CIPC bucket'. Similar to the Letter of Authority, it is placed in a trust_registration category rather than a CIPC bucket with a trust sub-section."
+    },
+    {
+      "text": "Proof of address from September 2025 is flagged as potentially expired (>3 months old)",
+      "passed": true,
+      "evidence": "proof_of_address_old.txt has status 'EXPIRED' with expiry_assessment showing statement_date 2025-09-30, age_days 188, standard_validity_days 90, days_overdue 98. The document is explicitly flagged as expired with action_required to replace it."
+    },
+    {
+      "text": "Missing: Sophia/Annelie ID copy is flagged as missing FICA document",
+      "passed": true,
+      "evidence": "The completeness_assessment.natural_person_documents.sophia_du_toit_id shows present: false with issue 'No ID document provided for Sophia Eleanor Du Toit (Trustee)'. Also listed in issues array as HIGH severity: 'No identity document for Sophia Eleanor Du Toit (Trustee)'. Note: the name is Sophia (not Annelie) — the assertion uses 'Sophia/Annelie' suggesting either name is acceptable."
+    },
+    {
+      "text": "Missing: Hendrik Meyer ID copy is flagged as missing",
+      "passed": true,
+      "evidence": "completeness_assessment.natural_person_documents.hendrik_meyer_id shows present: false with issue 'No ID document provided for Hendrik Jacobus Meyer (Director)'. Also listed in issues array as HIGH severity: 'No identity document for Hendrik Jacobus Meyer (Director)'."
+    },
+    {
+      "text": "Missing: Bank Confirmation Letter is listed in fica.missing",
+      "passed": false,
+      "evidence": "There is no 'fica.missing' field in the output JSON, and no Bank Confirmation Letter is mentioned anywhere in the output. The missing documents listed are ID documents for Sophia Du Toit and Hendrik Meyer, proof of address documents, MOI, and share register — but no Bank Confirmation Letter is flagged as missing."
+    },
+    {
+      "text": "FICA status is 'incomplete' due to missing documents",
+      "passed": true,
+      "evidence": "The overall_status field is 'INCOMPLETE'. The summary.md states 'FICA compliance is not met' and the overall status is 'INCOMPLETE'. Multiple HIGH severity issues are listed including missing ID documents and expired proof of address."
+    },
+    {
+      "text": "CIPC status is 'complete' — CoR14.3, CoR39, LoA, and Trust Deed all found",
+      "passed": false,
+      "evidence": "There is no separate 'CIPC status' field in the output. The completeness_assessment groups documents by company_documents and trust_documents separately. While CoR14.3 and CoR39 are present and valid, and trust_deed and letters_of_authority are present and valid, the output does not have a dedicated 'CIPC status: complete' field. Additionally, LoA and Trust Deed are classified as trust_registration documents, not under CIPC — so even conceptually the CIPC bucket would only contain CoR14.3 and CoR39."
+    }
+  ],
+  "summary": {
+    "passed": 4,
+    "failed": 6,
+    "total": 10,
+    "pass_rate": 0.4
+  }
+}

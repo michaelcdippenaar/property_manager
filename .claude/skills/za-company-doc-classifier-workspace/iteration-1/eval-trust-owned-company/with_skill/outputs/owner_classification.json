@@ -1,0 +1,236 @@
+{
+  "entity_type": "Company",
+  "entity_subtype": "Pty Ltd",
+  "owned_by_trust": true,
+  "fica": {
+    "status": "incomplete",
+    "documents": [
+      {
+        "type": "SA ID",
+        "filename": "francois_id.txt",
+        "extracted": {
+          "full_name": "Francois Petrus Du Toit",
+          "id_number": "6809125034083",
+          "date_of_birth": "1968-09-12",
+          "nationality": "South African",
+          "document_type": "SA ID",
+          "certified": true,
+          "certified_date": "2026-02-10",
+          "commissioner_of_oaths": "A. Jacobs"
+        },
+        "status": "found"
+      },
+      {
+        "type": "Proof of Address",
+        "filename": "proof_of_address_old.txt",
+        "extracted": {
+          "account_holder": "Stellenbosch Wine Estates (Pty) Ltd",
+          "address": "Erf 445, Devon Valley Road, Stellenbosch, 7600",
+          "document_type": "Municipal Rates Account",
+          "issuer": "City of Stellenbosch Municipality",
+          "statement_date": "2025-09-30"
+        },
+        "status": "found",
+        "flags": ["Proof of address dated 2025-09-30 — document is approximately 6 months old, exceeds 3-month limit. TODAY is 2026-04-06. EXPIRED."]
+      }
+    ],
+    "missing": [
+      "Certified ID / Passport for Hendrik Jacobus Meyer (director on CoR39 — no ID document found)",
+      "Bank Confirmation Letter for Stellenbosch Wine Estates (Pty) Ltd",
+      "SARS Company Income Tax Number",
+      "Certified ID / Passport for Sophia Eleanor Du Toit (trustee — required for beneficial ownership tracing)"
+    ],
+    "flags": [
+      "Proof of address (proof_of_address_old.txt) dated 2025-09-30 is approximately 6 months old — exceeds the 3-month maximum. Must be replaced with a document dated on or after 2026-01-06.",
+      "Director Hendrik Jacobus Meyer (ID: 8104175067081) named on CoR39 has no corresponding ID document in the folder.",
+      "Trustee Sophia Eleanor Du Toit (ID: 7002170089080) has no corresponding certified ID document in the folder — required for FICA beneficial ownership tracing."
+    ]
+  },
+  "cipc": {
+    "status": "needs_review",
+    "documents": [
+      {
+        "type": "CoR14.3",
+        "filename": "cor14_3.txt",
+        "extracted": {
+          "registration_number": "2015/234567/07",
+          "company_name": "Stellenbosch Wine Estates (Pty) Ltd",
+          "entity_type": "Pty Ltd",
+          "registration_date": "2015-09-22",
+          "registered_address": "Erf 445, Devon Valley Road, Stellenbosch, 7600",
+          "cipc_status": "Active",
+          "registrar_reference": "CIPC-2015-SWE-234567"
+        },
+        "status": "found"
+      },
+      {
+        "type": "CoR39",
+        "filename": "cor39_directors.txt",
+        "extracted": {
+          "company_name": "Stellenbosch Wine Estates (Pty) Ltd",
+          "registration_number": "2015/234567/07",
+          "filing_date": "2015-09-22",
+          "directors": [
+            {
+              "full_name": "Francois Petrus Du Toit",
+              "id_number": "6809125034083",
+              "nationality": "South African",
+              "designation": "Managing Director",
+              "appointed_date": "2015-09-22"
+            },
+            {
+              "full_name": "Hendrik Jacobus Meyer",
+              "id_number": "8104175067081",
+              "nationality": "South African",
+              "designation": "Director",
+              "appointed_date": "2020-01-10"
+            }
+          ]
+        },
+        "status": "found"
+      }
+    ],
+    "missing": [
+      "CoR15.1A / CoR15.1B (Memorandum of Incorporation — MOI)",
+      "CoR123 (Annual Return) — company registered in 2015, over 10 years ago, no annual return found"
+    ],
+    "flags": [
+      "No annual return (CoR123) found — company was registered on 2015-09-22, more than 10 years ago. Annual returns are required to confirm the company is still actively maintained.",
+      "No MOI (CoR15.1A/B) found — required for CIPC completeness verification."
+    ]
+  },
+  "extracted_data": {
+    "registration_number": "2015/234567/07",
+    "company_name": "Stellenbosch Wine Estates (Pty) Ltd",
+    "directors": [
+      {
+        "full_name": "Francois Petrus Du Toit",
+        "id_number": "6809125034083",
+        "nationality": "South African",
+        "designation": "Managing Director",
+        "appointed_date": "2015-09-22"
+      },
+      {
+        "full_name": "Hendrik Jacobus Meyer",
+        "id_number": "8104175067081",
+        "nationality": "South African",
+        "designation": "Director",
+        "appointed_date": "2020-01-10"
+      }
+    ],
+    "registered_address": "Erf 445, Devon Valley Road, Stellenbosch, 7600",
+    "tax_number": "",
+    "vat_number": ""
+  },
+  "trust_entity": {
+    "trust_name": "The Boland Property Trust",
+    "trust_number": "IT4521/2010",
+    "urn": "44521/2010",
+    "founding_date": "2010-03-01",
+    "trustees": [
+      {
+        "full_name": "Francois Petrus Du Toit",
+        "id_number": "6809125034083"
+      },
+      {
+        "full_name": "Sophia Eleanor Du Toit",
+        "id_number": "7002170089080"
+      }
+    ],
+    "beneficiaries": [
+      {
+        "description": "The Du Toit family and their descendants",
+        "named_individuals": false
+      }
+    ],
+    "trust_objectives": "To hold, manage and develop immovable property for the benefit of the beneficiaries",
+    "ownership_in_company": "100% of shares in Stellenbosch Wine Estates (Pty) Ltd (Reg: 2015/234567/07)",
+    "fica": {
+      "status": "incomplete",
+      "documents": [
+        {
+          "type": "SA ID",
+          "filename": "francois_id.txt",
+          "note": "Francois Petrus Du Toit's certified ID satisfies the trustee ID requirement for him (also a director of the company)",
+          "extracted": {
+            "full_name": "Francois Petrus Du Toit",
+            "id_number": "6809125034083",
+            "certified": true,
+            "certified_date": "2026-02-10"
+          },
+          "status": "found"
+        }
+      ],
+      "missing": [
+        "Certified ID / Passport for Sophia Eleanor Du Toit (trustee — ID 7002170089080)",
+        "Proof of Trust Address (dated within 3 months — on or after 2026-01-06)",
+        "SARS Tax Number for The Boland Property Trust"
+      ],
+      "flags": [
+        "Trustee Sophia Eleanor Du Toit (ID: 7002170089080) is listed on the Letter of Authority but no certified ID copy is present in the folder.",
+        "No proof of trust address found for The Boland Property Trust — required for FICA compliance."
+      ]
+    },
+    "cipc": {
+      "status": "complete",
+      "documents": [
+        {
+          "type": "Letter of Authority",
+          "filename": "letters_of_authority.txt",
+          "extracted": {
+            "trust_name": "The Boland Property Trust",
+            "trust_number": "IT4521/2010",
+            "urn": "44521/2010",
+            "issued_by": "Master of the High Court",
+            "master_office": "Cape Town",
+            "issue_date": "2010-03-15",
+            "trustees": [
+              {
+                "full_name": "Francois Petrus Du Toit",
+                "id_number": "6809125034083",
+                "appointed": "2010-03-15"
+              },
+              {
+                "full_name": "Sophia Eleanor Du Toit",
+                "id_number": "7002170089080",
+                "appointed": "2010-03-15"
+              }
+            ]
+          },
+          "status": "found"
+        },
+        {
+          "type": "Trust Deed",
+          "filename": "trust_deed.txt",
+          "extracted": {
+            "trust_name": "The Boland Property Trust",
+            "trust_number": "IT4521/2010",
+            "founding_date": "2010-03-01",
+            "founder": {
+              "full_name": "Francois Petrus Du Toit",
+              "id_number": "6809125034083"
+            },
+            "trustees": [
+              {
+                "full_name": "Francois Petrus Du Toit",
+                "id_number": "6809125034083"
+              },
+              {
+                "full_name": "Sophia Eleanor Du Toit",
+                "id_number": "7002170089080"
+              }
+            ],
+            "beneficiaries": "The Du Toit family and their descendants",
+            "trust_objectives": "To hold, manage and develop immovable property for the benefit of the beneficiaries"
+          },
+          "status": "found"
+        }
+      ],
+      "missing": [],
+      "flags": [
+        "Trust deed trustees (Francois Petrus Du Toit, Sophia Eleanor Du Toit) match the Letter of Authority — consistent."
+      ]
+    }
+  },
+  "classified_at": "2026-04-06T00:00:00Z"
+}
