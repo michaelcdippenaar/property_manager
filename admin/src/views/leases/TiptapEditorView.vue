@@ -346,7 +346,7 @@ import {
   ChevronLeft, ChevronRight, FileSignature, Save, Loader2, RotateCcw, RotateCw,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, AlignLeft, AlignCenter, AlignRight,
   List, ListOrdered, Table as TableIcon, SeparatorHorizontal,
-  Columns3, User, Home, Hash, Phone, Mail, Calendar, PenTool, Type,
+  Columns3, User, Home, Hash, Phone, Mail, Calendar, PenTool, Type, MapPin,
   Sparkles, Send, Wrench, Zap, GripVertical, Building2, FileText, Landmark,
 } from 'lucide-vue-next'
 import api from '../../api'
@@ -523,6 +523,7 @@ const signingFields = [
   { type: 'signature', label: 'Signature', icon: markRaw(PenTool) },
   { type: 'initials', label: 'Initials', icon: markRaw(Type) },
   { type: 'date', label: 'Date Signed', icon: markRaw(Calendar) },
+  { type: 'signed_at', label: 'Signed At', icon: markRaw(MapPin) },
 ]
 
 const leaseFields = [
@@ -566,10 +567,11 @@ function onDragStartMergeField(event: DragEvent, fieldSuffix: string) {
 
 function onDragStartSigningField(event: DragEvent, type: string) {
   const actor = actors[selectedActorIdx.value]
+  const labelType = type === 'signed_at' ? 'Signed At' : type.charAt(0).toUpperCase() + type.slice(1)
   event.dataTransfer?.setData('application/tiptap-signing-field', JSON.stringify({
     fieldType: type,
     signerRole: actor.prefix,
-    label: `${type.charAt(0).toUpperCase() + type.slice(1)} — ${actor.label}`,
+    label: `${labelType} — ${actor.label}`,
   }))
   event.dataTransfer!.effectAllowed = 'copy'
 }
@@ -601,13 +603,14 @@ function insertMergeFieldDirect(fieldName: string) {
   }).run()
 }
 
-function insertSigningField(type: 'signature' | 'initials' | 'date') {
+function insertSigningField(type: 'signature' | 'initials' | 'date' | 'signed_at') {
   if (!editor.value) return
   const actor = actors[selectedActorIdx.value]
+  const labelType = type === 'signed_at' ? 'Signed At' : type.charAt(0).toUpperCase() + type.slice(1)
   editor.value.chain().focus().insertSignatureBlock({
     fieldType: type,
     signerRole: actor.prefix,
-    label: `${type.charAt(0).toUpperCase() + type.slice(1)} — ${actor.label}`,
+    label: `${labelType} — ${actor.label}`,
   }).run()
 }
 

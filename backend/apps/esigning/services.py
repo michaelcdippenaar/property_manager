@@ -501,6 +501,8 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             f'{rows}</table>'
         )
 
+    # Mirrors admin/src/styles/tiptap-editor.css so pre-signing previews match
+    # the TipTap editor view at /leases/templates/:id/edit.
     css = f"""
         @page {{ size: {_PAGE_SIZE}; margin: {_MT}mm {_MR}mm {_MB}mm {_ML}mm; }}
         body {{
@@ -508,17 +510,17 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             font-size: {_FS}; line-height: {_LH}; color: {_TC};
             margin: 0; padding: 0;
         }}
-        h1 {{ font-size: {_H1}; font-weight: 700; text-align: center; margin: 0 0 6pt; letter-spacing: -0.01em; }}
-        h2 {{ font-size: {_H2}; font-weight: 700; margin: 8pt 0 3pt; border-bottom: 0.5pt solid #d0d0d0; padding-bottom: 2pt; }}
-        h3 {{ font-size: {_H3}; font-weight: 700; margin: 6pt 0 2pt; }}
+        h1 {{ font-size: {_H1}; font-weight: bold; text-align: center; margin: 0 0 12pt; }}
+        h2 {{ font-size: {_H2}; font-weight: bold; margin: 8pt 0 3pt; }}
+        h3 {{ font-size: {_H3}; font-weight: bold; margin: 6pt 0 2pt; }}
         p {{ margin: 3pt 0; orphans: 3; widows: 3; }}
         li {{ margin: 2pt 0; }}
         ul, ol {{ padding-left: 20pt; margin: 4pt 0; }}
-        table {{ border-collapse: collapse; width: 100%; margin: 6pt 0; page-break-inside: auto; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 4pt 0; page-break-inside: auto; }}
         thead {{ display: table-header-group; }}
         tr {{ page-break-inside: avoid; }}
-        td, th {{ border: 0.5pt solid #c0c0c0; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }}
-        th {{ background-color: #f5f5f5; font-weight: 600; text-align: left; }}
+        td, th {{ border: 1px solid #d1d5db; padding: 5pt 7pt; font-size: 10pt; vertical-align: top; }}
+        th {{ background-color: #f9fafb; font-weight: 600; text-align: left; }}
     """
 
     return (
@@ -595,8 +597,9 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
 def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
     """Extract signing field metadata from HTML for a specific signer role."""
     fields = []
-    for m in re.finditer(r'<(signature|initials|date)-field\b([^>]*)>', html):
+    for m in re.finditer(r'<(signature|initials|date|signedat)-field\b([^>]*)>', html):
         tag_type = m.group(1)
+        field_type = 'signed_at' if tag_type == 'signedat' else tag_type
         attrs = m.group(2)
         name_m = re.search(r'name="([^"]+)"', attrs)
         role_m = re.search(r'role="([^"]+)"', attrs)
@@ -605,7 +608,7 @@ def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
         if role.lower() == signer_role.lower():
             fields.append({
                 'fieldName': name,
-                'fieldType': tag_type,
+                'fieldType': field_type,
                 'signerRole': role,
             })
     return fields
@@ -622,6 +625,7 @@ def get_already_signed_fields(submission) -> list[dict]:
                     'fieldType': field['fieldType'],
                     'signerName': signer['name'],
                     'signedAt': field.get('signedAt', signer.get('completed_at', '')),
+                    'textValue': field.get('textValue', ''),
                 })
     return signed
 
@@ -713,7 +717,8 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
                             captured_fields: dict | None = None):
     """Complete signing for a native signer.
 
-    signed_fields: [{fieldName, fieldType, imageData}]
+    signed_fields: [{fieldName, fieldType, imageData, textValue?}]
+        textValue is used by text-input signing fields like 'signed_at' (location).
     audit_data: {ip_address, user_agent, consent_given_at}
     captured_fields: {fieldName: value} — merge field data entered by the signer
 
@@ -742,7 +747,8 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
                 {
                     'fieldName': f['fieldName'],
                     'fieldType': f['fieldType'],
-                    'imageData': f['imageData'],
+                    'imageData': f.get('imageData', ''),
+                    'textValue': f.get('textValue', ''),
                     'signedAt': now,
                 }
                 for f in signed_fields
@@ -949,28 +955,25 @@ body {{
     print-color-adjust: exact;
 }}
 
-/* ── Headings ── */
+/* ── Headings (mirrors admin/src/styles/tiptap-editor.css) ── */
 h1 {{
     font-size: {_H1};
-    font-weight: 700;
+    font-weight: bold;
     text-align: center;
-    margin: 0 0 6pt;
+    margin: 0 0 12pt;
     color: {_TC};
-    letter-spacing: -0.01em;
 }}
 
 h2 {{
     font-size: {_H2};
-    font-weight: 700;
+    font-weight: bold;
     margin: 8pt 0 3pt;
     color: {_TC};
-    border-bottom: 0.5pt solid #d0d0d0;
-    padding-bottom: 2pt;
 }}
 
 h3 {{
     font-size: {_H3};
-    font-weight: 700;
+    font-weight: bold;
     margin: 6pt 0 2pt;
     color: {_TC};
 }}
@@ -991,11 +994,11 @@ ul, ol {{
     margin: 4pt 0;
 }}
 
-/* ── Tables ── */
+/* ── Tables (mirrors admin/src/styles/tiptap-editor.css) ── */
 table {{
     border-collapse: collapse;
     width: 100%;
-    margin: 6pt 0;
+    margin: 4pt 0;
     page-break-inside: auto;
 }}
 
@@ -1008,14 +1011,14 @@ tr {{
 }}
 
 td, th {{
-    border: 0.5pt solid #c0c0c0;
+    border: 1px solid #d1d5db;
     padding: 5pt 7pt;
     font-size: 10pt;
     vertical-align: top;
 }}
 
 th {{
-    background-color: #f5f5f5;
+    background-color: #f9fafb;
     font-weight: 600;
     text-align: left;
 }}
@@ -1152,6 +1155,14 @@ def generate_signed_pdf(submission) -> bytes:
     html = apply_captured_data(html, submission.captured_data or {})
 
     # ── 3. Replace signing field tags with signature images or date text ─
+    # Map fieldType → HTML tag base (handles signed_at → signedat-field)
+    _tag_for_type = {
+        'signature': 'signature',
+        'initials': 'initials',
+        'date': 'date',
+        'signed_at': 'signedat',
+    }
+    from html import escape as _html_escape
     for signer in submission.signers:
         for field in signer.get('signed_fields', []):
             field_name = field['fieldName']
@@ -1172,12 +1183,16 @@ def generate_signed_pdf(submission) -> bytes:
             elif field_type == 'date':
                 signed_date = field.get("signedAt", "")[:10]
                 replacement = f'<span class="pdf-field-value">{signed_date}</span>'
+            elif field_type == 'signed_at':
+                text = (field.get('textValue') or '').strip()
+                replacement = f'<span class="pdf-field-value">{_html_escape(text)}</span>'
             else:
                 continue
 
             # Replace the field tag by name
+            tag_base = _tag_for_type.get(field_type, field_type)
             html = re.sub(
-                rf'<{field_type}-field\b[^>]*name="{re.escape(field_name)}"[^>]*>[^<]*</{field_type}-field>',
+                rf'<{tag_base}-field\b[^>]*name="{re.escape(field_name)}"[^>]*>[^<]*</{tag_base}-field>',
                 replacement, html,
             )
 
@@ -1195,6 +1210,11 @@ def generate_signed_pdf(submission) -> bytes:
     html = re.sub(
         r'<date-field\b[^>]*>[^<]*</date-field>',
         '<span class="pdf-date-blank">____/____/________</span>',
+        html,
+    )
+    html = re.sub(
+        r'<signedat-field\b[^>]*>[^<]*</signedat-field>',
+        '<span class="pdf-signedat-blank">__________________</span>',
         html,
     )
 

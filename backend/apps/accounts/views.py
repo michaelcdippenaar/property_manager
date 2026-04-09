@@ -14,7 +14,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, OTPCode, Person, PushToken, LoginAttempt, UserInvite, Agency
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, TenantListSerializer
 from .audit import log_auth_event
 from .throttles import AuthAnonThrottle, OTPSendThrottle, OTPVerifyThrottle
 
@@ -410,22 +410,33 @@ class AcceptInviteView(APIView):
 class TenantsListView(generics.ListAPIView):
     """
     Returns all Person records who appear on at least one lease
-    (as primary tenant or co-tenant).
+    (as primary tenant or co-tenant), annotated with active-lease counts
+    so the list can render Active/Inactive badges.
     """
-    serializer_class = PersonSerializer
+    serializer_class = TenantListSerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
         from django.db.models import Q, Count
-        qs = Person.objects.filter(
-            Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False)
-        ).distinct().annotate(
-            active_lease_count=Count(
-                'leases_as_primary',
-                filter=Q(leases_as_primary__status='active')
+        return (
+            Person.objects
+            .filter(Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False))
+            .distinct()
+            .select_related("linked_user")
+            .annotate(
+                active_primary_lease_count=Count(
+                    "leases_as_primary",
+                    filter=Q(leases_as_primary__status="active"),
+                    distinct=True,
+                ),
+                active_cotenant_lease_count=Count(
+                    "co_tenancies",
+                    filter=Q(co_tenancies__lease__status="active"),
+                    distinct=True,
+                ),
             )
-        ).order_by('full_name')
-        return qs
+            .order_by("full_name")
+        )
 
 
 class PersonViewSet(generics.ListCreateAPIView):

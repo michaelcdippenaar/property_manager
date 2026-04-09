@@ -313,6 +313,7 @@
           :on-field-click="onFieldClick"
           :captured-fields="capturedFields"
           :on-merge-field-change="onMergeFieldChange"
+          :on-text-field-change="onTextFieldChange"
         />
 
         <!-- Floating action bar -->
@@ -441,8 +442,8 @@ const signerRole = ref('')
 // Native signing state
 const documentHtml = ref('')
 const signingFields = ref<Array<{ fieldName: string; fieldType: string; signerRole: string }>>([])
-const alreadySignedFields = ref<Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string }>>([])
-const signedFieldsMap = reactive(new Map<string, { imageData: string; signedAt: string }>())
+const alreadySignedFields = ref<Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string; textValue?: string }>>([])
+const signedFieldsMap = reactive(new Map<string, { imageData: string; signedAt: string; textValue?: string }>())
 const currentFieldIndex = ref(0)
 const captureFieldName = ref('')
 const captureFieldType = ref('')
@@ -456,6 +457,14 @@ const editableMergeFields = ref<Array<{ fieldName: string; category: string; edi
 
 function onMergeFieldChange(fieldName: string, value: string) {
   capturedFields[fieldName] = value
+}
+
+function onTextFieldChange(fieldName: string, value: string) {
+  signedFieldsMap.set(fieldName, {
+    imageData: '',
+    textValue: value,
+    signedAt: new Date().toISOString(),
+  })
 }
 
 // ── Documents step state ────────────────────────────────────────────
@@ -614,7 +623,13 @@ const signerLine = computed(() => {
 })
 
 const unsignedFieldCount = computed(() => {
-  return signingFields.value.filter(f => !signedFieldsMap.has(f.fieldName)).length
+  return signingFields.value.filter(f => {
+    const v = signedFieldsMap.get(f.fieldName)
+    if (!v) return true
+    // signed_at requires a non-empty textValue
+    if (f.fieldType === 'signed_at') return !(v.textValue && v.textValue.trim())
+    return false
+  }).length
 })
 
 const unfilledMergeFieldCount = computed(() =>
@@ -778,11 +793,15 @@ async function submitSignatures() {
   if (unsignedFieldCount.value > 0 || unfilledMergeFieldCount.value > 0 || submitting.value) return
   submitting.value = true
 
-  const fields = signingFields.value.map(f => ({
-    fieldName: f.fieldName,
-    fieldType: f.fieldType,
-    imageData: signedFieldsMap.get(f.fieldName)?.imageData || '',
-  }))
+  const fields = signingFields.value.map(f => {
+    const stored = signedFieldsMap.get(f.fieldName)
+    return {
+      fieldName: f.fieldName,
+      fieldType: f.fieldType,
+      imageData: stored?.imageData || '',
+      textValue: stored?.textValue || '',
+    }
+  })
 
   try {
     await axios.post(

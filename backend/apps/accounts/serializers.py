@@ -104,6 +104,32 @@ class PersonSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "created_at"]
 
 
+class TenantListSerializer(serializers.ModelSerializer):
+    """
+    Lighter projection for /auth/tenants/. Reports `is_active` based on
+    whether the Person is attached to any lease with status='active'
+    (as primary tenant OR co-tenant). Relies on annotations provided by
+    TenantsListView.get_queryset().
+    """
+    is_active = serializers.SerializerMethodField()
+    date_joined = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Person
+        fields = ["id", "email", "full_name", "phone", "id_number", "date_joined", "is_active"]
+
+    def get_is_active(self, obj) -> bool:
+        primary = getattr(obj, "active_primary_lease_count", 0) or 0
+        cotenant = getattr(obj, "active_cotenant_lease_count", 0) or 0
+        return (primary + cotenant) > 0
+
+    def get_date_joined(self, obj):
+        user = obj.linked_user
+        if user and user.date_joined:
+            return user.date_joined.isoformat()
+        return obj.created_at.isoformat() if obj.created_at else None
+
+
 class AdminUserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
 

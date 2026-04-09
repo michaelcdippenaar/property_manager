@@ -8,22 +8,16 @@
     </div>
 
     <!-- ── Empty state ── -->
-    <template v-else-if="!activeMandate">
-      <div class="flex flex-col items-center justify-center py-16 text-center">
-        <div class="w-14 h-14 rounded-2xl bg-navy/8 flex items-center justify-center mb-4">
-          <FileSignature :size="28" class="text-navy/40" />
-        </div>
-        <h3 class="text-base font-semibold text-gray-800 mb-1">No mandate on file</h3>
-        <p class="text-sm text-gray-400 max-w-sm mb-6">
-          A signed rental mandate is required before you can list or manage this property.
-          It formalises the agency relationship and commission terms with the owner.
-        </p>
-        <button class="btn-primary flex items-center gap-2" @click="showCreateModal = true">
-          <Plus :size="15" />
-          Create Mandate
-        </button>
-      </div>
-    </template>
+    <EmptyState
+      v-else-if="!activeMandate"
+      title="No mandate on file"
+      description="A signed rental mandate is required before you can list or manage this property. It formalises the agency relationship and commission terms with the owner."
+      :icon="FileSignature"
+    >
+      <button class="btn-primary" @click="showCreateModal = true">
+        <Plus :size="15" /> Create Mandate
+      </button>
+    </EmptyState>
 
     <!-- ── Active mandate ── -->
     <template v-else>
@@ -235,6 +229,7 @@ import {
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
 import BaseModal from '../../components/BaseModal.vue'
+import EmptyState from '../../components/EmptyState.vue'
 import MandateSigningPanel from './MandateSigningPanel.vue'
 import { useMandatesStore } from '../../stores/mandates'
 

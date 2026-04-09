@@ -18,11 +18,12 @@ import { useTiptapEditor } from '../../composables/useTiptapEditor'
 const props = defineProps<{
   html: string
   signerRole: string
-  signedFields: Map<string, { imageData: string; signedAt: string }>
-  alreadySigned: Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string }>
+  signedFields: Map<string, { imageData: string; signedAt: string; textValue?: string }>
+  alreadySigned: Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string; textValue?: string }>
   onFieldClick: (fieldName: string, fieldType: string) => void
   capturedFields: Record<string, string>
   onMergeFieldChange: (fieldName: string, value: string) => void
+  onTextFieldChange?: (fieldName: string, value: string) => void
 }>()
 
 const { editor } = useTiptapEditor({
@@ -38,6 +39,7 @@ const signingContext = reactive({
   onFieldClick: props.onFieldClick,
   capturedFields: props.capturedFields,
   onMergeFieldChange: props.onMergeFieldChange,
+  onTextFieldChange: props.onTextFieldChange,
 })
 
 provide('signingContext', signingContext)

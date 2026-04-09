@@ -171,6 +171,35 @@ class PropertyOwnershipSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        """Enforce one current owner per property.
+
+        A property may have many `PropertyOwnership` rows over time (history),
+        but at any given moment only one may have `is_current=True`.
+        """
+        is_current = attrs.get(
+            "is_current", getattr(self.instance, "is_current", True)
+        )
+        prop = attrs.get("property", getattr(self.instance, "property", None))
+        if is_current and prop is not None:
+            qs = PropertyOwnership.objects.filter(property=prop, is_current=True)
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            conflict = qs.select_related("landlord").first()
+            if conflict:
+                owner_label = (
+                    (conflict.landlord.name if conflict.landlord else None)
+                    or conflict.owner_name
+                    or "another owner"
+                )
+                raise serializers.ValidationError({
+                    "property": (
+                        f"This property is already linked to {owner_label}. "
+                        "End that ownership before linking it to a new owner."
+                    )
+                })
+        return attrs
+
     def to_representation(self, instance):
         """Fall back to linked Landlord fields when denormalized ownership fields are empty.
 

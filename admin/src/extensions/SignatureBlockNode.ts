@@ -19,7 +19,7 @@ import SignatureBlockComponent from './SignatureBlockComponent.vue'
 
 export interface SignatureBlockAttributes {
   fieldName: string
-  fieldType: 'signature' | 'initials' | 'date'
+  fieldType: 'signature' | 'initials' | 'date' | 'signed_at'
   signerRole: string    // landlord, tenant_1, tenant_2, witness, agent
   label: string | null
 }
@@ -88,6 +88,11 @@ export const SignatureBlock = Node.create({
         fieldType: 'date',
         signerRole: el.getAttribute('role') || el.getAttribute('data-signer-role') || 'landlord',
       })},
+      { tag: 'signedat-field', getAttrs: (el: HTMLElement) => ({
+        fieldName: el.getAttribute('name') || el.getAttribute('data-field-name'),
+        fieldType: 'signed_at',
+        signerRole: el.getAttribute('role') || el.getAttribute('data-signer-role') || 'landlord',
+      })},
       // Legacy TipTap format (span)
       { tag: 'span[data-type="signature-block"]' },
       // Legacy TipTap format (div)
@@ -115,6 +120,7 @@ export const SignatureBlock = Node.create({
       signature: 'signature-field',
       initials: 'initials-field',
       date: 'date-field',
+      signed_at: 'signedat-field',
     }
     const tag = tagMap[type] || 'signature-field'
 
@@ -122,7 +128,9 @@ export const SignatureBlock = Node.create({
       ? 'width:200px;height:60px'
       : type === 'initials'
         ? 'width:100px;height:40px'
-        : 'width:120px;height:24px'
+        : type === 'signed_at'
+          ? 'width:160px;height:24px'
+          : 'width:120px;height:24px'
 
     return [
       tag,
@@ -151,7 +159,11 @@ export const SignatureBlock = Node.create({
     return {
       insertSignatureBlock: (attrs) => ({ commands }) => {
         _blockCounter++
-        const suffix = attrs.fieldType === 'date' ? 'date_signed' : attrs.fieldType
+        const suffix = attrs.fieldType === 'date'
+          ? 'date_signed'
+          : attrs.fieldType === 'signed_at'
+            ? 'signed_at'
+            : attrs.fieldType
         const fieldName = attrs.fieldName || `${attrs.signerRole}_${suffix}_${_blockCounter}`
         return commands.insertContent({
           type: this.name,

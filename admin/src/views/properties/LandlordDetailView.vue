@@ -70,7 +70,7 @@
 
     <!-- ── Tab: Details ── -->
     <div v-else-if="activeTab === 'details'" class="grid grid-cols-3 gap-6 pt-6">
-      <div class="col-span-2 space-y-6">
+      <form @submit.prevent="saveLandlord" class="col-span-2 space-y-6">
         <!-- Info card -->
         <div class="card p-5">
           <div class="flex items-center gap-3 mb-4">
@@ -89,7 +89,7 @@
             </div>
           </div>
 
-          <form @submit.prevent="saveLandlord" class="space-y-4">
+          <div class="space-y-4">
             <div class="grid grid-cols-2 gap-3">
               <div class="col-span-2">
                 <label class="label">Legal name</label>
@@ -129,11 +129,7 @@
                 <input v-model="local.vat_number" class="input font-mono" />
               </div>
             </div>
-            <button type="submit" class="btn-primary text-sm" :disabled="saving">
-              <Loader2 v-if="saving" :size="14" class="animate-spin" />
-              Save Changes
-            </button>
-          </form>
+          </div>
         </div>
 
         <!-- Representative -->
@@ -157,12 +153,12 @@
               <input v-model="local.representative_phone" class="input" />
             </div>
           </div>
-          <button class="btn-primary text-sm" :disabled="saving" @click="saveLandlord">
+          <button type="submit" class="btn-primary text-sm" :disabled="saving">
             <Loader2 v-if="saving" :size="14" class="animate-spin" />
             Save Changes
           </button>
         </div>
-      </div>
+      </form>
 
       <!-- Sidebar -->
       <div class="space-y-5">
@@ -1114,7 +1110,7 @@ async function doDeleteLandlord() {
 
 async function loadAllProperties() {
   try {
-    const { data } = await api.get('/properties/')
+    const { data } = await api.get('/properties/', { params: { unlinked: true } })
     allProperties.value = data.results ?? data
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to load properties'))
@@ -1122,12 +1118,9 @@ async function loadAllProperties() {
 }
 
 const filteredUnlinkedProperties = computed(() => {
-  const linkedIds = new Set((local.value.properties ?? []).map((p: any) => p.id))
-  return allProperties.value.filter((p: any) => {
-    if (linkedIds.has(p.id)) return false
-    if (propertySearch.value) return p.name.toLowerCase().includes(propertySearch.value.toLowerCase())
-    return true
-  })
+  const term = propertySearch.value.trim().toLowerCase()
+  if (!term) return allProperties.value
+  return allProperties.value.filter((p: any) => p.name.toLowerCase().includes(term))
 })
 
 async function linkProperty() {

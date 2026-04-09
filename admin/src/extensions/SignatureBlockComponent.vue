@@ -7,9 +7,27 @@
 
     <!-- ══════════════ SIGNING MODE ══════════════ -->
     <template v-if="signingContext">
+      <!-- My signed-at (location) field: inline text input -->
+      <span
+        v-if="isMyField && node.attrs.fieldType === 'signed_at'"
+        class="inline-flex items-center gap-1 align-middle"
+      >
+        <MapPin :size="11" class="text-navy/70 flex-shrink-0" />
+        <input
+          type="text"
+          :value="signedAtValue"
+          @input="onSignedAtInput(($event.target as HTMLInputElement).value)"
+          placeholder="Type location…"
+          class="inline-block px-2 py-0.5 rounded border border-navy/30 bg-white
+                 text-xs font-semibold text-navy placeholder:text-gray-400
+                 focus:outline-none focus:ring-1 focus:ring-navy/50
+                 min-w-[140px] max-w-[220px]"
+        />
+      </span>
+
       <!-- My date field: auto-filled with today's date (check BEFORE signed/unsigned) -->
       <span
-        v-if="isMyField && node.attrs.fieldType === 'date'"
+        v-else-if="isMyField && node.attrs.fieldType === 'date'"
         class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-700 text-xs font-semibold align-middle"
       >
         <Calendar :size="11" />
@@ -74,9 +92,9 @@
 
     <!-- ══════════════ EDITOR MODE (unchanged) ══════════════ -->
     <template v-else>
-      <!-- Date / Initials: compact chip -->
+      <!-- Date / Initials / Signed-At: compact chip -->
       <span
-        v-if="node.attrs.fieldType === 'date' || node.attrs.fieldType === 'initials'"
+        v-if="['date','initials','signed_at'].includes(node.attrs.fieldType)"
         class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px]
                font-medium cursor-grab active:cursor-grabbing select-none align-baseline leading-tight"
         :class="[chipClasses, selected ? 'ring-2 ring-navy/40' : '']"
@@ -156,17 +174,23 @@
 import { computed, inject } from 'vue'
 import { nodeViewProps, NodeViewWrapper } from '@tiptap/vue-3'
 import {
-  PenTool, Type, Calendar, X, GripVertical,
+  PenTool, Type, Calendar, MapPin, X, GripVertical,
 } from 'lucide-vue-next'
 
 const props = defineProps(nodeViewProps)
 
 // ── Signing context (provided by SigningDocumentViewer) ──────────────
+interface SignedFieldData {
+  imageData: string
+  signedAt: string
+  textValue?: string
+}
 interface SigningContextType {
   signerRole: string
-  signedFields: Map<string, { imageData: string; signedAt: string }>
-  alreadySigned: Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string }>
+  signedFields: Map<string, SignedFieldData>
+  alreadySigned: Array<{ fieldName: string; fieldType: string; signerName: string; signedAt: string; textValue?: string }>
   onFieldClick: (fieldName: string, fieldType: string) => void
+  onTextFieldChange?: (fieldName: string, value: string) => void
 }
 const signingContext = inject<SigningContextType | null>('signingContext', null)
 
@@ -208,6 +232,17 @@ function handleSignClick() {
   }
 }
 
+const signedAtValue = computed(() => {
+  if (!signingContext) return ''
+  return signingContext.signedFields.get(props.node.attrs.fieldName)?.textValue || ''
+})
+
+function onSignedAtInput(value: string) {
+  if (signingContext?.onTextFieldChange) {
+    signingContext.onTextFieldChange(props.node.attrs.fieldName, value)
+  }
+}
+
 // ── Editor mode computeds (unchanged) ───────────────────────────────
 const displayLabel = computed(() =>
   props.node.attrs.label || `${props.node.attrs.fieldType} — ${props.node.attrs.signerRole}`
@@ -217,6 +252,7 @@ const chipLabel = computed(() => {
   const role = (props.node.attrs.signerRole || 'signer').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())
   if (props.node.attrs.fieldType === 'initials') return `initials ${role}`
   if (props.node.attrs.fieldType === 'date') return `date ${role}`
+  if (props.node.attrs.fieldType === 'signed_at') return `signed at ${role}`
   return displayLabel.value
 })
 
@@ -267,6 +303,7 @@ const iconComponent = computed(() => ({
   signature: PenTool,
   initials: Type,
   date: Calendar,
+  signed_at: MapPin,
 }[props.node.attrs.fieldType] ?? PenTool))
 </script>
 

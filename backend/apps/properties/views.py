@@ -49,7 +49,10 @@ class PropertyViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         prop_ids = get_accessible_property_ids(self.request.user)
-        return Property.objects.filter(pk__in=prop_ids)
+        qs = Property.objects.filter(pk__in=prop_ids)
+        if self.request.query_params.get("unlinked") in ("1", "true", "yes"):
+            qs = qs.exclude(ownerships__is_current=True)
+        return qs
 
     @action(
         detail=True, methods=["get", "post", "delete"], url_path="photos(?:/(?P<photo_id>[0-9]+))?",

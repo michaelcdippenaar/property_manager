@@ -162,98 +162,24 @@
           </div>
         </div>
 
-        <!-- ALL UNITS TABLE -->
-        <div class="card overflow-hidden">
-          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <div class="text-xs font-semibold uppercase tracking-wide text-navy">All Units</div>
-            <span class="text-[10px] text-gray-400">{{ totalUnits }} total · {{ occupiedUnits }} occupied</span>
-          </div>
-
-          <table class="table-wrap">
-            <thead>
-              <tr>
-                <th scope="col">Unit</th>
-                <th scope="col">Status</th>
-                <th scope="col">Tenant</th>
-                <th scope="col">Rent</th>
-                <th scope="col">Lease expires</th>
-                <th scope="col">Days left</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="unit in property.units"
-                :key="unit.id"
-                class="cursor-pointer"
-                @click="switchUnit(unit.id)"
-              >
-                <td class="font-medium text-gray-900">Unit {{ unit.unit_number }}</td>
-                <td>
-                  <span :class="{
-                    'badge-green':  unit.status === 'occupied' && unit.active_lease_info?.status === 'active',
-                    'badge-purple': unit.status === 'occupied' && unit.active_lease_info?.status === 'pending',
-                    'badge-blue':   unit.status === 'available',
-                    'badge-amber':  unit.status === 'maintenance',
-                  }">{{
-                    unit.status === 'occupied' && unit.active_lease_info?.status === 'pending' ? 'Pending'
-                    : unit.status === 'occupied' ? 'Occupied'
-                    : unit.status === 'maintenance' ? 'Maintenance'
-                    : 'Available'
-                  }}</span>
-                </td>
-                <td class="text-gray-700">{{ unit.active_lease_info?.tenant_name ?? '—' }}</td>
-                <td class="text-gray-700">
-                  {{ unit.active_lease_info
-                      ? 'R' + Number(unit.active_lease_info.monthly_rent).toLocaleString('en-ZA', { maximumFractionDigits: 0 })
-                      : '—' }}
-                </td>
-                <td>
-                  <span
-                    v-if="unit.active_lease_info?.end_date"
-                    :class="{
-                      'text-danger-600 font-semibold': unitLeaseUrgency(unit) === 'critical',
-                      'text-warning-600':              unitLeaseUrgency(unit) === 'warning',
-                      'text-gray-600':                 unitLeaseUrgency(unit) === 'ok',
-                    }"
-                  >{{ fmtDate(unit.active_lease_info.end_date) }}</span>
-                  <span v-else class="text-gray-300">—</span>
-                </td>
-                <td>
-                  <span
-                    v-if="unit.active_lease_info?.end_date"
-                    class="text-xs font-semibold"
-                    :class="{
-                      'text-danger-600': unitLeaseUrgency(unit) === 'critical',
-                      'text-warning-600': unitLeaseUrgency(unit) === 'warning',
-                      'text-gray-500': unitLeaseUrgency(unit) === 'ok',
-                    }"
-                  >{{ daysUntil(unit.active_lease_info.end_date) }}d</span>
-                  <span v-else class="text-gray-300">—</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
         <!-- 2-COL GRID -->
         <div class="grid grid-cols-3 gap-5">
 
           <!-- LEFT 2/3 -->
           <div class="col-span-2 space-y-4">
 
-            <!-- Active Lease -->
-            <div
-              class="card overflow-hidden"
-              :class="activeLease ? 'cursor-pointer hover:shadow-md transition-shadow' : ''"
-              @click="activeLease ? activeSection = 'leases' : null"
-            >
+            <!-- Active Lease(s) -->
+            <div class="card overflow-hidden">
               <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                   <FileSignature :size="14" class="text-navy" />
-                  <span class="text-xs font-semibold uppercase tracking-wide text-navy">Active Lease</span>
+                  <span class="text-xs font-semibold uppercase tracking-wide text-navy">
+                    {{ currentLeases.length > 1 ? 'Active Leases' : 'Active Lease' }}
+                  </span>
+                  <span v-if="currentLeases.length > 1" class="text-xs text-gray-400">({{ currentLeases.length }})</span>
                 </div>
                 <div v-if="loadingLease" class="h-3 w-12 bg-gray-100 rounded animate-pulse" />
-                <button v-else-if="!activeLease" class="text-xs text-navy hover:underline" @click.stop="goCreateLease()">Create lease</button>
+                <button v-else-if="!currentLeases.length" class="text-xs text-navy hover:underline" @click.stop="goCreateLease()">Create lease</button>
                 <button v-else class="text-xs text-navy hover:underline" @click.stop="activeSection = 'leases'">View all</button>
               </div>
 
@@ -262,25 +188,32 @@
                 <div class="h-8 bg-gray-100 rounded" />
               </div>
 
-              <div v-else-if="activeLease" class="px-5 py-4 space-y-3">
-                <div class="flex items-center gap-2">
-                  <span :class="activeLease.status === 'active' ? 'badge-green' : 'badge-purple'">
-                    {{ activeLease.status === 'active' ? 'Active' : 'Pending' }}
-                  </span>
-                  <span class="text-sm font-semibold text-gray-900">{{ activeLease.lease_number || `Lease #${activeLease.id}` }}</span>
-                </div>
-                <div class="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
-                    <div class="font-medium text-gray-900">{{ activeLease.primary_tenant_name || activeLease.primary_tenant?.full_name || '—' }}</div>
+              <div v-else-if="currentLeases.length" class="divide-y divide-gray-50">
+                <div
+                  v-for="lease in currentLeases"
+                  :key="lease.id"
+                  class="px-5 py-4 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                  @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
+                >
+                  <div class="flex items-center gap-2">
+                    <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                      {{ lease.status === 'active' ? 'Active' : 'Pending' }}
+                    </span>
+                    <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
                   </div>
-                  <div>
-                    <div class="text-xs text-gray-400 mb-0.5">Period</div>
-                    <div class="text-gray-700">{{ fmtDate(activeLease.start_date) }} → {{ fmtDate(activeLease.end_date) }}</div>
-                  </div>
-                  <div>
-                    <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
-                    <div class="font-medium text-gray-900">R{{ Number(activeLease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                  <div class="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+                      <div class="font-medium text-gray-900">{{ lease.primary_tenant_name || lease.primary_tenant?.full_name || '—' }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-400 mb-0.5">Period</div>
+                      <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+                    </div>
+                    <div>
+                      <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+                      <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -338,77 +271,6 @@
 
           <!-- RIGHT 1/3 -->
           <div class="space-y-4">
-
-            <!-- Insurance Summary -->
-            <div class="card p-4 space-y-3">
-              <div class="flex items-center gap-2">
-                <Shield :size="13" class="text-navy" />
-                <div class="text-xs font-semibold uppercase tracking-wide text-navy">Insurance</div>
-              </div>
-
-              <div v-if="loadingInsurance" class="space-y-2 animate-pulse">
-                <div class="h-4 bg-gray-100 rounded w-3/4" />
-                <div class="h-3 bg-gray-100 rounded w-1/2" />
-              </div>
-
-              <template v-else-if="activeInsurance">
-                <div class="text-sm font-semibold text-gray-900">{{ activeInsurance.insurer }}</div>
-                <div class="text-xs text-gray-400">{{ activeInsurance.policy_type_display }}</div>
-                <div class="border-t border-gray-100 pt-2.5 grid grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <div class="text-gray-400">Sum insured</div>
-                    <div class="font-semibold text-gray-900 mt-0.5">
-                      {{ activeInsurance.sum_insured
-                          ? 'R' + Number(activeInsurance.sum_insured).toLocaleString('en-ZA', { maximumFractionDigits: 0 })
-                          : '—' }}
-                    </div>
-                  </div>
-                  <div>
-                    <div class="text-gray-400">Monthly premium</div>
-                    <div class="font-semibold text-gray-900 mt-0.5">
-                      {{ activeInsurance.monthly_premium
-                          ? 'R' + Number(activeInsurance.monthly_premium).toLocaleString('en-ZA', { maximumFractionDigits: 0 })
-                          : '—' }}
-                    </div>
-                  </div>
-                  <div class="col-span-2">
-                    <div class="text-gray-400">Policy renewal</div>
-                    <div
-                      class="font-semibold mt-0.5"
-                      :class="activeInsurance.end_date && daysUntil(activeInsurance.end_date) <= 30
-                              ? 'text-danger-600' : 'text-gray-900'"
-                    >{{ activeInsurance.end_date ? fmtDate(activeInsurance.end_date) : 'Ongoing' }}</div>
-                  </div>
-                </div>
-              </template>
-
-              <div v-else class="text-xs text-gray-400">No active insurance policy on record.</div>
-            </div>
-
-            <!-- Property Valuation -->
-            <div class="card p-4 space-y-3">
-              <div class="flex items-center gap-2">
-                <TrendingUp :size="13" class="text-navy" />
-                <div class="text-xs font-semibold uppercase tracking-wide text-navy">Valuation</div>
-              </div>
-
-              <div v-if="loadingValuation" class="space-y-2 animate-pulse">
-                <div class="h-5 bg-gray-100 rounded w-2/3" />
-                <div class="h-3 bg-gray-100 rounded w-1/3" />
-              </div>
-
-              <template v-else-if="latestValuation">
-                <div class="text-xl font-bold text-gray-900">
-                  R{{ Number(latestValuation.amount).toLocaleString('en-ZA', { maximumFractionDigits: 0 }) }}
-                </div>
-                <div class="text-xs text-gray-400">
-                  {{ latestValuation.valuation_type_display }} · {{ fmtDate(latestValuation.valuation_date) }}
-                </div>
-                <div v-if="latestValuation.valuator" class="text-xs text-gray-500">{{ latestValuation.valuator }}</div>
-              </template>
-
-              <div v-else class="text-xs text-gray-400">No valuation on record.</div>
-            </div>
 
             <!-- Owner Summary -->
             <div class="card p-4 space-y-3">
@@ -474,49 +336,49 @@
           </button>
         </div>
 
-        <!-- Active / pending lease -->
-        <div v-if="loadingLease" class="card p-5 animate-pulse"><div class="h-20 bg-gray-100 rounded" /></div>
-        <div
-          v-else-if="activeLease"
-          class="card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
-          @click="$router.push(`/leases/${activeLease.id}`)"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span :class="activeLease.status === 'active' ? 'badge-green' : 'badge-purple'">
-                {{ activeLease.status === 'active' ? 'Active' : 'Pending' }}
-              </span>
-              <span class="text-sm font-semibold text-gray-900">{{ activeLease.lease_number || `Lease #${activeLease.id}` }}</span>
+        <!-- Active / pending leases -->
+        <div v-if="loadingLease || loadingPrevLeases" class="card p-5 animate-pulse"><div class="h-20 bg-gray-100 rounded" /></div>
+        <template v-else>
+          <div
+            v-for="lease in currentLeases"
+            :key="lease.id"
+            class="card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
+            @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                  {{ lease.status === 'active' ? 'Active' : 'Pending' }}
+                </span>
+                <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
+              </div>
+              <ChevronRight :size="16" class="text-gray-400" />
             </div>
-            <ChevronRight :size="16" class="text-gray-400" />
+            <div class="grid grid-cols-3 gap-4 text-sm">
+              <div>
+                <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+                <div class="font-medium text-gray-900">{{ lease.primary_tenant_name || lease.primary_tenant?.full_name || '—' }}</div>
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-0.5">Period</div>
+                <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+              </div>
+              <div>
+                <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+                <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+              </div>
+            </div>
           </div>
-          <div class="grid grid-cols-3 gap-4 text-sm">
-            <div>
-              <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
-              <div class="font-medium text-gray-900">{{ activeLease.primary_tenant_name || activeLease.primary_tenant?.full_name || '—' }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400 mb-0.5">Period</div>
-              <div class="text-gray-700">{{ fmtDate(activeLease.start_date) }} → {{ fmtDate(activeLease.end_date) }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
-              <div class="font-medium text-gray-900">R{{ Number(activeLease.monthly_rent).toLocaleString('en-ZA') }}</div>
-            </div>
-          </div>
-        </div>
+        </template>
 
         <!-- Previous leases -->
         <div v-if="previousLeases.length" class="space-y-2">
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Previous leases</p>
-          <div v-if="loadingPrevLeases" class="space-y-2 animate-pulse">
-            <div v-for="i in 2" :key="i" class="card p-4"><div class="h-10 bg-gray-100 rounded" /></div>
-          </div>
           <div
             v-for="lease in previousLeases"
             :key="lease.id"
             class="card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
-            @click="$router.push(`/leases/${lease.id}`)"
+            @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
           >
             <span :class="{
               'badge-gray': lease.status === 'expired',
@@ -533,12 +395,14 @@
         </div>
 
         <EmptyState
-          v-else-if="!activeLease && !loadingLease"
+          v-if="!loadingLease && !loadingPrevLeases && !currentLeases.length && !previousLeases.length"
           title="No leases yet"
           description="Create a lease to get started."
           :icon="FileSignature"
         >
-          <button class="btn-primary btn-sm" @click="goCreateLease()">Create lease</button>
+          <button class="btn-primary" @click="goCreateLease()">
+            <Plus :size="15" /> Create lease
+          </button>
         </EmptyState>
       </div>
 
@@ -1315,7 +1179,7 @@ import {
   FileSignature, Loader2, Calendar, Wrench, Phone, Mail, ImagePlus,
   ClipboardList, ListTodo, Plus, ScanBarcode, FolderOpen,
   Megaphone, Building2, Landmark, ShieldCheck, Cpu, Receipt, Zap, Truck,
-  Shield, TrendingUp, Home, CheckCircle, X, ChevronRight,
+  Home, CheckCircle, X, ChevronRight,
 } from 'lucide-vue-next'
 
 const NOTICE_DAYS = 30
@@ -1340,6 +1204,7 @@ const loadingOwner     = ref(false)
 const loadingTemplate  = ref(false)
 const loadingLease     = ref(false)
 const loadingMaintenance = ref(false)
+const currentLeases     = ref<any[]>([])
 const previousLeases    = ref<any[]>([])
 const loadingPrevLeases = ref(false)
 const propertySuppliers = ref<any[]>([])
@@ -1355,11 +1220,7 @@ const deletePhotoBusy   = ref(false)
 
 // Overview dashboard data
 const complianceCerts    = ref<any[]>([])
-const insurancePolicies  = ref<any[]>([])
-const propertyValuations = ref<any[]>([])
 const loadingCompliance  = ref(false)
-const loadingInsurance   = ref(false)
-const loadingValuation   = ref(false)
 
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
@@ -1623,8 +1484,6 @@ const totalMonthlyIncome = computed(() =>
     ?.filter((u: any) => u.active_lease_info)
     .reduce((sum: number, u: any) => sum + Number(u.active_lease_info.monthly_rent ?? 0), 0) ?? 0
 )
-const latestValuation = computed(() => propertyValuations.value[0] ?? null)
-const activeInsurance = computed(() => insurancePolicies.value[0] ?? null)
 const complianceByType = computed(() => {
   const map: Record<string, any> = {}
   for (const cert of complianceCerts.value) {
@@ -1641,6 +1500,8 @@ async function initProperty(id: number) {
   activeSection.value = 'overview'
   owner.value = null
   activeLease.value = null
+  currentLeases.value = []
+  previousLeases.value = []
   unitPhotos.value = []
   propertyDocs.value = []
   openMaintenance.value = []
@@ -1680,15 +1541,13 @@ async function initProperty(id: number) {
     .catch(() => {})
     .finally(() => { loadingTemplate.value = false })
 
-  loadActiveLease({ property: pid })
-
   loadingMaintenance.value = true
   api.get('/maintenance/', { params: { property: pid, status: 'open', page_size: 5 } })
     .then(r => { openMaintenance.value = r.data.results ?? r.data })
     .catch(() => {})
     .finally(() => { loadingMaintenance.value = false })
 
-  if (activeUnit.value) loadPreviousLeases(activeUnit.value)
+  if (activeUnit.value) loadUnitLeases(activeUnit.value)
   loadPhotos(pid, activeUnit.value)  // null = property-level photos (no unit)
 
   loadDocs(pid)
@@ -1722,11 +1581,8 @@ watch(activeUnit, (unitId) => {
   const unit = property.value.units.find((u: any) => u.id === unitId)
   adDescription.value = unit?.ad_description ?? ''
 
-  // Reload active lease for this unit
-  loadActiveLease({ unit: unitId })
-
   loadPhotos(property.value.id, unitId)
-  loadPreviousLeases(unitId)
+  loadUnitLeases(unitId)
 })
 
 // Load inventory when switching to inventory tab or when lease changes
@@ -1755,32 +1611,21 @@ function daysUntil(isoDate: string): number {
   return Math.max(0, Math.ceil((new Date(isoDate).getTime() - Date.now()) / 86400000))
 }
 
-function unitLeaseUrgency(unit: any): 'ok' | 'warning' | 'critical' {
-  const endDate = unit.active_lease_info?.end_date
-  if (!endDate) return 'ok'
-  const days = daysUntil(endDate)
-  return days <= 30 ? 'critical' : days <= 90 ? 'warning' : 'ok'
-}
-
-async function loadActiveLease(params: { property?: number; unit?: number }) {
-  loadingLease.value = true
-  try {
-    activeLease.value = await leasesStore.fetchActiveFor(params)
-  } catch {
-    activeLease.value = null
-  } finally {
-    loadingLease.value = false
-  }
-}
-
-function loadPreviousLeases(unitId: number) {
+function loadUnitLeases(unitId: number) {
   loadingPrevLeases.value = true
+  loadingLease.value = true
   leasesStore.fetchForUnit(unitId)
     .then(all => {
-      previousLeases.value = all.filter((l: any) => l.status !== 'active')
+      const CURRENT = new Set(['active', 'pending'])
+      currentLeases.value  = all.filter((l: any) => CURRENT.has(l.status))
+      previousLeases.value = all.filter((l: any) => !CURRENT.has(l.status))
+      activeLease.value    = currentLeases.value[0] ?? null
     })
-    .catch(() => {})
-    .finally(() => { loadingPrevLeases.value = false })
+    .catch(() => { activeLease.value = null })
+    .finally(() => {
+      loadingPrevLeases.value = false
+      loadingLease.value = false
+    })
 }
 
 function loadPhotos(propertyId: number, unitId: number | null) {
@@ -1952,18 +1797,6 @@ function loadOverviewData(propertyId: number) {
     .then(r => { complianceCerts.value = r.data.results ?? r.data })
     .catch(() => {})
     .finally(() => { loadingCompliance.value = false })
-
-  loadingInsurance.value = true
-  api.get('/properties/insurance-policies/', { params: { property: propertyId, is_active: true } })
-    .then(r => { insurancePolicies.value = r.data.results ?? r.data })
-    .catch(() => {})
-    .finally(() => { loadingInsurance.value = false })
-
-  loadingValuation.value = true
-  api.get('/properties/valuations/', { params: { property: propertyId } })
-    .then(r => { propertyValuations.value = r.data.results ?? r.data })
-    .catch(() => {})
-    .finally(() => { loadingValuation.value = false })
 }
 
 function resetItemForm() {
