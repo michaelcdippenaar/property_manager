@@ -430,6 +430,8 @@ import {
   FileText, Download, CheckCircle2, AlertCircle,
 } from 'lucide-vue-next'
 import ESigningPanel from './ESigningPanel.vue'
+import { usePropertiesStore } from '../../stores/properties'
+import { usePersonsStore } from '../../stores/persons'
 
 const props = defineProps<{ lease: any }>()
 const emit = defineEmits<{ close: []; done: [updated: any] }>()
@@ -441,7 +443,9 @@ const saveError = ref('')
 const removingId = ref<number | null>(null)
 
 // Properties & units for reassignment
-const allProperties = ref<any[]>([])
+const propertiesStore = usePropertiesStore()
+const personsStore = usePersonsStore()
+const allProperties = computed(() => propertiesStore.list)
 const selectedPropertyId = ref<number | null>(null)
 
 const unitsForSelectedProperty = computed(() => {
@@ -663,7 +667,7 @@ async function saveAll() {
           orig.email !== (t.email ?? ''))
       ) {
         personPatches.push(
-          api.patch(`/auth/persons/${t.id}/`, {
+          personsStore.updatePerson(t.id, {
             full_name: t.full_name,
             id_number: t.id_number,
             phone: t.phone,
@@ -699,8 +703,7 @@ function formatDate(d: string) {
 onMounted(async () => {
   initTenants()
   try {
-    const { data } = await api.get('/properties/', { params: { page_size: 500 } })
-    allProperties.value = data.results ?? data
+    await propertiesStore.fetchAll()
     const currentUnitId = props.lease.unit
     if (currentUnitId) {
       const ownerProp = allProperties.value.find((p: any) =>

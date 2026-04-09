@@ -210,7 +210,12 @@
 import { ref, onMounted, watch } from 'vue'
 import { Loader2, UserCircle } from 'lucide-vue-next'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
-import api from '../../api'
+import { useLandlordsStore } from '../../stores/landlords'
+import { useOwnershipsStore } from '../../stores/ownerships'
+import { extractApiError } from '../../utils/api-errors'
+
+const landlordsStore = useLandlordsStore()
+const ownershipsStore = useOwnershipsStore()
 
 const props = defineProps<{ propertyId: number }>()
 
@@ -248,28 +253,27 @@ const form = ref(emptyForm())
 async function load() {
   loading.value = true
   try {
-    // Load available landlords
+    // Load available landlords via the shared store (deduped, cached).
     try {
-      const { data } = await api.get('/properties/landlords/')
-      availableLandlords.value = data.results ?? data
+      await landlordsStore.fetchAll()
+      availableLandlords.value = landlordsStore.list
     } catch { /* ignore */ }
 
-    // Get current ownership
+    // Get current ownership (404 → no ownership yet)
     try {
-      const { data } = await api.get(`/properties/ownerships/current/${props.propertyId}/`)
-      ownership.value = data
-      selectedLandlordId.value = data.landlord ?? null
-      linkedLandlord.value = availableLandlords.value.find((ll: any) => ll.id === data.landlord) ?? null
-      populateForm(data)
-    } catch (e: any) {
-      if (e?.response?.status === 404) {
+      const data = await ownershipsStore.fetchCurrent(props.propertyId)
+      if (data) {
+        ownership.value = data
+        selectedLandlordId.value = data.landlord ?? null
+        linkedLandlord.value = availableLandlords.value.find((ll: any) => ll.id === data.landlord) ?? null
+        populateForm(data)
+      } else {
         ownership.value = null
       }
-    }
+    } catch { /* non-fatal */ }
 
     // Get full history
-    const { data: list } = await api.get(`/properties/ownerships/?property=${props.propertyId}`)
-    history.value = list.results ?? list
+    history.value = await ownershipsStore.fetchByProperty(props.propertyId, { force: true })
   } finally {
     loading.value = false
   }
@@ -342,22 +346,19 @@ async function save() {
     }
 
     if (ownership.value?._new || !ownership.value?.id) {
-      const { data } = await api.post('/properties/ownerships/', payload)
-      ownership.value = data
+      ownership.value = await ownershipsStore.create(payload)
     } else {
-      const { data } = await api.patch(`/properties/ownerships/${ownership.value.id}/`, payload)
-      ownership.value = data
+      ownership.value = await ownershipsStore.update(ownership.value.id, props.propertyId, payload)
     }
 
     saved.value = true
     setTimeout(() => { saved.value = false }, 3000)
 
-    // Refresh history
-    const { data: list } = await api.get(`/properties/ownerships/?property=${props.propertyId}`)
-    history.value = list.results ?? list
+    // Refresh history from the store (already force-refreshed by create/update,
+    // but we need the local ref to point at the latest array).
+    history.value = await ownershipsStore.fetchByProperty(props.propertyId)
   } catch (e: any) {
-    const detail = e?.response?.data
-    error.value = typeof detail === 'string' ? detail : JSON.stringify(detail)
+    error.value = extractApiError(e, 'Failed to save ownership')
   } finally {
     saving.value = false
   }

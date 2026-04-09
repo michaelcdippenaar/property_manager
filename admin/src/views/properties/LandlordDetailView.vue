@@ -347,7 +347,7 @@
         <div class="flex items-center gap-2">
           <button
             class="text-xs text-red-500 hover:underline"
-            @click.stop="unlinkProperty(p.ownership_id)"
+            @click.stop="unlinkProperty(p.ownership_id, p.id)"
           >
             Unlink
           </button>
@@ -949,7 +949,7 @@
       confirm-label="Unlink"
       :loading="unlinkingBusy"
       @confirm="doUnlinkProperty"
-      @cancel="confirmUnlinkOpen = false; unlinkingOwnership = null"
+      @cancel="confirmUnlinkOpen = false; unlinkingOwnership = null; unlinkingPropertyId = null"
     />
 
   </div>
@@ -970,10 +970,14 @@ import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
 import { formatDate } from '../../utils/formatters'
+import { useLandlordsStore } from '../../stores/landlords'
+import { useOwnershipsStore } from '../../stores/ownerships'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const landlordsStore = useLandlordsStore()
+const ownershipsStore = useOwnershipsStore()
 
 const landlord = ref<any>(null)
 const local = ref<any>({})
@@ -1006,6 +1010,7 @@ const confirmDeleteOpen = ref(false)
 const deletingLandlord = ref(false)
 const confirmUnlinkOpen = ref(false)
 const unlinkingOwnership = ref<number | null>(null)
+const unlinkingPropertyId = ref<number | null>(null)
 const unlinkingBusy = ref(false)
 
 const entityLabel = computed(() => {
@@ -1054,7 +1059,7 @@ function initLandlord() {
 async function loadLandlord() {
   loading.value = true
   try {
-    const { data } = await api.get(`/properties/landlords/${route.params.id}/`)
+    const data = await landlordsStore.fetchOne(Number(route.params.id), { force: true })
     landlord.value = data
     local.value = {
       ...JSON.parse(JSON.stringify(data)),
@@ -1078,8 +1083,7 @@ function onAddressSelect(result: AddressResult) {
 async function saveLandlord() {
   saving.value = true
   try {
-    const { bank_accounts, properties, property_count, created_at, updated_at, ...payload } = local.value
-    await api.patch(`/properties/landlords/${local.value.id}/`, payload)
+    await landlordsStore.update(local.value.id, local.value)
     await loadLandlord()
     toast.success('Owner updated')
   } catch (err) {
@@ -1097,7 +1101,7 @@ function confirmDelete() {
 async function doDeleteLandlord() {
   deletingLandlord.value = true
   try {
-    await api.delete(`/properties/landlords/${local.value.id}/`)
+    await landlordsStore.remove(local.value.id)
     confirmDeleteOpen.value = false
     toast.success('Owner deleted')
     router.push('/landlords')
@@ -1134,14 +1138,14 @@ async function linkProperty() {
   }
   linkingProperty.value = true
   try {
-    await api.post('/properties/ownerships/', {
+    await ownershipsStore.create({
       property: selectedPropertyId.value,
       landlord: local.value.id,
       owner_name: local.value.name,
       owner_type: local.value.landlord_type === 'company' ? 'company' : local.value.landlord_type === 'trust' ? 'trust' : 'individual',
       is_current: true,
       start_date: new Date().toISOString().slice(0, 10),
-    })
+    } as any)
     showLinkModal.value = false
     selectedPropertyId.value = null
     propertySearch.value = ''
@@ -1154,18 +1158,20 @@ async function linkProperty() {
   }
 }
 
-function unlinkProperty(ownershipId: number) {
+function unlinkProperty(ownershipId: number, propertyId: number) {
   unlinkingOwnership.value = ownershipId
+  unlinkingPropertyId.value = propertyId
   confirmUnlinkOpen.value = true
 }
 
 async function doUnlinkProperty() {
-  if (unlinkingOwnership.value == null) return
+  if (unlinkingOwnership.value == null || unlinkingPropertyId.value == null) return
   unlinkingBusy.value = true
   try {
-    await api.delete(`/properties/ownerships/${unlinkingOwnership.value}/`)
+    await ownershipsStore.remove(unlinkingOwnership.value, unlinkingPropertyId.value)
     confirmUnlinkOpen.value = false
     unlinkingOwnership.value = null
+    unlinkingPropertyId.value = null
     await loadLandlord()
     toast.success('Property unlinked')
   } catch (err) {
@@ -1187,12 +1193,12 @@ function addBankAccount() {
 async function saveBankAccount(ba: any) {
   saving.value = true
   try {
-    if (ba.id) {
-      await api.patch(`/properties/bank-accounts/${ba.id}/`, ba)
-    } else {
-      await api.post('/properties/bank-accounts/', { ...ba, landlord: local.value.id })
+    const fresh = await landlordsStore.saveBankAccount(local.value.id, ba)
+    landlord.value = fresh
+    local.value = {
+      ...JSON.parse(JSON.stringify(fresh)),
+      address: fresh.address && typeof fresh.address === 'object' ? { ...fresh.address } : {},
     }
-    await loadLandlord()
     toast.success('Bank account saved')
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to save bank account'))
@@ -1204,8 +1210,12 @@ async function saveBankAccount(ba: any) {
 async function deleteBankAccount(ba: any) {
   if (!ba.id) return
   try {
-    await api.delete(`/properties/bank-accounts/${ba.id}/`)
-    await loadLandlord()
+    const fresh = await landlordsStore.deleteBankAccount(local.value.id, ba.id)
+    landlord.value = fresh
+    local.value = {
+      ...JSON.parse(JSON.stringify(fresh)),
+      address: fresh.address && typeof fresh.address === 'object' ? { ...fresh.address } : {},
+    }
     toast.success('Bank account removed')
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to delete bank account'))
@@ -1289,7 +1299,7 @@ async function uploadClassification(e: Event) {
   try {
     const text = await file.text()
     const data = JSON.parse(text)
-    await api.patch(`/properties/landlords/${local.value.id}/`, { classification_data: data })
+    await landlordsStore.update(local.value.id, { classification_data: data } as any)
     await loadLandlord()
     activeTab.value = 'classification'
     toast.success('Classification uploaded')

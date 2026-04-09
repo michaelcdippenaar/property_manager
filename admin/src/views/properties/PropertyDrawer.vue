@@ -142,8 +142,10 @@ import api from '../../api'
 import { initials } from '../../utils/formatters'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
+import { useOwnershipsStore } from '../../stores/ownerships'
 
 const toast = useToast()
+const ownershipsStore = useOwnershipsStore()
 
 const props = defineProps<{
   open: boolean
@@ -165,12 +167,9 @@ watch(() => props.property?.id, async (id) => {
   // Load landlord / ownership summary (404 = no owner is normal)
   loadingOwner.value = true
   try {
-    const { data } = await api.get(`/properties/ownerships/current/${id}/`)
-    owner.value = data
+    owner.value = await ownershipsStore.fetchCurrent(id)
   } catch (err: any) {
-    if (err?.response?.status !== 404) {
-      toast.error(extractApiError(err, 'Failed to load landlord'))
-    }
+    toast.error(extractApiError(err, 'Failed to load landlord'))
   } finally { loadingOwner.value = false }
 
   // Load linked lease template

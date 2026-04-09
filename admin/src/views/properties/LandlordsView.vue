@@ -137,27 +137,30 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onActivated } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { Briefcase, Building2, ChevronRight, Loader2, Plus, Shield, User, UserCheck, Users } from 'lucide-vue-next'
-import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import LandlordDrawer from './LandlordDrawer.vue'
 import { useToast } from '../../composables/useToast'
+import { useLandlordsStore } from '../../stores/landlords'
+import { extractApiError } from '../../utils/api-errors'
+import type { Landlord } from '../../types/landlord'
 
 const toast = useToast()
-
 const router = useRouter()
 
-const landlords = ref<any[]>([])
-const loading = ref(false)
+const landlordsStore = useLandlordsStore()
+const { list: landlords, loading } = storeToRefs(landlordsStore)
+
 const saving = ref(false)
 const search = ref('')
 const showCreate = ref(false)
 const drawerOpen = ref(false)
-const selectedLandlord = ref<any>(null)
+const selectedLandlord = ref<Landlord | null>(null)
 
 const createForm = ref({
   name: '',
@@ -167,33 +170,20 @@ const createForm = ref({
   phone: '',
 })
 
-// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
-// once. onActivated re-fetches on every revisit (covers the initial mount too).
-onActivated(() => loadLandlords())
-
-async function loadLandlords() {
-  loading.value = true
-  try {
-    const { data } = await api.get('/properties/landlords/')
-    landlords.value = (data.results ?? data).map((ll: any) => ({
-      ...ll,
-      address: ll.address && typeof ll.address === 'object' ? ll.address : {},
-    }))
-  } catch {
-    toast.error('Failed to load owners')
-  } finally {
-    loading.value = false
-  }
-}
+// Store handles cross-view reactivity — fetchAll() is a no-op within the
+// staleness window, so this is safe to call on every mount.
+onMounted(() => {
+  landlordsStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load owners')))
+})
 
 const filteredLandlords = computed(() =>
-  landlords.value.filter(ll =>
+  landlords.value.filter((ll) =>
     ll.name.toLowerCase().includes(search.value.toLowerCase()) ||
     (ll.email ?? '').toLowerCase().includes(search.value.toLowerCase())
   )
 )
 
-function completionPct(ll: any): number {
+function completionPct(ll: Landlord): number {
   const checks = [
     !!ll.name,
     !!ll.email,
@@ -205,7 +195,7 @@ function completionPct(ll: any): number {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100)
 }
 
-function openLandlord(ll: any) {
+function openLandlord(ll: Landlord) {
   router.push(`/landlords/${ll.id}`)
 }
 
@@ -217,22 +207,21 @@ function openCreate() {
 async function createLandlord() {
   saving.value = true
   try {
-    await api.post('/properties/landlords/', createForm.value)
+    await landlordsStore.create(createForm.value as Partial<Landlord>)
     showCreate.value = false
     toast.success('Owner created')
-    await loadLandlords()
-  } catch (e: any) {
-    toast.error(e?.response?.data?.detail ?? 'Failed to create owner')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to create owner'))
   } finally {
     saving.value = false
   }
 }
 
 async function onDrawerSaved() {
-  await loadLandlords()
-  // Update the selected landlord with fresh data
+  // The drawer mutates via the store, so the local list is already in sync.
+  // Just keep selectedLandlord pointed at the fresh data (or close if removed).
   if (selectedLandlord.value) {
-    const fresh = landlords.value.find(ll => ll.id === selectedLandlord.value.id)
+    const fresh = landlordsStore.byId(selectedLandlord.value.id)
     if (fresh) {
       selectedLandlord.value = fresh
     } else {

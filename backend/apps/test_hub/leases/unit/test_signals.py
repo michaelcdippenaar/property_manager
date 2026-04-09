@@ -190,3 +190,124 @@ class BroadcastLeaseUpdateEndToEndTests(TremlyAPITestCase):
             self.assertEqual(payload["event"], "lease_updated")
             self.assertEqual(payload["status"], "active")
             self.assertEqual(payload["lease_id"], lease.pk)
+
+
+class SyncUnitStatusTests(TremlyAPITestCase):
+    """
+    Unit.status occupancy rule:
+
+    Only ``status='active'`` (signed and currently in-progress) leases
+    occupy a unit.
+
+      - 'pending'    → not yet started (and may also be unsigned) — does NOT occupy
+      - 'expired'    → past its end date — does NOT occupy
+      - 'terminated' → cancelled — does NOT occupy
+      - 'active'     → signed AND in-progress — DOES occupy
+
+    The signal recomputes Unit.status on every Lease post_save and post_delete.
+    """
+
+    def test_creating_active_lease_marks_unit_occupied(self):
+        from apps.leases.models import Lease
+
+        unit = self.create_unit()
+        self.assertEqual(unit.status, "available")
+
+        Lease.objects.create(
+            unit=unit,
+            start_date="2026-01-01",
+            end_date="2026-12-31",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="active",
+        )
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "occupied")
+
+    def test_creating_pending_lease_leaves_unit_available(self):
+        """Pending = future / unsigned. Does NOT occupy the unit."""
+        from apps.leases.models import Lease
+
+        unit = self.create_unit()
+        Lease.objects.create(
+            unit=unit,
+            start_date="2026-06-01",
+            end_date="2026-12-31",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="pending",
+        )
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "available")
+
+    def test_deleting_only_active_lease_returns_unit_to_available(self):
+        """Regression: prior to the post_delete signal the unit stayed 'occupied' forever."""
+        from apps.leases.models import Lease
+
+        unit = self.create_unit()
+        lease = Lease.objects.create(
+            unit=unit,
+            start_date="2026-01-01",
+            end_date="2026-12-31",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="active",
+        )
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "occupied")
+
+        lease.delete()
+
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "available")
+
+    def test_terminating_lease_returns_unit_to_available(self):
+        from apps.leases.models import Lease
+
+        unit = self.create_unit()
+        lease = Lease.objects.create(
+            unit=unit,
+            start_date="2026-01-01",
+            end_date="2026-12-31",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="active",
+        )
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "occupied")
+
+        lease.status = "terminated"
+        lease.save()
+
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "available")
+
+    def test_pending_alongside_active_does_not_block_release(self):
+        """Active + future-pending: deleting the active makes the unit available
+        because pending leases never count as occupying."""
+        from apps.leases.models import Lease
+
+        unit = self.create_unit()
+        lease_active = Lease.objects.create(
+            unit=unit,
+            start_date="2026-01-01",
+            end_date="2026-06-30",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="active",
+        )
+        Lease.objects.create(
+            unit=unit,
+            start_date="2026-07-01",
+            end_date="2026-12-31",
+            monthly_rent="5000.00",
+            deposit="10000.00",
+            status="pending",
+        )
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "occupied")
+
+        lease_active.delete()
+
+        unit.refresh_from_db()
+        self.assertEqual(unit.status, "available")

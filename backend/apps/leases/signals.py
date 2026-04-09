@@ -11,25 +11,47 @@ swallow, never raise).
 """
 import logging
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+
+from apps.properties.models import Unit
 
 from .models import Lease
 
 logger = logging.getLogger(__name__)
 
 
-@receiver(post_save, sender=Lease)
-def sync_unit_status(sender, instance: Lease, **kwargs):
-    """Keep Unit.status in sync with active/pending leases."""
-    unit = instance.unit
+def _resync_unit_status(unit: Unit | None) -> None:
+    """
+    Recompute Unit.status based on remaining ACTIVE leases only.
+
+    Only 'active' (signed and in-progress) leases mark a unit as occupied.
+    'pending' (future, not yet started) and 'expired' / 'terminated' do not.
+    """
     if unit is None:
         return
-    has_lease = Lease.objects.filter(unit=unit, status__in=["active", "pending"]).exists()
+    has_lease = Lease.objects.filter(unit=unit, status="active").exists()
     new_status = "occupied" if has_lease else "available"
     if unit.status != new_status:
         unit.status = new_status
         unit.save(update_fields=["status"])
+
+
+@receiver(post_save, sender=Lease)
+def sync_unit_status(sender, instance: Lease, **kwargs):
+    """Keep Unit.status in sync with active/pending leases."""
+    _resync_unit_status(instance.unit)
+
+
+@receiver(post_delete, sender=Lease)
+def sync_unit_status_on_delete(sender, instance: Lease, **kwargs):
+    """Reset Unit.status when a lease is deleted (post_save isn't fired)."""
+    # `instance.unit` is still cached on the in-memory object even after the
+    # row is gone; fall back to a fresh lookup if the relation has been cleared.
+    unit = instance.unit if instance.unit_id else None
+    if unit is None and instance.unit_id:
+        unit = Unit.objects.filter(pk=instance.unit_id).first()
+    _resync_unit_status(unit)
 
 
 @receiver(post_save, sender=Lease)

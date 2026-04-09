@@ -23,7 +23,7 @@ class UnitSerializer(serializers.ModelSerializer):
     def get_active_lease_info(self, obj):
         from apps.leases.models import Lease
         lease = (
-            Lease.objects.filter(unit=obj, status__in=["active", "pending"])
+            Lease.objects.filter(unit=obj, status="active")
             .select_related("primary_tenant")
             .order_by("-start_date")
             .first()
@@ -71,12 +71,12 @@ class PropertySerializer(serializers.ModelSerializer):
         }
 
     def get_property_active_lease_info(self, obj):
-        """Active/pending lease at the property level (used when the property has no units)."""
+        """Active lease at the property level (used when the property has no units)."""
         if obj.units.exists():
             return None
         from apps.leases.models import Lease
         lease = (
-            Lease.objects.filter(unit__property=obj, status__in=["active", "pending"])
+            Lease.objects.filter(unit__property=obj, status="active")
             .select_related("primary_tenant")
             .order_by("-start_date")
             .first()

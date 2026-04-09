@@ -485,6 +485,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onActivated, onDeactivated, nextTick } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, FolderOpen } from 'lucide-vue-next'
@@ -495,6 +496,9 @@ import EmptyState from '../../components/EmptyState.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import { useToast } from '../../composables/useToast'
+import { useLeasesStore } from '../../stores/leases'
+import { usePersonsStore } from '../../stores/persons'
+import { extractApiError } from '../../utils/api-errors'
 
 const route = useRoute()
 const router = useRouter()
@@ -514,12 +518,13 @@ const tabs = computed(() => [
 ])
 
 // ── Lease state ──
-const loading = ref(true)
+const leasesStore = useLeasesStore()
+const personsStore = usePersonsStore()
+const { list: leases, loading } = storeToRefs(leasesStore)
 const saving = ref(false)
 const showImport = ref(false)
 const showEdit = ref(false)
 const editingLease = ref<any>(null)
-const leases = ref<any[]>([])
 const units = ref<any[]>([])
 const expanded = ref<number[]>([])
 const deletingId = ref<number | null>(null)
@@ -679,12 +684,10 @@ const signingData = ref(new Map<number, any>())
 const signingPanelRefs = ref<Record<number, any>>({})
 
 async function loadLeases() {
-  loading.value = true
   try {
-    const { data } = await api.get('/leases/')
-    leases.value = data.results ?? data
-  } finally {
-    loading.value = false
+    await leasesStore.fetchAll({ force: true })
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load leases'))
   }
   loadSigningStatuses()
 }
@@ -808,16 +811,16 @@ function openCreateDialog() {
 async function createLease() {
   saving.value = true
   try {
-    const { data: person } = await api.post('/auth/persons/', {
+    const person = await personsStore.createPerson({
       person_type: 'individual',
       full_name: primaryTenantName.value,
     })
-    await api.post('/leases/', { ...newLease.value, primary_tenant: person.id })
+    await leasesStore.create({ ...newLease.value, primary_tenant: person.id })
     createDialog.value = false
     toast.success('Lease created successfully')
     await loadLeases()
-  } catch (e: any) {
-    toast.error(e?.response?.data?.detail ?? 'Failed to create lease')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to create lease'))
   } finally {
     saving.value = false
   }
@@ -831,13 +834,11 @@ async function deleteLease(lease: any) {
   }
   deletingId.value = lease.id
   try {
-    await api.delete(`/leases/${lease.id}/`)
-    leases.value = leases.value.filter((l: any) => l.id !== lease.id)
+    await leasesStore.remove(lease.id)
     expanded.value = expanded.value.filter((id) => id !== lease.id)
     toast.success('Lease deleted')
-  } catch (e: any) {
-    const d = e?.response?.data?.detail ?? e?.response?.data ?? e?.message
-    toast.error(typeof d === 'string' ? d : 'Could not delete lease.')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Could not delete lease.'))
   } finally {
     deletingId.value = null
   }
@@ -871,16 +872,20 @@ async function uploadDocument() {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     documents.value.unshift(data)
-    const leaseIdx = leases.value.findIndex(l => l.id === selectedLease.value.id)
-    if (leaseIdx !== -1) {
-      leases.value[leaseIdx] = { ...leases.value[leaseIdx], document_count: (leases.value[leaseIdx].document_count ?? 0) + 1, documents: [data, ...(leases.value[leaseIdx].documents ?? [])] }
+    const cached = leasesStore.byId(selectedLease.value.id)
+    if (cached) {
+      leasesStore.items.set(selectedLease.value.id, {
+        ...cached,
+        document_count: (cached.document_count ?? 0) + 1,
+        documents: [data, ...(cached.documents ?? [])],
+      })
     }
     uploadFile.value = null
     uploadDescription.value = ''
     if (fileInputRef.value) fileInputRef.value.value = ''
     toast.success('Document uploaded')
-  } catch (e: any) {
-    toast.error('Failed to upload document')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to upload document'))
   } finally {
     uploading.value = false
   }
@@ -891,17 +896,17 @@ async function deleteDocument(doc: any) {
   try {
     await api.delete(`/leases/${selectedLease.value.id}/documents/${doc.id}/`)
     documents.value = documents.value.filter((d: any) => d.id !== doc.id)
-    const leaseIdx = leases.value.findIndex((l: any) => l.id === selectedLease.value.id)
-    if (leaseIdx !== -1) {
-      leases.value[leaseIdx] = {
-        ...leases.value[leaseIdx],
-        document_count: Math.max(0, (leases.value[leaseIdx].document_count ?? 1) - 1),
-        documents: (leases.value[leaseIdx].documents ?? []).filter((d: any) => d.id !== doc.id),
-      }
+    const cached = leasesStore.byId(selectedLease.value.id)
+    if (cached) {
+      leasesStore.items.set(selectedLease.value.id, {
+        ...cached,
+        document_count: Math.max(0, (cached.document_count ?? 1) - 1),
+        documents: (cached.documents ?? []).filter((d: any) => d.id !== doc.id),
+      })
     }
     toast.success('Document deleted')
-  } catch (e: any) {
-    toast.error('Could not delete document.')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Could not delete document.'))
   }
 }
 

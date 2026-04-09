@@ -335,6 +335,9 @@ import {
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
+import { usePersonsStore } from '../../stores/persons'
+
+const personsStore = usePersonsStore()
 
 // ── Document type config ─────────────────────────────────────────────── //
 const SIGNER_DOC_TYPES = [
@@ -531,7 +534,7 @@ async function submitSigning() {
   try {
     const savePromises = draftSigners.value
       .filter(s => s.personId && s.saveToRecord)
-      .map(s => api.patch(`/auth/persons/${s.personId}/`, {
+      .map(s => personsStore.updatePerson(s.personId!, {
         full_name: s.name,
         email: s.email,
         phone: s.phone,

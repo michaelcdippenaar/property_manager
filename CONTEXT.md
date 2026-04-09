@@ -323,3 +323,20 @@ Ready for SMS/WhatsApp integration (Twilio). When a dispatch is sent, each suppl
 - Early termination: 20 business days notice, up to 3 months penalty
 - Payment references per tenant: `"<Property> - <Surname>"`
 - Landlord: Klikk (Pty) Ltd, reg 2016/113758/07
+
+### Lease status & unit occupancy
+
+`Lease.status` is one of: `pending`, `active`, `expired`, `terminated`. Definitions:
+
+| Status | Meaning | Occupies the unit? |
+|--------|---------|--------------------|
+| `pending` | Future lease — has not started yet **or** is issued but unsigned (waiting for signature) | **No** |
+| `active` | Signed and currently in-progress (tenant in possession) | **Yes** |
+| `expired` | End date has passed | No |
+| `terminated` | Cancelled before end date | No |
+
+**Only `active` leases set `Unit.status = 'occupied'`.** Pending/unsigned leases never block a unit — you can issue a new lease while another is still being signed without the unit going "occupied".
+
+**Authoritative implementation:** `backend/apps/leases/signals.py::_resync_unit_status`. The signal fires on **both** `post_save` and `post_delete` of `Lease`, so deleting the only active lease releases the unit. If you add code that filters leases for occupancy/availability, use `status='active'` only — never `status__in=['active','pending']`. The two `active_lease_info` serializer methods in `apps/properties/serializers.py` follow the same rule.
+
+Regression tests: `backend/apps/test_hub/leases/unit/test_signals.py::SyncUnitStatusTests`.

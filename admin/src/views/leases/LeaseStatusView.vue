@@ -142,6 +142,9 @@ import api from '../../api'
 import { Calendar, X } from 'lucide-vue-next'
 import FilterPills from '../../components/FilterPills.vue'
 import ESigningPanel from './ESigningPanel.vue'
+import { useLeasesStore } from '../../stores/leases'
+
+const leasesStore = useLeasesStore()
 
 const route = useRoute()
 const loading = ref(true)
@@ -182,8 +185,8 @@ onMounted(async () => {
 async function loadLeases() {
   loading.value = true
   try {
-    const { data } = await api.get('/leases/')
-    leases.value = data.results ?? data
+    await leasesStore.fetchAll()
+    leases.value = leasesStore.list
   } finally {
     loading.value = false
   }

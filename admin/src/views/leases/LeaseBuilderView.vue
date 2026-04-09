@@ -395,6 +395,10 @@ import { EditorContent } from '@tiptap/vue-3'
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import useTiptapEditor from '../../composables/useTiptapEditor'
+import { useLandlordsStore } from '../../stores/landlords'
+import { usePropertiesStore } from '../../stores/properties'
+import { useLeasesStore } from '../../stores/leases'
+import { useOwnershipsStore } from '../../stores/ownerships'
 import '../../styles/tiptap-editor.css'
 import {
   FileSignature, AlertCircle, Loader2, CheckCircle2, Plus, X, Save, FolderOpen,
@@ -637,7 +641,10 @@ const formTabs = [
   { key: 'lease' as const, label: 'Lease Agreement' },
   { key: 'tenants' as const, label: 'Lessee' },
 ]
-const properties = ref<any[]>([])
+const propertiesStore = usePropertiesStore()
+const leasesStore = useLeasesStore()
+const ownershipsStore = useOwnershipsStore()
+const properties = computed(() => propertiesStore.list)
 const selectedUnit = ref<SelectedUnit | null>(null)
 
 // ── Property modal ────────────────────────────────────────────────────────
@@ -690,15 +697,15 @@ interface LandlordInfo {
   landlord_name: string
   bank_account: { bank_name: string; account_holder: string; account_number: string; branch_code: string; account_type: string } | null
 }
-const allLandlords = ref<any[]>([])
+const landlordsStore = useLandlordsStore()
+const allLandlords = computed(() => landlordsStore.list)
 const selectedLandlordId = ref<number | null>(null)
 const defaultLandlordId = ref<number | null>(null)
 const landlordInfo = ref<LandlordInfo | null>(null)
 
 async function loadAllLandlords() {
   try {
-    const { data } = await api.get('/properties/landlords/')
-    allLandlords.value = data.results ?? data
+    await landlordsStore.fetchAll()
   } catch { /* non-fatal */ }
 }
 
@@ -727,8 +734,7 @@ async function fetchLandlordForProperty(propertyId: number) {
   selectedLandlordId.value = null
   defaultLandlordId.value = null
   try {
-    const { data } = await api.get(`/properties/ownerships/?property=${propertyId}`)
-    const ownerships = data.results ?? data
+    const ownerships = await ownershipsStore.fetchByProperty(propertyId)
     const ownership = ownerships.find((o: any) => o.is_current)
     if (!ownership) return
     if (ownership.landlord) {
@@ -738,7 +744,7 @@ async function fetchLandlordForProperty(propertyId: number) {
       if (ll) {
         landlordInfo.value = landlordInfoFromRaw(ll)
       } else {
-        const { data: llData } = await api.get(`/properties/landlords/${ownership.landlord}/`)
+        const llData = await landlordsStore.fetchOne(ownership.landlord)
         landlordInfo.value = landlordInfoFromRaw(llData)
       }
     }
@@ -993,9 +999,7 @@ const loadingDrafts = ref(false)
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  const propertiesPromise = api.get('/properties/?page_size=500').then(({ data }) => {
-    properties.value = data.results ?? data
-  })
+  const propertiesPromise = propertiesStore.fetchAll().catch(() => { /* non-fatal */ })
   loadAllLandlords()
   loadTemplates()
   await Promise.all([fetchDrafts(), propertiesPromise])
@@ -1060,7 +1064,7 @@ async function doFormCreate() {
       payload.property_id = selectedUnit.value.propertyId
       if (selectedUnit.value.unitId) payload.unit_id = selectedUnit.value.unitId
     }
-    const { data } = await api.post('/leases/import/', payload)
+    const data = await leasesStore.importLease(payload)
     createdLeaseNumber.value = data.lease_number
     createdLeaseId.value = data.id
     step.value = 3

@@ -1297,9 +1297,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, onActivated } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
+import { usePropertiesStore } from '../../stores/properties'
+import { useLeasesStore } from '../../stores/leases'
+import { useOwnershipsStore } from '../../stores/ownerships'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
@@ -1321,6 +1324,9 @@ const route  = useRoute()
 const router = useRouter()
 const auth   = useAuthStore()
 const toast  = useToast()
+const propertiesStore = usePropertiesStore()
+const leasesStore = useLeasesStore()
+const ownershipsStore = useOwnershipsStore()
 
 // ── State ──
 const loading          = ref(true)
@@ -1643,7 +1649,7 @@ async function initProperty(id: number) {
 
   loading.value = true
   try {
-    const { data } = await api.get(`/properties/${id}/`)
+    const data = await propertiesStore.fetchOne(id, { force: true })
     property.value = data
     if (data.units?.length) {
       activeUnit.value = data.units[0].id
@@ -1663,8 +1669,8 @@ async function initProperty(id: number) {
 
   // Parallel background loads
   loadingOwner.value = true
-  api.get(`/properties/ownerships/current/${pid}/`)
-    .then(r => { owner.value = r.data })
+  ownershipsStore.fetchCurrent(pid)
+    .then(o => { owner.value = o })
     .catch(() => {})
     .finally(() => { loadingOwner.value = false })
 
@@ -1759,13 +1765,7 @@ function unitLeaseUrgency(unit: any): 'ok' | 'warning' | 'critical' {
 async function loadActiveLease(params: { property?: number; unit?: number }) {
   loadingLease.value = true
   try {
-    // Try active first, fall back to pending
-    for (const statusVal of ['active', 'pending']) {
-      const r = await api.get('/leases/', { params: { ...params, status: statusVal, page_size: 1 } })
-      const found = (r.data.results ?? r.data)[0] ?? null
-      if (found) { activeLease.value = found; return }
-    }
-    activeLease.value = null
+    activeLease.value = await leasesStore.fetchActiveFor(params)
   } catch {
     activeLease.value = null
   } finally {
@@ -1775,9 +1775,8 @@ async function loadActiveLease(params: { property?: number; unit?: number }) {
 
 function loadPreviousLeases(unitId: number) {
   loadingPrevLeases.value = true
-  api.get('/leases/', { params: { unit: unitId, page_size: 20 } })
-    .then(r => {
-      const all = r.data.results ?? r.data
+  leasesStore.fetchForUnit(unitId)
+    .then(all => {
       previousLeases.value = all.filter((l: any) => l.status !== 'active')
     })
     .catch(() => {})
@@ -1797,15 +1796,17 @@ async function saveAdDescription() {
   if (!property.value) return
   try {
     if (activeUnit.value) {
-      await api.patch(`/properties/units/${activeUnit.value}/`, { ad_description: adDescription.value })
+      const updated = await propertiesStore.updateUnit(activeUnit.value, property.value.id, { ad_description: adDescription.value })
+      property.value = updated
     } else {
-      await api.patch(`/properties/${property.value.id}/`, { description: adDescription.value })
+      const updated = await propertiesStore.update(property.value.id, { description: adDescription.value })
+      property.value = updated
     }
     adSaved.value = true
     clearTimeout(adSavedTimer)
     adSavedTimer = setTimeout(() => { adSaved.value = false }, 2000)
-  } catch {
-    toast.error('Failed to save description')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save description'))
   }
 }
 
@@ -1908,12 +1909,13 @@ function uploadDocForCategory(e: Event, docType: string) { uploadDocument(e, doc
 async function saveHouseRules() {
   if (!property.value) return
   try {
-    await api.patch(`/properties/${property.value.id}/`, { house_rules: houseRules.value })
+    const updated = await propertiesStore.update(property.value.id, { house_rules: houseRules.value })
+    property.value = updated
     rulesSaved.value = true
     clearTimeout(rulesSavedTimer)
     rulesSavedTimer = setTimeout(() => { rulesSaved.value = false }, 2000)
-  } catch {
-    toast.error('Failed to save house rules')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save house rules'))
   }
 }
 
@@ -2115,9 +2117,9 @@ async function confirmRenew() {
   currentEnd.setDate(currentEnd.getDate() + 1)
   const renewalStart = currentEnd.toISOString().slice(0, 10)
   try {
-    const { data } = await api.patch(`/leases/${activeLease.value.id}/`, {
+    const data = await leasesStore.update(activeLease.value.id, {
       end_date: renewEndDate.value,
-      monthly_rent: Number(renewRent.value),
+      monthly_rent: String(renewRent.value),
       renewal_start_date: renewalStart,
     })
     activeLease.value = {
@@ -2128,8 +2130,8 @@ async function confirmRenew() {
     }
     renewModal.value = false
     toast.success(`Lease renewed to ${fmtDate(renewEndDate.value)} at R${Number(renewRent.value).toLocaleString('en-ZA')}/mo`)
-  } catch {
-    toast.error('Failed to create renewal addendum')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to create renewal addendum'))
   } finally {
     renewing.value = false
   }
@@ -2171,12 +2173,12 @@ function handleArchive() {
 async function confirmVoid() {
   voiding.value = true
   try {
-    await api.patch(`/leases/${activeLease.value.id}/`, { status: 'void' })
+    await leasesStore.update(activeLease.value.id, { status: 'terminated' as any })
     activeLease.value = null
     voidModal.value = false
     toast.success('Lease voided')
-  } catch {
-    toast.error('Failed to void lease')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to void lease'))
   } finally {
     voiding.value = false
   }

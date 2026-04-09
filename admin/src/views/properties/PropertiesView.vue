@@ -224,7 +224,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onActivated } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
@@ -235,21 +236,26 @@ import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
 import { extractApiError } from '../../utils/api-errors'
 import { PROPERTY_TYPES, PROPERTY_TYPE_VALUES } from '../../constants/property'
+import { useLandlordsStore } from '../../stores/landlords'
+import { usePropertiesStore } from '../../stores/properties'
+import { useOwnershipsStore } from '../../stores/ownerships'
 import { AlertTriangle, CheckCircle2, Loader2, Plus, Building2, Sparkles, Trash2, Upload, Wrench } from 'lucide-vue-next'
 
 const router = useRouter()
 
 const toast = useToast()
-const loading = ref(true)
+const propertiesStore = usePropertiesStore()
+const ownershipsStore = useOwnershipsStore()
+const { list: properties, loading } = storeToRefs(propertiesStore)
 const saving = ref(false)
 const search = ref('')
 const dialog = ref(false)
-const properties = ref<any[]>([])
 const propertyTypes = PROPERTY_TYPES
 const propertyTypeValues = PROPERTY_TYPE_VALUES
 const newProperty = ref({ name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' })
 const selectedAddress = ref<AddressResult | null>(null)
-const landlords = ref<any[]>([])
+const landlordsStore = useLandlordsStore()
+const { list: landlords } = storeToRefs(landlordsStore)
 const newPropertyLandlordId = ref<number | null>(null)
 const deleteDialog = ref(false)
 const deleting = ref(false)
@@ -297,29 +303,13 @@ function onAddressSelect(addr: AddressResult) {
   newProperty.value.province = addr.province
   newProperty.value.postal_code = addr.postal_code
 }
-// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
-// once. Use onActivated so the list is re-fetched every time the user
-// navigates back to /properties (e.g. after creating a lease).
-onActivated(() => { loadProperties(); loadLandlords() })
-
-async function loadLandlords() {
-  try {
-    const { data } = await api.get('/properties/landlords/')
-    landlords.value = data.results ?? data
-  } catch (err) {
-    toast.error(extractApiError(err, 'Failed to load owners'))
-  }
-}
-
-async function loadProperties() {
-  loading.value = true
-  try {
-    const { data } = await api.get('/properties/')
-    properties.value = data.results ?? data
-  } finally {
-    loading.value = false
-  }
-}
+// Both lists flow through Pinia stores: cross-view mutations stay in sync
+// reactively, the 30s staleness window dedupes navigation, and KeepAlive's
+// stale-on-revisit problem is gone — no `onActivated` workaround needed.
+onMounted(() => {
+  propertiesStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load properties')))
+  landlordsStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load owners')))
+})
 
 async function createProperty() {
   if (!newProperty.value.name) return
@@ -347,18 +337,16 @@ async function createProperty() {
   }
 
   saving.value = true
-  let createdId: number | null = null
   try {
-    const { data: created } = await api.post('/properties/', newProperty.value)
-    createdId = created.id
+    const created = await propertiesStore.create(newProperty.value)
 
     if (ownershipPayload) {
       try {
-        await api.post('/properties/ownerships/', { ...ownershipPayload, property: created.id })
+        await ownershipsStore.create({ ...ownershipPayload, property: created.id } as any)
       } catch (ownershipErr) {
         // Ownership failed — roll back the property so we don't leave an orphan.
         try {
-          await api.delete(`/properties/${created.id}/`)
+          await propertiesStore.remove(created.id)
         } catch {
           // Best-effort rollback; surface the original ownership error regardless.
         }
@@ -371,7 +359,9 @@ async function createProperty() {
     selectedAddress.value = null
     newPropertyLandlordId.value = null
     toast.success('Property created successfully')
-    await loadProperties()
+    // The store has already upserted the new property; force a refetch so
+    // unit_count + nested ownership data come back from the server.
+    await propertiesStore.fetchAll({ force: true })
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to create property'))
   } finally {
@@ -400,14 +390,12 @@ async function doDelete() {
   deleting.value = true
   const id = deletingProperty.value.id
   try {
-    await api.delete(`/properties/${id}/`)
-    properties.value = properties.value.filter(p => p.id !== id)
+    await propertiesStore.remove(id)
     deleteDialog.value = false
     deletingProperty.value = null
     toast.success('Property deleted')
-  } catch (err: any) {
-    const msg = err.response?.data?.detail || err.response?.data?.message || 'Failed to delete property'
-    toast.error(typeof msg === 'string' ? msg : 'Failed to delete property')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete property'))
   } finally {
     deleting.value = false
   }

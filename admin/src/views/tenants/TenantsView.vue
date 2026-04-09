@@ -75,20 +75,21 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onActivated } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { RouterLink } from 'vue-router'
 import { Users, FilePlus2 } from 'lucide-vue-next'
-import api from '../../api'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useToast } from '../../composables/useToast'
 import { initials, formatDate } from '../../utils/formatters'
 import { extractApiError } from '../../utils/api-errors'
+import { usePersonsStore } from '../../stores/persons'
 
 const toast = useToast()
-const loading = ref(true)
+const personsStore = usePersonsStore()
+const { tenants, loading } = storeToRefs(personsStore)
 const search = ref('')
-const tenants = ref<any[]>([])
 const activeTab = ref<'all' | 'active' | 'inactive'>('all')
 
 const tabs = [
@@ -97,21 +98,9 @@ const tabs = [
   { key: 'inactive', label: 'Inactive' },
 ]
 
-async function loadTenants() {
-  loading.value = true
-  try {
-    const { data } = await api.get('/auth/tenants/')
-    tenants.value = data.results ?? data
-  } catch (err) {
-    toast.error(extractApiError(err, 'Failed to load tenants'))
-  } finally {
-    loading.value = false
-  }
-}
-
-// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
-// once. onActivated re-fetches on every revisit (covers the initial mount too).
-onActivated(() => loadTenants())
+onMounted(() => {
+  personsStore.fetchTenants().catch((err) => toast.error(extractApiError(err, 'Failed to load tenants')))
+})
 
 const filteredTenants = computed(() => {
   let list = tenants.value

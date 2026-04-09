@@ -73,8 +73,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { FileText, FolderOpen, PenTool, Calendar, Plus, FileSignature, Activity } from 'lucide-vue-next'
+import { useLeasesStore } from '../../stores/leases'
 
 const router = useRouter()
+const leasesStore = useLeasesStore()
 const loading = ref(true)
 const leases = ref<any[]>([])
 const draftCount = ref(0)
@@ -87,8 +89,8 @@ onMounted(async () => {
 
 async function loadLeases() {
   try {
-    const { data } = await api.get('/leases/')
-    leases.value = data.results ?? data
+    await leasesStore.fetchAll()
+    leases.value = leasesStore.list
   } catch { /* silent */ }
 }
 

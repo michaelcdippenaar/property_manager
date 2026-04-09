@@ -201,18 +201,20 @@ import { Loader2, Plus } from 'lucide-vue-next'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
-import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
+import { useLandlordsStore } from '../../stores/landlords'
+import type { BankAccount, Landlord } from '../../types/landlord'
 
 const props = defineProps<{
   open: boolean
-  landlord: any
+  landlord: Landlord | null
 }>()
 
 const emit = defineEmits<{ close: []; saved: [] }>()
 
 const toast = useToast()
+const landlordsStore = useLandlordsStore()
 const saving = ref(false)
 const local = ref<any>({})
 
@@ -239,15 +241,14 @@ function onAddressSelect(result: AddressResult) {
 async function saveLandlord() {
   saving.value = true
   try {
-    const { bank_accounts, properties, property_count, created_at, updated_at, ...payload } = local.value
-    await api.patch(`/properties/landlords/${local.value.id}/`, payload)
-    // Also save any unsaved bank accounts
-    if (bank_accounts?.length) {
-      for (const ba of bank_accounts) {
-        if (!ba.id && ba.bank_name) {
-          await api.post('/properties/bank-accounts/', { ...ba, landlord: local.value.id })
-        }
-      }
+    // Persist the landlord patch (the store strips read-only fields).
+    await landlordsStore.update(local.value.id, local.value)
+    // Save any locally-added bank accounts that haven't been persisted yet.
+    const unsaved = (local.value.bank_accounts as BankAccount[] | undefined)?.filter(
+      (ba) => !ba.id && ba.bank_name,
+    ) ?? []
+    for (const ba of unsaved) {
+      await landlordsStore.saveBankAccount(local.value.id, ba)
     }
     toast.success('Landlord saved')
     emit('saved')
@@ -265,7 +266,7 @@ function confirmDelete() {
 async function doDeleteLandlord() {
   deleteBusy.value = true
   try {
-    await api.delete(`/properties/landlords/${local.value.id}/`)
+    await landlordsStore.remove(local.value.id)
     deleteOpen.value = false
     toast.success('Landlord deleted')
     emit('saved')
@@ -285,14 +286,10 @@ function addBankAccount() {
   })
 }
 
-async function saveBankAccount(ba: any) {
+async function saveBankAccount(ba: BankAccount) {
   saving.value = true
   try {
-    if (ba.id) {
-      await api.patch(`/properties/bank-accounts/${ba.id}/`, ba)
-    } else {
-      await api.post('/properties/bank-accounts/', { ...ba, landlord: local.value.id })
-    }
+    await landlordsStore.saveBankAccount(local.value.id, ba)
     toast.success('Bank account saved')
     emit('saved')
   } catch (err) {
@@ -302,10 +299,10 @@ async function saveBankAccount(ba: any) {
   }
 }
 
-async function deleteBankAccount(ba: any) {
+async function deleteBankAccount(ba: BankAccount) {
   if (!ba.id) return
   try {
-    await api.delete(`/properties/bank-accounts/${ba.id}/`)
+    await landlordsStore.deleteBankAccount(local.value.id, ba.id)
     toast.success('Bank account removed')
     emit('saved')
   } catch (err) {

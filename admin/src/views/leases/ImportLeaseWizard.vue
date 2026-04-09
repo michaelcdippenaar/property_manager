@@ -324,6 +324,8 @@ import {
   Sparkles, X, FileText, AlertCircle, CheckCircle2,
   Loader2, Plus, ChevronRight, Clock,
 } from 'lucide-vue-next'
+import { usePropertiesStore } from '../../stores/properties'
+import { useLeasesStore } from '../../stores/leases'
 
 const DRAFT_KEY = 'lease_import_draft'
 
@@ -435,7 +437,9 @@ const importing = ref(false)
 const parseError = ref('')
 const importError = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
-const properties = ref<any[]>([])
+const propertiesStore = usePropertiesStore()
+const leasesStore = useLeasesStore()
+const properties = computed(() => propertiesStore.list)
 const useExistingProperty = ref<number | false>(false)
 const useExistingUnit = ref<number | false>(false)
 const rawParsed = ref<any>(null)
@@ -471,8 +475,7 @@ const unitsForProperty = computed(() => {
 })
 
 async function loadProperties() {
-  const { data } = await api.get('/properties/')
-  properties.value = data.results ?? data
+  await propertiesStore.fetchAll()
 }
 
 onMounted(() => {
@@ -634,7 +637,7 @@ async function doImport() {
       payload.property_id = useExistingProperty.value
       if (useExistingUnit.value) payload.unit_id = useExistingUnit.value
     }
-    const { data: created } = await api.post('/leases/import/', payload)
+    const created = await leasesStore.importLease(payload)
 
     // Auto-attach the original PDF as a signed_lease document
     if (pdfFile.value && created.id) {

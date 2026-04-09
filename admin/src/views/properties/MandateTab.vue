@@ -232,13 +232,15 @@ import { ref, computed, onMounted } from 'vue'
 import {
   FileSignature, Loader2, Plus, Send, Pencil, PenTool,
 } from 'lucide-vue-next'
-import api from '../../api'
 import { useToast } from '../../composables/useToast'
+import { extractApiError } from '../../utils/api-errors'
 import BaseModal from '../../components/BaseModal.vue'
 import MandateSigningPanel from './MandateSigningPanel.vue'
+import { useMandatesStore } from '../../stores/mandates'
 
 const props = defineProps<{ propertyId: number }>()
 const { showToast } = useToast()
+const mandatesStore = useMandatesStore()
 
 // ── State ────────────────────────────────── //
 const loading         = ref(false)
@@ -283,10 +285,9 @@ const ownerInfo = computed(() => ({
 async function load() {
   loading.value = true
   try {
-    const { data } = await api.get('/properties/mandates/', { params: { property: props.propertyId } })
-    mandates.value = data.results ?? data
-  } catch {
-    showToast('Failed to load mandate', 'error')
+    mandates.value = await mandatesStore.fetchByProperty(props.propertyId, { force: true })
+  } catch (err) {
+    showToast(extractApiError(err, 'Failed to load mandate'), 'error')
   } finally {
     loading.value = false
   }
@@ -342,18 +343,17 @@ async function saveMandate() {
     }
 
     if (editingMandate.value) {
-      await api.patch(`/properties/mandates/${editingMandate.value.id}/`, payload)
+      await mandatesStore.update(editingMandate.value.id, props.propertyId, payload)
       showToast('Mandate updated', 'success')
     } else {
-      await api.post('/properties/mandates/', payload)
+      await mandatesStore.create(payload)
       showToast('Mandate created', 'success')
     }
 
     closeModal()
     await load()
-  } catch (err: any) {
-    const msg = err?.response?.data?.detail ?? 'Failed to save mandate'
-    showToast(msg, 'error')
+  } catch (err) {
+    showToast(extractApiError(err, 'Failed to save mandate'), 'error')
   } finally {
     saving.value = false
   }
@@ -364,12 +364,11 @@ async function sendForSigning() {
   if (!activeMandate.value) return
   sending.value = true
   try {
-    await api.post(`/properties/mandates/${activeMandate.value.id}/send-for-signing/`)
+    await mandatesStore.sendForSigning(activeMandate.value.id, props.propertyId)
     showToast('Mandate sent for signing — owner will receive an email shortly', 'success')
     await load()
-  } catch (err: any) {
-    const msg = err?.response?.data?.detail ?? 'Failed to send mandate'
-    showToast(msg, 'error')
+  } catch (err) {
+    showToast(extractApiError(err, 'Failed to send mandate'), 'error')
   } finally {
     sending.value = false
   }
