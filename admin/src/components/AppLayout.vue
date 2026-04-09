@@ -50,23 +50,25 @@
             >
               <div
                 v-if="openDropdown === section.key"
-                class="absolute left-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 origin-top-left"
+                class="absolute left-0 top-full w-48 z-50 origin-top-left pt-1"
               >
-                <RouterLink
-                  v-for="item in section.items"
-                  :key="item.to"
-                  :to="item.to"
-                  class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
-                  :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
-                  @click="openDropdown = null"
-                >
-                  <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
-                  <span class="flex-1">{{ item.label }}</span>
-                  <span
-                    v-if="item.badgeKey && badges[item.badgeKey]"
-                    class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
-                  >{{ badges[item.badgeKey] }}</span>
-                </RouterLink>
+                <div class="bg-white border border-gray-200 rounded-xl shadow-xl py-1">
+                  <RouterLink
+                    v-for="item in section.items"
+                    :key="item.to"
+                    :to="item.to"
+                    class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                    :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                    @click="openDropdown = null"
+                  >
+                    <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                    <span class="flex-1">{{ item.label }}</span>
+                    <span
+                      v-if="item.badgeKey && badges[item.badgeKey]"
+                      class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
+                    >{{ badges[item.badgeKey] }}</span>
+                  </RouterLink>
+                </div>
               </div>
             </Transition>
           </div>
@@ -100,8 +102,9 @@
           >
             <div
               v-if="openDropdown === 'user'"
-              class="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-xl py-1 z-50 origin-top-right"
+              class="absolute right-0 top-full w-56 z-50 origin-top-right pt-1"
             >
+            <div class="bg-white border border-gray-200 rounded-xl shadow-xl py-1">
               <!-- Profile -->
               <RouterLink
                 to="/profile"
@@ -170,6 +173,7 @@
                 <LogOut :size="16" class="flex-shrink-0 text-gray-400" />
                 <span>Log out</span>
               </button>
+            </div>
             </div>
           </Transition>
         </div>

@@ -59,19 +59,19 @@
     </q-page-container>
 
     <!-- ── Bottom Tab Bar ──────────────────────────────────────────────────── -->
-    <q-footer v-if="!route.meta.showBackBtn">
-      <q-tabs
-        v-model="activeTab"
-        :class="tabBarClass"
-        indicator-color="transparent"
-        :active-color="isIos ? 'primary' : 'primary'"
-        no-caps
-        align="justify"
-      >
-        <q-tab name="properties" icon="home" label="Properties" @click="router.push('/properties')" />
-        <q-tab name="calendar"   icon="event" label="Calendar"   @click="router.push('/calendar')" />
-        <q-tab name="dashboard"  icon="bar_chart" label="Dashboard" @click="router.push('/dashboard')" />
-      </q-tabs>
+    <q-footer v-if="!route.meta.showBackBtn" bordered class="bg-transparent">
+      <div class="agent-tab-bar">
+        <button
+          v-for="tab in tabs"
+          :key="tab.name"
+          class="agent-tab"
+          :class="{ 'agent-tab--active': activeTab === tab.name }"
+          @click="router.push(tab.path)"
+        >
+          <q-icon :name="tab.icon" size="22px" />
+          <span class="agent-tab-label">{{ tab.label }}</span>
+        </button>
+      </div>
     </q-footer>
 
   </q-layout>
@@ -84,18 +84,68 @@ import { usePlatform } from '../composables/usePlatform'
 
 const route  = useRoute()
 const router = useRouter()
-const { isIos, isAndroid, enterTransition, leaveTransition, backIcon, tabBarClass, headerClass } = usePlatform()
+const { isIos, isAndroid, enterTransition, leaveTransition, backIcon, headerClass } = usePlatform()
 
-// Sync bottom tab with current route
-const activeTab = ref<string>('dashboard')
+const tabs = [
+  { name: 'dashboard',  label: 'Dashboard',  icon: 'bar_chart', path: '/dashboard'  },
+  { name: 'properties', label: 'Properties', icon: 'home',      path: '/properties' },
+  { name: 'calendar',   label: 'Calendar',   icon: 'event',     path: '/calendar'   },
+  { name: 'settings',   label: 'Settings',   icon: 'settings',  path: '/settings'   },
+]
+
+const activeTab = ref<string>('properties')
 
 watch(
   () => route.name,
   (name) => {
-    if (name === 'dashboard')    activeTab.value = 'dashboard'
-    else if (name === 'calendar') activeTab.value = 'calendar'
-    else if (name === 'properties' || name === 'property-detail') activeTab.value = 'properties'
+    if (name === 'dashboard')                                       activeTab.value = 'dashboard'
+    else if (name === 'calendar')                                   activeTab.value = 'calendar'
+    else if (name === 'settings')                                   activeTab.value = 'settings'
+    else if (name === 'properties' || name === 'property-detail')  activeTab.value = 'properties'
   },
   { immediate: true },
 )
 </script>
+
+<style lang="scss">
+.agent-tab-bar {
+  display: flex;
+  align-items: stretch;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-top: 0.5px solid rgba(0, 0, 0, 0.14);
+  height: 56px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.agent-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9e9e9e;
+  transition: color 0.15s;
+  padding: 0;
+
+  &--active {
+    color: #2B2D6E;
+  }
+
+  &:active {
+    opacity: 0.7;
+  }
+}
+
+.agent-tab-label {
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+</style>

@@ -141,35 +141,7 @@ async function initAutocomplete() {
 
     const g = (window as any).google
 
-    // Try new PlaceAutocompleteElement API first
-    if (g.maps.places.PlaceAutocompleteElement) {
-      autocompleteEl = new g.maps.places.PlaceAutocompleteElement({
-        componentRestrictions: { country: props.country },
-        types: ['address'],
-      })
-
-      // Style the element to match our input
-      autocompleteEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;z-index:1;cursor:text;'
-      // Mirror typing from our input into the autocomplete
-      inputEl.value!.addEventListener('input', () => {
-        // The PlaceAutocompleteElement handles its own input
-      })
-
-      autocompleteEl.addEventListener('gmp-placeselect', async (evt: any) => {
-        const place = evt.place
-        await place.fetchFields({ fields: ['addressComponents', 'formattedAddress', 'location', 'id'] })
-        const result = parseAddressComponents(place)
-        displayValue.value = result.formatted
-        emit('update:modelValue', result)
-        emit('select', result)
-      })
-
-      // Fall through to legacy if element approach fails
-      wrapperEl.value?.appendChild(autocompleteEl)
-      return
-    }
-
-    // Fallback: legacy Autocomplete (still works for existing customers)
+    // Always use legacy Autocomplete — attaches directly to the input element
     const autocomplete = new g.maps.places.Autocomplete(inputEl.value, {
       types: ['address'],
       componentRestrictions: { country: props.country },

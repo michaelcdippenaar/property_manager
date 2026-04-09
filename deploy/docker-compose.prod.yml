@@ -1,0 +1,43 @@
+services:
+  # Serves propertymanager.klikk.co.za (admin SPA)
+  admin_web:
+    build:
+      context: ../admin
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks: [edge]
+
+  # Serves www.klikk.co.za (Astro static site)
+  website_web:
+    build:
+      context: ../website
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks: [edge]
+
+  # Single edge proxy terminates TLS and routes by Host header.
+  # Also enforces anti-indexing + optional Basic Auth.
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      # Create a bcrypt hash with:
+      #   docker run --rm caddy:2.8-alpine caddy hash-password --plaintext 'yourpassword'
+      BASIC_AUTH_USER: "${BASIC_AUTH_USER:-}"
+      BASIC_AUTH_HASH: "${BASIC_AUTH_HASH:-}"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+
+networks:
+  edge: {}
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}
+

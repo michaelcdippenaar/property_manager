@@ -69,7 +69,7 @@
     </div>
 
     <!-- ── Tab: Details ── -->
-    <div v-else-if="activeTab === 'details'" class="grid grid-cols-3 gap-6">
+    <div v-else-if="activeTab === 'details'" class="grid grid-cols-3 gap-6 pt-6">
       <div class="col-span-2 space-y-6">
         <!-- Info card -->
         <div class="card p-5">
@@ -205,7 +205,7 @@
     </div>
 
     <!-- ── Tab: Address ── -->
-    <div v-else-if="activeTab === 'address'" class="max-w-2xl">
+    <div v-else-if="activeTab === 'address'" class="max-w-2xl pt-6">
       <div class="card p-5 space-y-4">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Address (Domicilium)</div>
         <div>
@@ -238,7 +238,7 @@
     </div>
 
     <!-- ── Tab: Bank Accounts ── -->
-    <div v-else-if="activeTab === 'bank'" class="max-w-3xl space-y-4">
+    <div v-else-if="activeTab === 'bank'" class="max-w-3xl space-y-4 pt-6">
       <div class="flex items-center justify-between">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Bank Accounts</div>
         <button class="btn-ghost text-sm flex items-center gap-1.5" @click="addBankAccount">
@@ -305,8 +305,91 @@
       </div>
     </div>
 
+    <!-- ── Tab: Properties ── -->
+    <div v-else-if="activeTab === 'properties'" class="max-w-3xl space-y-4 pt-6">
+      <div class="flex items-center justify-between">
+        <div class="text-xs font-semibold uppercase tracking-wide text-navy">Linked Properties</div>
+        <div class="flex items-center gap-2">
+          <button class="btn-ghost text-sm flex items-center gap-1.5" @click="showLinkModal = true">
+            <Plus :size="14" /> Link property
+          </button>
+          <button class="btn-ghost text-sm flex items-center gap-1.5" @click="$router.push('/properties')">
+            <Plus :size="14" /> Add new property
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty state -->
+      <div v-if="!local.properties?.length" class="card p-8 text-center">
+        <Home :size="32" class="mx-auto text-gray-300 mb-3" />
+        <p class="text-sm text-gray-400">No properties linked to this owner yet.</p>
+        <button class="btn-primary btn-sm mt-3" @click="showLinkModal = true">
+          <Plus :size="14" /> Link a property
+        </button>
+      </div>
+
+      <!-- Property rows -->
+      <div
+        v-for="p in local.properties"
+        :key="p.id"
+        class="card p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
+        @click="$router.push(`/properties/${p.id}`)"
+      >
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-navy/5 flex items-center justify-center">
+            <Home :size="16" class="text-navy" />
+          </div>
+          <div>
+            <div class="font-medium text-sm text-gray-900">{{ p.name }}</div>
+            <div class="text-xs text-gray-400">Property</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            class="text-xs text-red-500 hover:underline"
+            @click.stop="unlinkProperty(p.ownership_id)"
+          >
+            Unlink
+          </button>
+          <ChevronRight :size="16" class="text-gray-300" />
+        </div>
+      </div>
+
+      <!-- Link property modal -->
+      <BaseModal :open="showLinkModal" title="Link Property" @close="showLinkModal = false; propertySearch = ''">
+        <div class="space-y-3">
+          <div>
+            <label class="label">Search properties</label>
+            <input v-model="propertySearch" class="input" placeholder="Type to filter…" />
+          </div>
+          <div class="max-h-60 overflow-y-auto space-y-1.5 border border-gray-100 rounded-xl p-2">
+            <div v-if="!filteredUnlinkedProperties.length" class="text-xs text-gray-400 text-center py-3">
+              No available properties found.
+            </div>
+            <button
+              v-for="p in filteredUnlinkedProperties"
+              :key="p.id"
+              class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors text-sm"
+              :class="selectedPropertyId === p.id ? 'bg-navy text-white' : 'hover:bg-gray-50 text-gray-700'"
+              @click="selectedPropertyId = p.id"
+            >
+              <Home :size="14" :class="selectedPropertyId === p.id ? 'text-white' : 'text-gray-400'" />
+              {{ p.name }}
+            </button>
+          </div>
+          <div class="flex justify-end gap-2 pt-1">
+            <button class="btn-ghost text-sm" @click="showLinkModal = false; selectedPropertyId = null; propertySearch = ''">Cancel</button>
+            <button class="btn-primary text-sm" :disabled="!selectedPropertyId || linkingProperty" @click="linkProperty">
+              <Loader2 v-if="linkingProperty" :size="14" class="animate-spin" />
+              Link Property
+            </button>
+          </div>
+        </div>
+      </BaseModal>
+    </div>
+
     <!-- ── Tab: FICA / CIPC Classification ── -->
-    <div v-else-if="activeTab === 'classification'" class="space-y-5">
+    <div v-else-if="activeTab === 'classification'" class="space-y-5 pt-6">
 
       <!-- Document upload area -->
       <div class="card p-5">
@@ -542,7 +625,7 @@
     </div>
 
     <!-- ── Tab: Registration Documents ── -->
-    <div v-else-if="activeTab === 'document'" class="max-w-3xl space-y-4">
+    <div v-else-if="activeTab === 'document'" class="max-w-3xl space-y-4 pt-6">
 
       <!-- Upload area — multiple files -->
       <div class="card p-5">
@@ -550,7 +633,7 @@
           <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
             <FileUp :size="13" /> Registration Documents
           </div>
-          <span class="text-xs text-gray-400">{{ regDocs.length }} file{{ regDocs.length !== 1 ? 's' : '' }}</span>
+          <span class="text-xs text-gray-400">{{ ficaDocs.length }} file{{ ficaDocs.length !== 1 ? 's' : '' }}</span>
         </div>
 
         <p class="text-sm text-gray-500 mb-4">
@@ -561,7 +644,7 @@
         <!-- Drag & drop — multi-file -->
         <label
           class="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors mb-3"
-          :class="uploading ? 'border-navy/30 bg-navy/5' : 'border-gray-200 hover:border-navy/40 hover:bg-gray-50'"
+          :class="uploadingDocs ? 'border-navy/30 bg-navy/5' : 'border-gray-200 hover:border-navy/40 hover:bg-gray-50'"
         >
           <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
             <Upload :size="18" class="text-gray-400" />
@@ -570,14 +653,14 @@
             <span class="text-sm font-medium text-gray-700">Drop documents here or click to browse</span>
             <p class="text-xs text-gray-400 mt-0.5">PDF, JPG, PNG, DOCX — multiple files supported</p>
           </div>
-          <Loader2 v-if="uploading" :size="16" class="animate-spin text-navy" />
-          <input type="file" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.docx" @change="uploadRegDocs" />
+          <Loader2 v-if="uploadingDocs" :size="16" class="animate-spin text-navy" />
+          <input type="file" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.docx" @change="uploadFicaDocs" />
         </label>
 
         <!-- File list -->
-        <div v-if="regDocs.length" class="space-y-1.5">
+        <div v-if="ficaDocs.length" class="space-y-1.5">
           <div
-            v-for="doc in regDocs" :key="doc.id"
+            v-for="doc in ficaDocs" :key="doc.id"
             class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100 group"
           >
             <FileText :size="14" class="text-gray-400 flex-shrink-0" />
@@ -589,7 +672,7 @@
             <a :href="doc.file_url" download class="p-1 rounded text-gray-300 hover:text-navy transition-colors" title="Download">
               <Download :size="13" />
             </a>
-            <button class="p-1 rounded text-gray-300 hover:text-danger-500 transition-colors" title="Remove" @click="deleteRegDoc(doc)">
+            <button class="p-1 rounded text-gray-300 hover:text-danger-500 transition-colors" title="Remove" @click="deleteFicaDoc(doc)">
               <X :size="13" />
             </button>
           </div>
@@ -765,7 +848,7 @@
           </div>
           <button
             class="btn-primary btn-sm flex items-center gap-1.5 flex-shrink-0 ml-4"
-            :disabled="classifyingReg || !regDocs.length"
+            :disabled="classifyingReg || !ficaDocs.length"
             @click="runRegClassifier"
           >
             <Loader2 v-if="classifyingReg" :size="13" class="animate-spin" />
@@ -847,6 +930,28 @@
       </div>
     </div>
 
+    <!-- Confirm: delete landlord -->
+    <ConfirmDialog
+      :open="confirmDeleteOpen"
+      title="Delete owner?"
+      :description="`Delete owner &quot;${local.name || ''}&quot;? This cannot be undone.`"
+      confirm-label="Delete"
+      :loading="deletingLandlord"
+      @confirm="doDeleteLandlord"
+      @cancel="confirmDeleteOpen = false"
+    />
+
+    <!-- Confirm: unlink property -->
+    <ConfirmDialog
+      :open="confirmUnlinkOpen"
+      title="Unlink property?"
+      description="Remove this property from the owner? This cannot be undone."
+      confirm-label="Unlink"
+      :loading="unlinkingBusy"
+      @confirm="doUnlinkProperty"
+      @cancel="confirmUnlinkOpen = false; unlinkingOwnership = null"
+    />
+
   </div>
 </template>
 
@@ -854,15 +959,21 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  AlertTriangle, ArrowLeft, BarChart3, Briefcase, Building2, CheckCircle2,
+  AlertTriangle, ArrowLeft, BarChart3, Briefcase, Building2, CheckCircle2, ChevronRight,
   Download, Eye, FileText, FileUp, Home, Landmark, Loader2, MapPin,
   MoreHorizontal, Plus, Shield, ShieldCheck, Sparkles, Trash2, Upload, User, Users, X, XCircle,
 } from 'lucide-vue-next'
 import api from '../../api'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
+import BaseModal from '../../components/BaseModal.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
+import { useToast } from '../../composables/useToast'
+import { extractApiError } from '../../utils/api-errors'
+import { formatDate } from '../../utils/formatters'
 
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 
 const landlord = ref<any>(null)
 const local = ref<any>({})
@@ -876,12 +987,26 @@ const uploadingDocs = ref(false)
 const classifying = ref(false)
 const classifyError = ref('')
 
-// Registration documents tab
-const regDocs = ref<any[]>([])
+// Properties tab
+const allProperties = ref<any[]>([])
+const propertySearch = ref('')
+const linkingProperty = ref(false)
+const showLinkModal = ref(false)
+const selectedPropertyId = ref<number | null>(null)
+
+// CIPC tab classifier (shares document storage with FICA tab — backend has only
+// one `landlord.documents` collection, so both tabs read/write the same list).
 const classifyingReg = ref(false)
 const classifyRegError = ref('')
 const regClassification = ref<any>(null)
 const regPatchedFields = ref<string[]>([])
+
+// Confirm-dialog state
+const confirmDeleteOpen = ref(false)
+const deletingLandlord = ref(false)
+const confirmUnlinkOpen = ref(false)
+const unlinkingOwnership = ref<number | null>(null)
+const unlinkingBusy = ref(false)
 
 const entityLabel = computed(() => {
   const t = local.value.landlord_type
@@ -896,11 +1021,35 @@ const tabs = [
   { key: 'details', label: 'Details', icon: FileText },
   { key: 'address', label: 'Address', icon: MapPin },
   { key: 'bank', label: 'Bank Accounts', icon: Landmark },
+  { key: 'properties', label: 'Properties', icon: Home },
   { key: 'document', label: 'CIPC', icon: FileUp },
   { key: 'classification', label: 'FICA', icon: ShieldCheck },
 ]
 
-onMounted(() => { loadLandlord(); loadFicaDocs(); loadRegDocs() })
+onMounted(() => initLandlord())
+
+// Re-init when navigating between different landlords (KeepAlive reuses the instance).
+// Only fire when we're actually on the landlord-detail route — otherwise navigating to
+// /properties/:id would also trigger this watcher and try to load the property id as a landlord.
+watch(() => route.params.id, (newId, oldId) => {
+  if (route.name !== 'landlord-detail') return
+  if (newId && newId !== oldId) initLandlord()
+})
+
+function initLandlord() {
+  // Reset state so stale data from a previously viewed landlord never bleeds through
+  landlord.value = null
+  local.value = {}
+  ficaDocs.value = []
+  regClassification.value = null
+  regPatchedFields.value = []
+  classifyError.value = ''
+  classifyRegError.value = ''
+  activeTab.value = 'details'
+  loadLandlord()
+  loadFicaDocs()
+  loadAllProperties()
+}
 
 async function loadLandlord() {
   loading.value = true
@@ -911,6 +1060,8 @@ async function loadLandlord() {
       ...JSON.parse(JSON.stringify(data)),
       address: data.address && typeof data.address === 'object' ? { ...data.address } : {},
     }
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load owner'))
   } finally {
     loading.value = false
   }
@@ -930,6 +1081,9 @@ async function saveLandlord() {
     const { bank_accounts, properties, property_count, created_at, updated_at, ...payload } = local.value
     await api.patch(`/properties/landlords/${local.value.id}/`, payload)
     await loadLandlord()
+    toast.success('Owner updated')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save owner'))
   } finally {
     saving.value = false
   }
@@ -937,8 +1091,88 @@ async function saveLandlord() {
 
 function confirmDelete() {
   menuOpen.value = false
-  if (!confirm(`Delete owner "${local.value.name}"? This cannot be undone.`)) return
-  api.delete(`/properties/landlords/${local.value.id}/`).then(() => router.push('/landlords'))
+  confirmDeleteOpen.value = true
+}
+
+async function doDeleteLandlord() {
+  deletingLandlord.value = true
+  try {
+    await api.delete(`/properties/landlords/${local.value.id}/`)
+    confirmDeleteOpen.value = false
+    toast.success('Owner deleted')
+    router.push('/landlords')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete owner'))
+  } finally {
+    deletingLandlord.value = false
+  }
+}
+
+async function loadAllProperties() {
+  try {
+    const { data } = await api.get('/properties/')
+    allProperties.value = data.results ?? data
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load properties'))
+  }
+}
+
+const filteredUnlinkedProperties = computed(() => {
+  const linkedIds = new Set((local.value.properties ?? []).map((p: any) => p.id))
+  return allProperties.value.filter((p: any) => {
+    if (linkedIds.has(p.id)) return false
+    if (propertySearch.value) return p.name.toLowerCase().includes(propertySearch.value.toLowerCase())
+    return true
+  })
+})
+
+async function linkProperty() {
+  if (!selectedPropertyId.value) return
+  if (!local.value.name?.trim()) {
+    toast.error('Owner name is required before linking a property.')
+    return
+  }
+  linkingProperty.value = true
+  try {
+    await api.post('/properties/ownerships/', {
+      property: selectedPropertyId.value,
+      landlord: local.value.id,
+      owner_name: local.value.name,
+      owner_type: local.value.landlord_type === 'company' ? 'company' : local.value.landlord_type === 'trust' ? 'trust' : 'individual',
+      is_current: true,
+      start_date: new Date().toISOString().slice(0, 10),
+    })
+    showLinkModal.value = false
+    selectedPropertyId.value = null
+    propertySearch.value = ''
+    await loadLandlord()
+    toast.success('Property linked')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to link property'))
+  } finally {
+    linkingProperty.value = false
+  }
+}
+
+function unlinkProperty(ownershipId: number) {
+  unlinkingOwnership.value = ownershipId
+  confirmUnlinkOpen.value = true
+}
+
+async function doUnlinkProperty() {
+  if (unlinkingOwnership.value == null) return
+  unlinkingBusy.value = true
+  try {
+    await api.delete(`/properties/ownerships/${unlinkingOwnership.value}/`)
+    confirmUnlinkOpen.value = false
+    unlinkingOwnership.value = null
+    await loadLandlord()
+    toast.success('Property unlinked')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to unlink property'))
+  } finally {
+    unlinkingBusy.value = false
+  }
 }
 
 function addBankAccount() {
@@ -959,9 +1193,9 @@ async function saveBankAccount(ba: any) {
       await api.post('/properties/bank-accounts/', { ...ba, landlord: local.value.id })
     }
     await loadLandlord()
-  } catch (err: any) {
-    const detail = err?.response?.data
-    alert(typeof detail === 'object' ? JSON.stringify(detail) : (detail || 'Failed to save'))
+    toast.success('Bank account saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save bank account'))
   } finally {
     saving.value = false
   }
@@ -969,17 +1203,22 @@ async function saveBankAccount(ba: any) {
 
 async function deleteBankAccount(ba: any) {
   if (!ba.id) return
-  await api.delete(`/properties/bank-accounts/${ba.id}/`)
-  await loadLandlord()
+  try {
+    await api.delete(`/properties/bank-accounts/${ba.id}/`)
+    await loadLandlord()
+    toast.success('Bank account removed')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete bank account'))
+  }
 }
-
-const uploading = ref(false)
 
 async function loadFicaDocs() {
   try {
     const { data } = await api.get(`/properties/landlords/${route.params.id}/fica-documents/`)
     ficaDocs.value = data
-  } catch {}
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load documents'))
+  }
 }
 
 async function uploadFicaDocs(e: Event) {
@@ -993,8 +1232,9 @@ async function uploadFicaDocs(e: Event) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     await loadFicaDocs()
-  } catch {
-    alert('Upload failed.')
+    toast.success(files.length === 1 ? 'Document uploaded' : `${files.length} documents uploaded`)
+  } catch (err) {
+    toast.error(extractApiError(err, 'Upload failed'))
   } finally {
     uploadingDocs.value = false
     ;(e.target as HTMLInputElement).value = ''
@@ -1002,42 +1242,13 @@ async function uploadFicaDocs(e: Event) {
 }
 
 async function deleteFicaDoc(doc: any) {
-  await api.delete(`/properties/landlords/${local.value.id}/fica-documents/${doc.id}/`)
-  await loadFicaDocs()
-}
-
-// ── Registration documents ─────────────────────────────────────
-async function loadRegDocs() {
   try {
-    const { data } = await api.get(`/properties/landlords/${route.params.id}/fica-documents/`)
-    regDocs.value = data
-  } catch {}
-}
-
-async function uploadRegDocs(e: Event) {
-  const files = (e.target as HTMLInputElement).files
-  if (!files?.length) return
-  uploading.value = true
-  try {
-    const form = new FormData()
-    for (const f of files) form.append('files', f)
-    await api.post(`/properties/landlords/${local.value.id}/fica-documents/`, form, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    })
-    await loadRegDocs()
+    await api.delete(`/properties/landlords/${local.value.id}/fica-documents/${doc.id}/`)
     await loadFicaDocs()
-  } catch {
-    alert('Upload failed.')
-  } finally {
-    uploading.value = false
-    ;(e.target as HTMLInputElement).value = ''
+    toast.success('Document removed')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete document'))
   }
-}
-
-async function deleteRegDoc(doc: any) {
-  await api.delete(`/properties/landlords/${local.value.id}/fica-documents/${doc.id}/`)
-  await loadRegDocs()
-  await loadFicaDocs()
 }
 
 async function runRegClassifier() {
@@ -1055,11 +1266,6 @@ async function runRegClassifier() {
   } finally {
     classifyingReg.value = false
   }
-}
-
-function formatDate(iso: string) {
-  try { return new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' }) }
-  catch { return '' }
 }
 
 async function runClassifier() {
@@ -1086,8 +1292,11 @@ async function uploadClassification(e: Event) {
     await api.patch(`/properties/landlords/${local.value.id}/`, { classification_data: data })
     await loadLandlord()
     activeTab.value = 'classification'
+    toast.success('Classification uploaded')
   } catch (err) {
-    alert('Failed to parse or upload classification JSON.')
+    toast.error(extractApiError(err, 'Failed to parse or upload classification JSON.'))
+  } finally {
+    ;(e.target as HTMLInputElement).value = ''
   }
 }
 

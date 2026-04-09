@@ -23,7 +23,7 @@ class UnitSerializer(serializers.ModelSerializer):
     def get_active_lease_info(self, obj):
         from apps.leases.models import Lease
         lease = (
-            Lease.objects.filter(unit=obj, status="active")
+            Lease.objects.filter(unit=obj, status__in=["active", "pending"])
             .select_related("primary_tenant")
             .order_by("-start_date")
             .first()
@@ -35,6 +35,7 @@ class UnitSerializer(serializers.ModelSerializer):
             "end_date": lease.end_date.isoformat(),
             "tenant_name": lease.primary_tenant.full_name if lease.primary_tenant else None,
             "monthly_rent": str(lease.monthly_rent),
+            "status": lease.status,
         }
 
 
@@ -43,6 +44,7 @@ class PropertySerializer(serializers.ModelSerializer):
     unit_count = serializers.IntegerField(source="units.count", read_only=True)
     nearest_lease_expiry = serializers.SerializerMethodField()
     cover_photo = serializers.SerializerMethodField()
+    property_active_lease_info = serializers.SerializerMethodField()
 
     class Meta:
         model = Property
@@ -66,6 +68,27 @@ class PropertySerializer(serializers.ModelSerializer):
         return {
             "start_date": lease["start_date"].isoformat(),
             "end_date": lease["end_date"].isoformat(),
+        }
+
+    def get_property_active_lease_info(self, obj):
+        """Active/pending lease at the property level (used when the property has no units)."""
+        if obj.units.exists():
+            return None
+        from apps.leases.models import Lease
+        lease = (
+            Lease.objects.filter(unit__property=obj, status__in=["active", "pending"])
+            .select_related("primary_tenant")
+            .order_by("-start_date")
+            .first()
+        )
+        if not lease:
+            return None
+        return {
+            "start_date": lease.start_date.isoformat(),
+            "end_date": lease.end_date.isoformat(),
+            "tenant_name": lease.primary_tenant.full_name if lease.primary_tenant else None,
+            "monthly_rent": str(lease.monthly_rent),
+            "status": lease.status,
         }
 
     def get_cover_photo(self, obj):
@@ -134,7 +157,7 @@ class LandlordSerializer(serializers.ModelSerializer):
 
     def get_properties(self, obj):
         return [
-            {'id': o.property_id, 'name': o.property.name}
+            {'id': o.property_id, 'name': o.property.name, 'ownership_id': o.id}
             for o in obj.ownerships.filter(is_current=True).select_related('property')
         ]
 
@@ -148,17 +171,73 @@ class PropertyOwnershipSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def to_representation(self, instance):
+        """Fall back to linked Landlord fields when denormalized ownership fields are empty.
+
+        Ownership records are sometimes created with only `landlord` FK set, leaving the
+        denormalized owner_*/representative_*/bank_details fields blank. For display,
+        resolve them from the linked Landlord so the UI shows the correct owner info.
+        """
+        data = super().to_representation(instance)
+        ll = instance.landlord
+        if not ll:
+            return data
+
+        def _fallback(field, value):
+            if not data.get(field):
+                data[field] = value
+
+        _fallback("owner_name", ll.name)
+        _fallback("owner_type", ll.landlord_type)
+        _fallback("registration_number", ll.registration_number)
+        _fallback("vat_number", ll.vat_number)
+        _fallback("owner_email", ll.email)
+        _fallback("owner_phone", ll.phone)
+        if not data.get("owner_address"):
+            data["owner_address"] = ll.address or {}
+
+        _fallback("representative_name", ll.representative_name)
+        _fallback("representative_id_number", ll.representative_id_number)
+        _fallback("representative_email", ll.representative_email)
+        _fallback("representative_phone", ll.representative_phone)
+
+        if not data.get("bank_details"):
+            default_ba = (
+                ll.bank_accounts.filter(is_default=True).first()
+                or ll.bank_accounts.first()
+            )
+            if default_ba:
+                data["bank_details"] = {
+                    "bank_name": default_ba.bank_name,
+                    "branch_code": default_ba.branch_code,
+                    "account_number": default_ba.account_number,
+                    "account_type": default_ba.account_type,
+                    "account_holder": default_ba.account_holder,
+                }
+
+        return data
+
 
 class PropertyPhotoSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = PropertyPhoto
-        fields = ["id", "property", "unit", "photo", "photo_url", "caption", "category", "position", "is_cover", "uploaded_at"]
+        fields = ["id", "property", "unit", "photo", "photo_url", "thumbnail_url", "caption", "category", "position", "is_cover", "uploaded_at"]
         read_only_fields = ["id", "uploaded_at"]
 
     def get_photo_url(self, obj):
         request = self.context.get("request")
+        if obj.photo and request:
+            return request.build_absolute_uri(obj.photo.url)
+        return None
+
+    def get_thumbnail_url(self, obj):
+        request = self.context.get("request")
+        if obj.thumbnail and request:
+            return request.build_absolute_uri(obj.thumbnail.url)
+        # Fall back to full photo if no thumbnail yet
         if obj.photo and request:
             return request.build_absolute_uri(obj.photo.url)
         return None

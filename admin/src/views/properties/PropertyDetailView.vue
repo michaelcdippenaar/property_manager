@@ -6,8 +6,8 @@
       <div class="flex items-center gap-3">
         <button
           class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          aria-label="Back to properties"
-          @click="$router.push('/properties')"
+          aria-label="Back"
+          @click="$router.back()"
         >
           <ArrowLeft :size="18" />
         </button>
@@ -24,13 +24,19 @@
                 Unit {{ u.unit_number }}
               </option>
             </select>
-            <span class="w-1 h-1 rounded-full flex-shrink-0"
-              :class="{
-                'bg-success-500': activeUnitData?.status === 'occupied',
-                'bg-info-400':    activeUnitData?.status === 'available',
-                'bg-warning-400': activeUnitData?.status === 'maintenance',
-              }"
-            />
+            <span class="inline-flex items-center gap-1 text-xs text-gray-500"
+              :aria-label="`Unit status: ${activeUnitData?.status ?? 'unknown'}`"
+            >
+              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                :class="{
+                  'bg-success-500': activeUnitData?.status === 'occupied',
+                  'bg-info-400':    activeUnitData?.status === 'available',
+                  'bg-warning-400': activeUnitData?.status === 'maintenance',
+                  'bg-gray-300':    !activeUnitData?.status,
+                }"
+              />
+              <span class="capitalize">{{ activeUnitData?.status ?? '—' }}</span>
+            </span>
           </div>
           <p v-else class="text-xs text-gray-400 mt-0.5">{{ property?.address }}</p>
         </div>
@@ -52,7 +58,7 @@
           leave-to-class="opacity-0 scale-95 -translate-y-1"
         >
           <div v-if="menuOpen" class="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 origin-top-right">
-            <button class="menu-item" @click="menuOpen = false; $router.push('/leases/build')">
+            <button class="menu-item" @click="menuOpen = false; goCreateLease()">
               <FileSignature :size="15" class="text-gray-400" /> Create lease
             </button>
             <button class="menu-item" @click="handleAdvertise">
@@ -184,10 +190,16 @@
                 <td class="font-medium text-gray-900">Unit {{ unit.unit_number }}</td>
                 <td>
                   <span :class="{
-                    'badge-green': unit.status === 'occupied',
-                    'badge-blue':  unit.status === 'available',
-                    'badge-amber': unit.status === 'maintenance',
-                  }">{{ unit.status }}</span>
+                    'badge-green':  unit.status === 'occupied' && unit.active_lease_info?.status === 'active',
+                    'badge-purple': unit.status === 'occupied' && unit.active_lease_info?.status === 'pending',
+                    'badge-blue':   unit.status === 'available',
+                    'badge-amber':  unit.status === 'maintenance',
+                  }">{{
+                    unit.status === 'occupied' && unit.active_lease_info?.status === 'pending' ? 'Pending'
+                    : unit.status === 'occupied' ? 'Occupied'
+                    : unit.status === 'maintenance' ? 'Maintenance'
+                    : 'Available'
+                  }}</span>
                 </td>
                 <td class="text-gray-700">{{ unit.active_lease_info?.tenant_name ?? '—' }}</td>
                 <td class="text-gray-700">
@@ -229,56 +241,54 @@
           <!-- LEFT 2/3 -->
           <div class="col-span-2 space-y-4">
 
-            <!-- Compliance Certificates -->
-            <div class="card overflow-hidden">
+            <!-- Active Lease -->
+            <div
+              class="card overflow-hidden"
+              :class="activeLease ? 'cursor-pointer hover:shadow-md transition-shadow' : ''"
+              @click="activeLease ? activeSection = 'leases' : null"
+            >
               <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <Shield :size="14" class="text-navy" />
-                  <span class="text-xs font-semibold uppercase tracking-wide text-navy">Compliance Certificates</span>
+                  <FileSignature :size="14" class="text-navy" />
+                  <span class="text-xs font-semibold uppercase tracking-wide text-navy">Active Lease</span>
                 </div>
-                <div v-if="loadingCompliance" class="h-3 w-12 bg-gray-100 rounded animate-pulse" />
+                <div v-if="loadingLease" class="h-3 w-12 bg-gray-100 rounded animate-pulse" />
+                <button v-else-if="!activeLease" class="text-xs text-navy hover:underline" @click.stop="goCreateLease()">Create lease</button>
+                <button v-else class="text-xs text-navy hover:underline" @click.stop="activeSection = 'leases'">View all</button>
               </div>
 
-              <div v-if="loadingCompliance" class="p-5 space-y-3 animate-pulse">
-                <div v-for="i in 4" :key="i" class="h-8 bg-gray-100 rounded" />
+              <div v-if="loadingLease" class="p-5 space-y-3 animate-pulse">
+                <div class="h-8 bg-gray-100 rounded" />
+                <div class="h-8 bg-gray-100 rounded" />
               </div>
 
-              <div v-else-if="complianceByType.length" class="divide-y divide-gray-50">
-                <div
-                  v-for="cert in complianceByType"
-                  :key="cert.id"
-                  class="px-5 py-3 flex items-center justify-between gap-3"
-                >
-                  <div class="flex items-center gap-2.5">
-                    <span
-                      class="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      :class="{
-                        'bg-success-500': cert.status === 'valid',
-                        'bg-danger-500':  cert.status === 'expired',
-                        'bg-warning-400': cert.status === 'pending',
-                      }"
-                    />
-                    <span class="text-sm text-gray-800">{{ cert.cert_type_display }}</span>
+              <div v-else-if="activeLease" class="px-5 py-4 space-y-3">
+                <div class="flex items-center gap-2">
+                  <span :class="activeLease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                    {{ activeLease.status === 'active' ? 'Active' : 'Pending' }}
+                  </span>
+                  <span class="text-sm font-semibold text-gray-900">{{ activeLease.lease_number || `Lease #${activeLease.id}` }}</span>
+                </div>
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+                    <div class="font-medium text-gray-900">{{ activeLease.primary_tenant_name || activeLease.primary_tenant?.full_name || '—' }}</div>
                   </div>
-                  <div class="flex items-center gap-3 flex-shrink-0">
-                    <span class="text-xs text-gray-400">
-                      {{ cert.expiry_date ? 'Expires ' + fmtDate(cert.expiry_date) : 'No expiry date' }}
-                    </span>
-                    <span :class="{
-                      'badge-green': cert.status === 'valid',
-                      'badge-red':   cert.status === 'expired',
-                      'badge-amber': cert.status === 'pending',
-                    }">{{ cert.status }}</span>
+                  <div>
+                    <div class="text-xs text-gray-400 mb-0.5">Period</div>
+                    <div class="text-gray-700">{{ fmtDate(activeLease.start_date) }} → {{ fmtDate(activeLease.end_date) }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+                    <div class="font-medium text-gray-900">R{{ Number(activeLease.monthly_rent).toLocaleString('en-ZA') }}</div>
                   </div>
                 </div>
               </div>
 
               <div v-else class="px-5 py-8 text-center">
-                <ShieldCheck :size="28" class="mx-auto text-gray-200 mb-2" />
-                <p class="text-xs text-gray-400">No compliance certificates on file.</p>
-                <button class="btn-ghost btn-sm mt-3" @click="activeSection = 'documentation'">
-                  Add certificate
-                </button>
+                <FileSignature :size="28" class="mx-auto text-gray-200 mb-2" />
+                <p class="text-xs text-gray-400">No active lease for this unit.</p>
+                <button class="btn-ghost btn-sm mt-3" @click.stop="goCreateLease()">Create lease</button>
               </div>
             </div>
 
@@ -455,6 +465,83 @@
 
       </div>
 
+      <!-- ── Leases tab ── -->
+      <div v-else-if="activeSection === 'leases'" class="space-y-4 pt-6">
+        <div class="flex items-center justify-between">
+          <p class="text-sm text-gray-500">All leases for this unit.</p>
+          <button class="btn-ghost btn-sm" @click="goCreateLease()">
+            <FilePlus2 :size="14" /> New lease
+          </button>
+        </div>
+
+        <!-- Active / pending lease -->
+        <div v-if="loadingLease" class="card p-5 animate-pulse"><div class="h-20 bg-gray-100 rounded" /></div>
+        <div
+          v-else-if="activeLease"
+          class="card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
+          @click="$router.push(`/leases/${activeLease.id}`)"
+        >
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span :class="activeLease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                {{ activeLease.status === 'active' ? 'Active' : 'Pending' }}
+              </span>
+              <span class="text-sm font-semibold text-gray-900">{{ activeLease.lease_number || `Lease #${activeLease.id}` }}</span>
+            </div>
+            <ChevronRight :size="16" class="text-gray-400" />
+          </div>
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+              <div class="font-medium text-gray-900">{{ activeLease.primary_tenant_name || activeLease.primary_tenant?.full_name || '—' }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-0.5">Period</div>
+              <div class="text-gray-700">{{ fmtDate(activeLease.start_date) }} → {{ fmtDate(activeLease.end_date) }}</div>
+            </div>
+            <div>
+              <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+              <div class="font-medium text-gray-900">R{{ Number(activeLease.monthly_rent).toLocaleString('en-ZA') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Previous leases -->
+        <div v-if="previousLeases.length" class="space-y-2">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Previous leases</p>
+          <div v-if="loadingPrevLeases" class="space-y-2 animate-pulse">
+            <div v-for="i in 2" :key="i" class="card p-4"><div class="h-10 bg-gray-100 rounded" /></div>
+          </div>
+          <div
+            v-for="lease in previousLeases"
+            :key="lease.id"
+            class="card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
+            @click="$router.push(`/leases/${lease.id}`)"
+          >
+            <span :class="{
+              'badge-gray': lease.status === 'expired',
+              'badge-red':  lease.status === 'cancelled' || lease.status === 'voided',
+              'badge-amber': lease.status === 'draft',
+            }">{{ lease.status }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="text-sm font-medium text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</div>
+              <div class="text-xs text-gray-400">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+            </div>
+            <div class="text-sm text-gray-600">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+            <ChevronRight :size="14" class="text-gray-400 flex-shrink-0" />
+          </div>
+        </div>
+
+        <EmptyState
+          v-else-if="!activeLease && !loadingLease"
+          title="No leases yet"
+          description="Create a lease to get started."
+          :icon="FileSignature"
+        >
+          <button class="btn-primary btn-sm" @click="goCreateLease()">Create lease</button>
+        </EmptyState>
+      </div>
+
       <!-- ── Documentation tab ── -->
       <!-- ── Mandate tab ── -->
       <div v-else-if="activeSection === 'mandate'">
@@ -462,12 +549,8 @@
       </div>
 
       <div v-else-if="activeSection === 'documentation'" class="space-y-4">
-        <div class="flex items-center justify-between">
+        <div>
           <p class="text-sm text-gray-500">Property documents required for purchase, compliance, and management in South Africa.</p>
-          <label class="btn-primary btn-sm cursor-pointer">
-            <Upload :size="14" /> Upload document
-            <input type="file" class="hidden" @change="uploadDocWithType" />
-          </label>
         </div>
 
         <!-- Document categories grid -->
@@ -481,8 +564,8 @@
                 </div>
                 <div class="flex items-center gap-2">
                   <span v-if="docsByCategory[cat.key]?.length" class="text-[10px] font-semibold text-navy bg-surface-secondary px-1.5 py-0.5 rounded-full">{{ docsByCategory[cat.key].length }}</span>
-                  <label class="text-navy hover:underline cursor-pointer" aria-label="Upload to this category">
-                    <Upload :size="12" />
+                  <label class="btn-ghost btn-sm cursor-pointer !py-0.5 !px-2 !text-[11px]">
+                    <Upload :size="11" /> Upload
                     <input type="file" class="hidden" @change="(e: Event) => uploadDocForCategory(e, cat.types[0])" />
                   </label>
                 </div>
@@ -713,13 +796,13 @@
           </div>
         </div>
 
-        <!-- Ad description -->
+        <!-- Listing description (unit-level if a unit is selected, otherwise property-level) -->
         <div class="card p-5 space-y-3">
           <div class="text-xs font-semibold uppercase tracking-wide text-navy">Listing Description</div>
           <textarea
             v-model="adDescription"
             class="input h-32 resize-none text-sm"
-            placeholder="Write a compelling description for this unit listing…"
+            :placeholder="activeUnit ? 'Write a compelling description for this unit listing…' : 'Write a compelling description for this property listing…'"
             @blur="saveAdDescription"
           />
           <p v-if="adSaved" class="text-[11px] text-success-600">Saved</p>
@@ -729,23 +812,47 @@
         <div class="card p-5 space-y-3">
           <div class="flex items-center justify-between">
             <div class="text-xs font-semibold uppercase tracking-wide text-navy">Photos</div>
-            <label class="btn-primary btn-sm cursor-pointer">
-              <ImagePlus :size="14" /> Upload photos
-              <input type="file" multiple accept="image/*" class="hidden" @change="uploadPhotos" />
+            <label class="btn-primary btn-sm cursor-pointer" :class="uploadingPhotos ? 'pointer-events-none opacity-70' : ''">
+              <Loader2 v-if="uploadingPhotos" :size="14" class="animate-spin" />
+              <ImagePlus v-else :size="14" />
+              {{ uploadingPhotos ? 'Uploading…' : 'Upload photos' }}
+              <input type="file" multiple accept="image/*" class="hidden" :disabled="uploadingPhotos" @change="uploadPhotos" />
             </label>
+          </div>
+
+          <!-- Upload progress bar -->
+          <div v-if="uploadingPhotos" class="space-y-1.5">
+            <div class="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+              <div
+                class="bg-navy h-1.5 rounded-full transition-all duration-300"
+                :style="{ width: uploadProgress + '%' }"
+              />
+            </div>
+            <p class="text-xs text-gray-400 text-right">{{ uploadProgress }}%</p>
           </div>
 
           <div v-if="loadingPhotos" class="grid grid-cols-4 gap-3 animate-pulse">
             <div v-for="i in 4" :key="i" class="aspect-[4/3] bg-gray-100 rounded-lg" />
           </div>
 
-          <div v-else-if="unitPhotos.length" class="grid grid-cols-4 gap-3">
+          <div v-else-if="unitPhotos.length" class="grid grid-cols-8 gap-2">
             <div
               v-for="photo in unitPhotos"
               :key="photo.id"
-              class="aspect-[4/3] rounded-lg overflow-hidden bg-gray-100"
+              class="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group"
             >
-              <img :src="photo.photo_url" class="w-full h-full object-cover" :alt="photo.caption || 'Unit photo'" />
+              <img
+                :src="photo.thumbnail_url || photo.photo_url"
+                class="w-full h-full object-cover"
+                :alt="photo.caption || 'Unit photo'"
+              />
+              <button
+                class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                @click="deletePhoto(photo)"
+                title="Delete photo"
+              >
+                <X :size="12" />
+              </button>
             </div>
           </div>
 
@@ -1176,17 +1283,28 @@
       </template>
     </BaseModal>
 
+    <ConfirmDialog
+      :open="deletePhotoOpen"
+      title="Delete photo?"
+      description="This photo will be permanently removed."
+      confirm-label="Delete"
+      :loading="deletePhotoBusy"
+      @confirm="doDeletePhoto"
+      @cancel="deletePhotoOpen = false; deletingPhoto = null"
+    />
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch, onActivated } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
+import { extractApiError } from '../../utils/api-errors'
 import BaseModal from '../../components/BaseModal.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import MandateTab from './MandateTab.vue'
 import {
@@ -1194,7 +1312,7 @@ import {
   FileSignature, Loader2, Calendar, Wrench, Phone, Mail, ImagePlus,
   ClipboardList, ListTodo, Plus, ScanBarcode, FolderOpen,
   Megaphone, Building2, Landmark, ShieldCheck, Cpu, Receipt, Zap, Truck,
-  Shield, TrendingUp, Home, CheckCircle,
+  Shield, TrendingUp, Home, CheckCircle, X, ChevronRight,
 } from 'lucide-vue-next'
 
 const NOTICE_DAYS = 30
@@ -1221,6 +1339,13 @@ const loadingPrevLeases = ref(false)
 const propertySuppliers = ref<any[]>([])
 const loadingSuppliers  = ref(false)
 const loadingPhotos    = ref(false)
+const uploadingPhotos  = ref(false)
+const uploadProgress   = ref(0)
+
+// Photo deletion confirm dialog
+const deletePhotoOpen   = ref(false)
+const deletingPhoto     = ref<any>(null)
+const deletePhotoBusy   = ref(false)
 
 // Overview dashboard data
 const complianceCerts    = ref<any[]>([])
@@ -1233,11 +1358,12 @@ const loadingValuation   = ref(false)
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
 const activeUnit = ref<number | null>(null)
-const activeSection = ref<'overview' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
+const activeSection = ref<'overview' | 'leases' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
 
 const sectionTabs = computed(() => {
   const tabs: Array<{ key: string; label: string; icon: any }> = [
     { key: 'overview', label: 'Overview', icon: Wrench },
+    { key: 'leases',   label: 'Leases',   icon: FileSignature },
   ]
   if (auth.isAgency) {
     tabs.push({ key: 'mandate', label: 'Mandate', icon: FileSignature })
@@ -1502,8 +1628,19 @@ const complianceByType = computed(() => {
 })
 
 // ── Load data ──
-onMounted(async () => {
-  const id = Number(route.params.id)
+async function initProperty(id: number) {
+  // Reset state for new property
+  property.value = null
+  activeUnit.value = null
+  activeSection.value = 'overview'
+  owner.value = null
+  activeLease.value = null
+  unitPhotos.value = []
+  propertyDocs.value = []
+  openMaintenance.value = []
+  propertySuppliers.value = []
+  inventoryItems.value = []
+
   loading.value = true
   try {
     const { data } = await api.get(`/properties/${id}/`)
@@ -1511,6 +1648,8 @@ onMounted(async () => {
     if (data.units?.length) {
       activeUnit.value = data.units[0].id
       adDescription.value = data.units[0].ad_description ?? ''
+    } else {
+      adDescription.value = data.description ?? ''
     }
   } catch {
     toast.error('Property not found')
@@ -1535,11 +1674,7 @@ onMounted(async () => {
     .catch(() => {})
     .finally(() => { loadingTemplate.value = false })
 
-  loadingLease.value = true
-  api.get('/leases/', { params: { property: pid, status: 'active', page_size: 1 } })
-    .then(r => { activeLease.value = (r.data.results ?? r.data)[0] ?? null })
-    .catch(() => {})
-    .finally(() => { loadingLease.value = false })
+  loadActiveLease({ property: pid })
 
   loadingMaintenance.value = true
   api.get('/maintenance/', { params: { property: pid, status: 'open', page_size: 5 } })
@@ -1547,16 +1682,17 @@ onMounted(async () => {
     .catch(() => {})
     .finally(() => { loadingMaintenance.value = false })
 
-  // Load previous (non-active) leases for this unit
   if (activeUnit.value) loadPreviousLeases(activeUnit.value)
-
-  if (activeUnit.value) loadPhotos(pid, activeUnit.value)
+  loadPhotos(pid, activeUnit.value)  // null = property-level photos (no unit)
 
   loadDocs(pid)
   houseRules.value = property.value.house_rules ?? ''
 
   loadOverviewData(pid)
+}
 
+onMounted(() => {
+  initProperty(Number(route.params.id))
   document.addEventListener('mousedown', onOutsideClick)
 })
 
@@ -1566,6 +1702,14 @@ onBeforeUnmount(() => {
   clearTimeout(rulesSavedTimer)
 })
 
+// Re-init when navigating between different properties (KeepAlive reuses the instance).
+// Only fire when we're actually on the property-detail route — otherwise navigating to
+// /landlords/:id would also trigger this watcher and try to load the landlord id as a property.
+watch(() => route.params.id, (newId, oldId) => {
+  if (route.name !== 'property-detail') return
+  if (newId && newId !== oldId) initProperty(Number(newId))
+})
+
 // Reload lease + photos when unit tab changes
 watch(activeUnit, (unitId) => {
   if (!unitId || !property.value) return
@@ -1573,11 +1717,7 @@ watch(activeUnit, (unitId) => {
   adDescription.value = unit?.ad_description ?? ''
 
   // Reload active lease for this unit
-  loadingLease.value = true
-  api.get('/leases/', { params: { unit: unitId, status: 'active', page_size: 1 } })
-    .then(r => { activeLease.value = (r.data.results ?? r.data)[0] ?? null })
-    .catch(() => {})
-    .finally(() => { loadingLease.value = false })
+  loadActiveLease({ unit: unitId })
 
   loadPhotos(property.value.id, unitId)
   loadPreviousLeases(unitId)
@@ -1591,7 +1731,7 @@ watch(activeSection, (sec) => {
   if (sec === 'inventory' && !inventoryTemplates.value.length) {
     loadInventoryTemplates()
   }
-  if (sec === 'suppliers' && !propertySuppliers.value.length && !loadingSuppliers.value) {
+  if (sec === 'suppliers' && !loadingSuppliers.value) {
     loadSuppliers()
   }
 })
@@ -1616,6 +1756,23 @@ function unitLeaseUrgency(unit: any): 'ok' | 'warning' | 'critical' {
   return days <= 30 ? 'critical' : days <= 90 ? 'warning' : 'ok'
 }
 
+async function loadActiveLease(params: { property?: number; unit?: number }) {
+  loadingLease.value = true
+  try {
+    // Try active first, fall back to pending
+    for (const statusVal of ['active', 'pending']) {
+      const r = await api.get('/leases/', { params: { ...params, status: statusVal, page_size: 1 } })
+      const found = (r.data.results ?? r.data)[0] ?? null
+      if (found) { activeLease.value = found; return }
+    }
+    activeLease.value = null
+  } catch {
+    activeLease.value = null
+  } finally {
+    loadingLease.value = false
+  }
+}
+
 function loadPreviousLeases(unitId: number) {
   loadingPrevLeases.value = true
   api.get('/leases/', { params: { unit: unitId, page_size: 20 } })
@@ -1627,12 +1784,8 @@ function loadPreviousLeases(unitId: number) {
     .finally(() => { loadingPrevLeases.value = false })
 }
 
-function loadPhotos(propertyId: number, unitId: number) {
-  loadingPhotos.value = true
-  api.get(`/properties/${propertyId}/photos/`, { params: { unit: unitId } })
-    .then(r => { unitPhotos.value = r.data.results ?? r.data })
-    .catch(() => {})
-    .finally(() => { loadingPhotos.value = false })
+function loadPhotos(propertyId: number, unitId: number | null) {
+  loadPhotosAsync(propertyId, unitId)
 }
 
 function onOutsideClick(e: MouseEvent) {
@@ -1641,9 +1794,13 @@ function onOutsideClick(e: MouseEvent) {
 
 // ── Advertising ──
 async function saveAdDescription() {
-  if (!activeUnit.value) return
+  if (!property.value) return
   try {
-    await api.patch(`/properties/units/${activeUnit.value}/`, { ad_description: adDescription.value })
+    if (activeUnit.value) {
+      await api.patch(`/properties/units/${activeUnit.value}/`, { ad_description: adDescription.value })
+    } else {
+      await api.patch(`/properties/${property.value.id}/`, { description: adDescription.value })
+    }
     adSaved.value = true
     clearTimeout(adSavedTimer)
     adSavedTimer = setTimeout(() => { adSaved.value = false }, 2000)
@@ -1653,20 +1810,69 @@ async function saveAdDescription() {
 }
 
 async function uploadPhotos(e: Event) {
-  const files = (e.target as HTMLInputElement).files
-  if (!files?.length || !property.value || !activeUnit.value) return
+  const input = e.target as HTMLInputElement
+  const files = input.files
+  if (!files?.length || !property.value) return
   const fd = new FormData()
   Array.from(files).forEach(f => fd.append('photo', f))
-  fd.append('unit', String(activeUnit.value))
+  if (activeUnit.value) fd.append('unit', String(activeUnit.value))
+  uploadingPhotos.value = true
+  uploadProgress.value = 0
   try {
     await api.post(`/properties/${property.value.id}/photos/`, fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (evt: any) => {
+        if (evt.total) {
+          // Cap at 85% — remaining 15% reserved for server processing + reload
+          uploadProgress.value = Math.min(85, Math.round((evt.loaded * 100) / evt.total))
+        } else {
+          uploadProgress.value = 40
+        }
+      },
     })
-    loadPhotos(property.value.id, activeUnit.value!)
+    // Show "processing" phase while server generates thumbnails
+    uploadProgress.value = 90
+    await loadPhotosAsync(property.value.id, activeUnit.value)
+    uploadProgress.value = 100
     toast.success('Photos uploaded')
   } catch {
     toast.error('Failed to upload photos')
+  } finally {
+    uploadingPhotos.value = false
+    uploadProgress.value = 0
+    input.value = ''
   }
+}
+
+function deletePhoto(photo: any) {
+  deletingPhoto.value = photo
+  deletePhotoOpen.value = true
+}
+
+async function doDeletePhoto() {
+  if (!deletingPhoto.value) return
+  deletePhotoBusy.value = true
+  try {
+    await api.delete(`/properties/${property.value!.id}/photos/${deletingPhoto.value.id}/`)
+    unitPhotos.value = unitPhotos.value.filter(p => p.id !== deletingPhoto.value.id)
+    deletePhotoOpen.value = false
+    deletingPhoto.value = null
+    toast.success('Photo deleted')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete photo'))
+  } finally {
+    deletePhotoBusy.value = false
+  }
+}
+
+function loadPhotosAsync(propertyId: number, unitId: number | null): Promise<void> {
+  // Only show skeleton on initial load — keep existing photos visible during refreshes
+  if (!unitPhotos.value.length) loadingPhotos.value = true
+  const params = unitId ? { unit: unitId } : {}
+  return api.get(`/properties/${propertyId}/photos/`, { params })
+    .then(r => { unitPhotos.value = r.data.results ?? r.data })
+    .catch(() => { toast.error('Failed to load photos') })
+    .finally(() => { loadingPhotos.value = false })
 }
 
 // ── Documents & House Rules ──
@@ -1731,7 +1937,7 @@ function loadInventoryTemplates() {
 
 function loadSuppliers() {
   if (!property.value) return
-  loadingSuppliers.value = true
+  if (!propertySuppliers.value.length) loadingSuppliers.value = true
   api.get('/maintenance/suppliers/', { params: { property: property.value.id } })
     .then(r => { propertySuppliers.value = r.data.results ?? r.data })
     .catch(() => { toast.error('Failed to load suppliers') })
@@ -1930,6 +2136,16 @@ async function confirmRenew() {
 }
 
 // ── Other actions ──
+function goCreateLease() {
+  if (!property.value?.id) {
+    router.push('/leases/build')
+    return
+  }
+  const query: Record<string, string | number> = { property: property.value.id }
+  if (activeUnit.value) query.unit = activeUnit.value
+  router.push({ path: '/leases/build', query })
+}
+
 function handleGenerateLease() {
   menuOpen.value = false
   router.push({ path: '/leases/build', query: { property: property.value?.id } })

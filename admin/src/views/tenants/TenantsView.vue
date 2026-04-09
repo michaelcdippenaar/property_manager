@@ -2,8 +2,22 @@
   <div class="space-y-5">
     <p class="text-sm text-gray-500">Browse and manage tenant profiles, contact details, and lease history.</p>
     <div class="card">
-      <div class="px-4 pt-4 pb-3 border-b border-gray-100">
-        <SearchInput v-model="search" placeholder="Search tenants…" />
+      <div class="px-4 pt-4 pb-0 border-b border-gray-100 flex items-center gap-4">
+        <div class="flex gap-0">
+          <button
+            v-for="tab in tabs"
+            :key="tab.key"
+            class="px-4 py-2.5 text-sm font-medium transition-colors relative"
+            :class="activeTab === tab.key ? 'text-navy' : 'text-gray-400 hover:text-gray-600'"
+            @click="activeTab = tab.key"
+          >
+            {{ tab.label }}
+            <span v-if="activeTab === tab.key" class="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-full" />
+          </button>
+        </div>
+        <div class="ml-auto pb-2">
+          <SearchInput v-model="search" placeholder="Search tenants…" />
+        </div>
       </div>
 
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
@@ -13,11 +27,11 @@
       <table v-else-if="filteredTenants.length" class="table-wrap">
         <thead>
           <tr>
-            <th>Tenant</th>
-            <th>Phone</th>
-            <th>ID Number</th>
-            <th>Joined</th>
-            <th>Status</th>
+            <th scope="col">Tenant</th>
+            <th scope="col">Phone</th>
+            <th scope="col">ID Number</th>
+            <th scope="col">Joined</th>
+            <th scope="col">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -47,49 +61,70 @@
 
       <EmptyState
         v-else
-        title="No tenants found"
-        description="Tenants will appear here once they are added to a property."
+        title="No tenants yet"
+        description="Tenants are added when you create a lease. Build a lease to register your first tenant."
         :icon="Users"
-      />
+      >
+        <RouterLink to="/leases/build" class="btn-primary text-xs">
+          <FilePlus2 :size="14" />
+          Create lease
+        </RouterLink>
+      </EmptyState>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Users } from 'lucide-vue-next'
+import { ref, computed, onActivated } from 'vue'
+import { RouterLink } from 'vue-router'
+import { Users, FilePlus2 } from 'lucide-vue-next'
 import api from '../../api'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useToast } from '../../composables/useToast'
+import { initials, formatDate } from '../../utils/formatters'
+import { extractApiError } from '../../utils/api-errors'
 
 const toast = useToast()
 const loading = ref(true)
 const search = ref('')
 const tenants = ref<any[]>([])
+const activeTab = ref<'all' | 'active' | 'inactive'>('all')
 
-onMounted(async () => {
+const tabs = [
+  { key: 'all',      label: 'All' },
+  { key: 'active',   label: 'Active' },
+  { key: 'inactive', label: 'Inactive' },
+]
+
+async function loadTenants() {
+  loading.value = true
   try {
     const { data } = await api.get('/auth/tenants/')
     tenants.value = data.results ?? data
-  } catch {
-    toast.error('Failed to load tenants')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load tenants'))
   } finally {
     loading.value = false
   }
+}
+
+// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
+// once. onActivated re-fetches on every revisit (covers the initial mount too).
+onActivated(() => loadTenants())
+
+const filteredTenants = computed(() => {
+  let list = tenants.value
+  if (activeTab.value === 'active')   list = list.filter(t => t.is_active)
+  if (activeTab.value === 'inactive') list = list.filter(t => !t.is_active)
+  const q = search.value.toLowerCase()
+  if (q) list = list.filter(t =>
+    (t.full_name ?? '').toLowerCase().includes(q) ||
+    (t.email ?? '').toLowerCase().includes(q) ||
+    (t.phone ?? '').includes(q) ||
+    (t.id_number ?? '').includes(q)
+  )
+  return list
 })
 
-const filteredTenants = computed(() =>
-  tenants.value.filter(t =>
-    (t.full_name ?? '').toLowerCase().includes(search.value.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.value.toLowerCase())
-  )
-)
-
-function initials(name: string) {
-  return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-}
-function formatDate(iso: string) {
-  return iso ? new Date(iso).toLocaleDateString('en-ZA') : '—'
-}
 </script>

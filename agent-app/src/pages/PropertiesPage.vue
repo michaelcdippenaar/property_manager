@@ -44,26 +44,21 @@
             <q-img
               v-if="prop.cover_photo"
               :src="prop.cover_photo"
-              :ratio="16/9"
+              fit="cover"
               class="property-photo"
-            >
-              <div class="absolute-bottom property-photo-overlay">
-                <div class="text-subtitle2 text-weight-bold">{{ prop.name }}</div>
-                <div class="text-caption text-white-7">{{ prop.city }}, {{ prop.province }}</div>
-              </div>
-            </q-img>
+            />
 
             <div v-else class="property-placeholder row items-center justify-center">
               <q-icon name="home" size="48px" color="grey-4" />
             </div>
 
-            <q-card-section class="q-pt-sm q-pb-md">
-              <div class="row items-start justify-between">
-                <div>
-                  <div class="text-subtitle1 text-weight-semibold text-primary">{{ prop.name }}</div>
-                  <div class="text-caption text-grey-6">{{ prop.address }}</div>
+            <q-card-section class="q-pt-md q-pb-md">
+              <div class="row items-start justify-between no-wrap">
+                <div class="col">
+                  <div class="text-subtitle1 text-weight-semibold text-primary ellipsis">{{ prop.name }}</div>
+                  <div class="text-caption text-grey-6 ellipsis">{{ prop.address }}</div>
                 </div>
-                <q-icon name="chevron_right" color="grey-4" />
+                <q-icon name="chevron_right" color="grey-4" class="q-ml-sm" />
               </div>
 
               <!-- Unit summary badges -->
@@ -129,15 +124,14 @@ onMounted(() => void loadProperties())
 }
 
 .property-photo {
-  max-height: 180px;
-}
-
-.property-photo-overlay {
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.65));
-  padding: 8px 12px 12px;
+  display: block;
+  width: 100%;
+  height: 180px;
 }
 
 .property-placeholder {
+  display: block;
+  width: 100%;
   height: 120px;
   background: #f5f5f8;
 }

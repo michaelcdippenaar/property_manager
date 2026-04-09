@@ -1,138 +1,165 @@
 <template>
-  <div class="login-page column items-center justify-center q-pa-lg">
+  <div class="login-page">
 
-    <!-- Logo / branding -->
-    <div class="login-logo column items-center q-mb-xl">
-      <div class="logo-mark">
-        <span>K</span>
-      </div>
-      <div class="text-h5 text-weight-bold text-primary q-mt-sm">Klikk Agent</div>
-      <div class="text-caption text-grey-6">Property Management</div>
+    <!-- Navy hero -->
+    <div class="login-hero">
+      <div class="logo-mark"><span>K</span></div>
+      <h1 class="login-title">Welcome back</h1>
+      <p class="login-sub">Sign in to your agent account</p>
     </div>
 
-    <!-- Login form -->
-    <q-card class="login-card" flat bordered>
-      <q-card-section class="q-pb-none">
-        <div class="text-h6 text-weight-semibold text-primary">Sign in</div>
-        <div class="text-caption text-grey-6 q-mt-xs">Access your agent dashboard</div>
-      </q-card-section>
+    <!-- Form sheet -->
+    <div class="login-sheet">
 
-      <q-card-section>
-        <q-form @submit.prevent="handleLogin" class="column q-gutter-md">
-
-          <q-input
+      <!-- iOS-style input card -->
+      <div class="list-section">
+        <div class="list-row">
+          <span class="row-label">Email</span>
+          <input
             v-model="email"
-            label="Email address"
             type="email"
-            outlined
-            :rounded="isIos"
-            autocomplete="username"
-            :rules="[val => !!val || 'Email is required', val => /\S+@\S+\.\S+/.test(val) || 'Invalid email']"
-          >
-            <template #prepend>
-              <q-icon name="mail" color="primary" />
-            </template>
-          </q-input>
-
-          <q-input
-            v-model="password"
-            label="Password"
-            :type="showPassword ? 'text' : 'password'"
-            outlined
-            :rounded="isIos"
-            autocomplete="current-password"
-            :rules="[val => !!val || 'Password is required']"
-          >
-            <template #prepend>
-              <q-icon name="lock" color="primary" />
-            </template>
-            <template #append>
-              <q-icon
-                :name="showPassword ? 'visibility_off' : 'visibility'"
-                class="cursor-pointer"
-                color="grey-6"
-                @click="showPassword = !showPassword"
-              />
-            </template>
-          </q-input>
-
-          <q-banner v-if="error" rounded class="bg-negative text-white text-caption">
-            <template #avatar>
-              <q-icon name="error_outline" />
-            </template>
-            {{ error }}
-          </q-banner>
-
-          <q-btn
-            type="submit"
-            label="Sign In"
-            color="primary"
-            class="full-width q-py-sm text-weight-semibold"
-            :loading="loading"
-            :rounded="isIos"
-            unelevated
-            size="lg"
+            placeholder="your@email.com"
+            autocomplete="email"
+            class="row-input"
+            @keyup.enter="focusPassword"
           />
+        </div>
+        <div class="list-row">
+          <span class="row-label">Password</span>
+          <input
+            ref="passwordRef"
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            class="row-input"
+            @keyup.enter="handleLogin"
+          />
+          <button class="eye-btn" @click="showPassword = !showPassword" type="button">
+            <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
+          </button>
+        </div>
+      </div>
 
-        </q-form>
-      </q-card-section>
-    </q-card>
+      <!-- Error -->
+      <p v-if="error" class="error-msg">{{ error }}</p>
 
-    <div class="text-caption text-grey-5 q-mt-xl">
-      Klikk Property Management &copy; {{ new Date().getFullYear() }}
+      <!-- Sign in button -->
+      <button
+        class="btn-primary"
+        :disabled="loading"
+        @click="handleLogin"
+      >
+        <q-spinner-dots v-if="loading" color="white" size="20px" />
+        <span v-else>Sign In</span>
+      </button>
+
+      <!-- Divider -->
+      <div v-if="googleConfigured" class="divider">
+        <span>or continue with</span>
+      </div>
+
+      <!-- Google -->
+      <div v-if="googleConfigured" ref="googleBtnContainer" class="google-wrap" />
+
     </div>
+
+    <p class="footer-text">Klikk Property Management &copy; {{ new Date().getFullYear() }}</p>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { usePlatform } from '../composables/usePlatform'
+import { useGoogleAuth } from '../composables/useGoogleAuth'
 
 const router = useRouter()
 const auth   = useAuthStore()
-const { isIos } = usePlatform()
+const { renderGoogleButton, waitForCredential, isConfigured: googleConfigured } = useGoogleAuth()
 
-const email        = ref('')
-const password     = ref('')
-const showPassword = ref(false)
-const loading      = ref(false)
-const error        = ref('')
+const email              = ref('')
+const password           = ref('')
+const showPassword       = ref(false)
+const loading            = ref(false)
+const error              = ref('')
+const passwordRef        = ref<HTMLInputElement | null>(null)
+const googleBtnContainer = ref<HTMLElement | null>(null)
+
+function focusPassword() {
+  passwordRef.value?.focus()
+}
 
 async function handleLogin() {
+  if (!email.value || !password.value) {
+    error.value = 'Please enter your email and password.'
+    return
+  }
   error.value   = ''
   loading.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(email.value.trim(), password.value)
     await router.replace(auth.homeRoute)
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { detail?: string } } }
-    error.value =
-      axiosErr.response?.data?.detail ||
-      'Invalid credentials. Please try again.'
+    error.value = axiosErr.response?.data?.detail || 'Invalid credentials. Please try again.'
   } finally {
     loading.value = false
   }
 }
+
+onMounted(async () => {
+  if (!googleConfigured || !googleBtnContainer.value) return
+  const credentialPromise = waitForCredential()
+  await renderGoogleButton(googleBtnContainer.value)
+  credentialPromise.then(async (credential) => {
+    error.value   = ''
+    loading.value = true
+    try {
+      await auth.loginWithGoogle(credential)
+      await router.replace(auth.homeRoute)
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string; detail?: string } } }
+      error.value = axiosErr.response?.data?.error || axiosErr.response?.data?.detail || 'Google sign-in failed.'
+    } finally {
+      loading.value = false
+    }
+  }).catch(() => {})
+})
 </script>
 
 <style scoped lang="scss">
+$navy: #2B2D6E;
+$surface: #F5F5F8;
+
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(160deg, #f0f1f9 0%, #fdf0f5 100%);
+  display: flex;
+  flex-direction: column;
+  background: $surface;
+  font-family: -apple-system, 'SF Pro Text', 'Inter', sans-serif;
+}
+
+/* ── Hero ── */
+.login-hero {
+  background: linear-gradient(160deg, $navy 0%, #1A1B44 100%);
+  padding: calc(56px + env(safe-area-inset-top, 0px)) 24px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .logo-mark {
   width: 72px;
   height: 72px;
   border-radius: 20px;
-  background: #2B2D6E;
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 20px rgba(43, 45, 110, 0.3);
+  margin-bottom: 16px;
 
   span {
     font-size: 36px;
@@ -142,11 +169,134 @@ async function handleLogin() {
   }
 }
 
-.login-card {
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 4px;
+}
+
+.login-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,0.55);
+  margin: 0;
+}
+
+/* ── Sheet ── */
+.login-sheet {
+  flex: 1;
+  padding: 28px 16px 24px;
+}
+
+/* ── iOS list section ── */
+.list-section {
+  background: white;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  margin-bottom: 16px;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  min-height: 52px;
+  background: white;
+
+  & + .list-row {
+    border-top: 0.5px solid rgba(0,0,0,0.08);
+  }
+}
+
+.row-label {
+  font-size: 15px;
+  color: #6b7280;
+  width: 72px;
+  flex-shrink: 0;
+}
+
+.row-input {
+  flex: 1;
+  font-size: 15px;
+  color: #111827;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 14px 0;
+
+  &::placeholder { color: #c0c0c8; }
+}
+
+.eye-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Error ── */
+.error-msg {
+  font-size: 13px;
+  color: #dc2626;
+  text-align: center;
+  margin: 0 0 12px;
+  padding: 0 8px;
+}
+
+/* ── Primary button ── */
+.btn-primary {
   width: 100%;
-  max-width: 380px;
-  border-radius: 16px !important;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  padding: 16px;
+  background: $navy;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s;
+  letter-spacing: 0.01em;
+
+  &:active { opacity: 0.85; transform: scale(0.99); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: #9ca3af;
+  font-size: 13px;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 0.5px;
+    background: rgba(0,0,0,0.1);
+  }
+}
+
+/* ── Google button ── */
+.google-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+/* ── Footer ── */
+.footer-text {
+  text-align: center;
+  font-size: 12px;
+  color: #9ca3af;
+  padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
 }
 </style>

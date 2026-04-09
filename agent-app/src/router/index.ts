@@ -62,10 +62,23 @@ export default route(function (/* { store, ssrContext } */) {
             meta: { title: 'Property', showBackBtn: true, showFab: true },
           },
           {
+            path: 'properties/:propertyId/leases/new',
+            name: 'create-direct-lease',
+            component: () => import('../pages/CreateDirectLeasePage.vue'),
+            props: (route) => ({ propertyId: Number(route.params.propertyId) }),
+            meta: { title: 'Create Lease', showBackBtn: true, showFab: false },
+          },
+          {
             path: 'calendar',
             name: 'calendar',
             component: () => import('../pages/ViewingCalendarPage.vue'),
             meta: { title: 'Calendar', showFab: true },
+          },
+          {
+            path: 'settings',
+            name: 'settings',
+            component: () => import('../pages/SettingsPage.vue'),
+            meta: { title: 'Settings', showFab: false },
           },
           {
             path: 'viewings/new',

@@ -1,69 +1,6 @@
 <template>
   <div class="space-y-6 max-w-[1400px] mx-auto">
 
-    <!-- ── Zone A: Action Required ── -->
-    <div class="card overflow-hidden">
-      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div class="flex items-center gap-2.5">
-          <h2 class="text-sm font-bold text-gray-900">Needs attention</h2>
-          <span
-            v-if="!loading && actionItems.length"
-            class="min-w-[20px] h-5 px-1.5 rounded-full bg-danger-500 text-white text-xs font-bold flex items-center justify-center leading-none"
-          >{{ actionItems.length }}</span>
-        </div>
-        <button
-          aria-label="Refresh action items"
-          class="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          @click="loadData"
-        >
-          <RefreshCw :size="14" :class="loading ? 'animate-spin' : ''" />
-        </button>
-      </div>
-
-      <!-- Skeleton -->
-      <div v-if="loading" class="divide-y divide-gray-50">
-        <div v-for="i in 3" :key="i" class="flex items-center gap-3 px-5 py-3.5 animate-pulse">
-          <div class="w-9 h-9 bg-gray-100 rounded-lg flex-shrink-0"></div>
-          <div class="flex-1 space-y-1.5">
-            <div class="h-3.5 bg-gray-100 rounded w-2/5"></div>
-            <div class="h-3 bg-gray-100 rounded w-1/4"></div>
-          </div>
-          <div class="w-20 h-7 bg-gray-100 rounded-lg flex-shrink-0"></div>
-        </div>
-      </div>
-
-      <!-- All clear -->
-      <div v-else-if="!actionItems.length" class="flex items-center gap-3 px-5 py-5">
-        <div class="w-9 h-9 rounded-lg bg-success-50 flex items-center justify-center flex-shrink-0">
-          <CheckCircle2 :size="16" class="text-success-600" />
-        </div>
-        <div>
-          <div class="text-sm font-semibold text-gray-800">All clear</div>
-          <div class="text-xs text-gray-400 mt-0.5">No urgent items need your attention right now</div>
-        </div>
-      </div>
-
-      <!-- Action items -->
-      <div v-else class="divide-y divide-gray-50">
-        <RouterLink
-          v-for="item in actionItems"
-          :key="item.id"
-          :to="item.to"
-          class="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/60 transition-colors group"
-        >
-          <div class="w-1 h-9 rounded-full flex-shrink-0" :class="item.accentBar"></div>
-          <div class="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center" :class="item.iconBg">
-            <component :is="item.icon" :size="15" :class="item.iconColor" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="text-sm font-medium text-gray-800 truncate">{{ item.title }}</div>
-            <div class="text-xs text-gray-400 truncate mt-0.5">{{ item.subtitle }}</div>
-          </div>
-          <span class="btn btn-ghost btn-xs flex-shrink-0 group-hover:border-navy group-hover:text-navy">{{ item.cta }}</span>
-        </RouterLink>
-      </div>
-    </div>
-
     <!-- ── Zone B: Workflow Pipeline ── -->
     <div class="card p-5 overflow-hidden">
       <div class="flex items-center justify-between mb-4">
@@ -290,8 +227,7 @@ import { useToast } from '../../composables/useToast'
 import EmptyState from '../../components/EmptyState.vue'
 import {
   Building2, Users, Wrench, FileText, UserCheck,
-  FileSignature, CheckCircle2, RefreshCw, AlertTriangle,
-  Clock, PenLine,
+  FileSignature, CheckCircle2, PenLine,
 } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -301,8 +237,6 @@ const loading = ref(true)
 const animReady = ref(false)
 const statsData = ref<Record<string, number>>({})
 const recentMaintenance = ref<any[]>([])
-const urgentMaintenance = ref<any[]>([])
-const expiringLeases = ref<any[]>([])
 const pendingSigning = ref<any[]>([])
 
 // Pipeline counts
@@ -315,11 +249,9 @@ async function loadData() {
   loading.value = true
   animReady.value = false
   try {
-    const [s, m, urgent, l, signing, landlords, templates, signingAll] = await Promise.allSettled([
+    const [s, m, signing, landlords, templates, signingAll] = await Promise.allSettled([
       api.get('/stats/'),
       api.get('/maintenance/?status=open&page_size=5'),
-      api.get('/maintenance/?status=open&priority=urgent&page_size=3'),
-      api.get('/leases/?status=active&page_size=10&ordering=end_date'),
       api.get('/esigning/submissions/?status=pending&page_size=3'),
       api.get('/landlords/?page_size=1'),
       api.get('/leases/templates/?page_size=1'),
@@ -328,7 +260,6 @@ async function loadData() {
 
     if (s.status === 'fulfilled') statsData.value = s.value.data
     if (m.status === 'fulfilled') recentMaintenance.value = (m.value.data.results ?? m.value.data).slice(0, 5)
-    if (urgent.status === 'fulfilled') urgentMaintenance.value = (urgent.value.data.results ?? urgent.value.data).slice(0, 3)
     if (signing.status === 'fulfilled') pendingSigning.value = (signing.value.data.results ?? signing.value.data).slice(0, 3)
 
     // Pipeline counts
@@ -338,24 +269,6 @@ async function loadData() {
       signingTotal.value = signingAll.value.data.count ?? 0
       const pendingCount = pendingSigning.value.length
       signingCompleted.value = Math.max(0, signingTotal.value - pendingCount)
-    }
-
-    if (l.status === 'fulfilled') {
-      const today = new Date()
-      const rawLeases = l.value.data.results ?? l.value.data
-      expiringLeases.value = rawLeases
-        .map((lease: any) => {
-          const end = new Date(lease.end_date)
-          const days = Math.ceil((end.getTime() - today.getTime()) / 86400000)
-          return {
-            ...lease,
-            days_remaining: days,
-            tenant_name: lease.tenant_name ?? lease.tenant ?? '—',
-            unit_label: lease.unit_label ?? lease.unit ?? '',
-          }
-        })
-        .filter((l: any) => l.days_remaining >= 0 && l.days_remaining <= 30)
-        .sort((a: any, b: any) => a.days_remaining - b.days_remaining)
     }
   } catch {
     toast.error('Failed to load dashboard data')
@@ -367,53 +280,6 @@ async function loadData() {
 }
 
 onMounted(loadData)
-
-// ── Zone A: Action items ──────────────────────────────────────────────────────
-const actionItems = computed(() => {
-  const items: any[] = []
-
-  urgentMaintenance.value.forEach((req, i) => {
-    items.push({
-      id: `urg-${req.id ?? i}`,
-      icon: AlertTriangle, iconBg: 'bg-danger-50', iconColor: 'text-danger-600', accentBar: 'bg-danger-400',
-      title: req.title,
-      subtitle: `Urgent · ${req.unit || 'Unknown unit'}`,
-      to: '/maintenance/issues', cta: 'View issue', sort: 0,
-    })
-  })
-
-  expiringLeases.value.filter((l: any) => l.days_remaining <= 7).forEach((lease, i) => {
-    items.push({
-      id: `exp7-${lease.id ?? i}`,
-      icon: Clock, iconBg: 'bg-danger-50', iconColor: 'text-danger-600', accentBar: 'bg-danger-300',
-      title: `Lease expiring in ${lease.days_remaining} day${lease.days_remaining === 1 ? '' : 's'}`,
-      subtitle: `${lease.tenant_name} · ${lease.unit_label}`,
-      to: '/leases', cta: 'View lease', sort: 1,
-    })
-  })
-
-  expiringLeases.value.filter((l: any) => l.days_remaining > 7).forEach((lease, i) => {
-    items.push({
-      id: `exp30-${lease.id ?? i}`,
-      icon: Clock, iconBg: 'bg-warning-50', iconColor: 'text-warning-600', accentBar: 'bg-warning-300',
-      title: `Lease expiring in ${lease.days_remaining} days`,
-      subtitle: `${lease.tenant_name} · ${lease.unit_label}`,
-      to: '/leases', cta: 'View lease', sort: 2,
-    })
-  })
-
-  pendingSigning.value.forEach((doc, i) => {
-    items.push({
-      id: `sign-${doc.id ?? i}`,
-      icon: PenLine, iconBg: 'bg-info-50', iconColor: 'text-info-600', accentBar: 'bg-info-300',
-      title: 'Document awaiting signature',
-      subtitle: doc.tenant_name ?? doc.lease_reference ?? 'Lease agreement',
-      to: '/leases/overview', cta: 'Review', sort: 3,
-    })
-  })
-
-  return items.sort((a, b) => a.sort - b.sort).slice(0, 6)
-})
 
 // ── Zone B: Pipeline steps ────────────────────────────────────────────────────
 const pipelineSteps = computed(() => {
@@ -450,7 +316,7 @@ const pipelineSteps = computed(() => {
     {
       label: 'Lease',
       icon: FileText,
-      to: '/leases/build',
+      to: '/leases',
       percent: totalUnits > 0
         ? Math.min(100, Math.round((activeLeases / totalUnits) * 100))
         : 0,

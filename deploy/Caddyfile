@@ -1,0 +1,42 @@
+{
+  # Email used for Let's Encrypt account (optional but recommended)
+  email admin@klikk.co.za
+}
+
+(no_index_headers) {
+  header {
+    X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+    X-Content-Type-Options "nosniff"
+    Referrer-Policy "no-referrer"
+  }
+}
+
+(optional_basic_auth) {
+  # If BASIC_AUTH_USER/HASH are empty, this directive will error.
+  # Keep them set in production if you truly want "no Google detection".
+  basicauth {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+}
+
+# Admin SPA
+propertymanager.klikk.co.za {
+  import no_index_headers
+
+  # Strongest way to avoid discovery: require login.
+  # Comment this out only if you're OK with the site being publicly reachable.
+  import optional_basic_auth
+
+  reverse_proxy admin_web:80
+}
+
+# Marketing site (static)
+www.klikk.co.za {
+  import no_index_headers
+
+  # Same: block public access if you want to prevent discovery.
+  import optional_basic_auth
+
+  reverse_proxy website_web:80
+}
+

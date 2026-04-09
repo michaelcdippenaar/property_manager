@@ -629,6 +629,10 @@ async function openLandlordSigningLink() {
   if (!ls?.role || !latestSub.value) return
   landlordLinkLoading.value = true
   errorMsg.value = ''
+  // Open the window synchronously while still inside the click gesture so the
+  // browser doesn't treat it as a popup and block it. We'll set the URL once
+  // the API call resolves.
+  const win = window.open('', '_blank')
   try {
     const { data } = await api.post(`/esigning/submissions/${latestSub.value.id}/public-link/`, {
       signer_role: ls.role,
@@ -636,8 +640,13 @@ async function openLandlordSigningLink() {
     })
     const path = (data.sign_path as string) || `/sign/${data.uuid}/`
     const full = (data.signing_url as string) || `${window.location.origin}${path}`
-    window.open(full, '_blank')
+    if (win) {
+      win.location.href = full
+    } else {
+      window.open(full, '_blank')
+    }
   } catch (e: any) {
+    win?.close()
     errorMsg.value = e?.response?.data?.error ?? e?.response?.data?.detail ?? 'Could not create signing link'
   } finally {
     landlordLinkLoading.value = false

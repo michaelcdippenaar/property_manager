@@ -38,9 +38,9 @@ const router = createRouter({
           meta: { requiresAuth: true, depth: 1 },
         },
         {
-          path: 'info',
-          name: 'info',
-          component: () => import('../views/info/InfoView.vue'),
+          path: 'lease',
+          name: 'lease',
+          component: () => import('../views/leases/LeaseView.vue'),
           meta: { requiresAuth: true, depth: 1 },
         },
         {

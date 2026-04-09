@@ -182,6 +182,16 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="deleteOpen"
+      title="Delete landlord?"
+      :description="`Delete landlord '${local.name ?? ''}'? This cannot be undone.`"
+      confirm-label="Delete"
+      :loading="deleteBusy"
+      @confirm="doDeleteLandlord"
+      @cancel="deleteOpen = false"
+    />
   </BaseDrawer>
 </template>
 
@@ -189,8 +199,11 @@
 import { ref, watch } from 'vue'
 import { Loader2, Plus } from 'lucide-vue-next'
 import BaseDrawer from '../../components/BaseDrawer.vue'
+import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import api from '../../api'
+import { useToast } from '../../composables/useToast'
+import { extractApiError } from '../../utils/api-errors'
 
 const props = defineProps<{
   open: boolean
@@ -199,8 +212,12 @@ const props = defineProps<{
 
 const emit = defineEmits<{ close: []; saved: [] }>()
 
+const toast = useToast()
 const saving = ref(false)
 const local = ref<any>({})
+
+const deleteOpen = ref(false)
+const deleteBusy = ref(false)
 
 watch(() => props.landlord, (ll) => {
   if (ll) {
@@ -232,15 +249,31 @@ async function saveLandlord() {
         }
       }
     }
+    toast.success('Landlord saved')
     emit('saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save landlord'))
   } finally {
     saving.value = false
   }
 }
 
 function confirmDelete() {
-  if (!confirm(`Delete landlord "${local.value.name}"? This cannot be undone.`)) return
-  api.delete(`/properties/landlords/${local.value.id}/`).then(() => emit('saved'))
+  deleteOpen.value = true
+}
+
+async function doDeleteLandlord() {
+  deleteBusy.value = true
+  try {
+    await api.delete(`/properties/landlords/${local.value.id}/`)
+    deleteOpen.value = false
+    toast.success('Landlord deleted')
+    emit('saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete landlord'))
+  } finally {
+    deleteBusy.value = false
+  }
 }
 
 function addBankAccount() {
@@ -260,11 +293,10 @@ async function saveBankAccount(ba: any) {
     } else {
       await api.post('/properties/bank-accounts/', { ...ba, landlord: local.value.id })
     }
+    toast.success('Bank account saved')
     emit('saved')
-  } catch (err: any) {
-    const detail = err?.response?.data
-    const msg = typeof detail === 'object' ? JSON.stringify(detail) : (detail || 'Failed to save bank account')
-    alert(msg)
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save bank account'))
   } finally {
     saving.value = false
   }
@@ -272,7 +304,12 @@ async function saveBankAccount(ba: any) {
 
 async function deleteBankAccount(ba: any) {
   if (!ba.id) return
-  await api.delete(`/properties/bank-accounts/${ba.id}/`)
-  emit('saved')
+  try {
+    await api.delete(`/properties/bank-accounts/${ba.id}/`)
+    toast.success('Bank account removed')
+    emit('saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to remove bank account'))
+  }
 }
 </script>

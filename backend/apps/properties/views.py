@@ -1,3 +1,13 @@
+import io
+import os
+from PIL import Image as PilImage
+
+try:
+    from pillow_heif import register_heif_opener
+    register_heif_opener()
+except ImportError:
+    pass
+
 from rest_framework import viewsets, parsers, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -21,6 +31,18 @@ from .serializers import (
 )
 
 
+def _make_thumbnail(original_file, size=(400, 400)):
+    """Return a Django ContentFile containing a JPEG thumbnail."""
+    from django.core.files.base import ContentFile
+    img = PilImage.open(original_file)
+    img = img.convert("RGB")
+    img.thumbnail(size, PilImage.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=72, optimize=True)
+    buf.seek(0)
+    return ContentFile(buf.read())
+
+
 class PropertyViewSet(viewsets.ModelViewSet):
     serializer_class = PropertySerializer
     permission_classes = [IsAgentOrAdmin]
@@ -30,11 +52,20 @@ class PropertyViewSet(viewsets.ModelViewSet):
         return Property.objects.filter(pk__in=prop_ids)
 
     @action(
-        detail=True, methods=["get", "post"], url_path="photos",
+        detail=True, methods=["get", "post", "delete"], url_path="photos(?:/(?P<photo_id>[0-9]+))?",
         parser_classes=[parsers.MultiPartParser, parsers.FormParser],
     )
-    def photos(self, request, pk=None):
+    def photos(self, request, pk=None, photo_id=None):
         prop = self.get_object()
+
+        if request.method == "DELETE":
+            photo = get_object_or_404(PropertyPhoto, pk=photo_id, property=prop)
+            photo.photo.delete(save=False)
+            if photo.thumbnail:
+                photo.thumbnail.delete(save=False)
+            photo.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
         if request.method == "GET":
             qs = prop.photos.all()
             unit_id = request.query_params.get("unit")
@@ -46,15 +77,25 @@ class PropertyViewSet(viewsets.ModelViewSet):
         files = request.FILES.getlist("photo")
         if not files:
             return Response({"detail": "No photo files provided."}, status=status.HTTP_400_BAD_REQUEST)
-        unit_id = request.data.get("unit")
+        unit_id = request.data.get("unit") or None
+        if unit_id and not prop.units.filter(pk=unit_id).exists():
+            return Response({"detail": "Unit does not belong to this property."}, status=status.HTTP_400_BAD_REQUEST)
         created = []
         for f in files:
             photo = PropertyPhoto.objects.create(
                 property=prop,
-                unit_id=unit_id or None,
+                unit_id=unit_id,
                 photo=f,
                 caption=request.data.get("caption", ""),
             )
+            # Generate and save thumbnail
+            try:
+                f.seek(0)
+                thumb_content = _make_thumbnail(f)
+                base = os.path.splitext(os.path.basename(f.name))[0]
+                photo.thumbnail.save(f"{base}_thumb.jpg", thumb_content, save=True)
+            except Exception:
+                pass  # thumbnail is optional — original still works
             created.append(photo)
         return Response(
             PropertyPhotoSerializer(created, many=True, context={"request": request}).data,
@@ -168,7 +209,7 @@ class LandlordViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         prop_ids = get_accessible_property_ids(self.request.user)
         qs = Landlord.objects.filter(
-            ownerships__property_id__in=prop_ids
+            Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
         ).distinct().prefetch_related('bank_accounts', 'ownerships__property')
         search = self.request.query_params.get('search')
         if search:

@@ -89,6 +89,19 @@
               </div>
             </div>
 
+            <!-- Live signing signer chips -->
+            <div v-if="liveSigners(lease.id).length" class="hidden sm:flex items-center gap-1 flex-shrink-0">
+              <div
+                v-for="signer in liveSigners(lease.id)"
+                :key="signer.name"
+                class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-medium"
+                :title="`${signer.name}: ${signer.status}`"
+              >
+                <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :class="signerDot(signer.status)"></span>
+                {{ signer.name }}
+              </div>
+            </div>
+
             <!-- Rent -->
             <div class="text-sm font-semibold text-gray-800 flex-shrink-0 tabular-nums">
               R{{ Number(lease.monthly_rent).toLocaleString() }}
@@ -471,7 +484,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onActivated, nextTick } from 'vue'
+import { ref, computed, onActivated, onDeactivated, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { Plus, Paperclip, Download, Loader2, Sparkles, ChevronDown, FileText, Users, Home, Pencil, Trash2, FileSignature, FolderOpen } from 'lucide-vue-next'
@@ -573,10 +586,93 @@ async function initView() {
   }
 }
 
-onMounted(initView)
+onActivated(() => {
+  initView()
+  connectLeasesSocket()
+})
 
-// Re-run on keep-alive re-activation (e.g. returning from /leases/build)
-onActivated(initView)
+onDeactivated(() => {
+  disconnectLeasesSocket()
+})
+
+// ── Real-time lease updates via WebSocket ──
+let leasesSocket: WebSocket | null = null
+let leasesReconnectTimer: ReturnType<typeof setTimeout> | null = null
+
+function getWsBase() {
+  const env = import.meta.env as any
+  if (env.VITE_WS_URL) return env.VITE_WS_URL
+  const apiUrl = env.VITE_API_URL || ''
+  if (apiUrl) {
+    // Derive WS URL from API URL (http://localhost:8000/api/v1 → ws://localhost:8000)
+    return apiUrl.replace(/^http/, 'ws').replace(/\/api\/v1\/?$/, '')
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${protocol}//${window.location.host}`
+}
+
+function connectLeasesSocket() {
+  // Already connected / connecting — no-op
+  if (leasesSocket && (leasesSocket.readyState === WebSocket.OPEN || leasesSocket.readyState === WebSocket.CONNECTING)) {
+    return
+  }
+  const host = getWsBase()
+  const token = localStorage.getItem('access_token') || ''
+  try {
+    leasesSocket = new WebSocket(`${host}/ws/leases/updates/?token=${token}`)
+  } catch (err) {
+    console.warn('Failed to open leases WebSocket', err)
+    scheduleLeasesReconnect()
+    return
+  }
+
+  leasesSocket.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      if (data.event === 'lease_created' || data.event === 'lease_updated') {
+        // Simple + safe: refetch the list. Cheap (single `/leases/` call)
+        // and guarantees the UI stays in sync with server-side filters/annotations.
+        loadLeases()
+      }
+    } catch {
+      // Ignore malformed frames
+    }
+  }
+
+  leasesSocket.onerror = () => {
+    console.warn('Leases WebSocket errored')
+  }
+
+  leasesSocket.onclose = () => {
+    scheduleLeasesReconnect()
+  }
+}
+
+function scheduleLeasesReconnect() {
+  if (leasesReconnectTimer) return
+  leasesReconnectTimer = setTimeout(() => {
+    leasesReconnectTimer = null
+    // Only reconnect if we're still the active view
+    if (!leasesSocket || leasesSocket.readyState === WebSocket.CLOSED) {
+      connectLeasesSocket()
+    }
+  }, 5000)
+}
+
+function disconnectLeasesSocket() {
+  if (leasesReconnectTimer) {
+    clearTimeout(leasesReconnectTimer)
+    leasesReconnectTimer = null
+  }
+  if (leasesSocket) {
+    // Clear close handler first so it doesn't schedule a reconnect
+    leasesSocket.onclose = null
+    leasesSocket.onmessage = null
+    leasesSocket.onerror = null
+    try { leasesSocket.close() } catch { /* ignore */ }
+    leasesSocket = null
+  }
+}
 
 // ── Signing data (full submission objects, not just status strings) ──
 const signingData = ref(new Map<number, any>())
@@ -601,11 +697,13 @@ async function loadSigningStatuses() {
         .then(({ data }: any) => ({ id, submissions: data.results ?? data }))
     )
   )
+  const next = new Map<number, any>()
   for (const r of results) {
     if (r.status !== 'fulfilled') continue
     const { id, submissions } = r.value
-    signingData.value.set(id, submissions[0] ?? null)
+    next.set(id, submissions[0] ?? null)
   }
+  signingData.value = next
 }
 
 function signingNarrative(leaseId: number): { label: string; badge: string } {
@@ -634,6 +732,22 @@ function signingNarrative(leaseId: number): { label: string; badge: string } {
   if (unsigned.length > 1) return { label: `Sent to ${unsigned.length} signers`, badge: 'badge-amber' }
 
   return { label: 'Signing pending', badge: 'badge-amber' }
+}
+
+function liveSigners(leaseId: number): { name: string; status: string }[] {
+  const sub = signingData.value.get(leaseId)
+  if (!sub || sub.status === 'expired') return []
+  return (sub.signers ?? []).map((s: any) => ({
+    name: s.name?.split(' ')[0] || 'Signer',
+    status: (s.status ?? 'pending').toLowerCase(),
+  }))
+}
+
+function signerDot(status: string): string {
+  if (status === 'completed' || status === 'signed') return 'bg-emerald-500'
+  if (status === 'opened') return 'bg-blue-500'
+  if (status === 'declined') return 'bg-red-500'
+  return 'bg-gray-300'
 }
 
 function leaseTenants(lease: any) {

@@ -1,5 +1,6 @@
 /* eslint-env node */
 const { configure } = require('quasar/wrappers')
+require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` })
 
 module.exports = configure(function (/* ctx */) {
   return {
@@ -30,6 +31,7 @@ module.exports = configure(function (/* ctx */) {
       },
       env: {
         API_URL: process.env.API_URL || 'http://localhost:8000/api/v1',
+        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
       },
     },
 

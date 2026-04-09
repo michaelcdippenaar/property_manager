@@ -217,39 +217,6 @@
             <template #prepend><q-icon name="badge" color="primary" /></template>
           </q-input>
 
-          <!-- Employment -->
-          <q-separator class="q-my-sm" />
-          <div class="text-caption text-grey-6">Employment & Income</div>
-
-          <q-input
-            v-model="prospect.employer"
-            label="Employer / Company"
-            outlined
-            :rounded="isIos"
-          >
-            <template #prepend><q-icon name="business" color="primary" /></template>
-          </q-input>
-
-          <q-input
-            v-model="prospect.occupation"
-            label="Occupation / Job title"
-            outlined
-            :rounded="isIos"
-          >
-            <template #prepend><q-icon name="work" color="primary" /></template>
-          </q-input>
-
-          <q-input
-            v-model="prospect.monthly_income"
-            label="Gross monthly income (ZAR)"
-            type="number"
-            outlined
-            :rounded="isIos"
-            prefix="R"
-          >
-            <template #prepend><q-icon name="payments" color="primary" /></template>
-          </q-input>
-
           <!-- Current address -->
           <q-input
             v-model="prospect.address"
@@ -333,15 +300,12 @@ const form = ref({
 })
 
 const prospect = ref({
-  first_name:     '',
-  last_name:      '',
-  phone:          '',
-  email:          '',
-  id_number:      '',
-  employer:       '',
-  occupation:     '',
-  monthly_income: '',
-  address:        '',
+  first_name: '',
+  last_name:  '',
+  phone:      '',
+  email:      '',
+  id_number:  '',
+  address:    '',
 })
 
 // ── Options ───────────────────────────────────────────────────────────────────
@@ -398,14 +362,11 @@ async function submitBooking() {
   try {
     // 1. Create or find prospect Person
     const person = await createPerson({
-      full_name:      `${prospect.value.first_name} ${prospect.value.last_name}`.trim(),
-      id_number:      prospect.value.id_number,
-      phone:          prospect.value.phone,
-      email:          prospect.value.email,
-      address:        prospect.value.address,
-      employer:       prospect.value.employer,
-      occupation:     prospect.value.occupation,
-      monthly_income: prospect.value.monthly_income || undefined,
+      full_name: `${prospect.value.first_name} ${prospect.value.last_name}`.trim(),
+      id_number: prospect.value.id_number,
+      phone:     prospect.value.phone,
+      email:     prospect.value.email,
+      address:   prospect.value.address,
     })
 
     // 2. Combine date + time → ISO datetime

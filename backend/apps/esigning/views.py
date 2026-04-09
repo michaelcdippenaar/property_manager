@@ -504,7 +504,7 @@ class ESigningPublicSignDetailView(APIView):
             "signer_role": signer.get("role") or "",
             "submission_status": sub.status,
             "signer_status": signer.get("status") or "",
-            "required_documents": signer.get("required_documents") or _all_doc_types,
+            "required_documents": signer.get("required_documents", []),
         })
 
 
@@ -623,6 +623,9 @@ class ESigningPublicSubmitSignatureView(APIView):
 
         if all_completed:
             _activate_lease(sub)
+            # _activate_lease saves the Lease which fires the post_save signal →
+            # broadcast_lease_update → lease_updates WS group. No extra call needed.
+
             # Generate signed PDF
             try:
                 import hashlib as _hashlib
@@ -656,6 +659,28 @@ class ESigningPublicSubmitSignatureView(APIView):
                 "signers": sub.signers,
             })
             _notify_staff(sub, "form.completed", {"submitter": signer})
+
+            # Partial signing: Lease row wasn't saved so post_save never fires.
+            # Manually push a lease_updated event so the admin leases list refreshes.
+            if sub.lease_id:
+                try:
+                    from asgiref.sync import async_to_sync
+                    from channels.layers import get_channel_layer
+                    channel_layer = get_channel_layer()
+                    if channel_layer:
+                        async_to_sync(channel_layer.group_send)(
+                            "lease_updates",
+                            {
+                                "type": "lease.update",
+                                "payload": {
+                                    "event": "lease_updated",
+                                    "lease_id": sub.lease_id,
+                                    "status": sub.lease.status if sub.lease else None,
+                                },
+                            },
+                        )
+                except Exception:
+                    logger.exception("Failed to broadcast signer_completed to lease_updates for submission %s", sub.pk)
 
         return Response({
             "status": "completed",
@@ -893,10 +918,10 @@ class ESigningPublicDocumentsView(APIView):
         docs = link.supporting_documents.select_related().all()
         # Resolve required_documents from the signer's configuration
         _all_doc_types = ["bank_statement", "id_copy", "proof_of_address"]
-        required_documents = _all_doc_types
+        required_documents = []
         for signer in link.submission.signers:
             if signer.get("role", "").lower() == (link.signer_role or "").lower():
-                required_documents = signer.get("required_documents") or _all_doc_types
+                required_documents = signer.get("required_documents", [])
                 break
         return Response({
             "documents": [self._doc_payload(d) for d in docs],

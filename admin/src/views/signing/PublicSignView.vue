@@ -411,7 +411,7 @@ const ALL_DOC_TYPE_META: Record<string, { label: string; hint: string }> = {
 }
 
 // Set by API on load — keys of doc types the landlord requires for this signer
-const requiredDocKeys = ref<string[]>(['bank_statement', 'id_copy', 'proof_of_address'])
+const requiredDocKeys = ref<string[]>([])
 
 // Computed list used by the documents step template
 const DOCUMENT_TYPES = computed(() =>

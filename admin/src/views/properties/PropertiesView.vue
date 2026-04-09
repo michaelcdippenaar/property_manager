@@ -30,7 +30,7 @@
         <tbody>
           <template v-for="p in filteredProperties" :key="p.id">
             <tr
-              v-for="u in (p.units?.length ? p.units : [{ id: 0, unit_number: '—', status: 'available', active_lease_info: null }])"
+              v-for="u in (p.units?.length ? p.units : [{ id: 0, unit_number: '—', status: p.property_active_lease_info ? 'occupied' : 'available', active_lease_info: p.property_active_lease_info ?? null }])"
               :key="`${p.id}-${u.id}`"
               class="cursor-pointer hover:bg-gray-50"
               @click="router.push(`/properties/${p.id}`)"
@@ -58,10 +58,16 @@
               </td>
               <td>
                 <span :class="{
-                  'badge-green': u.status === 'occupied',
-                  'badge-blue':  u.status === 'available',
-                  'badge-amber': u.status === 'maintenance',
-                }">{{ u.status === 'occupied' ? 'Occupied' : u.status === 'maintenance' ? 'Maintenance' : 'Available' }}</span>
+                  'badge-green':  u.status === 'occupied' && u.active_lease_info?.status === 'active',
+                  'badge-purple': u.status === 'occupied' && u.active_lease_info?.status === 'pending',
+                  'badge-blue':   u.status === 'available',
+                  'badge-amber':  u.status === 'maintenance',
+                }">{{
+                  u.status === 'occupied' && u.active_lease_info?.status === 'pending' ? 'Pending'
+                  : u.status === 'occupied' ? 'Occupied'
+                  : u.status === 'maintenance' ? 'Maintenance'
+                  : 'Available'
+                }}</span>
               </td>
               <td class="min-w-[140px]">
                 <template v-if="u.active_lease_info">
@@ -156,7 +162,7 @@
           <div>
             <label class="label">Type</label>
             <select v-model="newProperty.property_type" class="input">
-              <option v-for="t in propertyTypes" :key="t" :value="t">{{ t }}</option>
+              <option v-for="t in propertyTypes" :key="t.value" :value="t.value">{{ t.label }}</option>
             </select>
           </div>
           <div>
@@ -181,6 +187,13 @@
             <label class="label">Postal code</label>
             <input v-model="newProperty.postal_code" class="input" placeholder="7600" />
           </div>
+        </div>
+        <div>
+          <label class="label">Owner (landlord)</label>
+          <select v-model="newPropertyLandlordId" class="input">
+            <option :value="null">— Select owner —</option>
+            <option v-for="ll in landlords" :key="ll.id" :value="ll.id">{{ ll.name }}</option>
+          </select>
         </div>
       </div>
 
@@ -211,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
@@ -220,6 +233,8 @@ import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
+import { extractApiError } from '../../utils/api-errors'
+import { PROPERTY_TYPES, PROPERTY_TYPE_VALUES } from '../../constants/property'
 import { AlertTriangle, CheckCircle2, Loader2, Plus, Building2, Sparkles, Trash2, Upload, Wrench } from 'lucide-vue-next'
 
 const router = useRouter()
@@ -230,9 +245,12 @@ const saving = ref(false)
 const search = ref('')
 const dialog = ref(false)
 const properties = ref<any[]>([])
-const propertyTypes = ['apartment', 'house', 'townhouse', 'commercial']
+const propertyTypes = PROPERTY_TYPES
+const propertyTypeValues = PROPERTY_TYPE_VALUES
 const newProperty = ref({ name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' })
 const selectedAddress = ref<AddressResult | null>(null)
+const landlords = ref<any[]>([])
+const newPropertyLandlordId = ref<number | null>(null)
 const deleteDialog = ref(false)
 const deleting = ref(false)
 const deletingProperty = ref<any>(null)
@@ -262,7 +280,7 @@ async function parseMunicipalBill(e: Event) {
     if (ext.city) newProperty.value.city = ext.city
     if (ext.province) newProperty.value.province = ext.province
     if (ext.postal_code) newProperty.value.postal_code = ext.postal_code
-    if (ext.property_type && propertyTypes.includes(ext.property_type)) newProperty.value.property_type = ext.property_type
+    if (ext.property_type && propertyTypeValues.includes(ext.property_type)) newProperty.value.property_type = ext.property_type
     billExtracted.value = true
   } catch (err: any) {
     billError.value = err?.response?.data?.detail || 'Failed to parse municipal bill.'
@@ -279,7 +297,19 @@ function onAddressSelect(addr: AddressResult) {
   newProperty.value.province = addr.province
   newProperty.value.postal_code = addr.postal_code
 }
-onMounted(() => loadProperties())
+// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
+// once. Use onActivated so the list is re-fetched every time the user
+// navigates back to /properties (e.g. after creating a lease).
+onActivated(() => { loadProperties(); loadLandlords() })
+
+async function loadLandlords() {
+  try {
+    const { data } = await api.get('/properties/landlords/')
+    landlords.value = data.results ?? data
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load owners'))
+  }
+}
 
 async function loadProperties() {
   loading.value = true
@@ -293,16 +323,57 @@ async function loadProperties() {
 
 async function createProperty() {
   if (!newProperty.value.name) return
+
+  // Validate landlord selection BEFORE the property is created so we never
+  // end up with a dangling property if the ownership step would fail.
+  let ownershipPayload: Record<string, unknown> | null = null
+  if (newPropertyLandlordId.value) {
+    const ll = landlords.value.find(l => l.id === newPropertyLandlordId.value)
+    if (!ll) {
+      toast.error('Selected owner could not be found. Please reselect.')
+      return
+    }
+    if (!ll.name?.trim()) {
+      toast.error('Selected owner has no name. Please update the owner first.')
+      return
+    }
+    ownershipPayload = {
+      landlord: newPropertyLandlordId.value,
+      owner_name: ll.name,
+      owner_type: ll.landlord_type === 'company' ? 'company' : ll.landlord_type === 'trust' ? 'trust' : 'individual',
+      is_current: true,
+      start_date: new Date().toISOString().slice(0, 10),
+    }
+  }
+
   saving.value = true
+  let createdId: number | null = null
   try {
-    await api.post('/properties/', newProperty.value)
+    const { data: created } = await api.post('/properties/', newProperty.value)
+    createdId = created.id
+
+    if (ownershipPayload) {
+      try {
+        await api.post('/properties/ownerships/', { ...ownershipPayload, property: created.id })
+      } catch (ownershipErr) {
+        // Ownership failed — roll back the property so we don't leave an orphan.
+        try {
+          await api.delete(`/properties/${created.id}/`)
+        } catch {
+          // Best-effort rollback; surface the original ownership error regardless.
+        }
+        throw ownershipErr
+      }
+    }
+
     dialog.value = false
     newProperty.value = { name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' }
     selectedAddress.value = null
+    newPropertyLandlordId.value = null
     toast.success('Property created successfully')
     await loadProperties()
-  } catch {
-    toast.error('Failed to create property')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to create property'))
   } finally {
     saving.value = false
   }

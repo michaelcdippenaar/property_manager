@@ -137,7 +137,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { Briefcase, Building2, ChevronRight, Loader2, Plus, Shield, User, UserCheck, Users } from 'lucide-vue-next'
 import api from '../../api'
@@ -145,6 +145,9 @@ import BaseModal from '../../components/BaseModal.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import LandlordDrawer from './LandlordDrawer.vue'
+import { useToast } from '../../composables/useToast'
+
+const toast = useToast()
 
 const router = useRouter()
 
@@ -164,7 +167,9 @@ const createForm = ref({
   phone: '',
 })
 
-onMounted(() => loadLandlords())
+// Component is wrapped in <KeepAlive> in AppLayout, so onMounted only fires
+// once. onActivated re-fetches on every revisit (covers the initial mount too).
+onActivated(() => loadLandlords())
 
 async function loadLandlords() {
   loading.value = true
@@ -174,6 +179,8 @@ async function loadLandlords() {
       ...ll,
       address: ll.address && typeof ll.address === 'object' ? ll.address : {},
     }))
+  } catch {
+    toast.error('Failed to load owners')
   } finally {
     loading.value = false
   }
@@ -212,7 +219,10 @@ async function createLandlord() {
   try {
     await api.post('/properties/landlords/', createForm.value)
     showCreate.value = false
+    toast.success('Owner created')
     await loadLandlords()
+  } catch (e: any) {
+    toast.error(e?.response?.data?.detail ?? 'Failed to create owner')
   } finally {
     saving.value = false
   }

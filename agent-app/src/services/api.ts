@@ -165,6 +165,16 @@ export const updateViewing = (
 export const deleteViewing = (id: number): Promise<void> =>
   api.delete(`/properties/viewings/${id}/`).then(() => undefined)
 
+export interface ConvertViewingResult {
+  lease: Lease
+  auto_created_unit?: {
+    id: number
+    unit_number: string
+    property_id: number
+  }
+  message?: string
+}
+
 export const convertViewingToLease = (
   id: number,
   data: {
@@ -172,9 +182,47 @@ export const convertViewingToLease = (
     end_date: string
     monthly_rent: string | number
     deposit: string | number
+    unit?: number
   },
-): Promise<Lease> =>
-  api.post<Lease>(`/properties/viewings/${id}/convert-to-lease/`, data).then((r) => r.data)
+): Promise<ConvertViewingResult> =>
+  api
+    .post<ConvertViewingResult>(`/properties/viewings/${id}/convert-to-lease/`, data)
+    .then((r) => r.data)
+
+// ─── Leases ───────────────────────────────────────────────────────────────────
+
+export interface AgentLease {
+  id: number
+  unit: number
+  unit_label: string
+  tenant_name: string
+  all_tenant_names: string[]
+  start_date: string   // YYYY-MM-DD
+  end_date: string     // YYYY-MM-DD
+  monthly_rent: string
+  deposit: string
+  status: string
+  property_id: number
+  rent_due_day: number
+  lease_number: string
+}
+
+export const listLeases = (params?: {
+  status?: string
+  property?: number
+}): Promise<PaginatedResponse<AgentLease>> =>
+  api.get<PaginatedResponse<AgentLease>>('/leases/', { params }).then((r) => r.data)
+
+export const createLeaseDirect = (data: {
+  unit: number
+  primary_tenant: number
+  start_date: string
+  end_date: string
+  monthly_rent: string | number
+  deposit: string | number
+  rent_due_day?: number
+}): Promise<AgentLease> =>
+  api.post<AgentLease>('/leases/', data).then((r) => r.data)
 
 // ─── Dashboard summary ────────────────────────────────────────────────────────
 

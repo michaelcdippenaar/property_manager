@@ -40,10 +40,17 @@
         <!-- Viewing dots -->
         <div class="calendar-dots">
           <span
-            v-for="(v, i) in day.viewings.slice(0, 3)"
-            :key="i"
+            v-for="(v, i) in day.viewings.slice(0, 2)"
+            :key="`v${i}`"
             class="calendar-dot"
             :style="{ background: statusDotColor(v.status) }"
+          />
+          <!-- Lease event dots: green = start, orange = end -->
+          <span
+            v-for="(e, i) in day.leaseEvents.slice(0, 2)"
+            :key="`l${i}`"
+            class="calendar-dot"
+            :style="{ background: e.type === 'start' ? '#21BA45' : '#F2711C' }"
           />
         </div>
       </div>
@@ -55,7 +62,7 @@
         {{ selectedDateLabel }}
       </div>
 
-      <div v-if="selectedDayViewings.length === 0" class="text-center q-py-md">
+      <div v-if="selectedDayViewings.length === 0 && selectedDayLeaseEvents.length === 0" class="text-center q-py-md">
         <div class="text-caption text-grey-5">No viewings this day</div>
         <q-btn
           flat
@@ -67,34 +74,57 @@
         />
       </div>
 
-      <q-card v-else flat class="section-card">
-        <q-list separator>
-          <q-item
-            v-for="v in selectedDayViewings"
-            :key="v.id"
-            clickable
-            v-ripple
-            @click="$router.push(`/viewings/${v.id}`)"
-          >
-            <q-item-section avatar>
-              <q-avatar :color="statusColor(v.status)" text-color="white" size="40px">
-                <q-icon name="person" />
-              </q-avatar>
-            </q-item-section>
-            <q-item-section>
-              <q-item-label class="text-weight-medium">{{ v.prospect_name }}</q-item-label>
-              <q-item-label caption>{{ v.property_name }}{{ v.unit_number ? ` · Unit ${v.unit_number}` : '' }}</q-item-label>
-              <q-item-label caption class="text-grey-5">
-                <q-icon name="schedule" size="12px" />
-                {{ formatTime(v.scheduled_at) }} · {{ v.duration_minutes }}min
-              </q-item-label>
-            </q-item-section>
-            <q-item-section side>
-              <q-badge :color="statusColor(v.status)" :label="v.status" />
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-card>
+      <template v-else>
+        <!-- Lease events for selected day -->
+        <q-card v-if="selectedDayLeaseEvents.length > 0" flat class="section-card q-mb-sm">
+          <q-list separator>
+            <q-item v-for="(e, i) in selectedDayLeaseEvents" :key="i">
+              <q-item-section avatar>
+                <q-avatar :color="e.type === 'start' ? 'positive' : 'warning'" text-color="white" size="40px">
+                  <q-icon :name="e.type === 'start' ? 'login' : 'logout'" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">{{ e.label }}</q-item-label>
+                <q-item-label caption>Lease {{ e.type === 'start' ? 'commences' : 'expires' }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge :color="e.type === 'start' ? 'positive' : 'warning'" :label="e.type === 'start' ? 'Start' : 'End'" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+
+        <!-- Viewings for selected day -->
+        <q-card v-if="selectedDayViewings.length > 0" flat class="section-card">
+          <q-list separator>
+            <q-item
+              v-for="v in selectedDayViewings"
+              :key="v.id"
+              clickable
+              v-ripple
+              @click="$router.push(`/viewings/${v.id}`)"
+            >
+              <q-item-section avatar>
+                <q-avatar :color="statusColor(v.status)" text-color="white" size="40px">
+                  <q-icon name="person" />
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">{{ v.prospect_name }}</q-item-label>
+                <q-item-label caption>{{ v.property_name }}{{ v.unit_number ? ` · Unit ${v.unit_number}` : '' }}</q-item-label>
+                <q-item-label caption class="text-grey-5">
+                  <q-icon name="schedule" size="12px" />
+                  {{ formatTime(v.scheduled_at) }} · {{ v.duration_minutes }}min
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge :color="statusColor(v.status)" :label="v.status" />
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card>
+      </template>
     </template>
 
     <!-- Loading -->
@@ -118,7 +148,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getViewingsCalendar, type PropertyViewing } from '../services/api'
+import { getViewingsCalendar, listLeases, type PropertyViewing, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
 
 const router = useRouter()
@@ -130,12 +160,14 @@ interface CalendarDay {
   isToday: boolean
   isOutside: boolean
   viewings: PropertyViewing[]
+  leaseEvents: { label: string; type: 'start' | 'end' }[]
 }
 
 const today      = new Date()
 const viewYear   = ref(today.getFullYear())
 const viewMonth  = ref(today.getMonth())       // 0-indexed
 const viewings   = ref<PropertyViewing[]>([])
+const leases     = ref<AgentLease[]>([])
 const loading    = ref(false)
 const selectedDate = ref<string | null>(null)
 
@@ -165,20 +197,20 @@ const calendarDays = computed<CalendarDay[]>(() => {
   for (let i = firstDay - 1; i >= 0; i--) {
     const d = prevDays - i
     const dateStr = toDateStr(new Date(viewYear.value, viewMonth.value - 1, d))
-    days.push({ day: d, dateStr, isToday: false, isOutside: true, viewings: viewingsForDate(dateStr) })
+    days.push({ day: d, dateStr, isToday: false, isOutside: true, viewings: viewingsForDate(dateStr), leaseEvents: leaseEventsForDate(dateStr) })
   }
 
   // Days in current month
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = toDateStr(new Date(viewYear.value, viewMonth.value, d))
-    days.push({ day: d, dateStr, isToday: dateStr === todayStr, isOutside: false, viewings: viewingsForDate(dateStr) })
+    days.push({ day: d, dateStr, isToday: dateStr === todayStr, isOutside: false, viewings: viewingsForDate(dateStr), leaseEvents: leaseEventsForDate(dateStr) })
   }
 
   // Padding days from next month
   const remaining = 42 - days.length
   for (let d = 1; d <= remaining; d++) {
     const dateStr = toDateStr(new Date(viewYear.value, viewMonth.value + 1, d))
-    days.push({ day: d, dateStr, isToday: false, isOutside: true, viewings: viewingsForDate(dateStr) })
+    days.push({ day: d, dateStr, isToday: false, isOutside: true, viewings: viewingsForDate(dateStr), leaseEvents: leaseEventsForDate(dateStr) })
   }
 
   return days
@@ -189,12 +221,26 @@ const selectedDayViewings = computed(() => {
   return viewings.value.filter((v) => v.scheduled_at.startsWith(selectedDate.value!))
 })
 
+const selectedDayLeaseEvents = computed(() => {
+  if (!selectedDate.value) return []
+  return leaseEventsForDate(selectedDate.value)
+})
+
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
 
 function viewingsForDate(dateStr: string): PropertyViewing[] {
   return viewings.value.filter((v) => v.scheduled_at.startsWith(dateStr))
+}
+
+function leaseEventsForDate(dateStr: string) {
+  const events: { label: string; type: 'start' | 'end' }[] = []
+  for (const l of leases.value) {
+    if (l.start_date === dateStr) events.push({ label: `${l.unit_label} starts`, type: 'start' })
+    if (l.end_date   === dateStr) events.push({ label: `${l.unit_label} ends`,   type: 'end'   })
+  }
+  return events
 }
 
 function selectDay(day: CalendarDay) {
@@ -246,7 +292,12 @@ async function loadViewings() {
   const from = toDateStr(new Date(viewYear.value, viewMonth.value - 1, 1))
   const to   = toDateStr(new Date(viewYear.value, viewMonth.value + 2, 0))
   try {
-    viewings.value = await getViewingsCalendar(from, to)
+    const [calendarViewings, leasesResp] = await Promise.all([
+      getViewingsCalendar(from, to),
+      listLeases({ status: 'active,pending' }).catch(() => ({ results: [] })),
+    ])
+    viewings.value = calendarViewings
+    leases.value   = leasesResp.results
   } finally {
     loading.value = false
   }

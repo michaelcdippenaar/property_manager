@@ -45,11 +45,12 @@
             <div class="text-xs text-gray-500">{{ u.bedrooms }} bed · {{ u.bathrooms }} bath</div>
           </div>
           <span
-            class="text-xs font-medium px-2 py-0.5 rounded-full"
+            class="text-xs font-medium"
             :class="{
-              'bg-emerald-50 text-emerald-700': u.status === 'occupied',
-              'bg-blue-50 text-blue-700':       u.status === 'available',
-              'bg-amber-50 text-amber-700':     u.status === 'maintenance',
+              'badge-green': u.status === 'occupied',
+              'badge-blue':  u.status === 'available',
+              'badge-amber': u.status === 'maintenance',
+              'badge-gray':  !['occupied','available','maintenance'].includes(u.status),
             }"
           >{{ u.status }}</span>
         </div>
@@ -61,7 +62,13 @@
       <div v-if="property?.id" class="space-y-3">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Landlord</div>
 
-        <div v-if="loadingOwner" class="text-sm text-gray-400 animate-pulse">Loading…</div>
+        <div v-if="loadingOwner" class="flex items-center gap-2.5 animate-pulse" aria-label="Loading landlord">
+          <div class="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-3 bg-gray-200 rounded w-1/3" />
+            <div class="h-2.5 bg-gray-100 rounded w-1/2" />
+          </div>
+        </div>
 
         <div v-else-if="owner" class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
@@ -90,7 +97,13 @@
       <div class="space-y-3">
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Lease Template</div>
 
-        <div v-if="loadingTemplate" class="text-sm text-gray-400 animate-pulse">Loading…</div>
+        <div v-if="loadingTemplate" class="flex items-center gap-2.5 animate-pulse" aria-label="Loading lease template">
+          <div class="w-8 h-8 rounded-lg bg-gray-200 flex-shrink-0" />
+          <div class="flex-1 space-y-1.5">
+            <div class="h-3 bg-gray-200 rounded w-2/5" />
+            <div class="h-2.5 bg-gray-100 rounded w-1/3" />
+          </div>
+        </div>
 
         <div v-else-if="linkedTemplate" class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
@@ -126,6 +139,11 @@ import { ref, watch } from 'vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import { FileSignature } from 'lucide-vue-next'
 import api from '../../api'
+import { initials } from '../../utils/formatters'
+import { useToast } from '../../composables/useToast'
+import { extractApiError } from '../../utils/api-errors'
+
+const toast = useToast()
 
 const props = defineProps<{
   open: boolean
@@ -144,13 +162,16 @@ watch(() => props.property?.id, async (id) => {
   linkedTemplate.value = null
   if (!id) return
 
-  // Load landlord / ownership summary
+  // Load landlord / ownership summary (404 = no owner is normal)
   loadingOwner.value = true
   try {
     const { data } = await api.get(`/properties/ownerships/current/${id}/`)
     owner.value = data
-  } catch { /* 404 = no owner */ }
-  finally { loadingOwner.value = false }
+  } catch (err: any) {
+    if (err?.response?.status !== 404) {
+      toast.error(extractApiError(err, 'Failed to load landlord'))
+    }
+  } finally { loadingOwner.value = false }
 
   // Load linked lease template
   loadingTemplate.value = true
@@ -158,12 +179,8 @@ watch(() => props.property?.id, async (id) => {
     const { data } = await api.get('/leases/templates/', { params: { property: id, page_size: 1 } })
     const results = data.results ?? data
     linkedTemplate.value = results[0] ?? null
-  } catch { /* ignore */ }
-  finally { loadingTemplate.value = false }
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to load lease template'))
+  } finally { loadingTemplate.value = false }
 }, { immediate: true })
-
-function initials(name: string): string {
-  if (!name) return '?'
-  return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
-}
 </script>

@@ -118,11 +118,26 @@ class PropertyViewingViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not viewing.unit_id:
-            return Response(
-                {"detail": "A specific unit must be selected before converting to a lease."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        # Resolve unit: prefer viewing.unit, fall back to request body.
+        # If neither is set and the property has no units at all, auto-create a
+        # default unit so single-family homes (which often have no explicit unit
+        # record) can still have leases attached. Mirrors `import_view.py`.
+        unit_id = viewing.unit_id or request.data.get("unit")
+        auto_created_unit = None
+        if not unit_id:
+            from .models import Unit
+            if not viewing.property.units.exists():
+                auto_created_unit = Unit.objects.create(
+                    property=viewing.property,
+                    unit_number="1",
+                    rent_amount=request.data.get("monthly_rent") or 0,
+                )
+                unit_id = auto_created_unit.pk
+            else:
+                return Response(
+                    {"detail": "A specific unit must be provided (either on the viewing or in the request body)."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Validate required fields
         required = ["start_date", "end_date", "monthly_rent", "deposit"]
@@ -139,7 +154,7 @@ class PropertyViewingViewSet(viewsets.ModelViewSet):
                 from apps.leases.serializers import LeaseSerializer
 
                 lease = Lease.objects.create(
-                    unit=viewing.unit,
+                    unit_id=unit_id,
                     primary_tenant=viewing.prospect,
                     start_date=request.data["start_date"],
                     end_date=request.data["end_date"],
@@ -152,10 +167,20 @@ class PropertyViewingViewSet(viewsets.ModelViewSet):
                 viewing.converted_to_lease = lease
                 viewing.save(update_fields=["status", "converted_to_lease", "updated_at"])
 
-            return Response(
-                LeaseSerializer(lease, context={"request": request}).data,
-                status=status.HTTP_201_CREATED,
-            )
+            payload = {
+                "lease": LeaseSerializer(lease, context={"request": request}).data,
+            }
+            if auto_created_unit is not None:
+                payload["auto_created_unit"] = {
+                    "id": auto_created_unit.pk,
+                    "unit_number": auto_created_unit.unit_number,
+                    "property_id": auto_created_unit.property_id,
+                }
+                payload["message"] = (
+                    f"Default unit '{auto_created_unit.unit_number}' was created automatically "
+                    "because the property had no existing units."
+                )
+            return Response(payload, status=status.HTTP_201_CREATED)
 
         except Exception as exc:
             logger.exception("Failed to convert viewing %s to lease", pk)

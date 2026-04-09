@@ -3,7 +3,7 @@
     <!-- Tab content — fills available space above tab bar -->
     <div class="flex-1 overflow-hidden relative">
       <RouterView v-slot="{ Component, route }">
-        <KeepAlive :include="['HomeView', 'IssuesView', 'InfoView', 'SettingsView']">
+        <KeepAlive :include="['HomeView', 'IssuesView', 'LeaseView', 'SettingsView']">
           <component :is="Component" :key="route.name" class="absolute inset-0 h-full" />
         </KeepAlive>
       </RouterView>
@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { Home, Wrench, Info, Settings } from 'lucide-vue-next'
+import { Home, Wrench, FileText, Settings } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -36,7 +36,7 @@ const route = useRoute()
 const tabs = [
   { name: 'home',     label: 'Home',     icon: Home },
   { name: 'issues',   label: 'Repairs',  icon: Wrench },
-  { name: 'info',     label: 'Info',     icon: Info },
+  { name: 'lease',    label: 'Lease',    icon: FileText },
   { name: 'settings', label: 'Settings', icon: Settings },
 ]
 

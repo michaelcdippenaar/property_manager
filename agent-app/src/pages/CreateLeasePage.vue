@@ -20,6 +20,9 @@
           <q-item-section>
             <q-item-label>{{ viewing.property_name }}</q-item-label>
             <q-item-label caption v-if="viewing.unit_number">Unit {{ viewing.unit_number }}</q-item-label>
+            <q-item-label caption v-else-if="units.length > 1" class="text-warning">Select a unit below</q-item-label>
+            <q-item-label caption v-else-if="units.length === 1">Unit {{ units[0].unit_number }}</q-item-label>
+            <q-item-label caption v-else-if="!loadingUnits">Whole property</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>
@@ -107,6 +110,26 @@
             <template #prepend><q-icon name="account_balance" color="primary" /></template>
           </q-input>
 
+          <!-- Unit selector (only when viewing has no unit AND the property has
+               more than one unit). Single-unit or unit-less properties skip this
+               step — the backend will auto-create a default unit if needed. -->
+          <q-select
+            v-if="!viewing.unit && units.length > 1"
+            v-model="form.unit"
+            :options="unitOptions"
+            option-value="id"
+            option-label="label"
+            emit-value
+            map-options
+            label="Select unit *"
+            outlined
+            :rounded="isIos"
+            :loading="loadingUnits"
+            :rules="[v => !!v || 'Please select a unit']"
+          >
+            <template #prepend><q-icon name="door_front" color="primary" /></template>
+          </q-select>
+
           <!-- Lease duration helper -->
           <div v-if="form.start_date && form.end_date" class="text-caption text-grey-6">
             <q-icon name="info" size="14px" />
@@ -125,14 +148,14 @@
     <!-- Submit -->
     <q-btn
       @click="createLease"
-      color="secondary"
+      color="primary"
       label="Create Lease"
       icon="description"
       :rounded="isIos"
       unelevated
       :loading="submitting"
-      class="full-width q-py-sm"
-      size="lg"
+      class="full-width"
+      size="md"
     />
 
     <div class="text-caption text-grey-5 text-center q-mt-sm">
@@ -150,7 +173,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { getViewing, convertViewingToLease, type PropertyViewing } from '../services/api'
+import { getViewing, convertViewingToLease, listUnits, type PropertyViewing, type Unit } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
 
 const props  = defineProps<{ viewingId: number }>()
@@ -158,10 +181,12 @@ const router = useRouter()
 const $q     = useQuasar()
 const { isIos } = usePlatform()
 
-const viewing     = ref<PropertyViewing | null>(null)
-const leaseForm   = ref()
-const submitting  = ref(false)
-const submitError = ref('')
+const viewing      = ref<PropertyViewing | null>(null)
+const leaseForm    = ref()
+const submitting   = ref(false)
+const submitError  = ref('')
+const loadingUnits = ref(false)
+const units        = ref<Unit[]>([])
 
 // Default lease: starts next month, 12-month term
 const nextMonth  = new Date(new Date().setDate(1))
@@ -175,7 +200,15 @@ const form = ref({
   end_date:     endDate.toISOString().slice(0, 10),
   monthly_rent: '',
   deposit:      '',
+  unit:         null as number | null,
 })
+
+const unitOptions = computed(() =>
+  units.value.map((u) => ({
+    id:    u.id,
+    label: `Unit ${u.unit_number}${u.rent_amount ? ` — R${Number(u.rent_amount).toLocaleString('en-ZA')}` : ''}`,
+  })),
+)
 
 const oneMonthRent = computed(() =>
   form.value.monthly_rent
@@ -199,12 +232,16 @@ async function createLease() {
   submitError.value = ''
 
   try {
-    const lease = await convertViewingToLease(props.viewingId, {
+    const payload: Parameters<typeof convertViewingToLease>[1] = {
       start_date:   form.value.start_date,
       end_date:     form.value.end_date,
       monthly_rent: form.value.monthly_rent,
       deposit:      form.value.deposit,
-    })
+    }
+    if (!viewing.value?.unit && form.value.unit) {
+      payload.unit = form.value.unit
+    }
+    const result = await convertViewingToLease(props.viewingId, payload)
 
     $q.notify({
       type:    'positive',
@@ -212,6 +249,16 @@ async function createLease() {
       icon:    'description',
       timeout: 4000,
     })
+
+    if (result.auto_created_unit) {
+      $q.notify({
+        type:    'info',
+        message: result.message
+          ?? `Default unit '${result.auto_created_unit.unit_number}' was auto-created for this property.`,
+        icon:    'info',
+        timeout: 6000,
+      })
+    }
 
     await router.replace('/dashboard')
   } catch (err: unknown) {
@@ -226,7 +273,6 @@ async function createLease() {
 onMounted(async () => {
   viewing.value = await getViewing(props.viewingId)
 
-  // Confirm viewing can be converted
   if (viewing.value.status === 'converted') {
     $q.notify({ type: 'warning', message: 'This viewing is already converted to a lease.' })
     void router.back()
@@ -237,13 +283,23 @@ onMounted(async () => {
     void router.back()
     return
   }
-  if (!viewing.value.unit) {
-    $q.notify({ type: 'warning', message: 'A unit must be selected before creating a lease.' })
-    void router.back()
-    return
-  }
 
-  // Pre-fill rent from unit if available (viewing comes with unit data via viewing detail)
+  // If no unit on the viewing, load the property's units for selection.
+  // Auto-select when there's exactly one unit; skip selection entirely when
+  // the property has none (backend will auto-create a default unit).
+  if (!viewing.value.unit) {
+    loadingUnits.value = true
+    try {
+      const resp = await listUnits(viewing.value.property)
+      const available = resp.results.filter((u) => u.status === 'available')
+      units.value = available.length ? available : resp.results
+      if (units.value.length === 1) {
+        form.value.unit = units.value[0].id
+      }
+    } finally {
+      loadingUnits.value = false
+    }
+  }
 })
 </script>
 

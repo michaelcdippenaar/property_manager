@@ -993,12 +993,27 @@ const loadingDrafts = ref(false)
 // ── Lifecycle ─────────────────────────────────────────────────────────────
 
 onMounted(async () => {
-  api.get('/properties/?page_size=500').then(({ data }) => {
+  const propertiesPromise = api.get('/properties/?page_size=500').then(({ data }) => {
     properties.value = data.results ?? data
   })
   loadAllLandlords()
   loadTemplates()
-  await fetchDrafts()
+  await Promise.all([fetchDrafts(), propertiesPromise])
+
+  // Pre-select property from query param (?property=ID[&unit=ID]), e.g. when
+  // arriving from PropertyDetailView's "Create lease" action.
+  const qProperty = route.query.property
+  if (qProperty && !selectedUnit.value) {
+    const id = Number(qProperty)
+    const match = properties.value.find((p: any) => p.id === id)
+    if (match) {
+      const qUnit = route.query.unit ? Number(route.query.unit) : null
+      const targetUnit =
+        (qUnit && match.units?.find((u: any) => u.id === qUnit)) ||
+        (match.units?.length === 1 ? match.units[0] : null)
+      selectFromModal(match, targetUnit)
+    }
+  }
 
   // Load draft from query param (?draft=ID)
   const qDraft = route.query.draft

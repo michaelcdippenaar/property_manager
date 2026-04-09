@@ -55,6 +55,12 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchMe()
   }
 
+  async function loginWithGoogle(credential: string) {
+    const { data } = await api.post('/auth/google/', { credential })
+    _setTokens(data.access, data.refresh)
+    user.value = data.user
+  }
+
   async function fetchMe() {
     const { data } = await api.get('/auth/me/')
     user.value   = data.user ?? data
@@ -91,6 +97,7 @@ export const useAuthStore = defineStore('auth', () => {
     canAccessAgentApp,
     homeRoute,
     login,
+    loginWithGoogle,
     logout,
     fetchMe,
     registerPushToken,

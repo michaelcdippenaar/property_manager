@@ -5,14 +5,14 @@
     <div ref="scrollEl" class="scroll-page page-with-tab-bar px-4 pt-4 pb-4 space-y-5" @scroll="onScroll">
 
       <!-- Signing CTA (if unsigned submission exists) -->
-      <div v-if="signingCta" class="list-section touchable" @click="router.push({ name: 'signing' })">
+      <div v-if="signingCta" class="list-section touchable" @click="router.push({ name: 'lease' })">
         <div class="list-row gap-4">
           <div class="list-row-icon bg-accent/10">
             <FileSignature :size="20" class="text-accent" />
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-gray-900">Lease ready to sign</p>
-            <p class="text-xs text-gray-500 mt-0.5">Tap to review and sign your agreement</p>
+            <p class="text-xs text-gray-500 mt-0.5">Tap to view and sign your agreement</p>
           </div>
           <ChevronRight :size="18" class="text-gray-300 flex-shrink-0" />
         </div>
@@ -58,7 +58,7 @@
       <div>
         <div class="flex items-center justify-between mb-2 px-1">
           <p class="label-upper">Your Unit</p>
-          <button class="text-xs text-navy font-medium touchable" @click="router.push({ name: 'info' })">More info</button>
+          <button class="text-xs text-navy font-medium touchable" @click="router.push({ name: 'lease' })">More info</button>
         </div>
         <div v-if="infoLoading" class="h-14 bg-white rounded-2xl animate-pulse" />
         <div v-else-if="infoItems.length > 0" class="list-section">

@@ -425,6 +425,7 @@ class PropertyPhoto(models.Model):
     property    = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="photos")
     unit        = models.ForeignKey("Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="photos", help_text="Leave blank for property-level photos")
     photo       = models.ImageField(upload_to="properties/photos/")
+    thumbnail   = models.ImageField(upload_to="properties/thumbnails/", blank=True)
     caption     = models.CharField(max_length=200, blank=True)
     category    = models.CharField(max_length=20, choices=Category.choices, default=Category.EXTERIOR)
     position    = models.PositiveSmallIntegerField(default=0, help_text="Display order — 0 = cover photo")
