@@ -50,3 +50,11 @@ mobile/.flutter-plugins-dependencies
 .idea/
 *.swp
 *.swo
+
+# Agent app / tenant web (Quasar/Vite)
+agent-app/node_modules/
+tenant/node_modules/
+agent-app/dist/
+tenant/dist/
+agent-app/.quasar/
+tenant/.quasar/

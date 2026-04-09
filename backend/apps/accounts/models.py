@@ -86,6 +86,8 @@ class Person(models.Model):
     date_of_birth = models.DateField(null=True, blank=True)
     emergency_contact_name = models.CharField(max_length=200, blank=True)
     emergency_contact_phone = models.CharField(max_length=20, blank=True)
+    # Financial (captured during rental applications)
+    monthly_income = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Gross monthly income in ZAR")
     # Company-specific
     company_reg = models.CharField(max_length=50, blank=True)
     vat_number = models.CharField(max_length=30, blank=True)
@@ -186,19 +188,67 @@ class Agency(models.Model):
     Singleton agency record.  Stores the details that appear on
     mandates, leases and other generated documents.
     """
+
+    class AccountType(models.TextChoices):
+        AGENCY     = "agency",     "Estate Agency"
+        INDIVIDUAL = "individual", "Individual Owner"
+
+    # ── Account type ──
+    account_type = models.CharField(
+        max_length=20,
+        choices=AccountType.choices,
+        default=AccountType.AGENCY,
+    )
+
+    # ── Identity ──
     name = models.CharField(max_length=200)
-    registration_number = models.CharField(max_length=50, blank=True)
+    trading_name = models.CharField(
+        max_length=200, blank=True,
+        help_text="Trading-as name shown on documents (e.g. t/a Century 21 Stellenbosch)",
+    )
+    registration_number = models.CharField(max_length=50, blank=True, help_text="CIPC registration number")
+    vat_number = models.CharField(max_length=20, blank=True)
     eaab_ffc_number = models.CharField(
         max_length=50, blank=True,
-        help_text="EAAB Fidelity Fund Certificate number",
+        help_text="PPRA Fidelity Fund Certificate number",
     )
+
+    # ── Contact ──
     contact_number = models.CharField(max_length=30, blank=True)
     email = models.EmailField(blank=True)
     physical_address = models.TextField(blank=True)
-    # Trust account
+    postal_address = models.TextField(blank=True)
+    website = models.URLField(blank=True)
+
+    # ── Trust account ──
     trust_account_number = models.CharField(max_length=50, blank=True)
     trust_bank_name = models.CharField(max_length=100, blank=True)
-    # Financial cycle
+    trust_branch_code = models.CharField(max_length=20, blank=True)
+
+    # ── Compliance ──
+    principal_name = models.CharField(
+        max_length=200, blank=True,
+        help_text="Principal property practitioner",
+    )
+    principal_ppra_number = models.CharField(
+        max_length=20, blank=True,
+        help_text="7-digit PPRA registration number",
+    )
+    auditor_name = models.CharField(max_length=200, blank=True)
+    auditor_irba_number = models.CharField(
+        max_length=20, blank=True,
+        help_text="IRBA practice number",
+    )
+    bee_level = models.CharField(
+        max_length=20, blank=True,
+        help_text="e.g. Level 1, Level 4, Exempt",
+    )
+    fica_registered = models.BooleanField(
+        default=False,
+        help_text="Registered as Accountable Institution with FIC",
+    )
+
+    # ── Financial cycle ──
     statement_date = models.CharField(
         max_length=30, blank=True, default="the 5th",
         help_text='e.g. "the 5th"',
@@ -208,7 +258,8 @@ class Agency(models.Model):
         help_text='e.g. "the 7th"',
     )
     information_officer_email = models.EmailField(blank=True)
-    # Branding
+
+    # ── Branding ──
     logo = models.ImageField(upload_to="agency/", null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

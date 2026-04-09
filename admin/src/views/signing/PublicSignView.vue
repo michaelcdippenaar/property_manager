@@ -482,7 +482,7 @@ const uploadedByType = computed(() => {
 })
 
 const missingRequiredDocs = computed(() =>
-  DOCUMENT_TYPES.filter(
+  DOCUMENT_TYPES.value.filter(
     t => t.required && !(uploadedByType.value[t.key]?.length)
   ).length
 )

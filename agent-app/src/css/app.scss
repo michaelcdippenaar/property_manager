@@ -1,0 +1,178 @@
+// ─── Global styles ────────────────────────────────────────────────────────────
+
+// Smooth scrolling globally
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+// ─── iOS-specific overrides ───────────────────────────────────────────────────
+body.platform-ios {
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+
+  // iOS hairline separators
+  .q-item {
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  // iOS-style flat buttons
+  .q-btn:not(.q-btn--fab):not(.q-btn--fab-mini) {
+    border-radius: 10px;
+
+    &.q-btn--flat {
+      box-shadow: none !important;
+    }
+  }
+
+  // iOS-style cards — subtle shadow, 12px radius
+  .q-card {
+    border-radius: 12px;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  // iOS-style inputs — rounded outline
+  .q-field--outlined .q-field__control {
+    border-radius: 10px;
+  }
+
+  // iOS large title
+  .ios-large-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.37px;
+    color: #2B2D6E;
+    padding: 8px 16px 4px;
+  }
+
+  // iOS frosted glass tab bar
+  .ios-tab-bar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid rgba(0, 0, 0, 0.15);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    .q-tab {
+      min-width: unset;
+      min-height: 49px;
+    }
+
+    .q-tab__label {
+      font-size: 10px;
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .q-tab__icon {
+      font-size: 25px;
+    }
+
+    .q-tab--active {
+      color: #2B2D6E;
+    }
+  }
+
+  // iOS header
+  .ios-header {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+    color: #2B2D6E !important;
+
+    .q-toolbar-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .q-btn {
+      color: #2B2D6E;
+      font-size: 17px;
+    }
+  }
+}
+
+// ─── Android / Material Design 3 overrides ───────────────────────────────────
+body.platform-android,
+body:not(.platform-ios) {
+  font-family: 'Roboto', 'Noto Sans', Arial, sans-serif;
+
+  // MD3 cards — elevated surface with more radius
+  .q-card {
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  // MD3 filled button radius
+  .q-btn:not(.q-btn--fab):not(.q-btn--fab-mini) {
+    border-radius: 20px;
+  }
+
+  // MD3 filled inputs
+  .q-field--filled .q-field__control {
+    border-radius: 4px 4px 0 0;
+  }
+
+  // MD3 bottom nav
+  .md-bottom-nav {
+    background: white;
+    height: 80px;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    .q-tab--active {
+      .q-tab__icon,
+      .q-tab__label {
+        color: #2B2D6E;
+      }
+    }
+
+    .q-tab--active .q-focus-helper {
+      background: rgba(43, 45, 110, 0.08);
+      border-radius: 16px;
+    }
+  }
+
+  // MD3 toolbar
+  .md-header {
+    background: #2B2D6E !important;
+    color: white !important;
+
+    .q-toolbar-title {
+      font-size: 22px;
+      font-weight: 400;
+    }
+  }
+}
+
+// ─── Shared utility classes ───────────────────────────────────────────────────
+
+.page-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-card {
+  margin-bottom: 16px;
+}
+
+.prospect-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+// Status badge colours
+.status-scheduled  { background: rgba(49, 204, 236, 0.15); color: #1a9fb5; }
+.status-confirmed  { background: rgba(43, 45, 110, 0.12); color: #2B2D6E; }
+.status-completed  { background: rgba(33, 186, 69, 0.15);  color: #1a8c3d; }
+.status-cancelled  { background: rgba(219, 40, 40, 0.12);  color: #b91c1c; }
+.status-converted  { background: rgba(255, 61, 127, 0.12); color: #d62d6e; }

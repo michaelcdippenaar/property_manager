@@ -1183,6 +1183,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import BaseModal from '../../components/BaseModal.vue'
@@ -1200,6 +1201,7 @@ const NOTICE_DAYS = 30
 
 const route  = useRoute()
 const router = useRouter()
+const auth   = useAuthStore()
 const toast  = useToast()
 
 // ── State ──
@@ -1233,16 +1235,23 @@ const menuRef    = ref<HTMLElement | null>(null)
 const activeUnit = ref<number | null>(null)
 const activeSection = ref<'overview' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
 
-const sectionTabs = [
-  { key: 'overview', label: 'Overview', icon: Wrench },
-  { key: 'mandate', label: 'Mandate', icon: FileSignature },
-  { key: 'landlord', label: 'Landlord', icon: Building2 },
-  { key: 'documentation', label: 'Documentation', icon: FolderOpen },
-  { key: 'inventory', label: 'Inventory', icon: ClipboardList },
-  { key: 'suppliers', label: 'Suppliers', icon: Truck },
-  { key: 'advertising', label: 'Advertising', icon: Megaphone },
-  { key: 'maintenance', label: 'Maintenance & Tasks', icon: ListTodo },
-] as const
+const sectionTabs = computed(() => {
+  const tabs: Array<{ key: string; label: string; icon: any }> = [
+    { key: 'overview', label: 'Overview', icon: Wrench },
+  ]
+  if (auth.isAgency) {
+    tabs.push({ key: 'mandate', label: 'Mandate', icon: FileSignature })
+  }
+  tabs.push(
+    { key: 'landlord', label: 'Landlord', icon: Building2 },
+    { key: 'documentation', label: 'Documentation', icon: FolderOpen },
+    { key: 'inventory', label: 'Inventory', icon: ClipboardList },
+    { key: 'suppliers', label: 'Suppliers', icon: Truck },
+    { key: 'advertising', label: 'Advertising', icon: Megaphone },
+    { key: 'maintenance', label: 'Maintenance & Tasks', icon: ListTodo },
+  )
+  return tabs
+})
 
 const adDescription = ref('')
 const adSaved       = ref(false)

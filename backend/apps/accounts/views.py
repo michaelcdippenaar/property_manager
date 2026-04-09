@@ -13,17 +13,36 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, OTPCode, Person, PushToken, LoginAttempt, UserInvite
+from .models import User, OTPCode, Person, PushToken, LoginAttempt, UserInvite, Agency
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer
 from .audit import log_auth_event
 from .throttles import AuthAnonThrottle, OTPSendThrottle, OTPVerifyThrottle
 
 
 class RegisterView(APIView):
+    """
+    Public self-registration — only permitted to bootstrap the singleton
+    Agency. Once an Agency exists, additional users must be onboarded via
+    ``/users/invite/`` so that the existing admin can choose the new user's
+    role (tenant / supplier / owner / agent). Allowing open registration
+    after bootstrap would silently grant every new signup full admin
+    visibility over the existing landlord's data.
+    """
     permission_classes = [AllowAny]
     throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
+        if Agency.objects.exists():
+            log_auth_event(
+                "register_blocked",
+                request=request,
+                metadata={"reason": "agency_already_exists",
+                          "attempted_email": (request.data.get("email") or "").strip().lower()},
+            )
+            return Response(
+                {"detail": "Self-registration is closed. Please ask your administrator for an invitation."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -311,11 +330,18 @@ class AcceptInviteView(APIView):
         except (UserInvite.DoesNotExist, ValueError):
             return Response({"detail": "Invalid or expired invite."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check if user with this email already exists
-        if User.objects.filter(email=invite.email).exists():
+        # Check if an ACTIVE user with this email already exists. Soft-deleted
+        # users are renamed below so they don't block re-registration via invite.
+        if User.objects.filter(email=invite.email, is_active=True).exists():
             invite.accepted_at = timezone.now()
             invite.save()
             return Response({"detail": "A user with this email already exists. Please sign in."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Free the unique-email constraint on any soft-deleted user holding this email
+        import uuid
+        User.objects.filter(email=invite.email, is_active=False).update(
+            email=f"deleted_{uuid.uuid4().hex[:8]}_{invite.email}"
+        )
 
         first_name = request.data.get("first_name", "").strip()
         last_name = request.data.get("last_name", "").strip()

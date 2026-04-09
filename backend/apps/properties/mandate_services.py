@@ -90,12 +90,14 @@ def build_mandate_context(mandate) -> dict:
     # Agency details (from singleton Agency record)
     from apps.accounts.models import Agency
     agency = Agency.get_solo()
-    agency_name                = (agency.name if agency else None) or "—"
+    # Use trading name on documents if available, otherwise registered name
+    agency_name                = (agency.trading_name if agency and agency.trading_name else None) or (agency.name if agency else None) or "—"
     agency_registration_number = (agency.registration_number if agency else None) or "—"
     agency_ffc_number          = (agency.eaab_ffc_number if agency else None) or "—"
     agency_contact_number      = (agency.contact_number if agency else None) or "—"
     agency_email_address       = (agency.email if agency else None) or "—"
     agency_physical_address    = (agency.physical_address if agency else None) or "—"
+    agency_vat_number          = (agency.vat_number if agency else None) or "—"
 
     # Property fields
     prop = mandate.property
@@ -149,12 +151,20 @@ def build_mandate_context(mandate) -> dict:
     exclusivity_sole_class  = "active-type" if ex == "sole" else "inactive-type"
     exclusivity_open_class  = "active-type" if ex == "open" else "inactive-type"
 
-    # Commission display
+    # Commission display — normalise Decimal so 2.00 renders as "2"
     rate = mandate.commission_rate
+    try:
+        rate_float = float(rate)
+        rate_str = f"{rate_float:g}"
+    except (TypeError, ValueError):
+        rate_str = str(rate)
     if mandate.commission_period == "once_off":
-        commission_rate_display = f"{rate:g} month{'s' if rate != 1 else ''}'s gross rental (excl. VAT)"
+        if rate == 1:
+            commission_rate_display = f"{rate_str} month's gross rental (excl. VAT)"
+        else:
+            commission_rate_display = f"{rate_str} months' gross rental (excl. VAT)"
     else:
-        commission_rate_display = f"{rate:g}% of the gross monthly rental (excl. VAT)"
+        commission_rate_display = f"{rate_str}% of the gross monthly rental (excl. VAT)"
 
     # Trust account & financial cycle (from Agency record)
     trust_account_number = (agency.trust_account_number if agency else None) or "—"
@@ -177,6 +187,7 @@ def build_mandate_context(mandate) -> dict:
         "agency_contact_number":      agency_contact_number,
         "agency_email_address":       agency_email_address,
         "agency_physical_address":    agency_physical_address,
+        "agency_vat_number":          agency_vat_number,
         # Property
         "property_address":       property_address,
         "erf_number":             erf_number,

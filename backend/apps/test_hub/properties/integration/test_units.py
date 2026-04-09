@@ -20,17 +20,18 @@ class UnitViewSetTests(TremlyAPITestCase):
         self.unit1 = self.create_unit(property_obj=self.prop1, unit_number="A1")
         self.unit2 = self.create_unit(property_obj=self.prop2, unit_number="B1")
 
-    def test_idor_unit_list_returns_all_units(self):
+    def test_agent_only_sees_own_units(self):
         """
-        SECURITY AUDIT (vuln #2): UnitViewSet has NO queryset filtering.
-        Any authenticated user sees ALL units in the system.
+        SECURITY AUDIT (vuln #2 — FIXED): UnitViewSet is now scoped by
+        get_accessible_property_ids, so Agent1 can see A1 (their property)
+        but NOT B1 (Agent2's property).
         """
         self.authenticate(self.agent1)
         resp = self.client.get(reverse("unit-list"))
         self.assertEqual(resp.status_code, 200)
         unit_numbers = [u["unit_number"] for u in resp.data["results"]]
         self.assertIn("A1", unit_numbers)
-        self.assertIn("B1", unit_numbers)  # Agent1 shouldn't see Agent2's units
+        self.assertNotIn("B1", unit_numbers)
 
     def test_filter_by_property(self):
         self.authenticate(self.agent1)

@@ -11,6 +11,7 @@ Comprehensive e-signing tests covering:
   - Polling command logic
   - WebSocket broadcast events
 """
+import json
 import uuid
 from datetime import timedelta
 from unittest import mock

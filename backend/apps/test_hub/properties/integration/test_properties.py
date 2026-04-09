@@ -25,12 +25,15 @@ class PropertyViewSetTests(TremlyAPITestCase):
         self.assertIn("Agent1 Property", names)
         self.assertNotIn("Agent2 Property", names)
 
-    def test_admin_sees_own_assigned_properties(self):
+    def test_admin_sees_all_properties(self):
+        """Admin role has full visibility across all properties (not just
+        those assigned to the admin user directly)."""
         self.authenticate(self.admin)
         resp = self.client.get(reverse("property-list"))
         names = [p["name"] for p in resp.data["results"]]
         self.assertIn("Admin Property", names)
-        self.assertNotIn("Agent1 Property", names)
+        self.assertIn("Agent1 Property", names)
+        self.assertIn("Agent2 Property", names)
 
     def test_idor_tenant_blocked_from_properties(self):
         """
@@ -133,5 +136,8 @@ class PropertyGroupViewSetTests(TremlyAPITestCase):
         self.authenticate(self.agent)
         from apps.properties.models import PropertyGroup
         g = PropertyGroup.objects.create(name="G3")
+        # PropertyGroupViewSet.get_queryset filters by properties the user can
+        # access, so attach an accessible property so the group is visible.
+        g.properties.set([self.prop1])
         resp = self.client.delete(reverse("property-group-detail", args=[g.pk]))
         self.assertEqual(resp.status_code, 204)

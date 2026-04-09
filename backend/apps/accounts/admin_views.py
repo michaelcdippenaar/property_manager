@@ -6,7 +6,7 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import User, UserInvite, Agency
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAgentOrAdmin
 from .serializers import AdminUserSerializer, AdminUserUpdateSerializer, InviteUserSerializer, AgencySerializer
 
 
@@ -106,7 +106,9 @@ class InviteUserView(APIView):
         role = serializer.validated_data["role"]
         first_name = serializer.validated_data.get("first_name", "")
 
-        if User.objects.filter(email=email).exists():
+        # Only block if an active user holds this email. Soft-deleted users are
+        # renamed when the invite is accepted, so they should not block new invites.
+        if User.objects.filter(email=email, is_active=True).exists():
             return Response(
                 {"detail": "A user with this email already exists."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -158,11 +160,16 @@ class InviteUserView(APIView):
 class AgencySettingsView(APIView):
     """
     GET  → retrieve the singleton Agency record (or empty {}).
-    PUT  → create-or-update (upsert) the Agency record.
+         Accessible to any authenticated agent/admin (needed for isAgency check).
+    PUT  → create-or-update (upsert) the Agency record. Admin only.
     Supports multipart/form-data for logo uploads.
     """
-    permission_classes = [IsAdmin]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAgentOrAdmin()]
+        return [IsAdmin()]
 
     def get(self, request):
         agency = Agency.get_solo()

@@ -729,3 +729,41 @@ class MunicipalBill(models.Model):
 
     def __str__(self):
         return f"Municipal bill {self.billing_year}-{self.billing_month:02d} — {self.property.name} (R{self.total_amount})"
+
+
+# ── Property Viewings ─────────────────────────────────────────────────────────
+
+class PropertyViewing(models.Model):
+    """
+    A scheduled property viewing appointment between an agent and a prospective tenant.
+    Can be converted into a Lease once the prospect decides to proceed.
+    """
+
+    class Status(models.TextChoices):
+        SCHEDULED = "scheduled", "Scheduled"
+        CONFIRMED = "confirmed", "Confirmed"
+        COMPLETED = "completed", "Completed"
+        CANCELLED = "cancelled", "Cancelled"
+        CONVERTED = "converted", "Converted to Lease"
+
+    property           = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="viewings")
+    unit               = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name="viewings")
+    prospect           = models.ForeignKey("accounts.Person", on_delete=models.PROTECT, related_name="viewings_as_prospect")
+    agent              = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="viewings_as_agent")
+    scheduled_at       = models.DateTimeField()
+    duration_minutes   = models.PositiveSmallIntegerField(default=30)
+    status             = models.CharField(max_length=15, choices=Status.choices, default=Status.SCHEDULED)
+    notes              = models.TextField(blank=True)
+    converted_to_lease = models.OneToOneField(
+        "leases.Lease",
+        on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="source_viewing",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_at"]
+
+    def __str__(self):
+        return f"Viewing: {self.prospect} @ {self.property.name} on {self.scheduled_at:%Y-%m-%d %H:%M}"

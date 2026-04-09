@@ -74,6 +74,20 @@
       "port": 5178
     },
     {
+      "name": "Klikk Tenant App (Vue + Capacitor)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/tenant",
+      "runtimeExecutable": "/Users/mcdippenaar/.nvm/versions/node/v22.17.1/bin/node",
+      "runtimeArgs": ["node_modules/.bin/vite", "--host", "127.0.0.1", "--port", "5175"],
+      "port": 5175
+    },
+    {
+      "name": "Klikk Agent App (Quasar dev)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/agent-app",
+      "runtimeExecutable": "/Users/mcdippenaar/.nvm/versions/node/v20.19.4/bin/node",
+      "runtimeArgs": ["node_modules/.bin/quasar", "dev", "--port", "5176"],
+      "port": 5176
+    },
+    {
       "name": "Tremly API MCP (stdio — for Claude Desktop / Cursor MCP, not a browser URL)",
       "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/services/tremly-mcp",
       "runtimeExecutable": "node",

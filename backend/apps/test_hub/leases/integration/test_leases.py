@@ -38,10 +38,11 @@ class LeaseViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertGreaterEqual(len(resp.data["results"]), 1)
 
-    def test_idor_agent_sees_unassigned_and_admin_properties(self):
+    def test_agent_cannot_see_unassigned_or_admin_leases(self):
         """
-        SECURITY AUDIT (vuln #4): Agent queryset includes leases for unassigned
-        properties and admin-assigned properties, broadening access.
+        SECURITY AUDIT (vuln #4 — FIXED): Agent queryset is now scoped to
+        properties accessible via get_accessible_property_ids, so leases for
+        unassigned properties and admin-assigned properties are hidden.
         """
         unassigned_prop = self.create_property(agent=None, name="Unassigned")
         unassigned_unit = self.create_unit(property_obj=unassigned_prop, unit_number="U1")
@@ -54,8 +55,8 @@ class LeaseViewSetTests(TremlyAPITestCase):
         self.authenticate(self.agent)
         resp = self.client.get(reverse("lease-list"))
         ids = [l["id"] for l in resp.data["results"]]
-        # Agent can see leases beyond their own properties
-        self.assertGreaterEqual(len(ids), 2)
+        # Agent only sees the lease on their own assigned property
+        self.assertEqual(ids, [self.lease.pk])
 
     def test_tenant_sees_own_leases(self):
         self.authenticate(self.tenant_user)

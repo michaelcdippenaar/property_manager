@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .audit import log_auth_event
-from .models import User
+from .models import Agency, User
 from .serializers import UserSerializer
 from .throttles import AuthAnonThrottle
 
@@ -70,11 +70,25 @@ class GoogleAuthView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
         except User.DoesNotExist:
+            # Once the Agency singleton is configured, Google sign-in can
+            # only authenticate EXISTING users. New user creation must go
+            # through the invitation flow so the admin controls the role.
+            if Agency.objects.exists():
+                log_auth_event(
+                    "google_auth_blocked",
+                    request=request,
+                    metadata={"reason": "agency_already_exists", "email": email},
+                )
+                return Response(
+                    {"error": "No account found for this Google email. Please ask your administrator for an invitation."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             user = User.objects.create_user(
                 email=email,
                 password=None,
                 first_name=idinfo.get("given_name", ""),
                 last_name=idinfo.get("family_name", ""),
+                role=User.Role.ADMIN,
             )
             user.set_unusable_password()
             user.save(update_fields=["password"])

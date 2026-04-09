@@ -9,16 +9,25 @@ interface User {
   role: string
 }
 
+interface AgencyInfo {
+  id: number
+  account_type: 'agency' | 'individual'
+  name: string
+  [key: string]: any
+}
+
 export const useAuthStore = defineStore('auth', () => {
   const accessToken = ref<string | null>(localStorage.getItem('access_token'))
   const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
   const user = ref<User | null>(null)
+  const agency = ref<AgencyInfo | null>(null)
 
   const isAuthenticated = computed(() => !!accessToken.value)
   const isAgent = computed(() => ['agent', 'admin'].includes(user.value?.role ?? ''))
   const isSupplier = computed(() => user.value?.role === 'supplier')
   const isOwner = computed(() => user.value?.role === 'owner')
   const isTenant = computed(() => user.value?.role === 'tenant')
+  const isAgency = computed(() => agency.value?.account_type === 'agency')
 
   /** Where to redirect after login based on role. */
   const homeRoute = computed(() => {
@@ -32,7 +41,7 @@ export const useAuthStore = defineStore('auth', () => {
     _setTokens(data)
   }
 
-  async function register(payload: { email: string; password: string; first_name: string; last_name: string; phone?: string }) {
+  async function register(payload: { email: string; password: string; first_name: string; last_name: string; phone?: string; account_type?: string; agency_name?: string }) {
     await api.post('/auth/register/', payload)
     await login(payload.email, payload.password)
   }
@@ -67,11 +76,22 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchMe() {
     const { data } = await api.get('/auth/me/')
     user.value = data
+    // Also fetch agency info for account type checks
+    await fetchAgency()
+  }
+
+  async function fetchAgency() {
+    try {
+      const { data } = await api.get('/auth/agency/')
+      agency.value = data && data.id ? data : null
+    } catch {
+      agency.value = null
+    }
   }
 
   return {
-    accessToken, user, isAuthenticated,
-    isAgent, isSupplier, isOwner, isTenant, homeRoute,
-    login, register, googleAuth, logout, fetchMe, _setTokens,
+    accessToken, user, agency, isAuthenticated,
+    isAgent, isSupplier, isOwner, isTenant, isAgency, homeRoute,
+    login, register, googleAuth, logout, fetchMe, fetchAgency, _setTokens,
   }
 })

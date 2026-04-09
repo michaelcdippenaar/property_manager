@@ -249,10 +249,15 @@ const primaryNav = computed<NavSection[]>(() => [
 ])
 
 // ── User menu items (under avatar dropdown) ───────────────────────────────────
-const adminItems = [
-  { to: '/admin/users', icon: ShieldCheck, label: 'Users' },
-  { to: '/admin/agency', icon: Settings, label: 'Agency Settings' },
-]
+const adminItems = computed(() => {
+  const items = [
+    { to: '/admin/users', icon: ShieldCheck, label: 'Users' },
+  ]
+  if (auth.isAgency) {
+    items.push({ to: '/admin/agency', icon: Settings, label: 'Agency Settings' })
+  }
+  return items
+})
 
 const developerItems = [
   { to: '/testing', icon: FlaskConical, label: 'Testing Portal' },

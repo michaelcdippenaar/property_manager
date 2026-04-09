@@ -165,6 +165,9 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5174",
     "http://localhost:5178",
     "http://127.0.0.1:5178",
+    # Capacitor agent-app (iOS WebView origin + Android WebView origin)
+    "capacitor://localhost",
+    "http://localhost",
 ]
 
 # Google OAuth

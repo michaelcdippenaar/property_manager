@@ -50,7 +50,7 @@ class EntityLookupView(APIView):
 
         # ── 1. User accounts (tenants, agents, admins, owners) ──────────────
         if id_number:
-            for user in User.objects.filter(id_number=id_number).select_related():
+            for user in User.objects.filter(id_number=id_number):
                 entry = {
                     "source": "User",
                     "id": user.id,
@@ -61,25 +61,28 @@ class EntityLookupView(APIView):
                     "is_active": user.is_active,
                     "related": [],
                 }
-                # Active leases where this user is the primary tenant
-                leases = user.lease_set.select_related("unit__property").all() if hasattr(user, "lease_set") else []
-                for lease in leases:
-                    entry["related"].append({
-                        "type": "Lease (primary tenant)",
-                        "lease_id": lease.id,
-                        "unit": str(lease.unit),
-                        "property": str(lease.unit.property) if lease.unit else None,
-                        "status": lease.status,
-                    })
+                # If the user has a linked Person profile, surface their primary leases
+                person_profile = getattr(user, "person_profile", None)
+                if person_profile is not None:
+                    for lease in person_profile.leases_as_primary.select_related(
+                        "unit__property",
+                    ).all():
+                        entry["related"].append({
+                            "type": "Lease (primary tenant)",
+                            "lease_id": lease.id,
+                            "unit": str(lease.unit),
+                            "property": str(lease.unit.property) if lease.unit else None,
+                            "status": lease.status,
+                        })
                 results["matches"].append(entry)
 
         # ── 2. Person records (lease parties) ───────────────────────────────
         if id_number:
             for person in Person.objects.filter(id_number=id_number).prefetch_related(
-                "primary_leases__unit__property",
-                "cotenant_leases__unit__property",
-                "guarantor_leases__unit__property",
-                "occupant_leases__unit__property",
+                "leases_as_primary__unit__property",
+                "co_tenancies__lease__unit__property",
+                "guarantees__lease__unit__property",
+                "occupancies__lease__unit__property",
             ):
                 entry = {
                     "source": "Person",
@@ -90,7 +93,7 @@ class EntityLookupView(APIView):
                     "phone": person.phone,
                     "related": [],
                 }
-                for lease in person.primary_leases.all():
+                for lease in person.leases_as_primary.all():
                     entry["related"].append({
                         "type": "Lease (primary tenant)",
                         "lease_id": lease.id,
@@ -98,21 +101,21 @@ class EntityLookupView(APIView):
                         "property": str(lease.unit.property) if lease.unit else None,
                         "status": lease.status,
                     })
-                for lt in person.leasetenant_set.select_related("lease__unit__property").all():
+                for lt in person.co_tenancies.all():
                     entry["related"].append({
                         "type": "Lease (co-tenant)",
                         "lease_id": lt.lease_id,
                         "unit": str(lt.lease.unit),
                         "status": lt.lease.status,
                     })
-                for lg in person.leaseguarantor_set.select_related("lease__unit__property").all():
+                for lg in person.guarantees.all():
                     entry["related"].append({
                         "type": "Lease (guarantor)",
                         "lease_id": lg.lease_id,
                         "unit": str(lg.lease.unit),
                         "status": lg.lease.status,
                     })
-                for lo in person.leaseoccupant_set.select_related("lease__unit__property").all():
+                for lo in person.occupancies.all():
                     entry["related"].append({
                         "type": "Lease (occupant)",
                         "lease_id": lo.lease_id,
@@ -129,7 +132,7 @@ class EntityLookupView(APIView):
         if registration_number:
             landlord_qs = landlord_qs | Landlord.objects.filter(registration_number=registration_number)
 
-        for landlord in landlord_qs.prefetch_related("property_set"):
+        for landlord in landlord_qs.prefetch_related("ownerships__property"):
             entry = {
                 "source": "Landlord",
                 "id": landlord.id,
@@ -140,7 +143,10 @@ class EntityLookupView(APIView):
                 "phone": landlord.phone,
                 "related": [],
             }
-            for prop in landlord.property_set.all():
+            for ownership in landlord.ownerships.all():
+                prop = ownership.property
+                if prop is None:
+                    continue
                 entry["related"].append({
                     "type": "Property (landlord)",
                     "property_id": prop.id,

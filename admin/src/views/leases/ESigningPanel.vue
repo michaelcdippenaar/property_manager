@@ -113,7 +113,7 @@
                 type="button"
                 class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition-colors"
                 :disabled="copyingLinkId === signer.id"
-                @click="copyPublicLink(latestSub.id, signer.id)"
+                @click="copyPublicLink(latestSub.id, signer)"
               >
                 <Loader2 v-if="copyingLinkId === signer.id" :size="11" class="animate-spin" />
                 <Link2 v-else :size="11" />
@@ -558,7 +558,7 @@ async function sendReminder(submissionId: number, signer: any) {
   linkHint.value = ''
   try {
     const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
-      submitter_id: signer.id,
+      signer_role: signer.role,
       send_email: true,
       public_app_origin: window.location.origin,
     })
@@ -575,13 +575,14 @@ async function sendReminder(submissionId: number, signer: any) {
   }
 }
 
-async function copyPublicLink(submissionId: number, submitterId: number | string) {
-  copyingLinkId.value = submitterId
+async function copyPublicLink(submissionId: number, signer: any) {
+  copyingLinkId.value = signer.id ?? signer.role
   errorMsg.value = ''
   linkHint.value = ''
   try {
     const { data } = await api.post(`/esigning/submissions/${submissionId}/public-link/`, {
-      submitter_id: submitterId,
+      signer_role: signer.role,
+      public_app_origin: window.location.origin,
     })
     const path = (data.sign_path as string) || `/sign/${data.uuid}/`
     const full = (data.signing_url as string) || `${window.location.origin}${path}`
@@ -625,12 +626,13 @@ async function downloadSignedPdf() {
 
 async function openLandlordSigningLink() {
   const ls = landlordSigner.value
-  if (!ls?.id || !latestSub.value) return
+  if (!ls?.role || !latestSub.value) return
   landlordLinkLoading.value = true
   errorMsg.value = ''
   try {
     const { data } = await api.post(`/esigning/submissions/${latestSub.value.id}/public-link/`, {
-      submitter_id: ls.id,
+      signer_role: ls.role,
+      public_app_origin: window.location.origin,
     })
     const path = (data.sign_path as string) || `/sign/${data.uuid}/`
     const full = (data.signing_url as string) || `${window.location.origin}${path}`

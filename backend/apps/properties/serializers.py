@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import (
     BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
     Property, PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
-    PropertyPhoto, PropertyValuation, Unit, UnitInfo,
+    PropertyPhoto, PropertyValuation, PropertyViewing, Unit, UnitInfo,
 )
 
 
@@ -264,3 +264,34 @@ class PropertyGroupSerializer(serializers.ModelSerializer):
         if props is not None:
             instance.properties.set(props)
         return instance
+
+
+class PropertyViewingSerializer(serializers.ModelSerializer):
+    prospect_name = serializers.CharField(source="prospect.full_name", read_only=True)
+    property_name = serializers.CharField(source="property.name", read_only=True)
+    unit_number   = serializers.SerializerMethodField()
+    agent_name    = serializers.SerializerMethodField()
+    prospect_detail = serializers.SerializerMethodField()
+
+    class Meta:
+        model  = PropertyViewing
+        fields = [
+            "id", "property", "property_name",
+            "unit", "unit_number",
+            "prospect", "prospect_name", "prospect_detail",
+            "agent", "agent_name",
+            "scheduled_at", "duration_minutes", "status",
+            "notes", "converted_to_lease",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["converted_to_lease", "created_at", "updated_at"]
+
+    def get_unit_number(self, obj):
+        return obj.unit.unit_number if obj.unit else None
+
+    def get_agent_name(self, obj):
+        return obj.agent.get_full_name() if obj.agent else None
+
+    def get_prospect_detail(self, obj):
+        from apps.accounts.serializers import PersonSerializer
+        return PersonSerializer(obj.prospect, context=self.context).data

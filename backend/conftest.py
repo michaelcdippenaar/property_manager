@@ -24,6 +24,22 @@ def pytest_collection_modifyitems(items):
             )
 
 
+@pytest.fixture(autouse=True)
+def _reset_drf_throttle_cache():
+    """
+    DRF throttles use Django's default cache backend (locmem in tests) and share
+    state across test cases. Without resetting, earlier register/login/Google tests
+    poison later tests with 429s. Clear the cache before each test runs.
+
+    Tests that intentionally exercise throttle behaviour (account lockout, rate
+    limits) use a DB-backed `LoginAttempt` model instead and are unaffected.
+    """
+    from django.core.cache import cache
+    cache.clear()
+    yield
+    cache.clear()
+
+
 @pytest.fixture
 def api_client():
     """DRF API test client."""

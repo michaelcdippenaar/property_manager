@@ -1,0 +1,228 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #F5F5F8;
+    color: #111;
+    font-size: 15px;
+    /* Prevent rubber-band bounce on body — handled per-scroll-container */
+    overflow: hidden;
+    height: 100dvh;
+  }
+  #app {
+    height: 100dvh;
+    overflow: hidden;
+    position: relative;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme('colors.navy.DEFAULT');
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  :root {
+    --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+    --ease-enter: cubic-bezier(0, 0, 0, 1);
+    --duration-short: 150ms;
+    --duration-medium: 200ms;
+  }
+}
+
+@layer components {
+  /* ── Typography scale ── */
+  .page-title       { @apply text-xl font-bold text-gray-900; }
+  .page-description { @apply text-sm text-gray-500 mt-1; }
+  .section-header   { @apply text-sm font-semibold text-gray-800; }
+  .stat-value       { @apply text-2xl font-bold text-gray-900 tabular-nums; }
+  .label-upper      { @apply text-xs font-semibold text-gray-400 uppercase tracking-wider; }
+  .text-muted       { @apply text-sm text-gray-500; }
+  .text-micro       { @apply text-xs text-gray-400; }
+
+  /* ── Buttons ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+      disabled:opacity-50 disabled:cursor-not-allowed
+      active:scale-[0.97] active:-translate-y-px;
+    transition: background-color var(--duration-short) var(--ease-standard),
+                color var(--duration-short) var(--ease-standard),
+                border-color var(--duration-short) var(--ease-standard),
+                box-shadow var(--duration-short) var(--ease-standard),
+                transform var(--duration-short) var(--ease-standard);
+  }
+  .btn-primary  { @apply btn bg-navy text-white hover:bg-navy-dark; }
+  .btn-ghost    { @apply btn bg-white border border-gray-200 text-gray-700 hover:bg-gray-50; }
+  .btn-danger   { @apply btn bg-danger-50 text-danger-600 border border-danger-100 hover:bg-danger-100; }
+  .btn-success  { @apply btn bg-success-600 text-white hover:bg-success-700; }
+  .btn-accent   { @apply btn bg-accent text-white hover:bg-accent-dark; }
+  .btn-sm { @apply px-3 py-1.5 text-xs gap-1.5; }
+
+  /* ── Inputs ── */
+  .input {
+    @apply w-full border border-gray-300 rounded-lg px-3 py-2.5 outline-none
+      focus:ring-2 focus:ring-navy/20 focus:border-navy bg-white
+      placeholder:text-gray-400;
+    transition: border-color var(--duration-short) var(--ease-standard),
+                box-shadow var(--duration-short) var(--ease-standard);
+  }
+  .input-error-msg { @apply text-xs text-danger-600 mt-1; }
+  .label { @apply block text-sm font-medium text-gray-700 mb-1; }
+
+  /* ── Cards ── */
+  .card {
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    transition: box-shadow var(--duration-medium) var(--ease-standard),
+                border-color var(--duration-medium) var(--ease-standard);
+  }
+
+  /* ── Badges ── */
+  .badge        { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  .badge-green  { @apply badge bg-success-50 text-success-700; }
+  .badge-red    { @apply badge bg-danger-50 text-danger-700; }
+  .badge-amber  { @apply badge bg-warning-50 text-warning-700; }
+  .badge-blue   { @apply badge bg-info-50 text-info-700; }
+  .badge-purple { @apply badge bg-purple-50 text-purple-700; }
+  .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+
+  /* ── Pills (filter chips) ── */
+  .pill {
+    @apply px-3 py-1.5 rounded-full text-sm font-medium cursor-pointer
+      bg-white border border-gray-200 text-gray-600;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 150ms, color 150ms, border-color 150ms;
+  }
+  .pill-active { @apply bg-navy text-white border-navy; }
+
+  /* ══════════════════════════════════════════
+     MOBILE / NATIVE-APP ADDITIONS
+  ══════════════════════════════════════════ */
+
+  /* ── Safe areas ── */
+  .safe-top    { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+  /* ── Bottom tab bar ── */
+  .tab-bar {
+    @apply fixed bottom-0 left-0 right-0 flex bg-white border-t border-gray-200;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 50;
+  }
+  .tab-item {
+    @apply flex-1 flex flex-col items-center justify-center gap-0.5 py-2
+           text-gray-400 select-none;
+    min-height: 56px;
+    -webkit-tap-highlight-color: transparent;
+    transition: color 150ms;
+  }
+  .tab-item:active { @apply opacity-60; }
+  .tab-item-active { @apply text-navy; }
+
+  /* Page content offset so it isn't hidden behind tab bar */
+  .page-with-tab-bar {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+
+  /* ── Native touch feedback ── */
+  .touchable {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    cursor: pointer;
+  }
+  .touchable:active { opacity: 0.65; }
+
+  /* Ripple effect for FAB / primary action buttons */
+  .ripple {
+    position: relative;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ripple::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    opacity: 0;
+    border-radius: inherit;
+    transition: opacity 300ms;
+  }
+  .ripple:active::after { opacity: 0.12; transition: opacity 0ms; }
+
+  /* ── App page header (navy, sticky) ── */
+  .page-header {
+    @apply sticky top-0 z-20 bg-navy text-white flex-shrink-0;
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* ── iOS-style grouped list rows ── */
+  .list-section {
+    @apply bg-white rounded-2xl overflow-hidden shadow-sm mb-4;
+  }
+  .list-section-header {
+    @apply text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 pt-5 pb-2;
+  }
+  .list-row {
+    @apply flex items-center gap-3 bg-white px-5 py-3.5 touchable;
+    min-height: 52px;
+  }
+  .list-row + .list-row {
+    border-top: 0.5px solid rgba(0, 0, 0, 0.08);
+  }
+  .list-row-icon {
+    @apply w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0;
+  }
+
+  /* ── Floating Action Button ── */
+  .fab {
+    @apply fixed bottom-24 right-5 w-14 h-14 rounded-full bg-accent text-white
+           flex items-center justify-center shadow-xl ripple z-30;
+  }
+
+  /* ── Page slide transitions ── */
+  .slide-left-enter-active,
+  .slide-left-leave-active,
+  .slide-right-enter-active,
+  .slide-right-leave-active {
+    transition: transform 300ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
+                opacity 300ms ease;
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+  }
+  .slide-left-enter-from  { transform: translateX(100%); opacity: 0.85; }
+  .slide-left-leave-to    { transform: translateX(-25%); opacity: 0; }
+  .slide-right-enter-from { transform: translateX(-25%); opacity: 0; }
+  .slide-right-leave-to   { transform: translateX(100%); opacity: 0.85; }
+
+  /* Fade-only for tab switches */
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 200ms ease;
+    position: absolute;
+    width: 100%;
+    top: 0;
+    left: 0;
+  }
+  .fade-enter-from,
+  .fade-leave-to { opacity: 0; }
+
+  /* ── Chat bubbles ── */
+  .chat-bubble-user {
+    @apply bg-navy text-white rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[78%] ml-auto text-sm;
+  }
+  .chat-bubble-other {
+    @apply bg-white text-gray-800 rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[78%] shadow-sm border border-gray-100 text-sm;
+  }
+
+  /* ── Scrollable page container ── */
+  .scroll-page {
+    @apply flex-1 overflow-y-auto overscroll-y-contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}

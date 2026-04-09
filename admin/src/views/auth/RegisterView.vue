@@ -10,7 +10,66 @@
 
       <div class="card p-8">
 
-        <form @submit.prevent="handleRegister" class="space-y-3">
+        <!-- ── Step 1: Account type ── -->
+        <div v-if="step === 1" class="space-y-4">
+          <p class="text-sm font-medium text-gray-700 text-center">How will you use Klikk?</p>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center"
+              :class="form.account_type === 'agency'
+                ? 'border-navy bg-navy/5 text-navy'
+                : 'border-gray-200 hover:border-gray-300 text-gray-600'"
+              @click="form.account_type = 'agency'"
+            >
+              <Building2 :size="24" />
+              <span class="text-sm font-semibold">Estate Agency</span>
+              <span class="text-[11px] text-gray-400 leading-tight">I manage properties for clients</span>
+            </button>
+
+            <button
+              type="button"
+              class="flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center"
+              :class="form.account_type === 'individual'
+                ? 'border-navy bg-navy/5 text-navy'
+                : 'border-gray-200 hover:border-gray-300 text-gray-600'"
+              @click="form.account_type = 'individual'"
+            >
+              <Home :size="24" />
+              <span class="text-sm font-semibold">Property Owner</span>
+              <span class="text-[11px] text-gray-400 leading-tight">I manage my own rental properties</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn-primary w-full justify-center py-2.5"
+            :disabled="!form.account_type"
+            @click="step = 2"
+          >
+            Continue
+          </button>
+        </div>
+
+        <!-- ── Step 2: Details ── -->
+        <form v-else @submit.prevent="handleRegister" class="space-y-3">
+
+          <!-- Back link -->
+          <button
+            type="button"
+            class="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 mb-1"
+            @click="step = 1"
+          >
+            <ChevronLeft :size="14" />
+            Back
+          </button>
+
+          <!-- Agency name (agency only) -->
+          <div v-if="form.account_type === 'agency'">
+            <label class="label">Agency name</label>
+            <input v-model="form.agency_name" type="text" class="input" placeholder="e.g. Pam Golding Properties" required />
+          </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
@@ -83,7 +142,7 @@
         </form>
 
         <!-- Google Sign Up (rendered natively by GSI to avoid popup blockers) -->
-        <template v-if="google.isConfigured">
+        <template v-if="step === 2 && google.isConfigured">
           <div class="flex items-center gap-3 my-4">
             <div class="flex-1 h-px bg-gray-200"></div>
             <span class="text-xs text-gray-400">or</span>
@@ -108,13 +167,17 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useGoogleAuth } from '../../composables/useGoogleAuth'
-import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-vue-next'
+import { Eye, EyeOff, AlertCircle, Loader2, Building2, Home, ChevronLeft } from 'lucide-vue-next'
 
 const router = useRouter()
 const auth = useAuthStore()
 const google = useGoogleAuth()
 
+const step = ref(1)
+
 const form = reactive({
+  account_type: '' as 'agency' | 'individual' | '',
+  agency_name: '',
   first_name: '',
   last_name: '',
   email: '',
@@ -169,21 +232,22 @@ async function handleRegister() {
 
   loading.value = true
   try {
-    await auth.register(form)
-    // After registration + auto-login, check if user has a valid admin SPA role
-    if (auth.isAgent || auth.user?.role === 'admin') {
-      router.push(auth.homeRoute)
-    } else {
-      // Non-admin users (tenant, owner, supplier) — redirect to login with success message
-      // They may not have routes in this SPA, so show confirmation
-      await auth.logout()
-      router.push({ path: '/login', query: { registered: '1' } })
-    }
+    await auth.register({
+      email: form.email,
+      password: form.password,
+      first_name: form.first_name,
+      last_name: form.last_name,
+      phone: form.phone || undefined,
+      account_type: form.account_type || 'individual',
+      agency_name: form.account_type === 'agency' ? form.agency_name : undefined,
+    })
+    // After registration + auto-login, redirect to dashboard
+    router.push(auth.homeRoute)
   } catch (e: any) {
     const data = e.response?.data
     if (data) {
       const msg = typeof data === 'string' ? data
-        : data.detail || data.email?.[0] || data.password?.[0] || Object.values(data).flat().join(' ')
+        : data.detail || data.email?.[0] || data.password?.[0] || data.agency_name?.[0] || Object.values(data).flat().join(' ')
       error.value = msg || 'Registration failed.'
     } else {
       error.value = 'Registration failed. Please try again.'

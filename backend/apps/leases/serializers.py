@@ -191,7 +191,7 @@ class LeaseEventSerializer(serializers.ModelSerializer):
             "date", "status", "status_label", "is_recurring", "recurrence_day",
             "completed_at", "completed_by", "lease_label", "property_name", "created_at",
         ]
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = ["id", "lease", "event_type", "created_at"]
 
     def get_lease_label(self, obj):
         tenant = obj.lease.primary_tenant

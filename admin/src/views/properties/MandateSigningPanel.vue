@@ -215,7 +215,7 @@ async function load() {
 async function sendReminder(signer: any) {
   actionLoadingId.value = signer.id
   try {
-    await api.post(`/esigning/submissions/${props.submissionId}/resend/`, { signer_id: signer.id })
+    await api.post(`/esigning/submissions/${props.submissionId}/resend/`, { signer_role: signer.role })
     showToast(`Reminder sent to ${signer.name || signer.email}`, 'success')
   } catch {
     showToast('Failed to send reminder', 'error')
@@ -228,9 +228,12 @@ async function copyPublicLink(signer: any) {
   copyingLinkId.value = signer.id
   try {
     const { data } = await api.post(`/esigning/submissions/${props.submissionId}/public-link/`, {
-      signer_id: signer.id,
+      signer_role: signer.role,
+      public_app_origin: window.location.origin,
     })
-    await navigator.clipboard.writeText(data.url)
+    const path = (data.sign_path as string) || `/sign/${data.uuid}/`
+    const full = (data.signing_url as string) || data.url || `${window.location.origin}${path}`
+    await navigator.clipboard.writeText(full)
     showToast('Signing link copied to clipboard', 'success')
   } catch {
     showToast('Failed to copy link', 'error')
