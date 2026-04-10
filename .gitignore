@@ -1,6 +1,9 @@
 # Secrets
 .env
+.env.local
+admin/.env.production
 *.pem
+*.dump
 .secrets/
 client_secret*.json
 
