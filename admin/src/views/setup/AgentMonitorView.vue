@@ -519,8 +519,7 @@
           <History :size="16" class="text-navy" />
           <span class="font-semibold text-sm">Test History</span>
         </div>
-        <div class="table-wrap">
-          <table>
+        <div class="table-scroll"><table class="table-wrap">
             <thead>
               <tr>
                 <th>Date</th>
@@ -548,8 +547,7 @@
                 </td>
               </tr>
             </tbody>
-          </table>
-        </div>
+        </table></div>
       </div>
 
       <!-- Token Usage Log -->

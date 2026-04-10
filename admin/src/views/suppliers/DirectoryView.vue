@@ -49,7 +49,7 @@
         <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else class="table-wrap">
+      <div v-else class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
             <th>Company</th>
@@ -115,7 +115,7 @@
             <td colspan="7" class="text-center text-gray-400 py-10">No suppliers found</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- Create / Edit Dialog -->

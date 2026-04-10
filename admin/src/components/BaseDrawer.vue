@@ -27,7 +27,7 @@
             :class="sizeClass"
           >
             <!-- Header -->
-            <div v-if="title || $slots.header" class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+            <div v-if="title || $slots.header" class="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-gray-100 flex-shrink-0">
               <slot name="header">
                 <h2 class="text-sm font-semibold text-gray-900">{{ title }}</h2>
               </slot>
@@ -45,7 +45,7 @@
             </div>
 
             <!-- Footer -->
-            <div v-if="$slots.footer" class="px-5 py-4 border-t border-gray-100 flex justify-end gap-2 flex-shrink-0">
+            <div v-if="$slots.footer" class="px-4 py-3 sm:px-5 sm:py-4 border-t border-gray-100 flex justify-end gap-2 flex-shrink-0">
               <slot name="footer" />
             </div>
           </div>
@@ -72,9 +72,9 @@ const props = withDefaults(defineProps<{
 defineEmits<{ close: [] }>()
 
 const sizeClass = computed(() => ({
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-lg',
+  xl: 'sm:max-w-xl',
 }[props.size]))
 </script>

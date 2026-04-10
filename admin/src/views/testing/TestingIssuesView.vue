@@ -78,45 +78,47 @@
         <CheckCircle :size="40" class="mx-auto text-success-400 mb-3" />
         <p class="text-gray-500 text-sm">No issues match the current filters</p>
       </div>
-      <table v-else class="table-wrap">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Module</th>
-            <th>Status</th>
-            <th>Discovered</th>
-            <th>Days open</th>
-            <th>Test file</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="issue in filteredIssues" :key="issue.id" class="cursor-default">
-            <td class="font-medium text-gray-800 max-w-xs">
-              <span :title="issue.title">{{ issue.title }}</span>
-            </td>
-            <td>
-              <span class="capitalize text-xs font-medium text-navy bg-navy/10 px-2 py-0.5 rounded-full">
-                {{ issue.module }}
-              </span>
-            </td>
-            <td>
-              <span :class="issue.status === 'RED' ? 'badge-red' : 'badge-green'">{{ issue.status }}</span>
-            </td>
-            <td class="text-gray-500 text-xs">{{ formatDate(issue.discovered_at) }}</td>
-            <td>
-              <span
-                class="font-medium text-xs"
-                :class="daysOpen(issue.discovered_at) > 7 ? 'text-danger-600' : 'text-gray-700'"
-              >
-                {{ daysOpen(issue.discovered_at) }}d
-              </span>
-            </td>
-            <td class="text-gray-400 text-xs font-mono truncate max-w-[180px]" :title="issue.test_file">
-              {{ issue.test_file || '—' }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="table-scroll">
+        <table class="table-wrap">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Module</th>
+              <th>Status</th>
+              <th>Discovered</th>
+              <th>Days open</th>
+              <th>Test file</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="issue in filteredIssues" :key="issue.id" class="cursor-default">
+              <td class="font-medium text-gray-800 max-w-xs">
+                <span :title="issue.title">{{ issue.title }}</span>
+              </td>
+              <td>
+                <span class="capitalize text-xs font-medium text-navy bg-navy/10 px-2 py-0.5 rounded-full">
+                  {{ issue.module }}
+                </span>
+              </td>
+              <td>
+                <span :class="issue.status === 'RED' ? 'badge-red' : 'badge-green'">{{ issue.status }}</span>
+              </td>
+              <td class="text-gray-500 text-xs">{{ formatDate(issue.discovered_at) }}</td>
+              <td>
+                <span
+                  class="font-medium text-xs"
+                  :class="daysOpen(issue.discovered_at) > 7 ? 'text-danger-600' : 'text-gray-700'"
+                >
+                  {{ daysOpen(issue.discovered_at) }}d
+                </span>
+              </td>
+              <td class="text-gray-400 text-xs font-mono truncate max-w-[180px]" :title="issue.test_file">
+                {{ issue.test_file || '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>

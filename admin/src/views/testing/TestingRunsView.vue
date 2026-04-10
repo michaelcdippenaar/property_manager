@@ -81,60 +81,62 @@
         No runs found
       </div>
       <template v-else>
-        <table class="table-wrap">
-          <thead>
-            <tr>
-              <th></th>
-              <th>Date</th>
-              <th>Module</th>
-              <th>Tier</th>
-              <th>Passed</th>
-              <th>Failed</th>
-              <th>Coverage</th>
-              <th>Duration</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="run in filteredRuns" :key="run.id">
-              <tr
-                class="cursor-pointer"
-                :class="expandedRunId === run.id ? 'bg-navy/5' : ''"
-                @click="expandRun(run.id)"
-              >
-                <td class="w-8 text-center">
-                  <ChevronDown
-                    :size="14"
-                    class="text-gray-400 transition-transform"
-                    :class="expandedRunId === run.id ? 'rotate-180' : ''"
-                  />
-                </td>
-                <td class="text-xs text-gray-500">{{ formatDate(run.created_at) }}</td>
-                <td class="capitalize font-medium text-gray-800">{{ run.module }}</td>
-                <td><span class="badge-blue text-xs">{{ run.tier }}</span></td>
-                <td>
-                  <span class="font-medium text-success-600">{{ run.passed }}</span>
-                  <span class="text-gray-400 text-xs ml-1">({{ run.pass_rate }}%)</span>
-                </td>
-                <td>
-                  <span
-                    class="font-medium"
-                    :class="run.failed > 0 ? 'text-danger-600' : 'text-gray-400'"
-                  >{{ run.failed }}</span>
-                </td>
-                <td class="text-gray-700 text-xs">{{ run.coverage ?? '—' }}%</td>
-                <td class="text-gray-400 text-xs">{{ run.duration_s ? `${run.duration_s}s` : '—' }}</td>
+        <div class="table-scroll">
+          <table class="table-wrap">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Date</th>
+                <th>Module</th>
+                <th>Tier</th>
+                <th>Passed</th>
+                <th>Failed</th>
+                <th>Coverage</th>
+                <th>Duration</th>
               </tr>
-              <!-- Expanded raw output -->
-              <tr v-if="expandedRunId === run.id">
-                <td colspan="8" class="p-0">
-                  <div class="bg-gray-900 text-green-400 text-xs font-mono p-4 leading-relaxed max-h-64 overflow-y-auto">
-                    <pre>{{ run.raw_output || 'No output captured.' }}</pre>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <template v-for="run in filteredRuns" :key="run.id">
+                <tr
+                  class="cursor-pointer"
+                  :class="expandedRunId === run.id ? 'bg-navy/5' : ''"
+                  @click="expandRun(run.id)"
+                >
+                  <td class="w-8 text-center">
+                    <ChevronDown
+                      :size="14"
+                      class="text-gray-400 transition-transform"
+                      :class="expandedRunId === run.id ? 'rotate-180' : ''"
+                    />
+                  </td>
+                  <td class="text-xs text-gray-500">{{ formatDate(run.created_at) }}</td>
+                  <td class="capitalize font-medium text-gray-800">{{ run.module }}</td>
+                  <td><span class="badge-blue text-xs">{{ run.tier }}</span></td>
+                  <td>
+                    <span class="font-medium text-success-600">{{ run.passed }}</span>
+                    <span class="text-gray-400 text-xs ml-1">({{ run.pass_rate }}%)</span>
+                  </td>
+                  <td>
+                    <span
+                      class="font-medium"
+                      :class="run.failed > 0 ? 'text-danger-600' : 'text-gray-400'"
+                    >{{ run.failed }}</span>
+                  </td>
+                  <td class="text-gray-700 text-xs">{{ run.coverage ?? '—' }}%</td>
+                  <td class="text-gray-400 text-xs">{{ run.duration_s ? `${run.duration_s}s` : '—' }}</td>
+                </tr>
+                <!-- Expanded raw output -->
+                <tr v-if="expandedRunId === run.id">
+                  <td colspan="8" class="p-0">
+                    <div class="bg-gray-900 text-green-400 text-xs font-mono p-4 leading-relaxed max-h-64 overflow-y-auto">
+                      <pre>{{ run.raw_output || 'No output captured.' }}</pre>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
       </template>
     </div>
   </div>

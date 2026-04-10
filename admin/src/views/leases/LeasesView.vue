@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-5">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-sm text-gray-500">View and manage all lease agreements.</p>
       <div class="flex items-center gap-2 flex-shrink-0">
         <button class="btn-ghost" @click="showImport = true">
@@ -15,7 +15,7 @@
     </div>
 
     <!-- Status tabs -->
-    <div class="flex gap-1 border-b border-gray-200">
+    <div class="flex gap-1 border-b border-gray-200 overflow-x-auto">
       <button
         v-for="tab in tabs"
         :key="tab.key"

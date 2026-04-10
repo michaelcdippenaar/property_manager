@@ -8,7 +8,7 @@
       leave-from-class="opacity-100"
       leave-to-class="opacity-0"
     >
-      <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         <!-- Backdrop -->
         <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="$emit('close')" />
 
@@ -23,11 +23,11 @@
         >
           <div
             v-if="open"
-            class="relative bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden max-h-[90vh]"
+            class="relative bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden max-h-[90vh]"
             :class="sizeClass"
           >
             <!-- Header -->
-            <div v-if="title || $slots.header" class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div v-if="title || $slots.header" class="flex items-center justify-between px-4 py-3 sm:px-6 sm:py-4 border-b border-gray-100">
               <slot name="header">
                 <h2 class="text-sm font-semibold text-gray-900">{{ title }}</h2>
               </slot>
@@ -41,12 +41,12 @@
             </div>
 
             <!-- Body -->
-            <div class="flex-1 overflow-y-auto px-6 py-5">
+            <div class="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
               <slot />
             </div>
 
             <!-- Footer -->
-            <div v-if="$slots.footer" class="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+            <div v-if="$slots.footer" class="px-4 py-3 sm:px-6 sm:py-4 border-t border-gray-100 flex justify-end gap-2">
               <slot name="footer" />
             </div>
           </div>
@@ -73,9 +73,9 @@ const props = withDefaults(defineProps<{
 defineEmits<{ close: [] }>()
 
 const sizeClass = computed(() => ({
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-md',
+  lg: 'sm:max-w-lg',
+  xl: 'sm:max-w-xl',
 }[props.size]))
 </script>

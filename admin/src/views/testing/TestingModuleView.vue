@@ -229,17 +229,19 @@
       <div v-else-if="!moduleIssues.length" class="p-8 text-center text-gray-400 text-sm">
         No open issues for this module
       </div>
-      <table v-else class="table-wrap">
-        <thead><tr><th>Title</th><th>Status</th><th>Discovered</th><th>Days open</th></tr></thead>
-        <tbody>
-          <tr v-for="issue in moduleIssues" :key="issue.id">
-            <td class="font-medium text-gray-800">{{ issue.title }}</td>
-            <td><span :class="issue.status === 'red' ? 'badge-red' : 'badge-green'" class="uppercase">{{ issue.status }}</span></td>
-            <td class="text-gray-500 text-xs">{{ formatDate(issue.discovered_at) }}</td>
-            <td class="text-gray-500">{{ daysOpen(issue.discovered_at) }}d</td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="table-scroll">
+        <table class="table-wrap">
+          <thead><tr><th>Title</th><th>Status</th><th>Discovered</th><th>Days open</th></tr></thead>
+          <tbody>
+            <tr v-for="issue in moduleIssues" :key="issue.id">
+              <td class="font-medium text-gray-800">{{ issue.title }}</td>
+              <td><span :class="issue.status === 'red' ? 'badge-red' : 'badge-green'" class="uppercase">{{ issue.status }}</span></td>
+              <td class="text-gray-500 text-xs">{{ formatDate(issue.discovered_at) }}</td>
+              <td class="text-gray-500">{{ daysOpen(issue.discovered_at) }}d</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>

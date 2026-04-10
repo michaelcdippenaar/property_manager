@@ -16,7 +16,7 @@
         <div v-for="i in 4" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else-if="filteredLandlords.length" class="table-wrap">
+      <div v-else-if="filteredLandlords.length" class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
             <th scope="col">Owner</th>
@@ -68,7 +68,7 @@
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
 
       <EmptyState
         v-else

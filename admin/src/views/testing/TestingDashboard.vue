@@ -212,33 +212,35 @@
         <div v-if="loading" class="p-4 space-y-3 animate-pulse">
           <div v-for="i in 5" :key="i" class="h-4 bg-gray-100 rounded"></div>
         </div>
-        <table v-else class="table-wrap">
-          <thead>
-            <tr>
-              <th>Module</th>
-              <th>Tier</th>
-              <th>Pass rate</th>
-              <th>Triggered by</th>
-              <th>When</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="run in recentRuns" :key="run.id">
-              <td class="capitalize font-medium text-gray-800">{{ run.module }}</td>
-              <td><span class="badge-blue">{{ run.tier }}</span></td>
-              <td>
-                <span class="font-medium" :class="run.pass_rate >= 80 ? 'text-success-600' : run.pass_rate >= 50 ? 'text-warning-600' : 'text-danger-600'">
-                  {{ run.pass_rate }}%
-                </span>
-              </td>
-              <td class="text-gray-500">{{ run.triggered_by }}</td>
-              <td class="text-gray-400 text-xs">{{ formatTime(run.created_at) }}</td>
-            </tr>
-            <tr v-if="!recentRuns.length">
-              <td colspan="5" class="text-center text-gray-400 py-8">No runs yet</td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-else class="table-scroll">
+          <table class="table-wrap">
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th>Tier</th>
+                <th>Pass rate</th>
+                <th>Triggered by</th>
+                <th>When</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="run in recentRuns" :key="run.id">
+                <td class="capitalize font-medium text-gray-800">{{ run.module }}</td>
+                <td><span class="badge-blue">{{ run.tier }}</span></td>
+                <td>
+                  <span class="font-medium" :class="run.pass_rate >= 80 ? 'text-success-600' : run.pass_rate >= 50 ? 'text-warning-600' : 'text-danger-600'">
+                    {{ run.pass_rate }}%
+                  </span>
+                </td>
+                <td class="text-gray-500">{{ run.triggered_by }}</td>
+                <td class="text-gray-400 text-xs">{{ formatTime(run.created_at) }}</td>
+              </tr>
+              <tr v-if="!recentRuns.length">
+                <td colspan="5" class="text-center text-gray-400 py-8">No runs yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Right column: Issues + RAG -->

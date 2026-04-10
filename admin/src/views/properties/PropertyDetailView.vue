@@ -501,7 +501,7 @@
         <template v-else>
           <!-- Loading -->
           <div v-if="loadingInventory" class="card p-0 overflow-hidden">
-            <table class="table-wrap">
+            <div class="table-scroll"><table class="table-wrap">
               <thead><tr><th scope="col">Item</th><th scope="col">Category</th><th scope="col">Condition</th><th scope="col">Barcode</th><th scope="col" class="text-right">Actions</th></tr></thead>
               <tbody>
                 <tr v-for="i in 4" :key="i">
@@ -512,12 +512,12 @@
                   <td />
                 </tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <!-- Items table -->
           <div v-else-if="inventoryItems.length" class="card p-0 overflow-hidden">
-            <table class="table-wrap">
+            <div class="table-scroll"><table class="table-wrap">
               <thead>
                 <tr>
                   <th scope="col">Item</th>
@@ -562,7 +562,7 @@
                   </td>
                 </tr>
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           <!-- Empty -->

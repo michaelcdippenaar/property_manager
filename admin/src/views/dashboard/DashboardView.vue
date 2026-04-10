@@ -21,7 +21,7 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-5 gap-3 relative">
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 relative">
         <!-- Connector line behind cards -->
         <div class="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-px bg-gray-200 z-0 hidden sm:block" aria-hidden="true"></div>
 
@@ -128,7 +128,7 @@
             <div class="h-4 bg-gray-100 rounded w-14"></div>
           </div>
         </div>
-        <table v-else-if="recentMaintenance.length" class="table-wrap">
+        <div v-else-if="recentMaintenance.length" class="table-scroll"><table class="table-wrap">
           <thead>
             <tr>
               <th scope="col">Title</th>
@@ -150,7 +150,7 @@
               <td><span :class="statusBadge(req.status)">{{ req.status.replace('_', ' ') }}</span></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
         <EmptyState
           v-else
           title="No open requests"

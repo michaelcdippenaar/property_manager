@@ -1,52 +1,83 @@
 <template>
   <div class="flex flex-col h-screen bg-gray-50 overflow-hidden">
-    <header class="bg-navy flex items-center h-14 px-6 flex-shrink-0 z-50 gap-6">
-      <RouterLink to="/jobs" class="flex items-center mr-4 flex-shrink-0">
-        <span class="text-white font-bold text-xl leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
-      </RouterLink>
+    <header class="bg-navy flex-shrink-0 z-50">
+      <div class="flex items-center h-14 px-4 sm:px-6 gap-4 sm:gap-6">
+        <RouterLink to="/jobs" class="flex items-center mr-2 sm:mr-4 flex-shrink-0">
+          <span class="text-white font-bold text-xl leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
+        </RouterLink>
 
-      <nav class="flex items-center gap-1 flex-1 min-w-0">
+        <!-- Mobile hamburger -->
+        <button
+          class="sm:hidden p-2 -ml-1 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+          aria-label="Toggle menu"
+        >
+          <Menu v-if="!mobileMenuOpen" :size="20" />
+          <X v-else :size="20" />
+        </button>
+
+        <nav class="hidden sm:flex items-center gap-1 flex-1 min-w-0">
+          <RouterLink
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+            :class="isActive(item.to)
+              ? 'bg-white/15 text-white'
+              : 'text-white/60 hover:text-white hover:bg-white/10'"
+          >
+            <component :is="item.icon" :size="15" class="flex-shrink-0" />
+            {{ item.label }}
+          </RouterLink>
+        </nav>
+
+        <div class="flex items-center gap-3 flex-shrink-0 ml-auto">
+          <span class="text-white/60 text-sm hidden sm:block">{{ auth.user?.full_name }}</span>
+          <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-bold">
+            {{ initials }}
+          </div>
+          <button @click="handleLogout"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors text-sm">
+            <LogOut :size="15" />
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile nav dropdown -->
+      <div v-if="mobileMenuOpen" class="sm:hidden bg-navy border-t border-white/10 px-4 py-2 space-y-1">
         <RouterLink
           v-for="item in navItems"
           :key="item.to"
           :to="item.to"
-          class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+          class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
           :class="isActive(item.to)
             ? 'bg-white/15 text-white'
             : 'text-white/60 hover:text-white hover:bg-white/10'"
         >
-          <component :is="item.icon" :size="15" class="flex-shrink-0" />
+          <component :is="item.icon" :size="16" class="flex-shrink-0" />
           {{ item.label }}
         </RouterLink>
-      </nav>
-
-      <div class="flex items-center gap-3 flex-shrink-0">
-        <span class="text-white/60 text-sm">{{ auth.user?.full_name }}</span>
-        <div class="w-8 h-8 rounded-full bg-white/15 flex items-center justify-center text-white text-xs font-bold">
-          {{ initials }}
-        </div>
-        <button @click="handleLogout"
-          class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors text-sm">
-          <LogOut :size="15" />
-        </button>
       </div>
     </header>
 
-    <main class="flex-1 overflow-y-auto p-6">
+    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
       <RouterView />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Briefcase, Calendar, UserCircle, LogOut } from 'lucide-vue-next'
+import { Briefcase, Calendar, UserCircle, LogOut, Menu, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const mobileMenuOpen = ref(false)
+
+watch(() => route.path, () => { mobileMenuOpen.value = false })
 
 const navItems = [
   { to: '/jobs',     icon: Briefcase,   label: 'Jobs' },

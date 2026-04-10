@@ -114,38 +114,40 @@
       <div v-else-if="!history.length" class="p-8 text-center text-gray-400 text-sm">
         No history yet
       </div>
-      <table v-else class="table-wrap">
-        <thead>
-          <tr>
-            <th>When</th>
-            <th>Checks</th>
-            <th>Issues</th>
-            <th>Warnings</th>
-            <th>Result</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="h in history" :key="h.id" class="cursor-pointer" @click="latestCheck = h">
-            <td class="text-xs text-gray-500">{{ formatDate(h.created_at) }}</td>
-            <td class="text-gray-700">{{ h.checks.filter((c: any) => c.passed).length }}/{{ h.checks.length }}</td>
-            <td>
-              <span :class="h.issues?.length ? 'text-danger-600 font-medium' : 'text-gray-400'">
-                {{ h.issues?.length ?? 0 }}
-              </span>
-            </td>
-            <td>
-              <span :class="h.warnings?.length ? 'text-warning-600 font-medium' : 'text-gray-400'">
-                {{ h.warnings?.length ?? 0 }}
-              </span>
-            </td>
-            <td>
-              <span :class="h.overall_healthy ? 'badge-green' : 'badge-red'">
-                {{ h.overall_healthy ? 'Healthy' : 'Failed' }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="table-scroll">
+        <table class="table-wrap">
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Checks</th>
+              <th>Issues</th>
+              <th>Warnings</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="h in history" :key="h.id" class="cursor-pointer" @click="latestCheck = h">
+              <td class="text-xs text-gray-500">{{ formatDate(h.created_at) }}</td>
+              <td class="text-gray-700">{{ h.checks.filter((c: any) => c.passed).length }}/{{ h.checks.length }}</td>
+              <td>
+                <span :class="h.issues?.length ? 'text-danger-600 font-medium' : 'text-gray-400'">
+                  {{ h.issues?.length ?? 0 }}
+                </span>
+              </td>
+              <td>
+                <span :class="h.warnings?.length ? 'text-warning-600 font-medium' : 'text-gray-400'">
+                  {{ h.warnings?.length ?? 0 }}
+                </span>
+              </td>
+              <td>
+                <span :class="h.overall_healthy ? 'badge-green' : 'badge-red'">
+                  {{ h.overall_healthy ? 'Healthy' : 'Failed' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>

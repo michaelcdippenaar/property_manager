@@ -38,7 +38,7 @@
           <div v-for="i in 10" :key="i" class="h-5 bg-gray-100 rounded" />
         </div>
 
-        <table v-else-if="listings.length" class="table-wrap">
+        <div v-else-if="listings.length" class="table-scroll"><table class="table-wrap">
           <thead class="sticky top-0 bg-white z-10">
             <tr>
               <th>Property</th>
@@ -73,7 +73,7 @@
               </td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
 
         <EmptyState
           v-else

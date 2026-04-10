@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-sm text-gray-500">Manage your approved supplier network and trade specialisations.</p>
       <div class="flex items-center gap-2 flex-shrink-0">
         <label class="btn-ghost cursor-pointer text-sm">
@@ -36,7 +36,7 @@
         <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else class="table-wrap">
+      <div v-else class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
             <th>Company</th>
@@ -102,7 +102,7 @@
             <td colspan="7" class="text-center text-gray-400 py-10">No suppliers found</td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
 
     <!-- Create / Edit Dialog -->

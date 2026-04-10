@@ -1,6 +1,6 @@
 <template>
   <div class="space-y-5">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
       <p class="text-sm text-gray-500">Manage your property portfolio, units, and occupancy.</p>
       <button class="btn-primary flex-shrink-0" @click="dialog = true">
         <Plus :size="15" /> Add Property
@@ -16,7 +16,7 @@
         <div v-for="i in 4" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else-if="filteredProperties.length" class="table-wrap">
+      <div v-else-if="filteredProperties.length" class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
             <th scope="col">Unit</th>
@@ -111,7 +111,7 @@
             </tr>
           </template>
         </tbody>
-      </table>
+      </table></div>
 
       <EmptyState
         v-else

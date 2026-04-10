@@ -2,8 +2,8 @@
   <div class="space-y-5">
     <p class="text-sm text-gray-500">Browse and manage tenant profiles, contact details, and lease history.</p>
     <div class="card">
-      <div class="px-4 pt-4 pb-0 border-b border-gray-100 flex items-center gap-4">
-        <div class="flex gap-0">
+      <div class="px-4 pt-4 pb-0 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <div class="flex gap-0 overflow-x-auto">
           <button
             v-for="tab in tabs"
             :key="tab.key"
@@ -15,7 +15,7 @@
             <span v-if="activeTab === tab.key" class="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-full" />
           </button>
         </div>
-        <div class="ml-auto pb-2">
+        <div class="sm:ml-auto pb-2">
           <SearchInput v-model="search" placeholder="Search tenants…" />
         </div>
       </div>
@@ -24,7 +24,7 @@
         <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
       </div>
 
-      <table v-else-if="filteredTenants.length" class="table-wrap">
+      <div v-else-if="filteredTenants.length" class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
             <th scope="col">Tenant</th>
@@ -57,7 +57,7 @@
             </td>
           </tr>
         </tbody>
-      </table>
+      </table></div>
 
       <EmptyState
         v-else
