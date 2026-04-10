@@ -1,6 +1,10 @@
 /* eslint-env node */
 const { configure } = require('quasar/wrappers')
-require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` })
+try {
+  require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` })
+} catch {
+  /* dotenv optional — use process.env / CI */
+}
 
 module.exports = configure(function (/* ctx */) {
   return {

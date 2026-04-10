@@ -19,17 +19,6 @@
   }
 }
 
-# Admin SPA
-propertymanager.klikk.co.za {
-  import no_index_headers
-
-  # Strongest way to avoid discovery: require login.
-  # Comment this out only if you're OK with the site being publicly reachable.
-  import optional_basic_auth
-
-  reverse_proxy admin_web:80
-}
-
 # Marketing site (static)
 www.klikk.co.za {
   import no_index_headers
@@ -38,5 +27,22 @@ www.klikk.co.za {
   import optional_basic_auth
 
   reverse_proxy website_web:80
+}
+
+# Admin SPA (public login)
+app.klikk.co.za {
+  import no_index_headers
+  reverse_proxy admin_web:80
+}
+
+# Django API
+backend.klikk.co.za {
+  reverse_proxy backend:8000
+}
+
+# Agent mobile web (Quasar SPA)
+mobile-agent.klikk.co.za {
+  import no_index_headers
+  reverse_proxy agent_app_web:80
 }
 
