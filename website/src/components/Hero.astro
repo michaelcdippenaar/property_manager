@@ -57,36 +57,11 @@
           <img src="/klikk-dashboard.png" alt="Klikk dashboard" class="mockup-screenshot" />
         </div>
       </div>
-      <!-- Floating phone -->
+      <!-- Floating phone — Agent App screenshot -->
       <div class="phone-mockup">
         <div class="phone-notch"></div>
         <div class="phone-screen">
-          <div class="phone-app-header">
-            <div class="phone-avatar">S</div>
-            <div>
-              <div class="phone-name">Klikk Tenant</div>
-              <div class="phone-sub">Unit 4B · Melville</div>
-            </div>
-          </div>
-          <div class="phone-card urgent-card">
-            <div class="phone-card-icon urgent-icon">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
-            </div>
-            <div>
-              <div class="phone-card-title">Leaking geyser</div>
-              <div class="phone-card-sub">2 hours ago · <span style="color:#ef4444">Urgent</span></div>
-            </div>
-          </div>
-          <div class="phone-card">
-            <div class="phone-card-icon renewal-icon">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-            </div>
-            <div>
-              <div class="phone-card-title">Lease renewal</div>
-              <div class="phone-card-sub">Expires in 30 days</div>
-            </div>
-          </div>
-          <div class="phone-cta">Sign renewal →</div>
+          <img src="/klikk-agent-app.png" alt="Klikk Agent App" class="phone-screenshot" />
         </div>
       </div>
     </div>
@@ -458,9 +433,9 @@
   /* ── Floating Phone ── */
   .phone-mockup {
     position: absolute;
-    bottom: -16px;
-    right: -32px;
-    width: 148px;
+    bottom: -24px;
+    right: -36px;
+    width: 168px;
     background: #1a1a2e;
     border-radius: 28px;
     padding: 10px;
@@ -481,80 +456,14 @@
   .phone-screen {
     background: white;
     border-radius: 20px;
-    padding: 12px;
-    min-height: 200px;
+    overflow: hidden;
   }
-  .phone-app-header {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #f3f4f6;
-  }
-  .phone-avatar {
-    width: 26px; height: 26px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--color-navy), var(--color-accent));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-  }
-  .phone-name {
-    font-size: 10px;
-    font-weight: 700;
-    color: #111827;
-    line-height: 1;
-  }
-  .phone-sub {
-    font-size: 8px;
-    color: #9ca3af;
-    margin-top: 2px;
-  }
-  .phone-card {
-    display: flex;
-    align-items: flex-start;
-    gap: 7px;
-    background: #f8f8fa;
-    border-radius: 8px;
-    padding: 8px;
-    margin-bottom: 6px;
-  }
-  .urgent-card { background: #fff5f5; }
-  .phone-card-icon {
-    width: 22px; height: 22px;
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-  .urgent-icon { background: #fee2e2; color: #ef4444; }
-  .renewal-icon { background: #eff6ff; color: #3b82f6; }
-  .phone-card-title {
-    font-size: 9px;
-    font-weight: 600;
-    color: #111827;
-    line-height: 1.2;
-  }
-  .phone-card-sub {
-    font-size: 8px;
-    color: #9ca3af;
-    margin-top: 2px;
-  }
-  .phone-cta {
-    text-align: center;
-    font-size: 9px;
-    font-weight: 700;
-    color: var(--color-accent);
-    margin-top: 4px;
-    padding: 6px;
-    background: rgba(255,61,127,0.06);
-    border-radius: 6px;
+  .phone-screenshot {
+    width: 100%;
+    display: block;
+    border-radius: 20px;
+    object-fit: cover;
+    object-position: top;
   }
 
   /* ── Responsive ── */
