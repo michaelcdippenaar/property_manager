@@ -1,0 +1,18 @@
+# Website image build context = repo root (exclude heavy / unrelated trees)
+.git
+admin
+agent-app
+backend
+deploy
+docs
+mobile
+services
+tenant
+website-preview
+*.dump
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/dist
+**/.venv
+**/venv

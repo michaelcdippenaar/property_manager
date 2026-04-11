@@ -10,8 +10,8 @@ services:
   # Serves www.klikk.co.za (Astro static site)
   website_web:
     build:
-      context: ../website
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: website/Dockerfile
     restart: unless-stopped
     networks: [edge]
 

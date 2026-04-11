@@ -19,13 +19,9 @@
   }
 }
 
-# Marketing site (static)
+# Marketing site (public — no Basic Auth; optional noindex headers only)
 www.klikk.co.za {
   import no_index_headers
-
-  # Same: block public access if you want to prevent discovery.
-  import optional_basic_auth
-
   reverse_proxy website_web:80
 }
 
