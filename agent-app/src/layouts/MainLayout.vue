@@ -87,10 +87,11 @@ const router = useRouter()
 const { isIos, isAndroid, enterTransition, leaveTransition, backIcon, headerClass } = usePlatform()
 
 const tabs = [
-  { name: 'dashboard',  label: 'Dashboard',  icon: 'bar_chart', path: '/dashboard'  },
-  { name: 'properties', label: 'Properties', icon: 'home',      path: '/properties' },
-  { name: 'calendar',   label: 'Calendar',   icon: 'event',     path: '/calendar'   },
-  { name: 'settings',   label: 'Settings',   icon: 'settings',  path: '/settings'   },
+  { name: 'dashboard',  label: 'Dashboard',  icon: 'bar_chart',   path: '/dashboard'  },
+  { name: 'properties', label: 'Properties', icon: 'home',         path: '/properties' },
+  { name: 'leases',     label: 'Leases',     icon: 'description',  path: '/leases'     },
+  { name: 'calendar',   label: 'Calendar',   icon: 'event',        path: '/calendar'   },
+  { name: 'settings',   label: 'Settings',   icon: 'settings',     path: '/settings'   },
 ]
 
 const activeTab = ref<string>('properties')
@@ -98,10 +99,12 @@ const activeTab = ref<string>('properties')
 watch(
   () => route.name,
   (name) => {
-    if (name === 'dashboard')                                       activeTab.value = 'dashboard'
-    else if (name === 'calendar')                                   activeTab.value = 'calendar'
-    else if (name === 'settings')                                   activeTab.value = 'settings'
-    else if (name === 'properties' || name === 'property-detail')  activeTab.value = 'properties'
+    if (name === 'dashboard')                                                   activeTab.value = 'dashboard'
+    else if (name === 'calendar')                                               activeTab.value = 'calendar'
+    else if (name === 'leases')                                                 activeTab.value = 'leases'
+    else if (name === 'settings')                                               activeTab.value = 'settings'
+    else if (name === 'properties' || name === 'property-detail'
+          || name === 'create-direct-lease')                                    activeTab.value = 'properties'
   },
   { immediate: true },
 )
@@ -110,17 +113,19 @@ watch(
 <style lang="scss">
 .agent-tab-bar {
   display: flex;
-  align-items: stretch;
+  // flex-start so tabs sit in the 49px area; padding-bottom handles safe zone
+  align-items: flex-start;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.5px solid rgba(0, 0, 0, 0.14);
-  height: 56px;
+  // No fixed height — tab buttons are 49px + safe area padding below them
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .agent-tab {
   flex: 1;
+  height: 49px;   // iOS HIG: 49pt tab bar height (content only, above safe area)
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -134,7 +139,7 @@ watch(
   padding: 0;
 
   &--active {
-    color: #2B2D6E;
+    color: var(--q-primary);
   }
 
   &:active {
@@ -143,7 +148,7 @@ watch(
 }
 
 .agent-tab-label {
-  font-size: 9.5px;
+  font-size: 11px;   /* iOS Caption 2 = 11pt */
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.01em;

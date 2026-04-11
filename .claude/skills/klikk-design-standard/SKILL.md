@@ -70,7 +70,7 @@ Known hardcoded color violations to fix (from audit):
 ### Spacing
 | Context | Value | Notes |
 |---------|-------|-------|
-| Page padding | `p-6` (24px) | Content area |
+| Page padding | `p-4 sm:p-6` | Content area (tighter on mobile) |
 | Card padding | `p-4` to `p-6` | Internal card content |
 | Between sections | `space-y-6` | Vertical section gaps |
 | Between form fields | `space-y-4` | Within forms |
@@ -158,35 +158,41 @@ Known hardcoded color violations to fix (from audit):
 
 **Accessibility:** Badges must not rely on color alone. Always include a text label. Consider adding icons for critical statuses (e.g., `AlertTriangle` for urgent).
 
-### Tables (`.table-wrap`)
+### Tables (`.table-wrap` + `.table-scroll`)
 ```html
 <div class="card p-0 overflow-hidden">
-  <table class="table-wrap">
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Status</th>
-        <th scope="col" class="text-right">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr v-for="item in items" :key="item.id"
-          class="cursor-pointer" @click="selectItem(item)">
-        <td>
-          <div class="font-medium text-gray-900">{{ item.name }}</div>
-          <div class="text-xs text-gray-400">{{ item.subtitle }}</div>
-        </td>
-        <td><span class="badge-green">Active</span></td>
-        <td class="text-right">
-          <button class="btn-ghost btn-xs" aria-label="Edit item">Edit</button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <div class="table-scroll">
+    <table class="table-wrap">
+      <thead>
+        <tr>
+          <th scope="col">Name</th>
+          <th scope="col">Status</th>
+          <th scope="col" class="text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="item in items" :key="item.id"
+            class="cursor-pointer" @click="selectItem(item)">
+          <td>
+            <div class="font-medium text-gray-900">{{ item.name }}</div>
+            <div class="text-xs text-gray-400">{{ item.subtitle }}</div>
+          </td>
+          <td><span class="badge-green">Active</span></td>
+          <td class="text-right">
+            <button class="btn-ghost btn-xs" aria-label="Edit item">Edit</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 ```
 
+**MUST wrap every `<table class="table-wrap">` with `<div class="table-scroll">` for mobile horizontal scrolling.** The `.table-scroll` class provides `overflow-x-auto` with touch-friendly momentum scrolling.
+
 **MUST include `scope="col"` on all `<th>` elements** (audit finding).
+
+**If the table has a `v-else` or `v-if` directive, place it on the `<div class="table-scroll">` wrapper, NOT on the `<table>`.** This preserves Vue's conditional rendering chain.
 
 ### Filter Pills (`.pill` / `.pill-active`)
 ```html
@@ -220,13 +226,13 @@ Every page/view MUST follow this structure:
 
 ```vue
 <template>
-  <!-- Page header -->
-  <div class="flex items-center justify-between mb-6">
+  <!-- Page header — stacks vertically on mobile -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <div>
       <h1 class="text-xl font-bold text-gray-900">Page Title</h1>
       <p class="text-sm text-gray-500 mt-1">Brief description.</p>
     </div>
-    <button class="btn-primary">
+    <button class="btn-primary flex-shrink-0">
       <Plus :size="16" />
       Primary Action
     </button>
@@ -239,8 +245,10 @@ Every page/view MUST follow this structure:
       <SearchInput v-model="search" placeholder="Search..." />
     </div>
 
-    <!-- Data table -->
-    <table class="table-wrap">...</table>
+    <!-- Data table — always wrapped for mobile scroll -->
+    <div class="table-scroll">
+      <table class="table-wrap">...</table>
+    </div>
 
     <!-- Or empty state -->
     <EmptyState v-if="!items.length && !loading"
@@ -257,11 +265,71 @@ Every page/view MUST follow this structure:
 
 | Element | Spec |
 |---------|------|
-| **Header bar** | Fixed 56px height, white bg, page title |
-| **Sidebar** | Collapsible: 224px expanded, 60px collapsed, white bg |
-| **Content area** | `surface` (#F5F5F8) bg, `p-6` padding, scrollable |
-| **Sidebar nav** | `sidebar-link` / `sidebar-link-active` / `sidebar-section-label` classes |
-| **Nav icons** | Lucide 18px in sidebar, 16px in buttons |
+| **Header bar** | Fixed 64px height (`h-16`), glassmorphism navy bg, horizontal nav (desktop) |
+| **Mobile nav** | Hamburger menu (`sm:hidden`), slide-out panel with accordion sections |
+| **Content area** | `surface` (#F5F5F8) bg, `p-4 sm:p-6` padding, scrollable |
+| **Nav links** | `header-nav-link` / `header-nav-link-active` classes (desktop) |
+| **Sidebar nav** | `sidebar-link` / `sidebar-link-active` / `sidebar-section-label` classes (used in mobile nav panel) |
+| **Nav icons** | Lucide 16px in nav and buttons |
+| **AI FAB** | `fixed bottom-4 right-4 sm:bottom-6 sm:right-6` |
+
+## Mobile Responsive Design
+
+The app uses a **mobile-first responsive approach** with `sm:` (640px) as the primary breakpoint.
+
+### Navigation
+- **Desktop (>=640px)**: Horizontal top nav with hover+click dropdown menus
+- **Mobile (<640px)**: Hamburger button + slide-out nav panel (`w-72`, white bg) with accordion sections
+- All 3 layouts (AppLayout, SupplierLayout, OwnerLayout) follow this pattern
+- Desktop nav is hidden on mobile: `hidden sm:flex`
+- Mobile menu auto-closes on route navigation via `watch(route.path)`
+- Dropdown menus support both hover (desktop) and click/tap (touch devices)
+
+### Responsive Patterns
+
+**Page headers** — stack vertically on mobile:
+```html
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+```
+
+**Tab bars** — horizontally scrollable on mobile:
+```html
+<div class="flex gap-1 border-b border-gray-200 overflow-x-auto">
+```
+
+**Grids** — reduce columns on mobile:
+```html
+<!-- Dashboard pipeline: 2→3→5 columns -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+
+<!-- Stat cards: 2→4 columns -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+```
+
+**Tables** — always wrap with `.table-scroll` for horizontal scrolling:
+```html
+<div class="table-scroll">
+  <table class="table-wrap">...</table>
+</div>
+```
+
+**Modals/Drawers** — full-width below `sm:` breakpoint:
+- `sizeClass` uses `sm:max-w-md` (not `max-w-md`) so modals fill the screen on mobile
+- Reduced internal padding on mobile: `px-4 py-3 sm:px-6 sm:py-4`
+
+**Buttons** — touch-friendly sizing:
+- `.btn` has `min-height: 44px` on mobile (Apple HIG recommendation)
+- `.btn-sm` has `min-height: 38px` on mobile
+- Desktop sizes are unchanged
+
+### Rules for New Views
+1. **Never use `flex items-center justify-between`** for page headers — always use `flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3`
+2. **Never use hardcoded `grid-cols-N`** without a mobile fallback — always start with fewer columns: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-N`
+3. **Always wrap tables** with `<div class="table-scroll">`
+4. **Never use hover-only interactions** — always pair with click/tap handlers
+5. **Use `p-4 sm:p-6`** for content padding, not just `p-6`
+6. **Use `hidden sm:block`** to hide non-essential elements on mobile (e.g., user name in header)
+7. **Tab/filter bars** must have `overflow-x-auto` for horizontal scrolling
 
 ## Accessibility Requirements (from audit — CRITICAL)
 
@@ -397,7 +465,12 @@ When reviewing or creating UI, verify NONE of these are present:
 - [ ] Empty states without action CTA buttons
 - [ ] Color-only status indication without text labels
 - [ ] Missing unsaved changes warnings on form views
-- [ ] Hardcoded widths that break responsiveness (e.g., `w-[400px]`)
+- [ ] Hardcoded widths that break responsiveness (e.g., `w-[400px]` — use `w-full sm:w-[400px]`)
+- [ ] Tables without `<div class="table-scroll">` wrapper
+- [ ] Page headers using `flex items-center justify-between` without `flex-col sm:flex-row` stacking
+- [ ] Hardcoded `grid-cols-N` without mobile-first breakpoints
+- [ ] Hover-only interactions without click/tap alternative
+- [ ] Tab/filter bars without `overflow-x-auto`
 
 ## Key Files
 
@@ -433,5 +506,10 @@ When creating a new page/view, verify all of:
 - [ ] Icons from Lucide at correct sizes (16px in buttons, 18px in nav)
 - [ ] No hardcoded colors — all from design tokens
 - [ ] Shared utilities imported, not redefined
-- [ ] Responsive: content scrolls, no hardcoded widths that break on mobile
+- [ ] Page header uses `flex flex-col sm:flex-row` stacking pattern
+- [ ] Tables wrapped with `<div class="table-scroll">`
+- [ ] Grids use mobile-first breakpoints (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-N`)
+- [ ] Tab/filter bars have `overflow-x-auto` for mobile scroll
+- [ ] No hardcoded widths — use `w-full sm:w-[Npx]` pattern
+- [ ] No hover-only interactions — click/tap handlers included
 - [ ] Unsaved changes warning if form view

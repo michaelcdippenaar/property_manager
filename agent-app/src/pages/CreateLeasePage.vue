@@ -155,7 +155,6 @@
       unelevated
       :loading="submitting"
       class="full-width"
-      size="md"
     />
 
     <div class="text-caption text-grey-5 text-center q-mt-sm">
@@ -165,7 +164,7 @@
   </q-page>
 
   <q-page v-else class="row justify-center items-center">
-    <q-spinner-dots color="primary" size="40px" />
+    <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
   </q-page>
 </template>
 
@@ -175,6 +174,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewing, convertViewingToLease, listUnits, type PropertyViewing, type Unit } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { SPINNER_SIZE_PAGE } from '../utils/designTokens'
 
 const props  = defineProps<{ viewingId: number }>()
 const router = useRouter()
@@ -304,9 +304,4 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.08);
-  overflow: hidden;
-}
 </style>

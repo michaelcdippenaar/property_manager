@@ -3,13 +3,14 @@
     <q-pull-to-refresh @refresh="loadProperties">
 
       <div v-if="loading" class="row justify-center q-py-xl">
-        <q-spinner-dots color="primary" size="40px" />
+        <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
       </div>
 
       <template v-else-if="properties.length === 0">
         <div class="text-center q-py-xl">
-          <q-icon name="home_work" size="64px" color="grey-4" />
-          <div class="text-body2 text-grey-5 q-mt-sm">No properties yet</div>
+          <q-icon name="home_work" :size="EMPTY_ICON_SIZE" color="grey-4" />
+          <div class="text-body2 text-grey-5 q-mt-sm">No properties assigned yet</div>
+          <div class="text-caption text-grey-4 q-mt-xs">Contact your admin to add properties to your account</div>
         </div>
       </template>
 
@@ -83,6 +84,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { listProperties, type Property } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE } from '../utils/designTokens'
 
 const { isIos } = usePlatform()
 
@@ -133,6 +135,6 @@ onMounted(() => void loadProperties())
   display: block;
   width: 100%;
   height: 120px;
-  background: #f5f5f8;
+  background: $surface;
 }
 </style>

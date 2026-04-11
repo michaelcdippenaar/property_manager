@@ -4,7 +4,7 @@
 
       <!-- Loading -->
       <div v-if="loading" class="row justify-center q-py-xl">
-        <q-spinner-dots color="primary" size="40px" />
+        <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
       </div>
 
       <template v-else>
@@ -42,7 +42,7 @@
 
         <!-- Empty state -->
         <div v-if="filteredLeases.length === 0" class="text-center q-py-xl">
-          <q-icon name="description" size="56px" color="grey-3" />
+          <q-icon name="description" :size="EMPTY_ICON_SIZE" color="grey-3" />
           <div class="text-body2 text-grey-5 q-mt-sm">No leases found</div>
         </div>
 
@@ -66,7 +66,7 @@
                   </div>
                 </div>
                 <q-badge
-                  :color="statusColor(lease.status)"
+                  :color="leaseStatusColor(lease.status)"
                   :label="lease.status"
                   class="q-ml-sm text-capitalize"
                 />
@@ -113,6 +113,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { listLeases, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { leaseStatusColor, formatDate, daysRemaining } from '../utils/formatters'
+import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE } from '../utils/designTokens'
 
 const { isIos } = usePlatform()
 
@@ -148,25 +150,6 @@ const filteredLeases = computed(() => {
   return result
 })
 
-function statusColor(status: string) {
-  const map: Record<string, string> = {
-    active:     'positive',
-    pending:    'warning',
-    expired:    'grey-5',
-    terminated: 'negative',
-  }
-  return map[status] || 'grey-5'
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function daysRemaining(endDate: string): number | null {
-  const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000)
-  return diff > 0 ? diff : null
-}
-
 async function loadLeases(done?: () => void) {
   try {
     const resp = await listLeases()
@@ -185,7 +168,7 @@ onMounted(() => void loadLeases())
 <style scoped lang="scss">
 .lease-card {
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.07);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
 </style>

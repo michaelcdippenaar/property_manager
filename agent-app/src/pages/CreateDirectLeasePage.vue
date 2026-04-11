@@ -7,7 +7,7 @@
       <q-card flat class="context-card">
         <q-item>
           <q-item-section avatar>
-            <q-avatar color="primary" text-color="white" size="42px">
+            <q-avatar color="primary" text-color="white" :size="AVATAR_LIST">
               <q-icon name="home_work" size="22px" />
             </q-avatar>
           </q-item-section>
@@ -174,7 +174,6 @@
         unelevated
         :loading="submitting"
         class="full-width"
-        size="md"
       />
 
     </q-form>
@@ -182,7 +181,7 @@
   </q-page>
 
   <q-page v-else class="row justify-center items-center">
-    <q-spinner-dots color="primary" size="40px" />
+    <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
   </q-page>
 </template>
 
@@ -195,6 +194,7 @@ import {
   createLeaseDirect, type Property, type Person,
 } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { SPINNER_SIZE_PAGE, AVATAR_LIST } from '../utils/designTokens'
 
 const props = defineProps<{ propertyId: number }>()
 const router   = useRouter()

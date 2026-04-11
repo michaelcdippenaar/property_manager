@@ -4,21 +4,6 @@
 
 integrations:
 
-  payprop:
-    name: "PayProp"
-    slug: payprop
-    status: PLANNED
-    priority: CRITICAL
-    category: payments
-    logo_abbrev: "PP"
-    logo_color: "#00b4d8"
-    tagline: "Works with PayProp — replaces everything else"
-    description: >
-      Bidirectional sync of tenants, properties, and payments. Real-time
-      webhooks for rent tracking. Pull arrears/statements into dashboards.
-    api_type: "REST API v1.1, OAuth 2.0, webhooks"
-    notes: "Access is approval-gated (apply via Typeform). GitHub API emulator for dev/testing."
-
   xero:
     name: "Xero"
     slug: xero

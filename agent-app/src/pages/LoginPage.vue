@@ -130,11 +130,10 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-$navy: #2B2D6E;
-$surface: #F5F5F8;
+$navy: $primary;   // use global SCSS token from quasar.variables.scss
 
 .login-page {
-  min-height: 100vh;
+  min-height: 100dvh;   // dvh prevents layout jump on iOS Safari
   display: flex;
   flex-direction: column;
   background: $surface;

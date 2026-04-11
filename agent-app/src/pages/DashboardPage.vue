@@ -15,19 +15,19 @@
       <!-- Stats cards -->
       <div class="row q-col-gutter-sm q-mb-md">
         <div class="col-4">
-          <q-card flat class="stat-card text-center q-pa-sm">
+          <q-card flat class="stat-card text-center q-pa-md">
             <div class="text-h5 text-weight-bold text-primary">{{ stats.propertyCount }}</div>
             <div class="text-caption text-grey-6">Properties</div>
           </q-card>
         </div>
         <div class="col-4">
-          <q-card flat class="stat-card text-center q-pa-sm">
+          <q-card flat class="stat-card text-center q-pa-md">
             <div class="text-h5 text-weight-bold text-secondary">{{ stats.viewingCount }}</div>
             <div class="text-caption text-grey-6">Viewings</div>
           </q-card>
         </div>
         <div class="col-4">
-          <q-card flat class="stat-card text-center q-pa-sm">
+          <q-card flat class="stat-card text-center q-pa-md">
             <div class="text-h5 text-weight-bold text-positive">{{ availableCount }}</div>
             <div class="text-caption text-grey-6">Available</div>
           </q-card>
@@ -40,12 +40,12 @@
       </div>
 
       <div v-if="loading" class="row justify-center q-py-lg">
-        <q-spinner-dots color="primary" size="32px" />
+        <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
       </div>
 
       <template v-else-if="upcomingViewings.length === 0">
         <q-card flat class="empty-card text-center q-pa-xl">
-          <q-icon name="event_available" size="48px" color="grey-4" />
+          <q-icon name="event_available" :size="EMPTY_ICON_SIZE" color="grey-4" />
           <div class="text-body2 text-grey-5 q-mt-sm">No upcoming viewings</div>
           <q-btn
             outline
@@ -69,7 +69,7 @@
               @click="$router.push(`/viewings/${viewing.id}`)"
             >
               <q-item-section avatar>
-                <q-avatar :color="statusColor(viewing.status)" text-color="white" size="40px">
+                <q-avatar :color="statusColor(viewing.status)" text-color="white" :size="AVATAR_LIST">
                   <q-icon name="person" />
                 </q-avatar>
               </q-item-section>
@@ -79,7 +79,7 @@
                 <q-item-label caption>{{ viewing.property_name }}</q-item-label>
                 <q-item-label caption class="text-grey-5">
                   <q-icon name="schedule" size="12px" />
-                  {{ formatDateTime(viewing.scheduled_at) }}
+                  {{ formatDateTimeShort(viewing.scheduled_at) }}
                 </q-item-label>
               </q-item-section>
 
@@ -116,6 +116,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { usePlatform } from '../composables/usePlatform'
 import { getDashboardSummary, type PropertyViewing, type Property } from '../services/api'
+import { statusColor, formatDateTimeShort } from '../utils/formatters'
+import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE, AVATAR_LIST } from '../utils/designTokens'
 
 const auth   = useAuthStore()
 const { isIos } = usePlatform()
@@ -140,22 +142,6 @@ const todayStr = computed(() =>
   new Date().toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
 )
 
-function formatDateTime(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-}
-
-function statusColor(status: string) {
-  const map: Record<string, string> = {
-    scheduled: 'info',
-    confirmed: 'primary',
-    completed: 'positive',
-    cancelled: 'negative',
-    converted: 'secondary',
-  }
-  return map[status] || 'grey'
-}
-
 async function loadData(done?: () => void) {
   try {
     const summary = await getDashboardSummary()
@@ -179,7 +165,7 @@ onMounted(() => void loadData())
 <style scoped lang="scss">
 .stat-card {
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   background: white;
 }
 
@@ -187,11 +173,5 @@ onMounted(() => void loadData())
   border-radius: 12px;
   border: 1px dashed rgba(0, 0, 0, 0.12);
   background: transparent;
-}
-
-.section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  overflow: hidden;
 }
 </style>

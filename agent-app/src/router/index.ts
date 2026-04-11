@@ -69,6 +69,12 @@ export default route(function (/* { store, ssrContext } */) {
             meta: { title: 'Create Lease', showBackBtn: true, showFab: false },
           },
           {
+            path: 'leases',
+            name: 'leases',
+            component: () => import('../pages/LeasesPage.vue'),
+            meta: { title: 'Leases', showFab: false },
+          },
+          {
             path: 'calendar',
             name: 'calendar',
             component: () => import('../pages/ViewingCalendarPage.vue'),

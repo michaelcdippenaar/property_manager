@@ -1,0 +1,240 @@
+// ─── Global styles ────────────────────────────────────────────────────────────
+
+// Smooth scrolling globally
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+// ─── iOS-specific overrides ───────────────────────────────────────────────────
+body.platform-ios {
+  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+
+  // iOS hairline separators
+  .q-item {
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.1);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  // iOS-style flat buttons
+  .q-btn:not(.q-btn--fab):not(.q-btn--fab-mini) {
+    border-radius: 10px;
+
+    &.q-btn--flat {
+      box-shadow: none !important;
+    }
+  }
+
+  // iOS-style cards — flat with hairline border (HIG standard, no shadow)
+  .q-card {
+    border-radius: 12px;
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  // iOS-style inputs — rounded outline
+  .q-field--outlined .q-field__control {
+    border-radius: 10px;
+  }
+
+  // iOS large title
+  .ios-large-title {
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: 0.37px;
+    color: $primary;
+    padding: 8px 16px 4px;
+  }
+
+  // iOS frosted glass tab bar
+  .ios-tab-bar {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid rgba(0, 0, 0, 0.15);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    .q-tab {
+      min-width: unset;
+      min-height: 49px;
+    }
+
+    .q-tab__label {
+      font-size: 11px;   // iOS Caption 2 = 11pt
+      font-weight: 500;
+      margin-top: 2px;
+    }
+
+    .q-tab__icon {
+      font-size: 25px;
+    }
+
+    .q-tab--active {
+      color: $primary;
+    }
+  }
+
+  // iOS header
+  .ios-header {
+    background: rgba(255, 255, 255, 0.92) !important;
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+    color: $primary !important;
+
+    .q-toolbar-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .q-btn {
+      color: $primary;
+      font-size: 17px;
+    }
+  }
+}
+
+// ─── Android / Material Design 3 overrides ───────────────────────────────────
+body.platform-android,
+body:not(.platform-ios) {
+  font-family: 'Roboto', 'Noto Sans', Arial, sans-serif;
+
+  // MD3 cards — Medium shape (12dp) with tonal elevation
+  .q-card {
+    border-radius: 12px;   // M3 Medium shape token
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  // MD3 filled button radius
+  .q-btn:not(.q-btn--fab):not(.q-btn--fab-mini) {
+    border-radius: 20px;
+  }
+
+  // MD3 filled inputs
+  .q-field--filled .q-field__control {
+    border-radius: 4px 4px 0 0;
+  }
+
+  // MD3 bottom nav
+  .md-bottom-nav {
+    background: white;
+    height: 80px;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.08);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    .q-tab--active {
+      .q-tab__icon,
+      .q-tab__label {
+        color: $primary;
+      }
+    }
+
+    // M3 active indicator — 64×32dp pill behind icon
+    .q-tab--active {
+      .q-tab__content {
+        position: relative;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, calc(-50% - 8px));
+          width: 64px;
+          height: 32px;
+          background: rgba($primary, 0.12);
+          border-radius: 16px;
+          pointer-events: none;
+        }
+      }
+    }
+  }
+
+  // MD3 toolbar
+  .md-header {
+    background: $primary !important;
+    color: white !important;
+
+    .q-toolbar-title {
+      font-size: 22px;
+      font-weight: 400;
+    }
+  }
+}
+
+// ─── Shared utility classes ───────────────────────────────────────────────────
+
+.page-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.section-card {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+// ─── Chat bubble styles ──────────────────────────────────────────────────────
+
+.chat-bubble-user {
+  background: $primary;
+  color: white;
+  border-radius: 18px 18px 4px 18px;
+  padding: 10px 14px;
+  max-width: 80%;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.chat-bubble-other {
+  background: white;
+  color: #111827;
+  border-radius: 18px 18px 18px 4px;
+  padding: 10px 14px;
+  max-width: 80%;
+  font-size: 14px;
+  line-height: 1.45;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  word-break: break-word;
+}
+
+// ─── Maintenance status badge colours ────────────────────────────────────────
+
+.status-open        { background: rgba($info, 0.15);      color: darken($info, 20%); }
+.status-in_progress { background: rgba($warning, 0.15);   color: darken($warning, 20%); }
+.status-resolved    { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+.status-closed      { background: rgba(#9e9e9e, 0.15);   color: #616161; }
+.status-pending     { background: rgba($warning, 0.12);   color: darken($warning, 15%); }
+.status-completed   { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+.status-declined    { background: rgba($negative, 0.12);  color: darken($negative, 10%); }
+.status-active      { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+
+// Priority badge colours
+.priority-urgent { background: rgba($negative, 0.12);  color: darken($negative, 10%); }
+.priority-high   { background: rgba($warning, 0.15);   color: darken($warning, 20%); }
+.priority-medium { background: rgba($info, 0.15);      color: darken($info, 20%); }
+.priority-low    { background: rgba(#9e9e9e, 0.12);   color: #616161; }
+
+// Typing indicator bounce animation
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background: #9ca3af;
+  border-radius: 50%;
+  display: inline-block;
+  animation: typing-bounce 1.2s ease-in-out infinite;
+
+  &:nth-child(2) { animation-delay: 150ms; }
+  &:nth-child(3) { animation-delay: 300ms; }
+}

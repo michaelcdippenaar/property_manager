@@ -18,7 +18,7 @@
     <q-card flat class="section-card q-mb-md">
       <q-card-section class="q-pb-xs">
         <div class="row items-center q-gutter-sm">
-          <q-avatar color="primary" text-color="white" size="52px">
+          <q-avatar color="primary" text-color="white" :size="AVATAR_PROFILE">
             <q-icon name="person" size="28px" />
           </q-avatar>
           <div>
@@ -134,7 +134,7 @@
   </q-page>
 
   <q-page v-else class="row justify-center items-center">
-    <q-spinner-dots color="primary" size="40px" />
+    <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
   </q-page>
 </template>
 
@@ -144,6 +144,8 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewing, updateViewing, type PropertyViewing, type Person } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { formatDateTime, statusIcon } from '../utils/formatters'
+import { SPINNER_SIZE_PAGE, AVATAR_PROFILE } from '../utils/designTokens'
 
 const props  = defineProps<{ id: number }>()
 const router = useRouter()
@@ -159,26 +161,14 @@ const isActive = computed(() =>
   viewing.value && !['cancelled', 'converted'].includes(viewing.value.status),
 )
 
-function statusIcon(status: string) {
-  const m: Record<string, string> = {
-    scheduled: 'event', confirmed: 'event_available', completed: 'check_circle',
-    cancelled: 'cancel', converted: 'description',
-  }
-  return m[status] || 'info'
-}
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-ZA', {
-    weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
-  })
-}
-
 async function markCompleted() {
   if (!viewing.value) return
   updating.value = true
   try {
     viewing.value = await updateViewing(viewing.value.id, { status: 'completed' })
     $q.notify({ type: 'positive', message: 'Viewing marked as completed', icon: 'check_circle' })
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to update viewing. Please try again.', icon: 'error' })
   } finally {
     updating.value = false
   }
@@ -211,17 +201,11 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.08);
-  overflow: hidden;
-}
-
 .status-banner {
-  &--scheduled  { background: rgba(49,204,236,0.12); color: #1a9fb5; }
-  &--confirmed  { background: rgba(43,45,110,0.1);  color: #2B2D6E; }
-  &--completed  { background: rgba(33,186,69,0.12); color: #1a8c3d; }
-  &--cancelled  { background: rgba(219,40,40,0.1);  color: #b91c1c; }
-  &--converted  { background: rgba(255,61,127,0.1); color: #d62d6e; }
+  &--scheduled  { background: rgba($info, 0.12);      color: darken($info, 20%); }
+  &--confirmed  { background: rgba($primary, 0.1);    color: $primary; }
+  &--completed  { background: rgba($positive, 0.12);  color: darken($positive, 15%); }
+  &--cancelled  { background: rgba($negative, 0.1);   color: darken($negative, 10%); }
+  &--converted  { background: rgba($secondary, 0.1);  color: darken($secondary, 10%); }
 }
 </style>

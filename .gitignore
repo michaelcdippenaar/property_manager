@@ -61,3 +61,12 @@ agent-app/dist/
 tenant/dist/
 agent-app/.quasar/
 tenant/.quasar/
+
+# Tenant app (Quasar monorepo folder)
+tenant-app/node_modules/
+tenant-app/dist/
+tenant-app/.quasar/
+
+# Capacitor iOS — local Xcode build artefacts (do not commit)
+agent-app/ios/App/DerivedData/
+agent-app/ios/App/build/

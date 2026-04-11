@@ -8,7 +8,6 @@
       animated
       flat
       bordered
-      class="stepper-card"
     >
       <!-- ── Step 1: Viewing Details ───────────────────────────────────────── -->
       <q-step :name="1" title="Viewing Details" icon="event" :done="step > 1">
@@ -410,8 +409,10 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.stepper-card {
-  border-radius: 12px !important;
-  border: 1px solid rgba(0,0,0,0.08) !important;
+// Quasar stepper uses flat + bordered props; wrap in section-card for consistent styling
+:deep(.q-stepper) {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: none;
 }
 </style>

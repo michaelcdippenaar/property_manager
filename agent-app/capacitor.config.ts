@@ -18,8 +18,15 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'light',
-      backgroundColor: '#2B2D6E',
+      backgroundColor: '#2B2D6E',  // keep in sync with $primary in quasar.variables.scss
       overlaysWebView: false,
+    },
+    Keyboard: {
+      // Body resize: the body element shrinks to fit the visible area
+      // so bottom-pinned inputs scroll into view automatically on iOS
+      resize: 'body',
+      style: 'light',
+      resizeOnFullScreen: true,
     },
   },
 }

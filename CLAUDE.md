@@ -50,6 +50,7 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `marketing-strategy` | Write marketing copy, blog posts, campaigns |
 | `sales-enablement` | Sales calls, demo prep, prospect research |
 | `klikk-design-standard` | Build/modify Vue admin UI |
+| `mobile-ux-ui` | Build/modify Quasar/Capacitor mobile UI (iOS HIG + Android MD3 specs) |
 | `lease-rental-agreement` | Generate SA lease agreements |
 | `lease-tiptap` | TipTap rich text editor for lease templates |
 | `lease-tiptap-to-pdf` | HTML-to-PDF pipeline, merge fields, signed PDF generation |

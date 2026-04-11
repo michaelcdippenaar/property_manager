@@ -21,8 +21,14 @@
       </div>
     </div>
 
-    <!-- Calendar grid -->
-    <div class="calendar-grid q-mb-md">
+    <!-- Calendar grid (with inline loading overlay) -->
+    <div class="calendar-grid-wrap q-mb-md">
+      <transition name="fade">
+        <div v-if="loading" class="calendar-loading-overlay">
+          <q-spinner-dots color="primary" :size="SPINNER_SIZE_INLINE" />
+        </div>
+      </transition>
+    <div class="calendar-grid" :class="{ 'calendar-grid--loading': loading }">
       <div
         v-for="(day, idx) in calendarDays"
         :key="idx"
@@ -50,10 +56,11 @@
             v-for="(e, i) in day.leaseEvents.slice(0, 2)"
             :key="`l${i}`"
             class="calendar-dot"
-            :style="{ background: e.type === 'start' ? '#21BA45' : '#F2711C' }"
+            :style="{ background: e.type === 'start' ? 'var(--q-positive)' : 'var(--q-warning)' }"
           />
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Selected day viewings -->
@@ -80,7 +87,7 @@
           <q-list separator>
             <q-item v-for="(e, i) in selectedDayLeaseEvents" :key="i">
               <q-item-section avatar>
-                <q-avatar :color="e.type === 'start' ? 'positive' : 'warning'" text-color="white" size="40px">
+                <q-avatar :color="e.type === 'start' ? 'positive' : 'warning'" text-color="white" :size="AVATAR_LIST">
                   <q-icon :name="e.type === 'start' ? 'login' : 'logout'" />
                 </q-avatar>
               </q-item-section>
@@ -106,7 +113,7 @@
               @click="$router.push(`/viewings/${v.id}`)"
             >
               <q-item-section avatar>
-                <q-avatar :color="statusColor(v.status)" text-color="white" size="40px">
+                <q-avatar :color="statusColor(v.status)" text-color="white" :size="AVATAR_LIST">
                   <q-icon name="person" />
                 </q-avatar>
               </q-item-section>
@@ -127,11 +134,6 @@
       </template>
     </template>
 
-    <!-- Loading -->
-    <div v-if="loading" class="row justify-center q-py-md">
-      <q-spinner-dots color="primary" size="28px" />
-    </div>
-
     <!-- iOS FAB -->
     <div class="q-mt-lg" v-if="isIos">
       <q-btn
@@ -148,10 +150,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { getViewingsCalendar, listLeases, type PropertyViewing, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { statusColor, statusDotColor, formatTime } from '../utils/formatters'
+import { SPINNER_SIZE_INLINE, AVATAR_LIST } from '../utils/designTokens'
 
 const router = useRouter()
+const $q     = useQuasar()
 const { isIos } = usePlatform()
 
 interface CalendarDay {
@@ -269,20 +275,6 @@ function goToday() {
   selectedDate.value = toDateStr(today)
 }
 
-function statusColor(status: string) {
-  const m: Record<string, string> = { scheduled: 'info', confirmed: 'primary', completed: 'positive', cancelled: 'negative', converted: 'secondary' }
-  return m[status] || 'grey'
-}
-
-function statusDotColor(status: string) {
-  const m: Record<string, string> = { scheduled: '#31CCEC', confirmed: '#2B2D6E', completed: '#21BA45', cancelled: '#DB2828', converted: '#FF3D7F' }
-  return m[status] || '#9e9e9e'
-}
-
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
-}
-
 function bookViewingForDate() {
   void router.push('/viewings/new')
 }
@@ -298,6 +290,8 @@ async function loadViewings() {
     ])
     viewings.value = calendarViewings
     leases.value   = leasesResp.results
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to load calendar data. Pull down to retry.', icon: 'error' })
   } finally {
     loading.value = false
   }
@@ -313,6 +307,26 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+.calendar-grid-wrap {
+  position: relative;
+}
+
+.calendar-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 1;
+  border-radius: 8px;
+}
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from,
+.fade-leave-to     { opacity: 0; }
+
 .calendar-header {
   gap: 0;
 }
@@ -339,16 +353,16 @@ onMounted(() => {
   cursor: pointer;
   transition: background 0.15s;
 
-  &:active { background: rgba(43,45,110,0.08); }
+  &:active { background: rgba($primary, 0.08); }
 
   &--outside { opacity: 0.3; }
 
   &--selected {
-    background: rgba(43,45,110,0.1);
+    background: rgba($primary, 0.1);
   }
 
   &--today .calendar-date--today {
-    background: #2B2D6E;
+    background: $primary;
     color: white;
     border-radius: 50%;
     width: 26px;
@@ -379,9 +393,4 @@ onMounted(() => {
   border-radius: 50%;
 }
 
-.section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,0.08);
-  overflow: hidden;
-}
 </style>

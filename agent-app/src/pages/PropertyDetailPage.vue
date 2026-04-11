@@ -138,12 +138,12 @@
         <!-- ── LEASES tab ─────────────────────────────────────────────────── -->
         <q-tab-panel name="leases" class="q-pa-none">
           <div v-if="loadingLeases" class="row justify-center q-py-lg">
-            <q-spinner-dots color="primary" size="28px" />
+            <q-spinner-dots color="primary" :size="SPINNER_SIZE_INLINE" />
           </div>
 
           <template v-else-if="propertyLeases.length === 0">
             <div class="text-center q-pa-xl">
-              <q-icon name="description" size="40px" color="grey-4" />
+              <q-icon name="description" :size="EMPTY_ICON_SIZE" color="grey-4" />
               <div class="text-body2 text-grey-5 q-mt-xs">No leases for this property</div>
               <q-btn
                 unelevated
@@ -200,12 +200,12 @@
         <!-- ── VIEWINGS tab ───────────────────────────────────────────────── -->
         <q-tab-panel name="viewings" class="q-pa-none">
           <div v-if="loadingViewings" class="row justify-center q-py-lg">
-            <q-spinner-dots color="primary" size="28px" />
+            <q-spinner-dots color="primary" :size="SPINNER_SIZE_INLINE" />
           </div>
 
           <template v-else-if="viewings.length === 0">
             <div class="text-center q-pa-xl">
-              <q-icon name="calendar_today" size="40px" color="grey-4" />
+              <q-icon name="calendar_today" :size="EMPTY_ICON_SIZE" color="grey-4" />
               <div class="text-body2 text-grey-5 q-mt-xs">No viewings booked</div>
               <q-btn flat color="secondary" label="Book viewing" size="sm"
                 class="q-mt-sm" @click="bookViewing()" />
@@ -221,13 +221,13 @@
               @click="$router.push(`/viewings/${v.id}`)"
             >
               <q-item-section avatar>
-                <q-avatar :color="statusColor(v.status)" text-color="white" size="36px">
+                <q-avatar :color="statusColor(v.status)" text-color="white" :size="AVATAR_COMPACT">
                   <q-icon name="person" size="20px" />
                 </q-avatar>
               </q-item-section>
               <q-item-section>
                 <q-item-label class="text-weight-medium">{{ v.prospect_name }}</q-item-label>
-                <q-item-label caption>{{ formatDateTime(v.scheduled_at) }}</q-item-label>
+                <q-item-label caption>{{ formatDateTimeShort(v.scheduled_at) }}</q-item-label>
                 <q-item-label v-if="v.unit_number" caption class="text-grey-5">Unit {{ v.unit_number }}</q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -250,7 +250,7 @@
   </q-page>
 
   <q-page v-else-if="loading" class="row justify-center items-center">
-    <q-spinner-dots color="primary" size="40px" />
+    <q-spinner-dots color="primary" :size="SPINNER_SIZE_PAGE" />
   </q-page>
 </template>
 
@@ -259,6 +259,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getProperty, listViewings, listLeases, type Property, type PropertyViewing, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { statusColor, unitStatusColor, leaseStatusColor, formatDate, formatDateTimeShort, daysRemaining } from '../utils/formatters'
+import { SPINNER_SIZE_PAGE, SPINNER_SIZE_INLINE, EMPTY_ICON_SIZE, AVATAR_COMPACT } from '../utils/designTokens'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -279,42 +281,6 @@ const availableCount = computed(() =>
 const propertyLeases = computed(() =>
   allLeases.value.filter((l) => l.property_id === Number(props.id)),
 )
-
-// ── Formatters ───────────────────────────────────────────────────────────────
-
-function unitStatusColor(status: string) {
-  return status === 'available' ? 'positive' : status === 'occupied' ? 'grey-6' : 'warning'
-}
-
-function leaseStatusColor(status: string) {
-  const map: Record<string, string> = {
-    active: 'positive', pending: 'warning', expired: 'grey-5', terminated: 'negative',
-  }
-  return map[status] || 'grey-5'
-}
-
-function statusColor(status: string) {
-  const map: Record<string, string> = {
-    scheduled: 'info', confirmed: 'primary', completed: 'positive',
-    cancelled: 'negative', converted: 'secondary',
-  }
-  return map[status] || 'grey'
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function formatDateTime(iso: string) {
-  return new Date(iso).toLocaleString('en-ZA', {
-    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  })
-}
-
-function daysRemaining(endDate: string): number | null {
-  const diff = Math.ceil((new Date(endDate).getTime() - Date.now()) / 86400000)
-  return diff > 0 ? diff : null
-}
 
 function bookViewing(unitId?: number) {
   const query: Record<string, string> = { property: String(props.id) }

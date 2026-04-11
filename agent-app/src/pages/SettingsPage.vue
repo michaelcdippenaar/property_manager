@@ -163,7 +163,7 @@ function confirmLogout() {
 <style scoped lang="scss">
 .settings-card {
   border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.07);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   overflow: hidden;
 }
 

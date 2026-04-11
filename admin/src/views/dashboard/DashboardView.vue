@@ -88,7 +88,7 @@
     <!-- ── Zone C: Portfolio Pulse ── -->
 
     <!-- Stat cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 gap-4">
       <RouterLink
         v-for="stat in stats"
         :key="stat.label"
@@ -115,49 +115,11 @@
     <!-- Maintenance + Occupancy -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
-      <!-- Recent maintenance -->
-      <div class="card lg:col-span-3 overflow-hidden">
-        <div class="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-gray-800">Recent maintenance</h2>
-          <RouterLink to="/maintenance/issues" class="text-xs text-navy hover:underline">View all →</RouterLink>
-        </div>
-        <div v-if="loading" class="p-5 space-y-3 animate-pulse">
-          <div v-for="i in 4" :key="i" class="flex gap-3">
-            <div class="h-4 bg-gray-100 rounded flex-1"></div>
-            <div class="h-4 bg-gray-100 rounded w-16"></div>
-            <div class="h-4 bg-gray-100 rounded w-14"></div>
-          </div>
-        </div>
-        <div v-else-if="recentMaintenance.length" class="table-scroll"><table class="table-wrap">
-          <thead>
-            <tr>
-              <th scope="col">Title</th>
-              <th scope="col">Unit</th>
-              <th scope="col">Priority</th>
-              <th scope="col">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="req in recentMaintenance"
-              :key="req.id"
-              class="cursor-pointer"
-              @click="router.push('/maintenance/issues')"
-            >
-              <td class="font-medium text-gray-800">{{ req.title }}</td>
-              <td class="text-gray-500">{{ req.unit }}</td>
-              <td><span :class="priorityBadge(req.priority)">{{ req.priority }}</span></td>
-              <td><span :class="statusBadge(req.status)">{{ req.status.replace('_', ' ') }}</span></td>
-            </tr>
-          </tbody>
-        </table></div>
-        <EmptyState
-          v-else
-          title="No open requests"
-          description="All maintenance requests are resolved."
-          :icon="Wrench"
-        />
-      </div>
+      <!-- Lease timeline -->
+      <PropertyTimelineWidget
+        :properties="propertiesStore.list"
+        :loading="loading || propertiesStore.loading"
+      />
 
       <!-- Occupancy -->
       <div class="card p-5 lg:col-span-2">
@@ -224,19 +186,20 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
-import EmptyState from '../../components/EmptyState.vue'
+import { usePropertiesStore } from '../../stores/properties'
+import PropertyTimelineWidget from './PropertyTimelineWidget.vue'
 import {
-  Building2, Users, Wrench, FileText, UserCheck,
-  FileSignature, CheckCircle2, PenLine,
+  Building2, Users, Wrench, FileText,
+  UserCheck, FileSignature, CheckCircle2, PenLine,
 } from 'lucide-vue-next'
 
 const router = useRouter()
 const toast = useToast()
+const propertiesStore = usePropertiesStore()
 
 const loading = ref(true)
 const animReady = ref(false)
 const statsData = ref<Record<string, number>>({})
-const recentMaintenance = ref<any[]>([])
 const pendingSigning = ref<any[]>([])
 
 // Pipeline counts
@@ -249,17 +212,18 @@ async function loadData() {
   loading.value = true
   animReady.value = false
   try {
-    const [s, m, signing, landlords, templates, signingAll] = await Promise.allSettled([
+    const [s, signing, landlords, templates, signingAll] = await Promise.allSettled([
       api.get('/stats/'),
-      api.get('/maintenance/?status=open&page_size=5'),
       api.get('/esigning/submissions/?status=pending&page_size=3'),
       api.get('/landlords/?page_size=1'),
       api.get('/leases/templates/?page_size=1'),
       api.get('/esigning/submissions/?page_size=1'),
     ])
 
+    // Properties store fetch runs in parallel (has its own loading state)
+    propertiesStore.fetchAll()
+
     if (s.status === 'fulfilled') statsData.value = s.value.data
-    if (m.status === 'fulfilled') recentMaintenance.value = (m.value.data.results ?? m.value.data).slice(0, 5)
     if (signing.status === 'fulfilled') pendingSigning.value = (signing.value.data.results ?? signing.value.data).slice(0, 3)
 
     // Pipeline counts
@@ -339,20 +303,12 @@ const overallProgress = computed(() => Math.round(pipelineSteps.value.reduce((su
 // ── Zone C: Stats ─────────────────────────────────────────────────────────────
 const stats = computed(() => [
   {
-    label: 'Properties', value: statsData.value.total_properties ?? 0, sub: 'in portfolio',
-    icon: Building2, bg: 'bg-info-50', iconColor: 'text-info-600', href: '/properties',
-  },
-  {
     label: 'Active tenants', value: statsData.value.active_tenants ?? 0, sub: 'currently leasing',
     icon: Users, bg: 'bg-success-50', iconColor: 'text-success-600', href: '/tenants',
   },
   {
     label: 'Open requests', value: statsData.value.open_maintenance ?? 0, sub: 'need attention',
     icon: Wrench, bg: 'bg-warning-50', iconColor: 'text-warning-500', href: '/maintenance/issues',
-  },
-  {
-    label: 'Active leases', value: statsData.value.active_leases ?? 0, sub: 'signed agreements',
-    icon: FileText, bg: 'bg-navy/10', iconColor: 'text-navy', href: '/leases',
   },
 ])
 
@@ -383,12 +339,6 @@ const donutSegments = computed(() => {
     })
 })
 
-function priorityBadge(p: string) {
-  return { urgent: 'badge badge-red', high: 'badge badge-amber', medium: 'badge badge-blue', low: 'badge badge-green' }[p] ?? 'badge badge-gray'
-}
-function statusBadge(s: string) {
-  return { open: 'badge badge-red', in_progress: 'badge badge-amber', resolved: 'badge badge-green', closed: 'badge badge-gray' }[s] ?? 'badge badge-gray'
-}
 </script>
 
 <style scoped>

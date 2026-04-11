@@ -27,10 +27,11 @@ body.platform-ios {
     }
   }
 
-  // iOS-style cards — subtle shadow, 12px radius
+  // iOS-style cards — flat with hairline border (HIG standard, no shadow)
   .q-card {
     border-radius: 12px;
-    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(0, 0, 0, 0.08);
   }
 
   // iOS-style inputs — rounded outline
@@ -43,7 +44,7 @@ body.platform-ios {
     font-size: 34px;
     font-weight: 700;
     letter-spacing: 0.37px;
-    color: #2B2D6E;
+    color: $primary;
     padding: 8px 16px 4px;
   }
 
@@ -61,7 +62,7 @@ body.platform-ios {
     }
 
     .q-tab__label {
-      font-size: 10px;
+      font-size: 11px;   // iOS Caption 2 = 11pt
       font-weight: 500;
       margin-top: 2px;
     }
@@ -71,7 +72,7 @@ body.platform-ios {
     }
 
     .q-tab--active {
-      color: #2B2D6E;
+      color: $primary;
     }
   }
 
@@ -81,7 +82,7 @@ body.platform-ios {
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
-    color: #2B2D6E !important;
+    color: $primary !important;
 
     .q-toolbar-title {
       font-size: 17px;
@@ -89,7 +90,7 @@ body.platform-ios {
     }
 
     .q-btn {
-      color: #2B2D6E;
+      color: $primary;
       font-size: 17px;
     }
   }
@@ -100,10 +101,10 @@ body.platform-android,
 body:not(.platform-ios) {
   font-family: 'Roboto', 'Noto Sans', Arial, sans-serif;
 
-  // MD3 cards — elevated surface with more radius
+  // MD3 cards — Medium shape (12dp) with tonal elevation
   .q-card {
-    border-radius: 16px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
+    border-radius: 12px;   // M3 Medium shape token
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08) !important;
   }
 
   // MD3 filled button radius
@@ -126,19 +127,34 @@ body:not(.platform-ios) {
     .q-tab--active {
       .q-tab__icon,
       .q-tab__label {
-        color: #2B2D6E;
+        color: $primary;
       }
     }
 
-    .q-tab--active .q-focus-helper {
-      background: rgba(43, 45, 110, 0.08);
-      border-radius: 16px;
+    // M3 active indicator — 64×32dp pill behind icon
+    .q-tab--active {
+      .q-tab__content {
+        position: relative;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, calc(-50% - 8px));
+          width: 64px;
+          height: 32px;
+          background: rgba($primary, 0.12);
+          border-radius: 16px;
+          pointer-events: none;
+        }
+      }
     }
   }
 
   // MD3 toolbar
   .md-header {
-    background: #2B2D6E !important;
+    background: $primary !important;
     color: white !important;
 
     .q-toolbar-title {
@@ -157,6 +173,9 @@ body:not(.platform-ios) {
 }
 
 .section-card {
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
   margin-bottom: 16px;
 }
 
@@ -170,9 +189,9 @@ body:not(.platform-ios) {
   font-weight: 500;
 }
 
-// Status badge colours
-.status-scheduled  { background: rgba(49, 204, 236, 0.15); color: #1a9fb5; }
-.status-confirmed  { background: rgba(43, 45, 110, 0.12); color: #2B2D6E; }
-.status-completed  { background: rgba(33, 186, 69, 0.15);  color: #1a8c3d; }
-.status-cancelled  { background: rgba(219, 40, 40, 0.12);  color: #b91c1c; }
-.status-converted  { background: rgba(255, 61, 127, 0.12); color: #d62d6e; }
+// Status badge colours — use SCSS tokens, no hardcoded hex
+.status-scheduled  { background: rgba($info, 0.15);      color: darken($info, 20%); }
+.status-confirmed  { background: rgba($primary, 0.12);   color: $primary; }
+.status-completed  { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+.status-cancelled  { background: rgba($negative, 0.12);  color: darken($negative, 10%); }
+.status-converted  { background: rgba($secondary, 0.12); color: darken($secondary, 10%); }
