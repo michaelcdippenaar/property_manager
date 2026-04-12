@@ -70,3 +70,10 @@ tenant-app/.quasar/
 # Capacitor iOS — local Xcode build artefacts (do not commit)
 agent-app/ios/App/DerivedData/
 agent-app/ios/App/build/
+tenant-app/ios/DerivedData/
+tenant-app/ios/App/build/
+
+# Capacitor web asset dir (has its own node_modules + Xcode DerivedData when synced)
+agent-app/src-capacitor/node_modules/
+agent-app/src-capacitor/ios/DerivedData/
+agent-app/src-capacitor/ios/**/build/

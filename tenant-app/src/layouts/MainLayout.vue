@@ -14,6 +14,7 @@
           round
           :icon="backIcon"
           :color="isIos ? 'primary' : 'white'"
+          aria-label="Go back"
           @click="router.back()"
         />
 
@@ -33,7 +34,7 @@
     <!-- ── Page content ────────────────────────────────────────────────────── -->
     <q-page-container>
       <router-view v-slot="{ Component }">
-        <keep-alive :include="['HomePage', 'RepairsPage', 'ChatListPage', 'SettingsPage']">
+        <keep-alive :include="['HomePage', 'RepairsPage', 'SettingsPage']">
           <transition
             :enter-active-class="`animated ${enterTransition} faster`"
             :leave-active-class="`animated ${leaveTransition} faster`"
@@ -76,7 +77,6 @@ const { isIos, enterTransition, leaveTransition, backIcon, headerClass } = usePl
 const tabs = [
   { name: 'dashboard', label: 'Home',     icon: 'home',     path: '/dashboard' },
   { name: 'repairs',   label: 'Repairs',  icon: 'build',    path: '/repairs'   },
-  { name: 'chat-list', label: 'Chat',     icon: 'chat',     path: '/chat'      },
   { name: 'settings',  label: 'Settings', icon: 'settings', path: '/settings'  },
 ]
 
@@ -87,7 +87,6 @@ watch(
   (name) => {
     if (name === 'dashboard')  activeTab.value = 'dashboard'
     else if (name === 'repairs')    activeTab.value = 'repairs'
-    else if (name === 'chat-list')  activeTab.value = 'chat-list'
     else if (name === 'settings')   activeTab.value = 'settings'
   },
   { immediate: true },
@@ -101,7 +100,7 @@ watch(
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid rgba(0, 0, 0, 0.14);
+  border-top: 0.5px solid var(--klikk-border-strong);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -116,7 +115,7 @@ watch(
   background: none;
   border: none;
   cursor: pointer;
-  color: #9e9e9e;
+  color: var(--klikk-text-muted);
   transition: color 0.15s;
   padding: 0;
 

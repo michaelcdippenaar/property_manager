@@ -29,7 +29,7 @@
       <!-- Active repairs -->
       <div class="q-mb-md">
         <div class="row items-center justify-between q-mb-xs q-px-xs">
-          <div class="text-caption text-grey-6 text-uppercase letter-spacing-wide">Active Repairs</div>
+          <div class="section-header">Active Repairs</div>
           <q-btn flat dense no-caps color="primary" label="View all" size="sm" @click="$router.push('/repairs')" />
         </div>
 
@@ -40,10 +40,10 @@
 
         <!-- Empty -->
         <q-card v-else-if="activeIssues.length === 0" flat>
-          <div class="text-center q-pa-lg">
-            <q-icon name="check_circle" size="32px" color="positive" class="q-mb-sm" />
-            <div class="text-weight-medium text-grey-8">No active repairs</div>
-            <div class="text-caption text-grey-5 q-mt-xs">Everything looks good!</div>
+          <div class="empty-state">
+            <q-icon name="check_circle" size="32px" color="positive" class="empty-state-icon" />
+            <div class="empty-state-title">No active repairs</div>
+            <div class="empty-state-sub">Everything looks good!</div>
           </div>
         </q-card>
 
@@ -55,7 +55,7 @@
               :key="issue.id"
               clickable
               v-ripple
-              @click="$router.push(`/repairs/${issue.id}`)"
+              @click="$router.push(`/repairs/ticket/${issue.id}`)"
             >
               <q-item-section avatar>
                 <q-avatar :color="priorityAvatarColor(issue.priority)" size="36px">
@@ -77,7 +77,7 @@
       <!-- Unit info preview -->
       <div v-if="infoItems.length > 0" class="q-mb-md">
         <div class="row items-center justify-between q-mb-xs q-px-xs">
-          <div class="text-caption text-grey-6 text-uppercase letter-spacing-wide">Your Unit</div>
+          <div class="section-header">Your Unit</div>
           <q-btn flat dense no-caps color="primary" label="More info" size="sm" @click="$router.push('/lease')" />
         </div>
         <q-card flat>
@@ -105,12 +105,14 @@
 defineOptions({ name: 'HomePage' })
 
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useAuthStore } from '../stores/auth'
 import StatusBadge from '../components/StatusBadge.vue'
 import * as tenantApi from '../services/api'
 import type { MaintenanceIssue, UnitInfoItem } from '../services/api'
 
 const auth = useAuthStore()
+const $q = useQuasar()
 
 const activeIssues  = ref<MaintenanceIssue[]>([])
 const issuesLoading = ref(true)
@@ -160,6 +162,7 @@ async function loadData() {
       tenantApi.listUnitInfo(),
     ])
     if (issuesRes.status === 'fulfilled') activeIssues.value = issuesRes.value.data.results ?? issuesRes.value.data as MaintenanceIssue[]
+    else $q.notify({ type: 'negative', message: 'Failed to load repairs.', icon: 'error' })
     if (infoRes.status === 'fulfilled') infoItems.value = infoRes.value.data.results ?? infoRes.value.data as UnitInfoItem[]
 
     // Check for pending signing
@@ -174,7 +177,7 @@ async function loadData() {
           s.signers?.some((sg) => sg.email === auth.user?.email && sg.status === 'pending'),
         )
       }
-    } catch { /* signing CTA is optional */ }
+    } catch { /* signing CTA is optional — not critical data */ }
   } finally {
     issuesLoading.value = false
   }
@@ -189,7 +192,4 @@ onMounted(loadData)
 </script>
 
 <style scoped lang="scss">
-.letter-spacing-wide {
-  letter-spacing: 0.05em;
-}
 </style>

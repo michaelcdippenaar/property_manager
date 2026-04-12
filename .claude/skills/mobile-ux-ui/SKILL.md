@@ -1,34 +1,325 @@
 ---
 name: mobile-ux-ui
-description: Platform-correct iOS (HIG) and Android (Material Design 3) UX/UI engineering for the Klikk Agent App (Quasar/Capacitor). Enforces exact specs from Apple HIG and Google Material Design 3 — typography scales, spacing systems, navigation patterns, component sizes, color tokens, motion curves, and touch target minimums.
+description: Platform-correct iOS (HIG) and Android (Material Design 3) UX/UI engineering for the Klikk Agent App and Tenant App (Quasar/Capacitor). Enforces exact specs from Apple HIG and Google Material Design 3, plus the Klikk design standard — CSS custom properties, shared utilities, reusable component classes, error handling, and accessibility. Use this skill whenever building or modifying any mobile UI in agent-app or tenant-app, even for small changes like adding a button or fixing spacing.
 ---
 
 # Mobile UX/UI — iOS HIG + Android Material Design 3
 
-**Stack:** Quasar Framework v2 + Vue 3 + Capacitor (agent-app)
-**Brand:** Primary `#2B2D6E` (navy) · Secondary `#FF3D7F` (pink)
+**Stack:** Quasar Framework v2 + Vue 3 + Capacitor (agent-app, tenant-app)
+**Brand:** Primary `#2B2D6E` (navy) · Secondary `#0D9488` (teal)
 **Design tokens file:** `agent-app/src/utils/designTokens.ts`
 **Shared formatters:** `agent-app/src/utils/formatters.ts`
+**Global styles:** `agent-app/src/css/app.scss`
+**SCSS variables:** `agent-app/src/css/quasar.variables.scss`
 **Platform detection:** `agent-app/src/composables/usePlatform.ts`
 
 ---
 
 ## MANDATE
 
-When building or reviewing mobile UI for the Klikk agent-app:
+When building or reviewing mobile UI for the Klikk agent-app or tenant-app:
 
 1. **Always detect platform** — use `usePlatform()` composable (`isIos`, `isAndroid`)
 2. **Apply platform-correct specs** — iOS dimensions in points (pt), Android in density-independent pixels (dp)
-3. **Never hardcode colors** — use `var(--q-primary)` in templates/CSS, `$primary` in SCSS
+3. **Never hardcode colors** — use CSS custom properties (`var(--klikk-*)`, `var(--q-primary)`) in templates, `$primary` in SCSS
 4. **Never hardcode sizes** — use tokens from `designTokens.ts`
 5. **Respect safe areas** — iOS notch/Dynamic Island top, home indicator bottom (34pt)
-6. **Touch targets** — iOS minimum 44×44pt · Android minimum 48×48dp
+6. **Touch targets** — iOS minimum 44x44pt · Android minimum 48x48dp
+7. **Never silent catches** — every API call must have error feedback via `$q.notify()`
+8. **Use shared utilities** — never duplicate `formatZAR`, `fmtLabel`, `RULES`, or status color functions
+9. **Accessibility** — `aria-label` on all icon-only buttons, `:focus-visible` styling respected
 
 ---
 
-## Part 1: iOS Human Interface Guidelines (iOS 17/18)
+## Part 1: Klikk Design Standard (CSS Custom Properties + Shared Utilities)
 
-### 1.1 Typography — San Francisco (SF Pro)
+This section defines the Klikk-specific design tokens and patterns that sit on top of the platform specs. These are enforced across ALL pages in both apps.
+
+### 1.1 CSS Custom Properties (`app.scss :root`)
+
+All UI colors that are not Quasar brand tokens (`$primary`, `$positive`, etc.) must use these CSS custom properties. Never hardcode hex values or `rgba()` for borders, text, or backgrounds that have a token.
+
+```scss
+:root {
+  --klikk-border: rgba(0, 0, 0, 0.08);         // Card borders, separators
+  --klikk-border-strong: rgba(0, 0, 0, 0.14);  // Tab bar top border, strong dividers
+  --klikk-radius-card: 12px;                    // All cards
+  --klikk-radius-input: 10px;                   // Input fields (iOS)
+  --klikk-radius-btn: 16px;                     // Buttons
+  --klikk-text-primary: #1a1a2e;                // Primary text (headings, input values)
+  --klikk-text-secondary: #6b7280;              // Secondary text (labels, section headers)
+  --klikk-text-muted: #9e9e9e;                  // Muted text (hints, inactive tabs)
+  --klikk-text-faint: #bdbdbd;                  // Faint text (placeholders, empty state subs)
+  --klikk-chat-bg: #efeae2;                     // Chat message area background
+  --klikk-chat-sent: #d4f0ed;                   // Sent message bubble
+  --klikk-chat-received: #ffffff;               // Received message bubble
+  --klikk-empty-text: #9e9e9e;                  // Empty state title text
+}
+```
+
+**When to use which:**
+- Card/component borders: `var(--klikk-border)` — NOT `rgba(0,0,0,0.08)` inline
+- Card border-radius: `var(--klikk-radius-card)` — NOT `12px` inline
+- Input border-radius: `var(--klikk-radius-input)` — NOT `10px` inline
+- Tab bar / nav borders: `var(--klikk-border-strong)`
+- Form labels, section headers: `var(--klikk-text-secondary)`
+- Input text, headings: `var(--klikk-text-primary)`
+- Placeholders, hints: `var(--klikk-text-faint)`
+- Inactive tab icons: `var(--klikk-text-muted)`
+
+### 1.2 SCSS Brand Tokens (`quasar.variables.scss`)
+
+These are the Quasar brand variables used in `<style lang="scss">` blocks:
+
+```scss
+$primary:   #2B2D6E;   // Klikk Navy
+$secondary: #0D9488;   // Klikk Teal (accent)
+$accent:    #0D9488;
+$dark:      #1A1B44;
+$surface:   #F5F5F8;   // Page background
+$positive:  #21BA45;
+$negative:  #DB2828;
+$info:      #31CCEC;
+$warning:   #F2C037;
+```
+
+**Rules:**
+- In `<style lang="scss">` scoped blocks: use `$primary`, `rgba($primary, 0.12)`, etc.
+- In `<template>` inline styles or unscoped CSS: use `var(--q-primary)`, `var(--klikk-text-primary)`, etc.
+- Never write `color: #2B2D6E` or `color: #0D9488` anywhere.
+
+### 1.3 Design Tokens (`designTokens.ts`)
+
+Central file for all reusable constants and utilities. Import from here — never redefine these values.
+
+```typescript
+// Sizing constants
+export const SPINNER_SIZE_PAGE   = '36px'   // Full-page loaders
+export const SPINNER_SIZE_INLINE = '24px'   // Tab/inline loaders
+export const EMPTY_ICON_SIZE     = '48px'   // Empty state icons
+export const AVATAR_PROFILE      = '48px'   // Profile/prospect avatars
+export const AVATAR_LIST         = '40px'   // Standard list avatars
+export const AVATAR_COMPACT      = '36px'   // Compact list avatars
+
+// Shared validation rules — use in ALL forms, never write inline rules
+export const RULES = {
+  required:       (v: unknown) => !!v || 'Required',
+  requiredSelect: (v: unknown) => !!v || 'Please select an option',
+  positiveNumber: (v: unknown) => (!!v && Number(v) > 0) || 'Enter a valid amount',
+  email:          (v: string) => !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || 'Enter a valid email',
+} as const
+
+// Currency formatter — never use inline toLocaleString for ZAR
+export function formatZAR(amount: string | number): string {
+  return Number(amount).toLocaleString('en-ZA')
+}
+```
+
+**Usage in forms:**
+```html
+<!-- GOOD — shared rules -->
+<q-input :rules="[RULES.required]" />
+<q-input :rules="[RULES.positiveNumber]" type="number" prefix="R" />
+<q-select :rules="[RULES.requiredSelect]" />
+
+<!-- BAD — inline rules (duplicated across pages) -->
+<q-input :rules="[v => !!v || 'Required']" />
+```
+
+**Usage for currency:**
+```html
+<!-- GOOD -->
+R{{ formatZAR(lease.monthly_rent) }}
+
+<!-- BAD -->
+R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}
+```
+
+### 1.4 Shared Formatters (`formatters.ts`)
+
+Import these — never duplicate in page components:
+
+| Function | Purpose | Example |
+|----------|---------|---------|
+| `formatDate(iso)` | Short date | "10 Apr 2026" |
+| `formatDateTime(iso)` | Full date-time | "Thursday, 10 April, 09:00" |
+| `formatDateTimeShort(iso)` | Short date-time | "Thu, 10 Apr, 09:00" |
+| `formatTime(iso)` | Time only | "09:00" |
+| `timeAgo(iso)` | Relative time | "2h ago" |
+| `daysRemaining(iso)` | Days until date | `45` or `null` |
+| `fmtLabel(value)` | Snake_case to display | "in_progress" -> "In Progress" |
+| `statusColor(status)` | Viewing status -> Quasar color | "scheduled" -> "info" |
+| `statusIcon(status)` | Viewing status -> Material icon | "scheduled" -> "event" |
+| `statusDotColor(status)` | Calendar dot color | Uses `var(--q-*)` CSS vars |
+| `leaseStatusColor(status)` | Lease status -> Quasar color | "active" -> "positive" |
+| `unitStatusColor(status)` | Unit status -> Quasar color | "available" -> "positive" |
+| `maintenancePriorityColor(p)` | Priority -> Quasar color | "urgent" -> "negative" |
+| `maintenanceStatusColor(s)` | Maintenance status -> color | "open" -> "info" |
+| `maintenanceCategoryIcon(c)` | Category -> Material icon | "plumbing" -> "plumbing" |
+
+### 1.5 Reusable CSS Classes (`app.scss`)
+
+These global classes exist in `app.scss`. Use them instead of writing equivalent scoped styles.
+
+#### `.section-card` — Standard card container
+```scss
+.section-card {
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-border);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+```
+Usage: `<q-card flat class="section-card">`
+
+#### `.section-header` — Section label above cards
+```scss
+.section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--klikk-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  margin-left: 4px;
+}
+```
+Usage: `<div class="section-header">Lease Terms</div>`
+
+#### `.empty-state` — Consistent empty/zero-data states
+```scss
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+}
+.empty-state-icon  { color: var(--klikk-text-faint); }
+.empty-state-title { font-size: 14px; color: var(--klikk-empty-text); margin-top: 8px; }
+.empty-state-sub   { font-size: 12px; color: var(--klikk-text-faint); margin-top: 4px; }
+.empty-state-action { margin-top: 16px; }
+```
+Usage:
+```html
+<div class="empty-state">
+  <q-icon name="event_busy" :size="EMPTY_ICON_SIZE" class="empty-state-icon" />
+  <div class="empty-state-title">No viewings yet</div>
+  <div class="empty-state-sub">Schedule a viewing to get started</div>
+  <div class="empty-state-action">
+    <q-btn unelevated color="primary" label="Book Viewing" icon="add" no-caps />
+  </div>
+</div>
+```
+
+#### `.prospect-badge` — Inline status badges
+```html
+<span class="prospect-badge status-scheduled">Scheduled</span>
+<span class="prospect-badge status-confirmed">Confirmed</span>
+<span class="prospect-badge status-completed">Completed</span>
+<span class="prospect-badge status-cancelled">Cancelled</span>
+<span class="prospect-badge status-converted">Converted</span>
+```
+
+#### `.page-container` — Centered content wrapper
+```scss
+.page-container {
+  padding: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+```
+
+### 1.6 Error Handling (Mandatory)
+
+**Every API call must have error feedback.** Never use a bare `catch {}` or `catch { /* ignore */ }`.
+
+```typescript
+// GOOD — user sees feedback on failure
+try {
+  property.value = await getProperty(props.propertyId)
+} catch {
+  $q.notify({ type: 'negative', message: 'Failed to load property details.', icon: 'error' })
+}
+
+// BAD — silent failure, user sees blank screen with no explanation
+try {
+  property.value = await getProperty(props.propertyId)
+} catch {}
+```
+
+**Pattern for data loading on mount:**
+```typescript
+onMounted(async () => {
+  try {
+    data.value = await fetchData(props.id)
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to load data.', icon: 'error' })
+  }
+})
+```
+
+**Pattern for form submission:**
+```typescript
+async function submit() {
+  const valid = await formRef.value?.validate()
+  if (!valid) return
+
+  submitting.value = true
+  submitError.value = ''
+
+  try {
+    await createThing(payload)
+    $q.notify({ type: 'positive', message: 'Created successfully', icon: 'check_circle' })
+    void router.replace('/destination')
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { data?: Record<string, unknown> } }
+    const data = axiosErr.response?.data
+    submitError.value = data
+      ? Object.values(data).flat().join(' ')
+      : 'Failed to create. Please try again.'
+  } finally {
+    submitting.value = false
+  }
+}
+```
+
+### 1.7 Accessibility
+
+**Icon-only buttons must have `aria-label`:**
+```html
+<q-btn flat round dense icon="call" color="primary"
+       :href="`tel:${phone}`" tag="a"
+       aria-label="Call prospect" />
+
+<q-btn flat round dense icon="chevron_left" color="primary"
+       aria-label="Previous month" @click="prevMonth" />
+```
+
+**Dynamic aria-labels for toggle buttons:**
+```html
+<q-btn flat round dense
+  :icon="showPassword ? 'visibility_off' : 'visibility'"
+  :aria-label="showPassword ? 'Hide password' : 'Show password'"
+  @click="showPassword = !showPassword"
+/>
+```
+
+**Focus-visible styling** (already in `app.scss`):
+```scss
+:focus-visible {
+  outline: 2px solid var(--q-primary);
+  outline-offset: 2px;
+}
+```
+
+**Image alt text:**
+```html
+<q-img :src="property.image_url" :alt="`Photo of ${property.name}`" />
+```
+
+---
+
+## Part 2: iOS Human Interface Guidelines (iOS 17/18)
+
+### 2.1 Typography — San Francisco (SF Pro)
 
 | Style | Size | Weight | Usage |
 |-------|------|--------|-------|
@@ -45,402 +336,183 @@ When building or reviewing mobile UI for the Klikk agent-app:
 | Caption 2 | 11pt | Regular | Tab bar labels, tertiary info |
 
 **Rules:**
-- Never hardcode pt sizes — use Quasar's `text-*` classes that auto-scale
 - Tab bar labels = Caption 2 style (11pt / `font-size: 9.5px` in the agent-app)
 - List item titles = Headline weight (semibold)
-- Section group labels = Caption 2 + uppercase + letter-spacing (as in SettingsPage)
+- Section group labels = `.section-header` class (12px uppercase with letter-spacing)
 
-### 1.2 Spacing and Layout
+### 2.2 Spacing and Layout
 
 **Base grid:** 8pt (use 4pt for fine adjustments)
 
 | Context | Value |
 |---------|-------|
-| Horizontal page margin | 16–20pt |
+| Horizontal page margin | 16-20pt |
 | Standard padding | 16pt |
-| Card inner padding | 12–16pt |
+| Card inner padding | 12-16pt |
 | List row height (minimum) | 44pt |
-| Section gap | 16–24pt |
+| Section gap | 16-24pt |
 
 **Safe Area Insets (NEVER hardcode — always use `env(safe-area-inset-*)`):**
-- iPhone 8 / SE: top 20pt, bottom 0pt
-- iPhone X–13 (notch): top 44pt, bottom 34pt
-- iPhone 14 Pro / 15 Pro (Dynamic Island): top ~59pt, bottom 34pt
-
-In Quasar:
 ```scss
 padding-bottom: env(safe-area-inset-bottom, 0px);
 padding-top: env(safe-area-inset-top, 0px);
 ```
 
-### 1.3 Navigation
+### 2.3 Navigation
 
 **Navigation Bar:**
 - Height: 44pt (portrait) / 32pt (landscape)
-- Large Title variant: ~96pt when expanded, collapses to 44pt on scroll
-- Back button: chevron + previous screen title (truncates to "Back")
-- Title: centered default; use `text-weight-semibold` on iOS
+- Title: centered, `text-weight-semibold`
+- Uses frosted glass: `.ios-header` class in `app.scss`
 
 **Tab Bar:**
 - Height: 49pt + `safe-area-inset-bottom`
-- Max 5 tabs (3–5 recommended)
-- Icons: 22–25pt visual size
-- Labels: 11pt (Caption 2)
-- Selected: filled icon + primary color
-- Unselected: outline icon + grey-500
-
-**Quasar implementation:**
-```html
-<!-- Tab bar label style -->
-<span class="agent-tab-label">{{ tab.label }}</span>
-<!-- font-size: 9.5px; font-weight: 500 — matches iOS Caption 2 -->
-```
+- Max 5 tabs (3-5 recommended)
+- Icons: 22-25pt, Labels: 11pt (Caption 2)
+- Selected: filled icon + `$primary`, Unselected: outline + `var(--klikk-text-muted)`
+- Uses frosted glass: `.ios-tab-bar` class in `app.scss`
 
 **Sheets / Modals:**
-- Always slides up from bottom (not centered on iOS)
-- Use `q-dialog` with `position="bottom"` for bottom sheets
-- Supports interactive dismiss (pull down)
-- Shows parent view at reduced scale behind sheet
-- Corner radius: 12–16pt on top corners
+- Always slides up from bottom (`q-dialog` with `position="bottom"`)
+- Corner radius: 12-16pt on top corners
 
-### 1.4 Component Sizes
+### 2.4 Component Sizes
 
 **Buttons:**
-- Touch target: 44×44pt minimum
-- Full-width primary action: height ~50pt, `border-radius: 14pt` (:rounded on iOS)
-- FAB: not idiomatic on iOS — omit or use only when truly needed
+- Touch target: 44x44pt minimum
+- Full-width primary action: height ~48pt, `border-radius: 10px` (iOS), `size="md"`
 - Destructive: red text, not filled red button
 
 **Text Inputs:**
-- Height: 44pt minimum (touch target)
-- Corner radius: 10pt (`:rounded="isIos"` in Quasar = `border-radius: 28px` — slightly over-rounded but acceptable)
-- Focus border: primary color
-- Error border: negative color
+- Height: 44pt minimum
+- Corner radius: `var(--klikk-radius-input)` (10px)
+- Use `hide-bottom-space` when stacking inputs to prevent uneven spacing
 
 **Cards:**
-- Corner radius: 12pt
-- Border: `1px solid rgba(0,0,0,0.08)`
-- No shadow (flat card with border is iOS standard)
-- Padding: 12–16pt
+- Corner radius: `var(--klikk-radius-card)` (12px)
+- Border: `1px solid var(--klikk-border)`
+- No shadow (flat with border is iOS standard)
 
 **Lists:**
-- Row height: 44pt minimum (one-line), 56pt+ (two-line)
-- Separator: `0.5px solid rgba(0,0,0,0.12)` (hairline separator — iOS standard)
+- Separator: `0.5px solid rgba(0,0,0,0.12)` (hairline)
 - Disclosure chevron: 8pt from trailing edge
 
-**Avatars:**
-- Profile: 48pt
-- List item: 40pt
-- Compact (within small list cells): 36pt
+### 2.5 iOS Color System
 
-**Spinners / Loaders:**
-- Full-page loader: 36px (`SPINNER_SIZE_PAGE`)
-- Inline / tab loader: 24px (`SPINNER_SIZE_INLINE`)
-- Use `q-spinner-dots` for consistency
+Use semantic tokens — never hardcode iOS system colors:
 
-**Empty States:**
-- Icon: 48px (`EMPTY_ICON_SIZE`)
-- Icon color: `grey-3`
-- Title: Body text, grey-5
-- CTA button below
+| iOS | Quasar mapping |
+|-----|----------------|
+| systemBlue (tint) | `var(--q-primary)` (`#2B2D6E`) |
+| systemRed | `var(--q-negative)` |
+| systemGreen | `var(--q-positive)` |
+| systemOrange | `var(--q-warning)` |
+| secondarySystemBackground | `$surface` |
 
-### 1.5 iOS Color System
-
-Use semantic color tokens — NEVER hardcode iOS system colors for UI elements.
-
-| Token | Light | Dark | Quasar mapping |
-|-------|-------|------|----------------|
-| systemBlue (tint) | #007AFF | #0A84FF | `var(--q-primary)` (overridden to `#2B2D6E`) |
-| systemRed | #FF3B30 | #FF453A | `var(--q-negative)` |
-| systemGreen | #34C759 | #30D158 | `var(--q-positive)` |
-| systemOrange | #FF9500 | #FF9F0A | `var(--q-warning)` |
-| systemBackground | #FFFFFF | #000000 | white / dark-page |
-| secondarySystemBackground | #F2F2F7 | #1C1C1E | `$surface` |
-| label (primary text) | #000000 | #FFFFFF | `text-grey-9` / `text-white` |
-| secondaryLabel | rgba(60,60,67,0.6) | — | `text-grey-6` |
-| tertiaryLabel | rgba(60,60,67,0.3) | — | `text-grey-4` |
-
-**Klikk overrides:**
-- Primary (tint): `#2B2D6E` navy
-- Secondary (accent): `#FF3D7F` pink
-
-### 1.6 Materials and Blur (iOS)
-
-iOS navigation bars, tab bars, and sheets use vibrancy/blur materials:
+### 2.6 Materials and Blur
 
 ```scss
-// Tab bar — matches iOS chrome material
-background: rgba(255, 255, 255, 0.95);
-backdrop-filter: saturate(180%) blur(20px);
--webkit-backdrop-filter: saturate(180%) blur(20px);
-border-top: 0.5px solid rgba(0, 0, 0, 0.14);
-
-// Navigation bar
+// Tab bar — iOS chrome material
 background: rgba(255, 255, 255, 0.92);
 backdrop-filter: saturate(180%) blur(20px);
 -webkit-backdrop-filter: saturate(180%) blur(20px);
+border-top: 0.5px solid var(--klikk-border-strong);
 ```
 
-Material thickness reference:
-- `.systemUltraThinMaterial` — most transparent (overlays on media)
-- `.systemThinMaterial` — subtle separation
-- `.systemMaterial` — default (sheets, cards)
-- `.systemThickMaterial` — strong separation
-- `.systemChromeMaterial` — nav bars, tab bars
-
-### 1.7 iOS Animation
+### 2.7 iOS Animation
 
 **Default:** ease-in-out, ~0.35s
-**Spring (preferred):** `stiffness 1400 / damping 0.9` for snappy, `stiffness 300 / damping 0.9` for fluid
-
-```css
-/* iOS-feel transition */
-transition: all 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-
-/* Spring-like via CSS */
-transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-```
-
-**Quasar transitions (agent-app):**
-```typescript
-// usePlatform.ts
-enterTransition: 'fadeIn'   // iOS: fade
-leaveTransition: 'fadeOut'
-// Android: slideInRight / slideOutLeft
-```
-
-**Reduce Motion:** Always check `prefers-reduced-motion` — disable animations when set.
+**Quasar transitions:** `fadeIn` / `fadeOut` for iOS (set in `usePlatform.ts`)
+**Reduce Motion:** Always respect `prefers-reduced-motion`.
 
 ---
 
-## Part 2: Android Material Design 3 (Material You)
+## Part 3: Android Material Design 3 (Material You)
 
-### 2.1 Typography Scale — Roboto
+### 3.1 Typography Scale — Roboto
 
-| Style | Size | Weight | Line Height | Quasar equivalent |
-|-------|------|--------|-------------|-------------------|
-| Display Large | 57sp | 400 | 64sp | Rarely used in mobile apps |
-| Display Medium | 45sp | 400 | 52sp | Hero headings only |
-| Display Small | 36sp | 400 | 44sp | Large titles |
-| Headline Large | 32sp | 400 | 40sp | Screen titles |
-| Headline Medium | 28sp | 400 | 36sp | `text-h5` |
-| Headline Small | 24sp | 400 | 32sp | `text-h6` |
-| Title Large | 22sp | 400 | 28sp | Card titles |
-| Title Medium | 16sp | 500 | 24sp | `text-subtitle1` |
-| Title Small | 14sp | 500 | 20sp | `text-subtitle2` |
-| Body Large | 16sp | 400 | 24sp | `text-body1` |
-| Body Medium | 14sp | 400 | 20sp | `text-body2` |
-| Body Small | 12sp | 400 | 16sp | `text-caption` |
-| Label Large | 14sp | 500 | 20sp | Button text |
-| Label Medium | 12sp | 500 | 16sp | Tab labels, chip text |
-| Label Small | 11sp | 500 | 16sp | Small labels |
+| Style | Size | Weight | Quasar equivalent |
+|-------|------|--------|-------------------|
+| Headline Large | 32sp | 400 | Screen titles |
+| Headline Medium | 28sp | 400 | `text-h5` |
+| Title Large | 22sp | 400 | Card titles |
+| Title Medium | 16sp | 500 | `text-subtitle1` |
+| Body Large | 16sp | 400 | `text-body1` |
+| Body Medium | 14sp | 400 | `text-body2` |
+| Body Small | 12sp | 400 | `text-caption` |
+| Label Large | 14sp | 500 | Button text |
+| Label Medium | 12sp | 500 | Tab labels |
 
-### 2.2 Spacing System
+### 3.2 Spacing System
 
 **Base unit:** 4dp (common increments: 4, 8, 12, 16, 24, 32, 48dp)
 
 | Context | Value |
 |---------|-------|
 | Horizontal page margin | 16dp |
-| Section gap | 16–24dp |
+| Section gap | 16-24dp |
 | Card padding | 16dp |
-| Component internal padding | 8–12dp |
 | List item padding | 16dp |
 
-**Responsive columns:**
-- Compact (< 600dp, phone portrait): 4 columns, 16dp margins, 8dp gutters
-- Medium (600–840dp): 8 columns, 24dp margins, 16dp gutters
-- Expanded (> 840dp, tablet): 12 columns, 24dp margins, 24dp gutters
-
-### 2.3 Navigation
+### 3.3 Navigation
 
 **Bottom Navigation Bar:**
-- Container height: 80dp
-- Icon: 24dp
-- Active indicator: 64×32dp pill shape behind icon
-- Label: Label Medium (12sp) — shown for all items
-- Touch target: 48dp minimum
+- Height: 80dp
+- Active indicator: 64x32dp pill behind icon
+- Uses `.md-bottom-nav` class in `app.scss`
 
 **Top App Bar:**
-- Small (default): 64dp height, title left-aligned (`text-h6`)
-- Center-aligned: 64dp, title centered
-- Medium: 112dp expanded → 64dp scrolled
-- Large: 152dp expanded → 64dp scrolled
-- Use small/center-aligned for most agent-app screens
+- Height: 64dp
+- Uses `.md-header` class in `app.scss`
 
 **FAB (Floating Action Button):**
-- Standard: 56×56dp, icon 24dp, corner radius 16dp (Large)
-- Extended: 56dp height, icon + label
-- Color: secondary (`#FF3D7F`) — high contrast on most backgrounds
+- 56x56dp, icon 24dp, corner radius 16dp
+- Color: `$secondary` (teal)
 - Position: `bottom-right`, offset `[18, 88]` (above bottom nav)
 
-**Quasar FAB on Android:**
-```html
-<q-page-sticky
-  v-if="isAndroid && route.meta.showFab !== false"
-  position="bottom-right"
-  :offset="[18, 88]"
->
-  <q-btn fab icon="add" color="secondary" />
-</q-page-sticky>
-```
+### 3.4 Component Sizes
 
-**Drawer / Navigation Drawer:**
-- Acceptable on Android (hamburger pattern)
-- Width: 360dp or 85% of screen, whichever is smaller
-- Not idiomatic on iOS — avoid
+**Buttons:** 40dp height, full pill radius (`border-radius: 20px`)
+**Text Fields:** 56dp height, outlined with 4dp radius
+**Cards:** `border-radius: 12dp`, `box-shadow: 0 1px 3px rgba(0,0,0,0.12)`
+**Dialogs:** Corner radius 28dp (ExtraLarge)
+**Touch targets:** 48x48dp minimum for all interactive elements
 
-### 2.4 Component Sizes
-
-**Buttons (all: 40dp height, full pill radius):**
-
-| Type | Quasar prop | Use case |
-|------|-------------|---------|
-| Filled | `unelevated color="primary"` | Primary action |
-| Filled Tonal | `unelevated color="secondary"` | Secondary action |
-| Elevated | `color="primary"` (default Quasar) | When surface context needed |
-| Outlined | `outline color="primary"` | Tertiary action |
-| Text | `flat color="primary"` | Least emphasis |
-
-- All have `border-radius: 20dp` (full pill on Android)
-- On iOS: use `:rounded="isIos"` for pill shape
-- Touch target: 48dp minimum (Quasar adds tap zone automatically)
-- Always add icon (18dp) for primary actions when space allows
-
-**Text Fields:**
-- Height: 56dp
-- Filled variant: top corners radius 4dp, no bottom radius
-- Outlined variant: corner radius 4dp all corners
-- Floating label: 12sp when active
-- Input text: Body Large (16sp)
-- Helper/error: 4dp gap below, Body Small (12sp)
-- Quasar: `:rounded="isIos"` differentiates — on Android use `outlined`
-
-**Cards (M3 types):**
-- Elevated: `box-shadow: 0 1dp 3dp rgba(0,0,0,0.2)`, corner radius 12dp
-- Filled: tonal surface bg, no shadow, 12dp radius
-- Outlined: 1dp border, no shadow, 12dp radius
-- Standard in agent-app: `border: 1px solid rgba(0,0,0,0.08); border-radius: 12px`
-
-**Dialogs:**
-- Corner radius: 28dp (ExtraLarge) — rounder than iOS
-- Width: 280–560dp, centered
-- Title: Headline Small (24sp)
-- Action buttons: right-aligned text buttons
-
-**Bottom Sheets:**
-- Top corner radius: 28dp
-- Handle: 4dp × 32dp, centered, 22dp from top
-- Supports partial height (standard) and full-height modal variants
-
-**Chips:**
-- Height: 32dp
-- Horizontal padding: 16dp
-- Corner radius: 8dp (Small)
-
-**Lists:**
-- One-line item: 56dp
-- Two-line item: 72dp
-- Three-line item: 88dp
-- Leading icon: 24dp in 40dp zone
-- Horizontal padding: 16dp
-
-**Avatars:**
-- Profile: 48dp → `:size="AVATAR_PROFILE"`
-- List item: 40dp → `:size="AVATAR_LIST"`
-- Compact: 36dp → `:size="AVATAR_COMPACT"`
-
-**Touch targets:** 48×48dp minimum — all interactive elements. Quasar adds 48dp tap zones automatically on icon buttons.
-
-### 2.5 Color System — Material You
-
-M3 uses color roles (tokens), not fixed named colors. Dynamic Color on Android 12+ generates palette from wallpaper. Always use Quasar's Quasar CSS vars which map to your brand tokens.
-
-**Quasar → M3 role mapping:**
+### 3.5 Color System
 
 | M3 Role | Quasar token | Klikk value |
 |---------|--------------|-------------|
 | `primary` | `var(--q-primary)` | `#2B2D6E` |
-| `on-primary` | white | `#FFFFFF` |
-| `secondary` | `var(--q-secondary)` | `#FF3D7F` |
+| `secondary` | `var(--q-secondary)` | `#0D9488` |
 | `error` | `var(--q-negative)` | `#DB2828` |
 | `success` | `var(--q-positive)` | `#21BA45` |
 | `warning` | `var(--q-warning)` | `#F2C037` |
 | `surface` | `$surface` | `#F5F5F8` |
-| `on-surface` | `text-grey-9` | — |
-| `outline` | `rgba(0,0,0,0.12)` | Card borders |
-| `scrim` | `rgba(0,0,0,0.5)` | Modal overlays |
 
-### 2.6 Elevation System (M3)
+### 3.6 Elevation System (M3)
 
-M3 uses **tonal color overlay** (not just shadows) to express elevation:
+| Level | Shadow | Typical use |
+|-------|--------|-------------|
+| 0 | 0dp | Cards (flat), text fields |
+| 1 | 1dp | Elevated cards, menus |
+| 3 | 6dp | Modal bottom sheets |
+| 5 | 12dp | FAB, dialogs |
 
-| Level | Shadow | Tonal overlay | Typical use |
-|-------|--------|---------------|-------------|
-| 0 | 0dp | 0% | Cards (flat), text fields |
-| 1 | 1dp | 5% | Elevated cards, menus |
-| 2 | 3dp | 8% | Navigation drawer |
-| 3 | 6dp | 11% | Modal bottom sheets |
-| 4 | 8dp | 12% | Navigation bars (scrolled) |
-| 5 | 12dp | 14% | FAB, dialogs |
-
-In dark mode, use more tonal overlay (less harsh shadows).
-
-### 2.7 Shape Scale
-
-| Token | Radius | Used for |
-|-------|--------|---------|
-| ExtraSmall | 4dp | Text fields, snackbars |
-| Small | 8dp | Chips, menu items |
-| Medium | 12dp | Cards |
-| Large | 16dp | Buttons, nav rail indicators |
-| ExtraLarge | 28dp | FAB, dialogs, bottom sheets |
-| Full | 50% | All standard buttons |
-
-In the agent-app, use `border-radius: 12px` for cards, `border-radius: 28px` for pill buttons (`:rounded`).
-
-### 2.8 Motion System (M3)
+### 3.7 Motion System
 
 **Easing curves:**
+- Standard: `cubic-bezier(0.2, 0, 0, 1)` — elements staying on screen
+- Standard Decelerate: `cubic-bezier(0, 0, 0, 1)` — entering screen
+- Standard Accelerate: `cubic-bezier(0.3, 0, 1, 1)` — leaving screen
 
-| Curve | Bezier | Duration range | Use case |
-|-------|--------|---------------|---------|
-| Standard | `0.2, 0, 0, 1` | 200–500ms | Elements staying on screen |
-| Standard Decelerate | `0, 0, 0, 1` | 250–400ms | Elements entering screen |
-| Standard Accelerate | `0.3, 0, 1, 1` | 200–350ms | Elements leaving screen |
-| Emphasized Decelerate | `0.05, 0.7, 0.1, 1` | 400–600ms | Large elements entering (sheets, drawers) |
-| Emphasized Accelerate | `0.3, 0, 0.8, 0.15` | 200–350ms | Large elements exiting |
-| Linear | `0, 0, 1, 1` | — | Continuous effects (progress, color) |
-
-**Duration tokens:**
-
-| Duration | Value | Typical use |
-|----------|-------|-------------|
-| Short 1–4 | 50–200ms | Small component changes (ripple, icon swap) |
-| Medium 1–4 | 250–400ms | Standard transitions (page enter/exit) |
-| Long 1–4 | 450–600ms | Large component transitions |
-| Extra Long 1–4 | 700–1000ms | Full-screen complex sequences |
-
-**Ripple effect (Android):**
-- All touchable surfaces show ripple on press
-- Ripple color: `on-surface` at ~12% opacity for press
-- Bounded for contained elements (buttons, cards)
-- Unbounded for icon buttons
-- Quasar adds `v-ripple` directive automatically to `q-btn`, `q-item`, etc.
-
-**Spring parameters:**
-
-| Preset | Damping | Stiffness | Use case |
-|--------|---------|-----------|---------|
-| FastSpatial | 0.9 | 1400 | Chips, FAB tap response |
-| DefaultSpatial | 0.9 | 700 | Cards, bottom sheets |
-| SlowSpatial | 0.9 | 300 | Full-screen page transitions |
+**Quasar transitions:** `slideInRight` / `slideOutLeft` for Android (set in `usePlatform.ts`)
+**Ripple:** Quasar adds `v-ripple` automatically to `q-btn`, `q-item`, etc.
 
 ---
 
-## Part 3: Quasar/Capacitor Implementation Guide
+## Part 4: Platform Detection and Implementation
 
-### 3.1 Platform Detection
+### 4.1 Platform Detection
 
 ```typescript
 // composables/usePlatform.ts
@@ -457,50 +529,32 @@ export function usePlatform() {
 
 **Usage pattern:**
 ```html
-<!-- Rounded inputs/buttons on iOS, standard on Android -->
 <q-input :rounded="isIos" outlined />
 <q-btn :rounded="isIos" unelevated />
 ```
 
-### 3.2 Navigation Patterns by Platform
+### 4.2 Navigation Patterns by Platform
 
 | Pattern | iOS | Android |
 |---------|-----|---------|
-| Back navigation | Swipe right from left edge + nav bar back btn | System gesture (bottom swipe) + optional back btn |
-| Primary nav | Tab bar (bottom, 3–5 tabs, always visible) | Bottom nav bar (3–5 items) |
-| FAB | Avoid | First-class, standard secondary action |
-| Drawer / hamburger | Avoid | Acceptable for auxiliary navigation |
+| Back navigation | Swipe right + nav bar back btn | System gesture + optional back btn |
+| Primary nav | Tab bar (3-5 tabs, always visible) | Bottom nav bar (3-5 items) |
+| FAB | Avoid | First-class primary action |
 | Modal presentation | Sheet (slides from bottom) | Dialog (centered) or Bottom Sheet |
-| Page transition | Fade (feels native on iOS) | Slide right / left |
+| Page transition | Fade | Slide right / left |
 
-### 3.3 Critical Platform Behaviors
+### 4.3 Critical Platform Behaviors
 
-**iOS Keyboard:**
-- View shifts up when keyboard appears — test all forms with keyboard open
-- Bottom-pinned inputs fail if not using safe area correctly
-- Use `@capacitor/keyboard` plugin for fine-grained control:
-  ```typescript
-  Keyboard.addListener('keyboardWillShow', info => { /* adjust layout */ })
-  Keyboard.addListener('keyboardDidHide', () => { /* restore */ })
-  ```
-
-**Android Keyboard:**
-- Configure `windowSoftInputMode` in `AndroidManifest.xml`
-- `adjustResize` (default) resizes layout — content shifts up
-- `adjustPan` pans view without resize
+**iOS Keyboard:** View shifts up — test all forms with keyboard open. Use `@capacitor/keyboard` for control.
 
 **iOS Safe Areas:**
 ```scss
-// Always in your page/layout CSS
 padding-top: env(safe-area-inset-top, 0px);
 padding-bottom: env(safe-area-inset-bottom, 0px);
-padding-left: env(safe-area-inset-left, 0px);
-padding-right: env(safe-area-inset-right, 0px);
 ```
 
 **Android Back Button:**
 ```typescript
-// Always handle hardware back
 import { App } from '@capacitor/app'
 App.addListener('backButton', ({ canGoBack }) => {
   if (!canGoBack) { App.exitApp() }
@@ -509,88 +563,30 @@ App.addListener('backButton', ({ canGoBack }) => {
 ```
 
 **Status Bar:**
-- iOS: always overlays content (use safe area top inset)
-- Android: configure in `@capacitor/status-bar`:
-  ```typescript
-  StatusBar.setStyle({ style: Style.Light })
-  StatusBar.setBackgroundColor({ color: '#2B2D6E' })
-  ```
-
-**Dark Mode:**
-- Never hardcode colors — always use `var(--q-primary)`, `$primary`, Quasar color classes
-- Test UI in both light and dark system mode
-- Quasar's dark mode plugin: `$q.dark.isActive`
+```typescript
+StatusBar.setStyle({ style: Style.Light })
+StatusBar.setBackgroundColor({ color: '#2B2D6E' })
+```
 
 **Scroll Behavior:**
-- iOS: momentum (rubber-band) scrolling — never inhibit with CSS `overflow: hidden` on scroll containers
-- Android: edge overscroll effect — use `overscroll-behavior: contain` if needed
+- iOS: momentum (rubber-band) scrolling — never inhibit
+- Android: edge overscroll — use `overscroll-behavior: contain` if needed
 
-### 3.4 Icon Usage
+### 4.4 Icon Usage
 
-| Platform | Preferred icon set | Import |
-|----------|--------------------|--------|
-| iOS feel | Ionicons v7 | `@quasar/extras/ionicons-v7` |
-| Android / Material | Material Icons | `@quasar/extras/material-icons` |
-| Universal | Material Symbols Outlined | `@quasar/extras/material-symbols-outlined` |
+| Platform | Preferred icon set |
+|----------|--------------------|
+| iOS feel | Ionicons v7 |
+| Android / Material | Material Icons |
+| Universal | Material Symbols Outlined |
 
-**Icon sizes:**
-- Navigation bar icons: 22–24dp/pt
-- List item leading icons: 24dp/pt
-- Button icons: 18–20dp/pt
-- FAB icon: 24dp/pt
-- Tab bar icons: 22dp/pt
-
-### 3.5 Design Tokens in Code
-
-```typescript
-// agent-app/src/utils/designTokens.ts
-export const SPINNER_SIZE_PAGE   = '36px'   // Full-page loaders
-export const SPINNER_SIZE_INLINE = '24px'   // Tab/inline loaders
-export const EMPTY_ICON_SIZE     = '48px'   // Empty state icons
-export const AVATAR_PROFILE      = '48px'   // Profile/prospect avatars
-export const AVATAR_LIST         = '40px'   // Standard list avatars
-export const AVATAR_COMPACT      = '36px'   // Compact list avatars
-```
-
-### 3.6 CSS / SCSS Rules
-
-```scss
-// Use — CSS custom property (unscoped <style> or template)
-color: var(--q-primary);
-background: rgba(var(--q-primary-rgb, 43, 45, 110), 0.08);
-
-// Use — SCSS variable (scoped <style lang="scss"> blocks)
-color: $primary;
-border-color: rgba($primary, 0.08);
-background: $surface;
-
-// Never — hardcoded brand hex in any style block
-color: #2B2D6E;    // BAD
-color: #FF3D7F;    // BAD
-```
-
-**Card border standard:**
-```scss
-border: 1px solid rgba(0, 0, 0, 0.08);  // All cards — consistent
-border-radius: 12px;
-overflow: hidden;
-```
-
-**Shared `.section-card` class** (in `app.scss` — do NOT redefine in scoped styles):
-```scss
-.section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-  margin-bottom: 16px;
-}
-```
+Icon sizes: Nav 22-24dp, List leading 24dp, Button 18-20dp, FAB 24dp, Tab 22dp.
 
 ---
 
-## Part 4: Cross-Platform Comparison Reference
+## Part 5: Cross-Platform Quick Reference
 
-### Typography quick-map
+### Typography mapping
 
 | iOS Style | Size | Android Style | Size |
 |-----------|------|---------------|------|
@@ -602,86 +598,66 @@ overflow: hidden;
 | Caption 1 | 12pt | Body Small | 12sp |
 | Caption 2 | 11pt | Label Medium | 12sp |
 
-### Component size quick-map
+### Component size mapping
 
 | Component | iOS | Android |
 |-----------|-----|---------|
-| Touch target minimum | 44×44pt | 48×48dp |
-| Button height | ~50pt (full-width) | 40dp |
+| Touch target minimum | 44x44pt | 48x48dp |
+| Button height | ~48pt (full-width) | 40dp |
 | Text field height | 44pt | 56dp |
 | List row (1-line) | 44pt | 56dp |
-| List row (2-line) | 56pt+ | 72dp |
 | Tab bar height | 49pt + safe area | 80dp |
 | Navigation bar | 44pt | 64dp |
-| FAB | Rare | 56dp standard |
-| Card corner radius | 12pt | 12dp (Medium) |
-| Modal corner radius | 12–16pt (top) | 28dp (top, ExtraLarge) |
-| Chip height | — | 32dp |
-
-### Navigation paradigm difference
-
-| Aspect | iOS | Android |
-|--------|-----|---------|
-| Back | Swipe from left edge | Bottom gesture / system back |
-| Primary nav | Tab bar (always visible) | Bottom nav (80dp) |
-| Secondary | Push navigation stack | Same + system back |
-| Overflow | "More" tab (avoid >5 tabs) | Navigation drawer |
-| Search | Nav bar search field | Top app bar search |
-| FAB | Rare, non-idiomatic | First-class, primary action |
+| Card corner radius | 12pt | 12dp |
+| Modal corner radius | 12-16pt (top) | 28dp (ExtraLarge) |
 
 ---
 
-## Part 5: UX Quality Checklist
+## Part 6: UX Quality Checklist
 
 Before shipping any mobile screen, verify:
 
+### Klikk Design Standard
+- [ ] No hardcoded hex colors — using `var(--klikk-*)`, `var(--q-*)`, or `$primary` etc.
+- [ ] Card borders use `var(--klikk-border)` and `var(--klikk-radius-card)`
+- [ ] Section headers use `.section-header` class (not inline styles)
+- [ ] Empty states use `.empty-state` class with icon + title + sub + CTA
+- [ ] All validation rules imported from `RULES` (not inline `v => !!v || 'Required'`)
+- [ ] Currency formatted with `formatZAR()` (not inline `toLocaleString`)
+- [ ] Labels formatted with `fmtLabel()` (not inline `.replace()`)
+- [ ] Every `catch` block shows `$q.notify()` feedback — no silent failures
+- [ ] Icon-only buttons have `aria-label`
+- [ ] Images have `alt` text
+- [ ] `:focus-visible` styling not suppressed
+
 ### iOS
-- [ ] Touch targets ≥ 44×44pt (all buttons, links, list rows)
+- [ ] Touch targets >= 44x44pt
 - [ ] Safe area insets applied (top and bottom)
-- [ ] Tab bar uses blur material (`backdrop-filter: blur(20px)`)
-- [ ] Navigation bar has correct height (44pt)
-- [ ] Modal presented as bottom sheet (not centered dialog)
-- [ ] Back gesture works (swipe from left)
+- [ ] Tab bar uses frosted glass (`.ios-tab-bar`)
 - [ ] No FAB unless explicitly justified
 - [ ] Keyboard doesn't cover input fields
-- [ ] Large title used only on top-level screens
-- [ ] Icon set is Ionicons (iOS feel) or Material Symbols
-- [ ] Spring physics for interactive animations
+- [ ] `:rounded="isIos"` on buttons and inputs where appropriate
 
 ### Android
-- [ ] Touch targets ≥ 48×48dp (all interactive elements)
-- [ ] Ripple effect on all touchable surfaces (Quasar adds automatically)
+- [ ] Touch targets >= 48x48dp
 - [ ] FAB present for primary creation action
 - [ ] Bottom navigation bar height 80dp
 - [ ] Hardware back button handled
-- [ ] Status bar color/style configured
+- [ ] Ripple effect on touchable surfaces (automatic via Quasar)
 - [ ] Buttons are pill-shaped (full radius)
-- [ ] Bottom sheets use 28dp top corner radius
-- [ ] Elevation expressed via tonal color overlay (not just shadow)
-- [ ] Snackbar for transient feedback (not alerts)
 
 ### Both Platforms
-- [ ] No hardcoded hex colors for brand/semantic colors
-- [ ] No hardcoded size values — use design tokens
-- [ ] Empty states have icon (48px) + message + CTA
-- [ ] Loading states use spinner tokens (36px page, 24px inline)
+- [ ] Loading states use spinner tokens (`SPINNER_SIZE_PAGE` / `SPINNER_SIZE_INLINE`)
 - [ ] Avatars use correct size token for context
-- [ ] Card borders are `rgba(0,0,0,0.08)` consistently
-- [ ] Dark mode tested (system colors adapt automatically)
-- [ ] Large text / accessibility font sizes tested
 - [ ] `prefers-reduced-motion` respected
-- [ ] Error states shown inline below fields (not alerts for validation)
+- [ ] `hide-bottom-space` on stacked form inputs to prevent uneven spacing
+- [ ] Forms use `q-form` with `ref` for `.validate()` on submit
+- [ ] Submit buttons show `:loading="submitting"` state
 
 ---
 
 ## References
 
 - Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines/designing-for-ios
-- Apple HIG Typography: https://developer.apple.com/design/human-interface-guidelines/typography
-- Apple HIG SF Symbols: https://developer.apple.com/design/human-interface-guidelines/sf-symbols
-- Material Design 3 Overview: https://m3.material.io/
-- M3 Typography: https://m3.material.io/styles/typography/overview
-- M3 Layout: https://m3.material.io/foundations/layout/understanding-layout/overview
-- M3 Motion: https://m3.material.io/styles/motion/overview
-- M3 Color: https://m3.material.io/styles/color/overview
+- Material Design 3: https://m3.material.io/
 - Quasar Framework (Capacitor): https://quasar.dev/quasar-cli-vite/developing-capacitor-apps/introduction

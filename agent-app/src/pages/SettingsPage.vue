@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
 
     <!-- Profile card -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       Profile
     </div>
     <q-card flat class="settings-card q-mb-md">
@@ -28,7 +28,7 @@
 
     <!-- Agency card -->
     <template v-if="auth.agency">
-      <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+      <div class="section-header">
         Agency
       </div>
       <q-card flat class="settings-card q-mb-md">
@@ -53,7 +53,7 @@
     </template>
 
     <!-- App settings -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       App
     </div>
     <q-card flat class="settings-card q-mb-md">
@@ -89,7 +89,7 @@
     </q-card>
 
     <!-- Sign out -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       Account
     </div>
     <q-card flat class="settings-card q-mb-md">
@@ -111,7 +111,7 @@
     <!-- Legal footer -->
     <div class="text-caption text-grey-4 text-center q-mt-lg q-pb-md">
       Klikk Property Management · South Africa<br />
-      POPIA compliant · {{ new Date().getFullYear() }}
+      POPIA compliant · {{ currentYear }}
     </div>
 
   </q-page>
@@ -146,6 +146,7 @@ const platform = computed(() => {
 })
 
 const apiBase = computed(() => process.env.API_URL || 'http://localhost:8000/api/v1')
+const currentYear = new Date().getFullYear()
 
 function confirmLogout() {
   $q.dialog({
@@ -154,20 +155,20 @@ function confirmLogout() {
     cancel:  true,
     ok:      { label: 'Sign Out', color: 'negative', flat: true },
   }).onOk(async () => {
-    await auth.logout()
-    void router.replace('/login')
+    try {
+      await auth.logout()
+      void router.replace('/login')
+    } catch {
+      $q.notify({ type: 'negative', message: 'Sign out failed. Please try again.', icon: 'error' })
+    }
   })
 }
 </script>
 
 <style scoped lang="scss">
 .settings-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-border);
   overflow: hidden;
-}
-
-.letter-spacing-wide {
-  letter-spacing: 0.05em;
 }
 </style>

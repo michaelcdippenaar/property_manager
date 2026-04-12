@@ -272,6 +272,7 @@ import {
   type Property, type Unit,
 } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
+import { formatZAR } from '../utils/designTokens'
 
 const props = defineProps<{
   prePropertyId?: number
@@ -323,7 +324,7 @@ const unitOptions = computed(() =>
     .filter((u) => u.status === 'available')
     .map((u) => ({
       id: u.id,
-      label: `Unit ${u.unit_number} — R${Number(u.rent_amount).toLocaleString('en-ZA')}`,
+      label: `Unit ${u.unit_number} — R${formatZAR(u.rent_amount)}`,
     })),
 )
 
@@ -402,6 +403,8 @@ onMounted(async () => {
     if (form.value.property) {
       await onPropertyChange(form.value.property)
     }
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to load properties.', icon: 'error' })
   } finally {
     loadingProps.value = false
   }
@@ -411,8 +414,8 @@ onMounted(async () => {
 <style scoped lang="scss">
 // Quasar stepper uses flat + bordered props; wrap in section-card for consistent styling
 :deep(.q-stepper) {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-border);
   box-shadow: none;
 }
 </style>

@@ -17,12 +17,6 @@ export default boot(({ router }) => {
       }
     }
 
-    // Only allow tenant users
-    if (auth.user?.role !== 'tenant') {
-      await auth.logout()
-      return '/login'
-    }
-
     return true
   })
 })

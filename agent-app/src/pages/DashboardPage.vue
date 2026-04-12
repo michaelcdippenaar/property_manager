@@ -84,7 +84,7 @@
               </q-item-section>
 
               <q-item-section side>
-                <q-badge :color="statusColor(viewing.status)" :label="viewing.status" />
+                <q-badge :color="statusColor(viewing.status)" :label="fmtLabel(viewing.status)" />
               </q-item-section>
             </q-item>
           </q-list>
@@ -113,13 +113,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useAuthStore } from '../stores/auth'
 import { usePlatform } from '../composables/usePlatform'
 import { getDashboardSummary, type PropertyViewing, type Property } from '../services/api'
-import { statusColor, formatDateTimeShort } from '../utils/formatters'
+import { statusColor, formatDateTimeShort, fmtLabel } from '../utils/formatters'
 import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE, AVATAR_LIST } from '../utils/designTokens'
 
 const auth   = useAuthStore()
+const $q     = useQuasar()
 const { isIos } = usePlatform()
 
 const loading         = ref(true)
@@ -152,7 +154,7 @@ async function loadData(done?: () => void) {
       viewingCount:  summary.viewingCount,
     }
   } catch {
-    // Errors handled by axios interceptor (401 redirect etc.)
+    $q.notify({ type: 'negative', message: 'Failed to load dashboard. Pull down to retry.', icon: 'error' })
   } finally {
     loading.value = false
     done?.()

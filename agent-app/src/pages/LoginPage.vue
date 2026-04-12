@@ -35,7 +35,7 @@
             class="row-input"
             @keyup.enter="handleLogin"
           />
-          <button class="eye-btn" @click="showPassword = !showPassword" type="button">
+          <button class="eye-btn" @click="showPassword = !showPassword" type="button" :aria-label="showPassword ? 'Hide password' : 'Show password'">
             <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
           </button>
         </div>
@@ -211,7 +211,7 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
 
 .row-label {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--klikk-text-secondary);
   width: 72px;
   flex-shrink: 0;
 }
@@ -219,13 +219,13 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
 .row-input {
   flex: 1;
   font-size: 15px;
-  color: #111827;
+  color: var(--klikk-text-primary);
   border: none;
   outline: none;
   background: transparent;
   padding: 14px 0;
 
-  &::placeholder { color: #c0c0c8; }
+  &::placeholder { color: var(--klikk-text-faint); }
 }
 
 .eye-btn {
@@ -240,7 +240,7 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
 /* ── Error ── */
 .error-msg {
   font-size: 13px;
-  color: #dc2626;
+  color: $negative;
   text-align: center;
   margin: 0 0 12px;
   padding: 0 8px;
@@ -273,14 +273,14 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   align-items: center;
   gap: 12px;
   margin: 20px 0;
-  color: #9ca3af;
+  color: var(--klikk-text-muted);
   font-size: 13px;
 
   &::before, &::after {
     content: '';
     flex: 1;
     height: 0.5px;
-    background: rgba(0,0,0,0.1);
+    background: var(--klikk-border);
   }
 }
 
@@ -294,7 +294,7 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
 .footer-text {
   text-align: center;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--klikk-text-muted);
   padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
   margin: 0;
 }

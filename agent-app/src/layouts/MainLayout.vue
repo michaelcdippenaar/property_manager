@@ -20,7 +20,7 @@
         <q-toolbar-title
           :class="isIos ? 'text-primary text-weight-semibold' : 'text-white text-weight-medium'"
         >
-          {{ route.meta.title || 'Klikk Agent' }}
+          {{ pageTitle || route.meta.title || 'Klikk Agent' }}
         </q-toolbar-title>
 
         <!-- Agency logo placeholder -->
@@ -78,7 +78,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, provide, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlatform } from '../composables/usePlatform'
 
@@ -86,11 +86,14 @@ const route  = useRoute()
 const router = useRouter()
 const { isIos, isAndroid, enterTransition, leaveTransition, backIcon, headerClass } = usePlatform()
 
+// Allow child pages to override the header title
+const pageTitle = shallowRef<string | null>(null)
+provide('setPageTitle', (title: string | null) => { pageTitle.value = title })
+
 const tabs = [
   { name: 'dashboard',  label: 'Dashboard',  icon: 'bar_chart',   path: '/dashboard'  },
   { name: 'properties', label: 'Properties', icon: 'home',         path: '/properties' },
   { name: 'leases',     label: 'Leases',     icon: 'description',  path: '/leases'     },
-  { name: 'calendar',   label: 'Calendar',   icon: 'event',        path: '/calendar'   },
   { name: 'settings',   label: 'Settings',   icon: 'settings',     path: '/settings'   },
 ]
 
@@ -99,12 +102,12 @@ const activeTab = ref<string>('properties')
 watch(
   () => route.name,
   (name) => {
+    pageTitle.value = null
     if (name === 'dashboard')                                                   activeTab.value = 'dashboard'
-    else if (name === 'calendar')                                               activeTab.value = 'calendar'
     else if (name === 'leases')                                                 activeTab.value = 'leases'
     else if (name === 'settings')                                               activeTab.value = 'settings'
     else if (name === 'properties' || name === 'property-detail'
-          || name === 'create-direct-lease')                                    activeTab.value = 'properties'
+          || name === 'create-direct-lease' || name === 'calendar')             activeTab.value = 'properties'
   },
   { immediate: true },
 )
@@ -118,7 +121,7 @@ watch(
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: saturate(180%) blur(20px);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid rgba(0, 0, 0, 0.14);
+  border-top: 0.5px solid var(--klikk-border-strong);
   // No fixed height — tab buttons are 49px + safe area padding below them
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
@@ -134,7 +137,7 @@ watch(
   background: none;
   border: none;
   cursor: pointer;
-  color: #9e9e9e;
+  color: var(--klikk-text-muted);
   transition: color 0.15s;
   padding: 0;
 

@@ -99,3 +99,20 @@ export function ordinal(n: number): string {
   const v = n % 100
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
+
+/** Format a snake_case status into a display label: "in_progress" → "In Progress" */
+export function fmtLabel(value: string): string {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/** Relative time: "2h ago", "3d ago" */
+export function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}

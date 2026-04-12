@@ -2,10 +2,10 @@
   <q-page class="page-container">
 
     <!-- Profile card -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       Profile
     </div>
-    <q-card flat class="settings-card q-mb-md">
+    <q-card flat class="section-card q-mb-md">
       <q-list>
         <q-item>
           <q-item-section avatar>
@@ -27,10 +27,10 @@
     </q-card>
 
     <!-- Quick links -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       Account
     </div>
-    <q-card flat class="settings-card q-mb-md">
+    <q-card flat class="section-card q-mb-md">
       <q-list separator>
         <q-item clickable v-ripple @click="$router.push('/signing')">
           <q-item-section avatar>
@@ -58,10 +58,10 @@
     </q-card>
 
     <!-- App info -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       App
     </div>
-    <q-card flat class="settings-card q-mb-md">
+    <q-card flat class="section-card q-mb-md">
       <q-list separator>
         <q-item>
           <q-item-section avatar>
@@ -94,10 +94,10 @@
     </q-card>
 
     <!-- Sign out -->
-    <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">
+    <div class="section-header">
       Account
     </div>
-    <q-card flat class="settings-card q-mb-md">
+    <q-card flat class="section-card q-mb-md">
       <q-list>
         <q-item clickable v-ripple @click="confirmLogout">
           <q-item-section avatar>
@@ -160,20 +160,15 @@ function confirmLogout() {
     cancel:  true,
     ok:      { label: 'Sign Out', color: 'negative', flat: true },
   }).onOk(async () => {
-    await auth.logout()
-    void router.replace('/login')
+    try {
+      await auth.logout()
+      void router.replace('/login')
+    } catch {
+      $q.notify({ type: 'negative', message: 'Failed to sign out. Please try again.', icon: 'error' })
+    }
   })
 }
 </script>
 
 <style scoped lang="scss">
-.settings-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-
-.letter-spacing-wide {
-  letter-spacing: 0.05em;
-}
 </style>

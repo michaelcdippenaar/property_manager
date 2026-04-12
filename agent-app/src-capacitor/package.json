@@ -1,0 +1,16 @@
+{
+  "name": "klikk-agent-app",
+  "version": "1.0.0",
+  "description": "Klikk Agent App — property viewings, prospect capture, lease creation",
+  "author": "Klikk",
+  "private": true,
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.2.1",
+    "@capacitor/keyboard": "^6.0.4",
+    "@capacitor/splash-screen": "^6.0.4",
+    "@capacitor/status-bar": "^6.0.3"
+  }
+}

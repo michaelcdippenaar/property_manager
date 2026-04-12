@@ -174,7 +174,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewing, convertViewingToLease, listUnits, type PropertyViewing, type Unit } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { SPINNER_SIZE_PAGE } from '../utils/designTokens'
+import { SPINNER_SIZE_PAGE, formatZAR } from '../utils/designTokens'
 
 const props  = defineProps<{ viewingId: number }>()
 const router = useRouter()
@@ -206,13 +206,13 @@ const form = ref({
 const unitOptions = computed(() =>
   units.value.map((u) => ({
     id:    u.id,
-    label: `Unit ${u.unit_number}${u.rent_amount ? ` — R${Number(u.rent_amount).toLocaleString('en-ZA')}` : ''}`,
+    label: `Unit ${u.unit_number}${u.rent_amount ? ` — R${formatZAR(u.rent_amount)}` : ''}`,
   })),
 )
 
 const oneMonthRent = computed(() =>
   form.value.monthly_rent
-    ? Number(form.value.monthly_rent).toLocaleString('en-ZA')
+    ? formatZAR(form.value.monthly_rent)
     : '—',
 )
 
@@ -271,7 +271,12 @@ async function createLease() {
 }
 
 onMounted(async () => {
-  viewing.value = await getViewing(props.viewingId)
+  try {
+    viewing.value = await getViewing(props.viewingId)
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to load viewing details.', icon: 'error' })
+    return
+  }
 
   if (viewing.value.status === 'converted') {
     $q.notify({ type: 'warning', message: 'This viewing is already converted to a lease.' })

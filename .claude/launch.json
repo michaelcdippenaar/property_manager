@@ -88,6 +88,13 @@
       "port": 5176
     },
     {
+      "name": "Klikk Tenant App NEW (Quasar dev)",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/tenant-app",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["node_modules/.bin/quasar", "dev", "--port", "5177"],
+      "port": 5177
+    },
+    {
       "name": "Tremly API MCP (stdio — for Claude Desktop / Cursor MCP, not a browser URL)",
       "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/services/tremly-mcp",
       "runtimeExecutable": "node",

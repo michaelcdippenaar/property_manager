@@ -50,7 +50,7 @@
               class="row-input"
               @keyup.enter="handleEmailLogin"
             />
-            <button class="eye-btn" @click="showPassword = !showPassword" type="button">
+            <button class="eye-btn" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword" type="button">
               <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
             </button>
           </div>
@@ -275,7 +275,7 @@ $navy: $primary;
   padding: 10px;
   font-size: 14px;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--klikk-text-secondary);
   background: transparent;
   border: none;
   border-radius: 8px;
@@ -306,13 +306,13 @@ $navy: $primary;
   background: white;
 
   & + .list-row {
-    border-top: 0.5px solid rgba(0,0,0,0.08);
+    border-top: 0.5px solid var(--klikk-border);
   }
 }
 
 .row-label {
   font-size: 15px;
-  color: #6b7280;
+  color: var(--klikk-text-secondary);
   width: 72px;
   flex-shrink: 0;
 }
@@ -320,13 +320,13 @@ $navy: $primary;
 .row-input {
   flex: 1;
   font-size: 15px;
-  color: #111827;
+  color: var(--klikk-text-primary);
   border: none;
   outline: none;
   background: transparent;
   padding: 14px 0;
 
-  &::placeholder { color: #c0c0c8; }
+  &::placeholder { color: var(--klikk-text-faint); }
 }
 
 .eye-btn {
@@ -340,7 +340,7 @@ $navy: $primary;
 
 .error-msg {
   font-size: 13px;
-  color: #dc2626;
+  color: $negative;
   text-align: center;
   margin: 0 0 12px;
   padding: 0 8px;
@@ -348,7 +348,7 @@ $navy: $primary;
 
 .otp-info {
   font-size: 13px;
-  color: #6b7280;
+  color: var(--klikk-text-secondary);
   text-align: center;
   margin: 0 0 12px;
 }
@@ -389,7 +389,7 @@ $navy: $primary;
 .footer-text {
   text-align: center;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--klikk-text-muted);
   padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
   margin: 0;
 }

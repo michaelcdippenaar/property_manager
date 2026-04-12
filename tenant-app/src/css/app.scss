@@ -1,13 +1,14 @@
 // ─── Global styles ────────────────────────────────────────────────────────────
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-// Smooth scrolling globally
 * {
   -webkit-tap-highlight-color: transparent;
+  font-family: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
 }
 
 // ─── iOS-specific overrides ───────────────────────────────────────────────────
 body.platform-ios {
-  font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
 
   // iOS hairline separators
   .q-item {
@@ -53,7 +54,7 @@ body.platform-ios {
     background: rgba(255, 255, 255, 0.92);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-top: 0.5px solid rgba(0, 0, 0, 0.15);
+    border-top: 0.5px solid var(--klikk-border-strong);
     padding-bottom: env(safe-area-inset-bottom, 0px);
 
     .q-tab {
@@ -81,7 +82,7 @@ body.platform-ios {
     background: rgba(255, 255, 255, 0.92) !important;
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 0.5px solid rgba(0, 0, 0, 0.15);
+    border-bottom: 0.5px solid var(--klikk-border-strong);
     color: $primary !important;
 
     .q-toolbar-title {
@@ -99,7 +100,7 @@ body.platform-ios {
 // ─── Android / Material Design 3 overrides ───────────────────────────────────
 body.platform-android,
 body:not(.platform-ios) {
-  font-family: 'Roboto', 'Noto Sans', Arial, sans-serif;
+  font-family: 'Inter', 'Roboto', 'Noto Sans', Arial, sans-serif;
 
   // MD3 cards — Medium shape (12dp) with tonal elevation
   .q-card {
@@ -164,6 +165,23 @@ body:not(.platform-ios) {
   }
 }
 
+// ─── CSS custom properties (design tokens) ───────────────────────────────────
+:root {
+  --klikk-border: rgba(0, 0, 0, 0.08);
+  --klikk-border-strong: rgba(0, 0, 0, 0.14);
+  --klikk-radius-card: 12px;
+  --klikk-radius-input: 10px;
+  --klikk-radius-btn: 16px;
+  --klikk-text-primary: #1a1a2e;
+  --klikk-text-secondary: #6b7280;
+  --klikk-text-muted: #9e9e9e;
+  --klikk-text-faint: #bdbdbd;
+  --klikk-chat-bg: #efeae2;
+  --klikk-chat-sent: #d4f0ed;
+  --klikk-chat-received: #ffffff;
+  --klikk-empty-text: #9e9e9e;
+}
+
 // ─── Shared utility classes ───────────────────────────────────────────────────
 
 .page-container {
@@ -173,10 +191,47 @@ body:not(.platform-ios) {
 }
 
 .section-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-border);
   overflow: hidden;
   margin-bottom: 16px;
+}
+
+// ─── Reusable section header (e.g. "Profile", "Lease Terms") ─────────────────
+.section-header {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--klikk-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+  margin-left: 4px;
+}
+
+// ─── Reusable empty state ────────────────────────────────────────────────────
+.empty-state {
+  text-align: center;
+  padding: 40px 16px;
+
+  .empty-state-icon {
+    color: var(--klikk-text-faint);
+  }
+
+  .empty-state-title {
+    font-size: 14px;
+    color: var(--klikk-empty-text);
+    margin-top: 8px;
+  }
+
+  .empty-state-sub {
+    font-size: 12px;
+    color: var(--klikk-text-faint);
+    margin-top: 4px;
+  }
+
+  .empty-state-action {
+    margin-top: 16px;
+  }
 }
 
 // ─── Chat bubble styles ──────────────────────────────────────────────────────
@@ -193,14 +248,14 @@ body:not(.platform-ios) {
 }
 
 .chat-bubble-other {
-  background: white;
-  color: #111827;
+  background: var(--klikk-chat-received);
+  color: var(--klikk-text-primary);
   border-radius: 18px 18px 18px 4px;
   padding: 10px 14px;
   max-width: 80%;
   font-size: 14px;
   line-height: 1.45;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border: 1px solid var(--klikk-border);
   word-break: break-word;
 }
 
@@ -230,11 +285,17 @@ body:not(.platform-ios) {
 .typing-dot {
   width: 6px;
   height: 6px;
-  background: #9ca3af;
+  background: var(--klikk-text-muted);
   border-radius: 50%;
   display: inline-block;
   animation: typing-bounce 1.2s ease-in-out infinite;
 
   &:nth-child(2) { animation-delay: 150ms; }
   &:nth-child(3) { animation-delay: 300ms; }
+}
+
+// ─── Focus-visible styles for accessibility ──────────────────────────────────
+:focus-visible {
+  outline: 2px solid var(--q-primary);
+  outline-offset: 2px;
 }

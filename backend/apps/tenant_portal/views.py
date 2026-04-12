@@ -113,9 +113,9 @@ TONE & BREVITY
 - Be warm, direct, and practical. Talk like a helpful property manager, not a textbook.
 - Do NOT explain what a category of issue is (e.g. "A plumbing issue involves pipes..."). The tenant already knows what is broken.
 - For simple FAQs (WiFi, refuse day, parking) keep the reply to 2-4 short sentences.
-- For maintenance reports: acknowledge the problem, confirm it is logged, give one or two immediate \
-safety/damage-limitation tips if relevant. 3-5 sentences max. Do NOT write long explanations, definitions, \
-tutorials, or checklists unless the tenant explicitly asked for detail.
+- For maintenance reports: if you have enough detail, acknowledge and confirm it is logged. If the report is vague \
+(e.g. "broken plug", "broken door"), ask ONE clarifying question — do NOT log yet. \
+Give one or two immediate safety/damage-limitation tips if relevant. 3-5 sentences max.
 - NEVER use markdown formatting (no **, no #, no * bullets, no []()). Write plain text only. \
 The mobile app renders your reply as-is.
 
@@ -130,7 +130,10 @@ a qualified attorney or the Rental Housing Tribunal.
 Web (optional tool): do NOT call web_fetch unless the user's message already includes a full URL and asks you to read it.
 
 JSON OUTPUT (required)
-Respond with ONLY valid JSON (no markdown fences, no commentary outside the JSON). Shape:
+Respond with ONLY valid JSON (no markdown fences, no commentary outside the JSON).
+IMPORTANT: For vague reports like "broken plug" or "broken door", set maintenance_ticket to null and ask what exactly is wrong. \
+Only set maintenance_ticket when you know WHAT is broken and HOW (or for emergencies).
+Shape:
 {
   "reply": "Plain text response to the tenant.",
   "conversation_title": null | "Short thread title, e.g. Burst pipe",
@@ -145,9 +148,30 @@ Respond with ONLY valid JSON (no markdown fences, no commentary outside the JSON
   }
 }
 
-WHEN TO SET maintenance_ticket (non-null):
-Any real property issue the tenant is reporting RIGHT NOW. Do NOT ask unnecessary follow-up questions before logging. \
-If the tenant says "I have a burst pipe" that IS the report -- log it immediately.
+CRITICAL RULE — WHEN TO SET maintenance_ticket:
+
+You MUST set maintenance_ticket to null unless you have enough detail to write a useful, actionable ticket. \
+Follow this decision tree STRICTLY:
+
+STEP 1: Is it an EMERGENCY? (burst pipe, break-in, gas smell, fire, flooding, no water/power to whole unit)
+→ YES: Set maintenance_ticket immediately. These are urgent and time-sensitive.
+→ NO: Go to Step 2.
+
+STEP 2: Does the message contain SPECIFIC, actionable detail? \
+(e.g. "kitchen tap is dripping", "bedroom light switch sparks when I flip it", "toilet won't flush")
+→ YES: Set maintenance_ticket.
+→ NO: Go to Step 3.
+
+STEP 3: The report is VAGUE. Set maintenance_ticket to null. Ask ONE clarifying question. Examples:
+- "broken plug" → maintenance_ticket: null. Reply: "Which plug is it and what's happening — is it loose, sparking, or just not giving power?"
+- "broken door" → maintenance_ticket: null. Reply: "What's wrong with the door — is the handle broken, won't it close, or is the lock jammed?"
+- "problem with tap" → maintenance_ticket: null. Reply: "What's happening with the tap — is it dripping, no water at all, or no hot water?"
+- "something wrong with stove" → maintenance_ticket: null. Reply: "What exactly is the issue — is an element not heating, the oven not working, or a knob broken?"
+- "broken window" → maintenance_ticket: null. Reply: "Which window and what happened — is the glass cracked, won't it open/close, or is the latch broken?"
+After the tenant clarifies, THEN set maintenance_ticket in your NEXT response.
+
+REMEMBER: "broken plug", "broken door", "broken window" etc. are NOT enough detail. You MUST ask what exactly is wrong \
+before logging a ticket. Only emergencies skip clarification.
 
 Priority:
 - urgent: break-in, active danger, gas smell, major flood, fire, no water/power to whole unit
@@ -165,7 +189,7 @@ Category:
 - garden: irrigation, trees, fencing, paving
 - other: anything else
 
-WHEN maintenance_ticket IS null: general questions, rent/account queries, how-to, chit-chat.
+WHEN maintenance_ticket IS null: general questions, rent queries, how-to, chit-chat, OR vague reports needing clarification.
 
 conversation_title: suggest a short label (max ~60 chars) if the thread still has a generic title. \
 Use null once the topic is already clear."""
@@ -354,6 +378,7 @@ def _build_maintenance_ticket_from_interaction(
     *,
     interaction_type: str,
     severity: str,
+    json_ok: bool = True,
 ) -> dict | None:
     if interaction_type != "maintenance":
         return maintenance_ticket if _has_usable_maintenance_ticket(maintenance_ticket) else None
@@ -361,6 +386,13 @@ def _build_maintenance_ticket_from_interaction(
     base_ticket = dict(maintenance_ticket or {})
     if _has_usable_maintenance_ticket(base_ticket):
         return base_ticket
+
+    # If the AI returned valid JSON but chose NOT to create a ticket
+    # (maintenance_ticket: null), respect that — the AI is gathering details.
+    # Only use heuristic fallback when JSON parsing failed (json_ok=False).
+    if json_ok and maintenance_ticket is None:
+        # AI deliberately returned null — still triaging, don't override
+        return None
 
     hint = _heuristic_severe_ticket(user_content)
     if not hint:
@@ -1149,6 +1181,7 @@ class TenantConversationMessageCreateView(APIView):
             maintenance_ticket,
             interaction_type=interaction_type,
             severity=severity,
+            json_ok=json_ok,
         )
         _maybe_update_session_title(session, conv_title, effective_ticket or maintenance_ticket)
 
@@ -1159,7 +1192,8 @@ class TenantConversationMessageCreateView(APIView):
                 created_mr = _create_mr_from_chat(
                     request.user, effective_ticket, ticket_context
                 )
-            if created_mr is None and interaction_type != "maintenance":
+            # Only use heuristic fallback when AI JSON parsing failed
+            if created_mr is None and not json_ok:
                 hint = _heuristic_severe_ticket(ticket_context)
                 if not hint:
                     hint = _heuristic_maintenance_ticket(ticket_context)
@@ -1184,12 +1218,17 @@ class TenantConversationMessageCreateView(APIView):
             or bool(existing_request_id)
             or _has_usable_maintenance_ticket(effective_ticket)
         )
-        reply_text = _ensure_truthful_maintenance_reply(
-            reply_text,
-            maintenance_issue_identified=maintenance_issue_identified,
-            created_mr=created_mr,
-            existing_request_id=existing_request_id,
-        )
+        # Only append the "could not log" note when the AI TRIED to create a ticket
+        # but failed. When json_ok=True and maintenance_ticket is None, the AI is
+        # deliberately asking for clarification — don't nag the tenant.
+        ai_deliberately_deferred = json_ok and maintenance_ticket is None
+        if not ai_deliberately_deferred:
+            reply_text = _ensure_truthful_maintenance_reply(
+                reply_text,
+                maintenance_issue_identified=maintenance_issue_identified,
+                created_mr=created_mr,
+                existing_request_id=existing_request_id,
+            )
         if maintenance_issue_identified and not session.maintenance_report_suggested:
             TenantChatSession.objects.filter(pk=session.pk).update(
                 maintenance_report_suggested=True

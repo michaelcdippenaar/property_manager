@@ -3,11 +3,11 @@
 
     <!-- Month navigation -->
     <div class="row items-center justify-between q-mb-md">
-      <q-btn flat round icon="chevron_left" color="primary" @click="prevMonth" />
+      <q-btn flat round icon="chevron_left" color="primary" aria-label="Previous month" @click="prevMonth" />
       <div class="text-subtitle1 text-weight-bold text-primary cursor-pointer" @click="goToday">
         {{ monthLabel }}
       </div>
-      <q-btn flat round icon="chevron_right" color="primary" @click="nextMonth" />
+      <q-btn flat round icon="chevron_right" color="primary" aria-label="Next month" @click="nextMonth" />
     </div>
 
     <!-- Day-of-week headers -->

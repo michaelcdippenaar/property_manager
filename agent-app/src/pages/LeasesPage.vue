@@ -41,9 +41,12 @@
         </div>
 
         <!-- Empty state -->
-        <div v-if="filteredLeases.length === 0" class="text-center q-py-xl">
-          <q-icon name="description" :size="EMPTY_ICON_SIZE" color="grey-3" />
-          <div class="text-body2 text-grey-5 q-mt-sm">No leases found</div>
+        <div v-if="filteredLeases.length === 0" class="empty-state">
+          <q-icon name="description" :size="EMPTY_ICON_SIZE" class="empty-state-icon" />
+          <div class="empty-state-title">No leases found</div>
+          <div v-if="activeFilter !== 'all'" class="empty-state-sub">
+            Try changing the filter or search term
+          </div>
         </div>
 
         <!-- Lease list -->
@@ -79,7 +82,7 @@
                 <div class="row items-center q-gutter-xs">
                   <q-icon name="payments" size="14px" color="positive" />
                   <span class="text-weight-medium text-grey-9">
-                    R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}/mo
+                    R{{ formatZAR(lease.monthly_rent) }}/mo
                   </span>
                 </div>
                 <div class="row items-center q-gutter-xs">
@@ -111,11 +114,13 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { listLeases, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
 import { leaseStatusColor, formatDate, daysRemaining } from '../utils/formatters'
-import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE } from '../utils/designTokens'
+import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE, formatZAR } from '../utils/designTokens'
 
+const $q = useQuasar()
 const { isIos } = usePlatform()
 
 const loading     = ref(true)
@@ -155,7 +160,7 @@ async function loadLeases(done?: () => void) {
     const resp = await listLeases()
     leases.value = resp.results
   } catch {
-    // handled by axios interceptor
+    $q.notify({ type: 'negative', message: 'Failed to load leases. Pull down to retry.', icon: 'error' })
   } finally {
     loading.value = false
     done?.()
@@ -167,8 +172,8 @@ onMounted(() => void loadLeases())
 
 <style scoped lang="scss">
 .lease-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-border);
   overflow: hidden;
 }
 </style>

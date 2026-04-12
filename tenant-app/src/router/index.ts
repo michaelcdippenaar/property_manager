@@ -46,12 +46,6 @@ export default route(function () {
             meta: { title: 'Repairs', depth: 1 },
           },
           {
-            path: 'chat',
-            name: 'chat-list',
-            component: () => import('../pages/ChatListPage.vue'),
-            meta: { title: 'AI Assistant', depth: 1 },
-          },
-          {
             path: 'settings',
             name: 'settings',
             component: () => import('../pages/SettingsPage.vue'),
@@ -62,22 +56,16 @@ export default route(function () {
 
       // ── Full-screen pages (no tab bar) ─────────────────────
       {
-        path: '/repairs/:id',
-        name: 'repair-detail',
-        component: () => import('../pages/RepairDetailPage.vue'),
-        meta: { title: 'Repair Detail', showBackBtn: true, depth: 2 },
+        path: '/repairs/chat/:convId',
+        name: 'triage-chat',
+        component: () => import('../pages/TriageChatPage.vue'),
+        meta: { title: 'New Request', showBackBtn: true, depth: 2 },
       },
       {
-        path: '/repairs/report',
-        name: 'report-issue',
-        component: () => import('../pages/ReportIssuePage.vue'),
-        meta: { title: 'Report a Repair', showBackBtn: true, depth: 2 },
-      },
-      {
-        path: '/chat/:id',
-        name: 'chat-detail',
-        component: () => import('../pages/ChatDetailPage.vue'),
-        meta: { title: 'AI Assistant', showBackBtn: true, depth: 2 },
+        path: '/repairs/ticket/:id',
+        name: 'ticket-chat',
+        component: () => import('../pages/TicketChatPage.vue'),
+        meta: { title: 'Repair Chat', showBackBtn: true, depth: 2 },
       },
       {
         path: '/lease',

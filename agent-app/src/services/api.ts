@@ -224,6 +224,53 @@ export const createLeaseDirect = (data: {
 }): Promise<AgentLease> =>
   api.post<AgentLease>('/leases/', data).then((r) => r.data)
 
+// ─── Maintenance ─────────────────────────────────────────────────────────────
+
+export interface MaintenanceRequest {
+  id: number
+  title: string
+  description: string
+  category: 'plumbing' | 'electrical' | 'roof' | 'appliance' | 'security' | 'pest' | 'garden' | 'other'
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  status: 'open' | 'in_progress' | 'resolved' | 'closed'
+  unit: number | null
+  tenant: number | null
+  tenant_name: string | null
+  supplier: number | null
+  supplier_name: string | null
+  activity_count: number
+  image: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface MaintenanceActivity {
+  id: number
+  activity_type: 'note' | 'status_change' | 'supplier_assigned' | 'dispatch_sent' | 'quote_received' | 'job_awarded' | 'system'
+  message: string
+  file: string | null
+  metadata: Record<string, unknown>
+  created_by: number | null
+  created_by_name: string | null
+  created_by_role: string | null
+  created_at: string
+}
+
+export const listMaintenanceRequests = (params?: {
+  property?: number
+  status?: string
+}): Promise<PaginatedResponse<MaintenanceRequest>> =>
+  api.get<PaginatedResponse<MaintenanceRequest>>('/maintenance/', { params }).then((r) => r.data)
+
+export const getMaintenanceRequest = (id: number): Promise<MaintenanceRequest> =>
+  api.get<MaintenanceRequest>(`/maintenance/${id}/`).then((r) => r.data)
+
+export const updateMaintenanceRequest = (
+  id: number,
+  data: Partial<Pick<MaintenanceRequest, 'status' | 'priority' | 'category'>>,
+): Promise<MaintenanceRequest> =>
+  api.patch<MaintenanceRequest>(`/maintenance/${id}/`, data).then((r) => r.data)
+
 // ─── Dashboard summary ────────────────────────────────────────────────────────
 
 export const getDashboardSummary = async () => {

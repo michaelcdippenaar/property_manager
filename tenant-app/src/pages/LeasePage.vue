@@ -2,7 +2,7 @@
   <q-layout view="hHh lpR fFf">
     <q-header :elevated="!isIos" :class="headerClass">
       <q-toolbar>
-        <q-btn flat round :icon="backIcon" :color="isIos ? 'primary' : 'white'" @click="$router.back()" />
+        <q-btn flat round :icon="backIcon" :color="isIos ? 'primary' : 'white'" aria-label="Go back" @click="$router.back()" />
         <q-toolbar-title :class="isIos ? 'text-primary text-weight-semibold' : 'text-white text-weight-medium'">
           My Lease
         </q-toolbar-title>
@@ -18,10 +18,10 @@
         </div>
 
         <!-- No lease -->
-        <div v-else-if="!lease" class="text-center q-pt-xl">
-          <q-icon name="description" :size="EMPTY_ICON_SIZE" color="grey-3" class="q-mb-md" />
-          <div class="text-weight-semibold text-grey-8">No active lease</div>
-          <div class="text-caption text-grey-5 q-mt-xs">Contact your agent to get started</div>
+        <div v-else-if="!lease" class="empty-state">
+          <q-icon name="description" :size="EMPTY_ICON_SIZE" class="empty-state-icon" />
+          <div class="empty-state-title">No active lease</div>
+          <div class="empty-state-sub">Contact your agent to get started</div>
         </div>
 
         <template v-else>
@@ -45,7 +45,7 @@
           </q-card>
 
           <!-- Lease details -->
-          <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">Lease Details</div>
+          <div class="section-header">Lease Details</div>
           <q-card flat class="q-mb-md">
             <q-list separator>
               <!-- Status -->
@@ -122,7 +122,7 @@
           </q-card>
 
           <!-- Utilities -->
-          <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">Utilities</div>
+          <div class="section-header">Utilities</div>
           <q-card flat class="q-mb-md">
             <q-list separator>
               <q-item>
@@ -136,7 +136,7 @@
                   <q-item-label class="text-weight-medium">{{ lease.water_included ? 'Included' : 'Separate meter' }}</q-item-label>
                 </q-item-section>
                 <q-item-section v-if="lease.water_included && lease.water_limit_litres" side>
-                  <q-item-label caption>{{ Number(lease.water_limit_litres).toLocaleString('en-ZA') }}L / mo</q-item-label>
+                  <q-item-label caption>{{ formatZAR(lease.water_limit_litres) }}L / mo</q-item-label>
                 </q-item-section>
               </q-item>
               <q-item>
@@ -155,7 +155,7 @@
 
           <!-- Unit info -->
           <template v-if="infoItems.length > 0">
-            <div class="text-caption text-grey-6 text-uppercase q-mb-xs q-ml-xs letter-spacing-wide">Unit Info</div>
+            <div class="section-header">Unit Info</div>
             <q-card flat class="q-mb-md">
               <q-list separator>
                 <q-item
@@ -191,14 +191,16 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { usePlatform } from '../composables/usePlatform'
 import { useAuthStore } from '../stores/auth'
 import * as tenantApi from '../services/api'
 import type { TenantLease, UnitInfoItem } from '../services/api'
 import { formatDate, formatCurrency, ordinal, daysRemaining } from '../utils/formatters'
-import { EMPTY_ICON_SIZE } from '../utils/designTokens'
+import { EMPTY_ICON_SIZE, formatZAR } from '../utils/designTokens'
 
 const auth = useAuthStore()
+const $q = useQuasar()
 const { isIos, backIcon, headerClass } = usePlatform()
 
 const loading      = ref(true)
@@ -255,6 +257,9 @@ onMounted(async () => {
       tenantApi.listUnitInfo(),
     ])
 
+    if (leasesRes.status === 'rejected') {
+      $q.notify({ type: 'negative', message: 'Failed to load lease details.', icon: 'error' })
+    }
     if (leasesRes.status === 'fulfilled') {
       const leases = leasesRes.value.data.results ?? leasesRes.value.data as TenantLease[]
       lease.value = (leases as TenantLease[]).find(l => l.status === 'active')
@@ -283,7 +288,4 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-.letter-spacing-wide {
-  letter-spacing: 0.05em;
-}
 </style>

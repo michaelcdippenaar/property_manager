@@ -32,7 +32,7 @@
         <q-item v-if="p.phone">
           <q-item-section avatar><q-icon name="phone" color="grey-6" size="20px" /></q-item-section>
           <q-item-section>{{ p.phone }}</q-item-section>
-          <q-item-section side><q-btn flat round dense icon="call" color="primary" :href="`tel:${p.phone}`" tag="a" /></q-item-section>
+          <q-item-section side><q-btn flat round dense icon="call" color="primary" :href="`tel:${p.phone}`" tag="a" aria-label="Call prospect" /></q-item-section>
         </q-item>
         <q-item v-if="p.email">
           <q-item-section avatar><q-icon name="mail" color="grey-6" size="20px" /></q-item-section>
@@ -48,7 +48,7 @@
         </q-item>
         <q-item v-if="p.monthly_income">
           <q-item-section avatar><q-icon name="payments" color="grey-6" size="20px" /></q-item-section>
-          <q-item-section>R{{ Number(p.monthly_income).toLocaleString('en-ZA') }} / month</q-item-section>
+          <q-item-section>R{{ formatZAR(p.monthly_income) }} / month</q-item-section>
         </q-item>
         <q-item v-if="p.address">
           <q-item-section avatar><q-icon name="home" color="grey-6" size="20px" /></q-item-section>
@@ -145,7 +145,7 @@ import { useQuasar } from 'quasar'
 import { getViewing, updateViewing, type PropertyViewing, type Person } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
 import { formatDateTime, statusIcon } from '../utils/formatters'
-import { SPINNER_SIZE_PAGE, AVATAR_PROFILE } from '../utils/designTokens'
+import { SPINNER_SIZE_PAGE, AVATAR_PROFILE, formatZAR } from '../utils/designTokens'
 
 const props  = defineProps<{ id: number }>()
 const router = useRouter()
@@ -185,6 +185,8 @@ function confirmCancel() {
     try {
       viewing.value = await updateViewing(viewing.value!.id, { status: 'cancelled' })
       $q.notify({ type: 'warning', message: 'Viewing cancelled', icon: 'cancel' })
+    } catch {
+      $q.notify({ type: 'negative', message: 'Failed to cancel viewing. Please try again.', icon: 'error' })
     } finally {
       updating.value = false
     }
@@ -196,7 +198,11 @@ function goConvert() {
 }
 
 onMounted(async () => {
-  viewing.value = await getViewing(props.id)
+  try {
+    viewing.value = await getViewing(props.id)
+  } catch {
+    $q.notify({ type: 'negative', message: 'Failed to load viewing details.', icon: 'error' })
+  }
 })
 </script>
 

@@ -26,30 +26,12 @@ export interface MaintenanceActivity {
   is_system?: boolean
 }
 
-export interface Conversation {
-  id: number
-  title: string
-  messages: Message[]
-  maintenance_report_suggested: boolean
-  maintenance_request_id: number | null
-  created_at: string
-  updated_at: string
-}
-
-export interface Message {
-  id: number
-  role?: string
-  content?: string
-  type?: string
-  file_url?: string | null
-  attachment_kind?: string | null
-  severity?: string | null
-  skills_used?: Record<string, unknown> | null
-  created_at: string
-  // Client-side helpers
-  skills?: string[]
-  draft?: Record<string, unknown>
-  interaction_type?: string
+export interface ClassifyResult {
+  category: string
+  priority: string
+  confidence: number
+  rag_matches: number
+  skill_matches: number
 }
 
 export interface TenantLease {
@@ -98,7 +80,55 @@ export interface UnitInfoItem {
   is_sensitive?: boolean
 }
 
+// Tenant AI Conversations (triage before ticket creation)
+export interface Conversation {
+  id: number
+  title: string
+  maintenance_report_suggested: boolean
+  maintenance_request_id: number | null
+  agent_question_id: number | null
+  messages: ConversationMessage[]
+}
+
+export interface ConversationMessage {
+  id: number
+  role: 'user' | 'assistant'
+  content: string
+  attachment_url: string | null
+  attachment_kind: string
+  created_at?: string
+}
+
+export interface ConversationMessageResponse {
+  user_message: ConversationMessage
+  ai_message: ConversationMessage
+  conversation: { id: number; title: string }
+  maintenance_request: { id: number; title: string; priority: string; category: string; status: string } | null
+  maintenance_report_suggested: boolean
+  interaction_type: 'general' | 'maintenance'
+  severity: string
+  maintenance_request_id: number | null
+}
+
 // ─── API functions ───────────────────────────────────────────────────────────
+
+// Conversations (AI triage)
+export function createConversation(data?: { title?: string }) {
+  return api.post<Conversation>('/tenant-portal/conversations/', data || {})
+}
+
+export function getConversation(id: number) {
+  return api.get<Conversation>(`/tenant-portal/conversations/${id}/`)
+}
+
+export function sendConversationMessage(id: number, data: FormData | { content: string }) {
+  const isFormData = data instanceof FormData
+  return api.post<ConversationMessageResponse>(
+    `/tenant-portal/conversations/${id}/messages/`,
+    data,
+    isFormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined,
+  )
+}
 
 // Maintenance
 export function listIssues(params?: { status?: string; page_size?: number }) {
@@ -109,8 +139,16 @@ export function getIssue(id: number) {
   return api.get<MaintenanceIssue>(`/maintenance/${id}/`)
 }
 
-export function createIssue(data: { title: string; description: string; category: string; priority: string }) {
+export function createIssue(data: { title: string; description: string; category: string; priority: string; conversation_id?: number }) {
   return api.post<MaintenanceIssue>('/maintenance/', data)
+}
+
+export function updateIssue(id: number, data: Partial<Pick<MaintenanceIssue, 'title' | 'description' | 'status' | 'priority' | 'category'>>) {
+  return api.patch<MaintenanceIssue>(`/maintenance/${id}/`, data)
+}
+
+export function classifyIssue(data: { title: string; description: string; property_id?: number }) {
+  return api.post<ClassifyResult>('/maintenance/classify/', data)
 }
 
 export function listActivities(issueId: number) {
@@ -119,25 +157,6 @@ export function listActivities(issueId: number) {
 
 export function postActivity(issueId: number, form: FormData) {
   return api.post<MaintenanceActivity>(`/maintenance/${issueId}/activity/`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  })
-}
-
-// Conversations
-export function listConversations() {
-  return api.get<{ results: Conversation[] }>('/tenant-portal/conversations/')
-}
-
-export function getConversation(id: number) {
-  return api.get<Conversation>(`/tenant-portal/conversations/${id}/`)
-}
-
-export function createConversation() {
-  return api.post<Conversation>('/tenant-portal/conversations/', {})
-}
-
-export function sendMessage(convId: number, form: FormData) {
-  return api.post(`/tenant-portal/conversations/${convId}/messages/`, form, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
 }
