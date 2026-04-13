@@ -279,3 +279,9 @@
 {"request_id": 15, "activity_id": 4, "type": "note", "message": "Test note", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-04-13T14:48:21.311663+00:00"}
 {"request_id": 56, "activity_id": 5, "type": "note", "message": "My kitchen tap is leaking badly", "author": "tenant@test.com", "role": "tenant", "source": "user", "timestamp": "2026-04-13T14:49:20.267892+00:00"}
 {"request_id": 56, "activity_id": 6, "type": "note", "message": "I have noted the leak.\n\nWe've logged this for the property team (maintenance request #56).", "author": "AI Agent", "role": "ai", "source": "ai_agent", "timestamp": "2026-04-13T14:49:20.269511+00:00"}
+{"request_id": 6, "activity_id": 1, "type": "note", "message": "The window cracked during the storm.", "author": "tenant@test.com", "role": "tenant", "source": "user", "timestamp": "2026-04-13T14:55:41.426071+00:00"}
+{"request_id": 6, "activity_id": 2, "type": "note", "message": "I can log that for maintenance.", "author": "AI Agent", "role": "ai", "source": "ai_agent", "timestamp": "2026-04-13T14:55:41.428901+00:00"}
+{"request_id": 14, "activity_id": 3, "type": "note", "message": "Contacted supplier", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-04-13T14:55:44.264970+00:00"}
+{"request_id": 15, "activity_id": 4, "type": "note", "message": "Test note", "author": "agent@test.com", "role": "agent", "source": "user", "timestamp": "2026-04-13T14:55:44.616960+00:00"}
+{"request_id": 56, "activity_id": 5, "type": "note", "message": "My kitchen tap is leaking badly", "author": "tenant@test.com", "role": "tenant", "source": "user", "timestamp": "2026-04-13T14:56:43.601955+00:00"}
+{"request_id": 56, "activity_id": 6, "type": "note", "message": "I have noted the leak.\n\nWe've logged this for the property team (maintenance request #56).", "author": "AI Agent", "role": "ai", "source": "ai_agent", "timestamp": "2026-04-13T14:56:43.604106+00:00"}
