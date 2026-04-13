@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.accounts",
     "apps.properties",
     "apps.leases",
+    "apps.tenant",
     "apps.maintenance",
     "apps.esigning",
     "apps.ai",

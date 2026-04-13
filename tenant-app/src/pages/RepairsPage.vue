@@ -83,6 +83,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import * as tenantApi from '../services/api'
 import type { MaintenanceIssue } from '../services/api'
 import { EMPTY_ICON_SIZE } from '../utils/designTokens'
+import { useMaintenanceListSocket } from '../composables/useMaintenanceListSocket'
 
 const router = useRouter()
 const $q = useQuasar()
@@ -151,6 +152,9 @@ async function createTicket() {
 // Watcher in component per user requirement
 watch(activeFilter, loadIssues)
 onMounted(loadIssues)
+
+// Real-time list refresh when any issue changes on another platform
+useMaintenanceListSocket(loadIssues)
 </script>
 
 <style scoped lang="scss">

@@ -27,7 +27,7 @@
           You've been invited to join Klikk as <strong class="capitalize">{{ invite.role }}</strong>.
         </div>
 
-        <form @submit.prevent="handleAccept" class="space-y-3">
+        <form @submit.prevent="handleAccept" class="space-y-3" novalidate>
 
           <div>
             <label class="label">Email</label>
@@ -37,11 +37,13 @@
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="label">First name</label>
-              <input v-model="form.first_name" type="text" class="input" placeholder="John" required />
+              <input v-model="form.first_name" type="text" class="input" :class="{ 'input-error': fieldErrors.first_name }" placeholder="John" />
+              <p v-if="fieldErrors.first_name" class="input-error-msg">{{ fieldErrors.first_name }}</p>
             </div>
             <div>
               <label class="label">Last name</label>
-              <input v-model="form.last_name" type="text" class="input" placeholder="Doe" required />
+              <input v-model="form.last_name" type="text" class="input" :class="{ 'input-error': fieldErrors.last_name }" placeholder="Doe" />
+              <p v-if="fieldErrors.last_name" class="input-error-msg">{{ fieldErrors.last_name }}</p>
             </div>
           </div>
 
@@ -52,19 +54,20 @@
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 class="input pr-10"
-                placeholder="••••••••"
-                minlength="8"
-                required
+                :class="{ 'input-error': fieldErrors.password }"
+                placeholder="Min. 8 characters"
               />
               <button
                 type="button"
                 @click="showPassword = !showPassword"
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
               >
                 <Eye v-if="!showPassword" :size="16" />
                 <EyeOff v-else :size="16" />
               </button>
             </div>
+            <p v-if="fieldErrors.password" class="input-error-msg">{{ fieldErrors.password }}</p>
           </div>
 
           <div>
@@ -73,14 +76,15 @@
               v-model="confirmPassword"
               :type="showPassword ? 'text' : 'password'"
               class="input"
-              placeholder="••••••••"
-              required
+              :class="{ 'input-error': fieldErrors.confirmPassword }"
+              placeholder="Re-enter password"
             />
+            <p v-if="fieldErrors.confirmPassword" class="input-error-msg">{{ fieldErrors.confirmPassword }}</p>
           </div>
 
           <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-            <AlertCircle :size="15" />
-            {{ error }}
+            <AlertCircle :size="15" class="flex-shrink-0" />
+            <span>{{ error }}</span>
           </div>
 
           <button
@@ -96,7 +100,7 @@
 
         <!-- Google Sign Up -->
         <template v-if="google.isConfigured">
-          <div class="flex items-center gap-3 my-4">
+          <div v-if="googleReady" class="flex items-center gap-3 my-4">
             <div class="flex-1 h-px bg-gray-200"></div>
             <span class="text-xs text-gray-400">or</span>
             <div class="flex-1 h-px bg-gray-200"></div>
@@ -116,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useGoogleAuth } from '../../composables/useGoogleAuth'
@@ -138,7 +142,46 @@ const confirmPassword = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
 const error = ref('')
+const fieldErrors = reactive({ first_name: '', last_name: '', password: '', confirmPassword: '' })
 const googleButtonRef = ref<HTMLElement | null>(null)
+const googleReady = ref(false)
+
+function clearFieldErrors() {
+  fieldErrors.first_name = ''
+  fieldErrors.last_name = ''
+  fieldErrors.password = ''
+  fieldErrors.confirmPassword = ''
+}
+
+function validateForm(): boolean {
+  clearFieldErrors()
+  let valid = true
+
+  if (!form.first_name.trim()) {
+    fieldErrors.first_name = 'First name is required.'
+    valid = false
+  }
+  if (!form.last_name.trim()) {
+    fieldErrors.last_name = 'Last name is required.'
+    valid = false
+  }
+  if (!form.password) {
+    fieldErrors.password = 'Password is required.'
+    valid = false
+  } else if (form.password.length < 8) {
+    fieldErrors.password = 'Password must be at least 8 characters.'
+    valid = false
+  }
+  if (!confirmPassword.value) {
+    fieldErrors.confirmPassword = 'Please confirm your password.'
+    valid = false
+  } else if (form.password !== confirmPassword.value) {
+    fieldErrors.confirmPassword = 'Passwords do not match.'
+    valid = false
+  }
+
+  return valid
+}
 
 onMounted(async () => {
   // Fetch invite details
@@ -157,6 +200,9 @@ onMounted(async () => {
     loadingInvite.value = false
   }
 
+  // Wait for Vue to render the form (v-else block) before accessing the Google button ref
+  await nextTick()
+
   // Set up Google auth
   if (google.isConfigured && googleButtonRef.value) {
     google.waitForCredential().then(async (credential) => {
@@ -172,7 +218,11 @@ onMounted(async () => {
         auth._setTokens(data)
         router.push(auth.homeRoute)
       } catch (e: any) {
-        error.value = e.response?.data?.detail || 'Failed to accept invite with Google.'
+        if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
+          error.value = 'Cannot connect to server. Please check your internet connection and try again.'
+        } else {
+          error.value = e.response?.data?.detail || 'Failed to accept invite with Google.'
+        }
       } finally {
         loading.value = false
       }
@@ -182,42 +232,52 @@ onMounted(async () => {
       }
     })
 
-    await google.renderGoogleButton(googleButtonRef.value)
+    try {
+      await google.renderGoogleButton(googleButtonRef.value)
+      googleReady.value = true
+    } catch {
+      // Google button failed to load — hide the "or" divider
+      googleReady.value = false
+    }
   }
 })
 
 async function handleAccept() {
   error.value = ''
 
-  if (form.password.length < 8) {
-    error.value = 'Password must be at least 8 characters.'
-    return
-  }
-
-  if (form.password !== confirmPassword.value) {
-    error.value = 'Passwords do not match.'
-    return
-  }
+  if (!validateForm()) return
 
   loading.value = true
   try {
     const { data } = await api.post('/auth/accept-invite/', {
       token,
-      first_name: form.first_name,
-      last_name: form.last_name,
+      first_name: form.first_name.trim(),
+      last_name: form.last_name.trim(),
       password: form.password,
     })
     // Auto-login
     auth._setTokens(data)
     router.push(auth.homeRoute)
   } catch (e: any) {
-    const data = e.response?.data
-    if (data) {
-      const msg = typeof data === 'string' ? data
-        : data.detail || (Array.isArray(data) ? data.join(' ') : Object.values(data).flat().join(' '))
-      error.value = msg || 'Failed to accept invite.'
+    if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
+      error.value = 'Cannot connect to server. Please check your internet connection and try again.'
     } else {
-      error.value = 'Failed to accept invite. Please try again.'
+      const data = e.response?.data
+      if (data) {
+        // Django password validation returns { detail: ["msg1", "msg2"] }
+        const detail = data.detail
+        if (Array.isArray(detail)) {
+          error.value = detail.join(' ')
+        } else if (typeof detail === 'string') {
+          error.value = detail
+        } else if (typeof data === 'string') {
+          error.value = data
+        } else {
+          error.value = Object.values(data).flat().join(' ')
+        }
+      } else {
+        error.value = 'Failed to accept invite. Please try again.'
+      }
     }
   } finally {
     loading.value = false

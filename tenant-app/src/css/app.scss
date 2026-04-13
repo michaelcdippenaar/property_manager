@@ -241,10 +241,10 @@ body:not(.platform-ios) {
   color: white;
   border-radius: 18px 18px 4px 18px;
   padding: 10px 14px;
-  max-width: 80%;
   font-size: 14px;
   line-height: 1.45;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .chat-bubble-other {
@@ -252,11 +252,11 @@ body:not(.platform-ios) {
   color: var(--klikk-text-primary);
   border-radius: 18px 18px 18px 4px;
   padding: 10px 14px;
-  max-width: 80%;
   font-size: 14px;
   line-height: 1.45;
   border: 1px solid var(--klikk-border);
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
 // ─── Maintenance status badge colours ────────────────────────────────────────

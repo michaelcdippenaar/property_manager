@@ -171,18 +171,15 @@ class ReRegistrationAfterSoftDeleteTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-class AgencySingletonDuringRegistrationTests(TremlyAPITestCase):
-    """Subsequent registrations must be blocked once the Agency singleton exists.
-
-    This is the regression guard for the bug where a freshly registered
-    user silently joined the existing Agency as another admin and inherited
-    full visibility of the original landlord's dashboard.
+class MultiTenantRegistrationTests(TremlyAPITestCase):
+    """Multi-tenant registration: each self-registration creates its own
+    isolated Agency. No singleton restriction — this is a SaaS product.
     """
 
     url = reverse("auth-register")
 
-    def test_second_registration_is_blocked_with_403(self):
-        # First registration creates the singleton
+    def test_second_registration_creates_separate_agency(self):
+        # First registration creates the first Agency
         first = self.client.post(self.url, {
             "email": "first@test.com",
             "password": "strongpass123",
@@ -194,34 +191,38 @@ class AgencySingletonDuringRegistrationTests(TremlyAPITestCase):
         self.assertEqual(first.status_code, 201)
         self.assertEqual(Agency.objects.count(), 1)
 
-        # Second registration — must be rejected, no silent admin grant
+        # Second registration — allowed, gets its own Agency
         second = self.client.post(self.url, {
             "email": "second@test.com",
             "password": "strongpass123",
             "first_name": "Second",
             "last_name": "Admin",
             "account_type": "agency",
-            "agency_name": "Hostile Takeover Agency",
+            "agency_name": "Second Agency",
         })
-        self.assertEqual(second.status_code, 403)
-        # Singleton untouched
-        self.assertEqual(Agency.objects.count(), 1)
-        self.assertEqual(Agency.get_solo().name, "First Agency")
-        # And no second user was created
-        self.assertFalse(User.objects.filter(email="second@test.com").exists())
+        self.assertEqual(second.status_code, 201)
+        self.assertEqual(Agency.objects.count(), 2)
+        agency_names = list(Agency.objects.values_list("name", flat=True))
+        self.assertIn("First Agency", agency_names)
+        self.assertIn("Second Agency", agency_names)
+        self.assertTrue(User.objects.filter(email="second@test.com").exists())
 
-    def test_second_registration_blocked_even_as_individual(self):
-        """Individual-owner registrations are blocked too — the Agency singleton
-        already controls the deployment."""
+    def test_second_individual_registration_creates_own_agency(self):
+        """Individual-owner registrations each create their own Agency."""
         self.client.post(self.url, {
             "email": "landlord@test.com",
             "password": "strongpass123",
+            "first_name": "Land",
+            "last_name": "Lord",
             "account_type": "individual",
         })
         resp = self.client.post(self.url, {
             "email": "newbie@test.com",
             "password": "strongpass123",
+            "first_name": "New",
+            "last_name": "Bie",
             "account_type": "individual",
         })
-        self.assertEqual(resp.status_code, 403)
-        self.assertFalse(User.objects.filter(email="newbie@test.com").exists())
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(Agency.objects.count(), 2)
+        self.assertTrue(User.objects.filter(email="newbie@test.com").exists())

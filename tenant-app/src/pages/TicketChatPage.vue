@@ -280,7 +280,10 @@ function isAiMessage(a: MaintenanceActivity): boolean {
 }
 
 function isTenantMessage(a: MaintenanceActivity): boolean {
-  return a.created_by_role === 'tenant' || a.created_by_name === auth.user?.full_name
+  if (auth.user?.id != null) {
+    return a.created_by != null && Number(a.created_by) === Number(auth.user.id)
+  }
+  return a.created_by_role === 'tenant'
 }
 
 function systemIcon(a: MaintenanceActivity): string {
@@ -444,9 +447,12 @@ watch(() => activities.value.length, () => scrollToBottom())
 }
 
 .composer-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   border-top: 0.5px solid var(--klikk-border);
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 </style>

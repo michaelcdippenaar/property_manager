@@ -192,26 +192,29 @@
 
               <template v-else>
                 <template v-for="act in mStore.activities" :key="act.id">
-                  <div
-                    class="chat-bubble-row"
-                    :class="isMine(act) ? 'justify-end' : 'justify-start'"
-                  >
-                    <div
-                      class="chat-bubble"
-                      :class="isMine(act) ? 'bubble-mine' : 'bubble-other'"
-                    >
-                      <!-- WhatsApp group: sender name inside bubble, colored -->
+
+                  <!-- Received (tenant / AI / other agent) -->
+                  <div v-if="!isMine(act)" class="row justify-start q-mb-sm">
+                    <div class="column" style="max-width: 82%">
                       <div
-                        v-if="!isMine(act)"
-                        class="bubble-sender-label"
+                        class="text-caption q-ml-sm q-mb-xs text-weight-semibold"
                         :style="{ color: senderColor(act) }"
                       >
                         {{ isAi(act) ? '🤖 AI Agent' : (act.created_by_name || 'Tenant') }}
                       </div>
-                      <div class="bubble-text">{{ act.message }}</div>
-                      <div class="bubble-time">{{ formatTime(act.created_at) }}</div>
+                      <div class="chat-bubble-other">{{ stripAgentPrefix(act.message) }}</div>
+                      <div class="text-caption text-grey-4 q-ml-sm q-mt-xs">{{ formatTime(act.created_at) }}</div>
                     </div>
                   </div>
+
+                  <!-- Sent (mine) -->
+                  <div v-else class="row justify-end q-mb-sm">
+                    <div class="column items-end" style="max-width: 82%">
+                      <div class="chat-bubble-user">{{ stripAgentPrefix(act.message) }}</div>
+                      <div class="text-caption text-grey-4 q-mr-sm q-mt-xs">{{ formatTime(act.created_at) }}</div>
+                    </div>
+                  </div>
+
                 </template>
               </template>
             </div>
@@ -518,11 +521,19 @@ function daysOpen(created: string): string {
 }
 
 function isMine(act: MaintenanceActivity): boolean {
-  return act.created_by != null && Number(act.created_by) === authStore.user?.id
+  return act.created_by != null && Number(act.created_by) === Number(authStore.user?.id)
 }
 
 function isAi(act: MaintenanceActivity): boolean {
-  return act.activity_type === 'system' && act.created_by == null
+  return (
+    act.metadata?.source === 'ai_agent' ||
+    (act.activity_type === 'system' && act.created_by == null)
+  )
+}
+
+const AGENT_PREFIX_RE = /^@agent\s*/i
+function stripAgentPrefix(msg: string): string {
+  return msg.replace(AGENT_PREFIX_RE, '')
 }
 
 // WhatsApp group-style: each participant gets a consistent color
@@ -623,7 +634,9 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - 50px);
+  height: calc(100vh - 50px);
+  max-height: calc(100vh - 50px);
+  overflow: hidden;
 }
 
 // ── Tab card ────────────────────────────────────────────────────────────────
@@ -643,17 +656,21 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 
   :deep(.q-panel) {
     flex: 1;
     display: flex;
     flex-direction: column;
+    overflow: hidden !important;
+    min-height: 0;
   }
 
   :deep(.q-tab-panel) {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 }
 
@@ -704,88 +721,18 @@ onUnmounted(() => {
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 10px 4px;
-  background: var(--klikk-chat-bg);
+  background: white;
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-height: 0;
 }
 
-// ── WhatsApp-style chat bubbles ─────────────────────────────────────────────
-
-.bubble-sender-label {
-  font-size: 12.5px;
-  font-weight: 600;
-  line-height: 1.2;
-  margin-bottom: 2px;
-}
-
-.chat-bubble-row {
-  display: flex;
-  padding: 1px 0;
-}
-
-.chat-bubble {
-  max-width: 82%;
-  border-radius: 8px;
-  padding: 6px 8px 4px;
-  position: relative;
-  box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.08);
-}
-
-.bubble-text {
-  font-size: 14px;
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-
-.bubble-time {
-  font-size: 11px;
-  text-align: right;
-  margin-top: 2px;
-  color: rgba(0, 0, 0, 0.38);
-}
-
-.bubble-mine {
-  background: var(--klikk-chat-sent);
-  color: var(--klikk-text-primary);
-  border-top-right-radius: 0;
-
-  // Tail — top right
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: -6px;
-    width: 0;
-    height: 0;
-    border-left: 6px solid var(--klikk-chat-sent);
-    border-bottom: 6px solid transparent;
-  }
-}
-
-.bubble-other {
-  background: var(--klikk-chat-received);
-  color: var(--klikk-text-primary);
-  border-top-left-radius: 0;
-
-  // WhatsApp tail — top left
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -6px;
-    width: 0;
-    height: 0;
-    border-right: 6px solid var(--klikk-chat-received);
-    border-bottom: 6px solid transparent;
-  }
-}
-
-
 .chat-input-bar {
+  flex-shrink: 0;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
   background: white;
   padding: 8px 10px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 </style>

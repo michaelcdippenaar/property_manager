@@ -95,6 +95,13 @@ class Person(models.Model):
 
     class Meta:
         ordering = ["full_name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["phone"],
+                condition=~models.Q(phone=""),
+                name="unique_person_phone_when_set",
+            ),
+        ]
 
     def __str__(self):
         return self.full_name
@@ -272,9 +279,6 @@ class Agency(models.Model):
         return self.name or "Agency"
 
     def save(self, *args, **kwargs):
-        # Singleton: prevent creating a second record
-        if not self.pk and Agency.objects.exists():
-            raise ValueError("Only one Agency record is allowed.")
         super().save(*args, **kwargs)
 
     @classmethod

@@ -238,12 +238,12 @@ class AgencyLogoUploadTests(TremlyAPITestCase):
 
 
 class AgencySingletonModelTests(TremlyAPITestCase):
-    """The Agency model must enforce singleton at the DB layer (save() guard)."""
+    """Agency model supports multiple records — multi-tenant SaaS."""
 
-    def test_cannot_create_two_agencies(self):
+    def test_can_create_multiple_agencies(self):
         Agency.objects.create(name="First")
-        with self.assertRaises(ValueError):
-            Agency.objects.create(name="Second")
+        Agency.objects.create(name="Second")
+        self.assertEqual(Agency.objects.count(), 2)
 
     def test_get_solo_returns_none_when_empty(self):
         self.assertIsNone(Agency.get_solo())

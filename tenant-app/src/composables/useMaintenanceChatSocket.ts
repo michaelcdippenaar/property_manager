@@ -4,6 +4,7 @@ export interface MaintenanceActivity {
   id: number
   activity_type: string
   message: string
+  created_by?: number | null
   created_by_name?: string
   created_by_role?: string
   created_at: string

@@ -406,6 +406,102 @@
         </EmptyState>
       </div>
 
+      <!-- ── Tenants tab ── -->
+      <div v-else-if="activeSection === 'tenants'" class="space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <p class="text-sm text-gray-500">Tenants assigned to units on this property.</p>
+          <button class="btn-primary btn-sm flex-shrink-0" @click="openAssignModal">
+            <UserPlus :size="14" /> Assign tenant
+          </button>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-if="loadingTenants" class="card p-0 overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-wrap">
+              <thead><tr><th scope="col">Tenant</th><th scope="col">Unit</th><th scope="col">Period</th><th scope="col">Source</th><th scope="col" class="text-right">Actions</th></tr></thead>
+              <tbody>
+                <tr v-for="i in 3" :key="i">
+                  <td><div class="h-4 bg-gray-200 rounded animate-pulse w-3/4" /></td>
+                  <td><div class="h-4 bg-gray-200 rounded animate-pulse w-1/2" /></td>
+                  <td><div class="h-4 bg-gray-200 rounded animate-pulse w-2/3" /></td>
+                  <td><div class="h-4 bg-gray-200 rounded animate-pulse w-1/3" /></td>
+                  <td />
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Assignments table -->
+        <div v-else-if="tenantAssignments.length" class="card p-0 overflow-hidden">
+          <div class="table-scroll">
+            <table class="table-wrap">
+              <thead>
+                <tr>
+                  <th scope="col">Tenant</th>
+                  <th scope="col">Unit</th>
+                  <th scope="col">Start</th>
+                  <th scope="col">End</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Notes</th>
+                  <th scope="col" class="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="a in tenantAssignments" :key="a.id">
+                  <td>
+                    <div class="font-medium text-gray-900">{{ a.tenant_name }}</div>
+                    <div class="text-xs text-gray-400">
+                      {{ a.tenant_email || a.tenant_phone || '—' }}
+                    </div>
+                  </td>
+                  <td>{{ a.unit_number }}</td>
+                  <td>{{ fmtDate(a.start_date) }}</td>
+                  <td>
+                    <span v-if="a.end_date">{{ fmtDate(a.end_date) }}</span>
+                    <span v-else class="badge-green">Current</span>
+                  </td>
+                  <td>
+                    <span :class="a.source === 'lease' ? 'badge-blue' : 'badge-gray'">
+                      {{ a.source_display }}
+                    </span>
+                  </td>
+                  <td class="max-w-[200px] truncate text-xs text-gray-500">{{ a.notes || '—' }}</td>
+                  <td class="text-right">
+                    <div class="flex items-center justify-end gap-1">
+                      <button
+                        class="btn-ghost btn-xs"
+                        aria-label="Edit tenant"
+                        @click="openEditTenant(a)"
+                      ><Pencil :size="13" /></button>
+                      <button
+                        v-if="!a.end_date"
+                        class="btn-ghost btn-xs text-warning-600"
+                        aria-label="End assignment"
+                        @click="endAssignment(a)"
+                      >End</button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <EmptyState
+          v-else
+          title="No tenants assigned"
+          description="Assign a tenant to a unit on this property."
+          :icon="Users"
+        >
+          <button class="btn-primary btn-sm" @click="openAssignModal">
+            <UserPlus :size="14" /> Assign tenant
+          </button>
+        </EmptyState>
+      </div>
+
       <!-- ── Documentation tab ── -->
       <!-- ── Mandate tab ── -->
       <div v-else-if="activeSection === 'mandate'">
@@ -1157,6 +1253,111 @@
       @cancel="deletePhotoOpen = false; deletingPhoto = null"
     />
 
+    <!-- Assign tenant modal -->
+    <BaseModal :open="assignModal" title="Assign tenant to unit" @close="assignModal = false">
+      <div class="space-y-4">
+        <div>
+          <label class="label">Tenant <span class="text-danger-500">*</span></label>
+          <select v-model="assignForm.tenant_id" class="input">
+            <option :value="null" disabled>Select a tenant…</option>
+            <option v-for="t in allTenants" :key="t.id" :value="t.id">
+              {{ t.person.full_name }} {{ t.person.email ? `(${t.person.email})` : t.person.phone ? `(${t.person.phone})` : '' }}
+            </option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Unit <span class="text-danger-500">*</span></label>
+          <select v-model="assignForm.unit_id" class="input">
+            <option :value="null" disabled>Select a unit…</option>
+            <option v-for="u in property?.units ?? []" :key="u.id" :value="u.id">
+              Unit {{ u.unit_number }} — {{ u.status }}
+            </option>
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Start date <span class="text-danger-500">*</span></label>
+            <input v-model="assignForm.start_date" type="date" class="input" />
+          </div>
+          <div>
+            <label class="label">End date</label>
+            <input v-model="assignForm.end_date" type="date" class="input" />
+            <p class="input-help">Leave blank for open-ended.</p>
+          </div>
+        </div>
+        <div>
+          <label class="label">Notes</label>
+          <textarea v-model="assignForm.notes" class="input" rows="2" placeholder="Optional notes…" />
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn-ghost" @click="assignModal = false">Cancel</button>
+        <button
+          class="btn-primary"
+          :disabled="assigning || !assignForm.tenant_id || !assignForm.unit_id || !assignForm.start_date"
+          @click="submitAssign"
+        >
+          <Loader2 v-if="assigning" :size="14" class="animate-spin" />
+          Assign
+        </button>
+      </template>
+    </BaseModal>
+
+    <!-- Edit tenant modal -->
+    <BaseModal :open="editTenantModal" title="Edit tenant" @close="editTenantModal = false">
+      <div class="space-y-4">
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tenant Details</div>
+        <div>
+          <label class="label">Full name <span class="text-danger-500">*</span></label>
+          <input v-model="editTenantForm.full_name" class="input" placeholder="Full name" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">Email</label>
+            <input v-model="editTenantForm.email" type="email" class="input" placeholder="email@example.com" />
+          </div>
+          <div>
+            <label class="label">Phone</label>
+            <input v-model="editTenantForm.phone" class="input" placeholder="082 123 4567" />
+          </div>
+        </div>
+        <div>
+          <label class="label">ID / Passport number</label>
+          <input v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" />
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 mt-4">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Assignment</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Start date</label>
+              <input v-model="editTenantForm.start_date" type="date" class="input" />
+            </div>
+            <div>
+              <label class="label">End date</label>
+              <input v-model="editTenantForm.end_date" type="date" class="input" />
+              <p class="input-help">Leave blank for open-ended.</p>
+            </div>
+          </div>
+          <div class="mt-3">
+            <label class="label">Notes</label>
+            <textarea v-model="editTenantForm.notes" class="input" rows="2" placeholder="Optional notes…" />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn-ghost" @click="editTenantModal = false">Cancel</button>
+        <button
+          class="btn-primary"
+          :disabled="savingTenant || !editTenantForm.full_name"
+          @click="saveEditTenant"
+        >
+          <Loader2 v-if="savingTenant" :size="14" class="animate-spin" />
+          Save
+        </button>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
@@ -1179,7 +1380,7 @@ import {
   FileSignature, Loader2, Calendar, Wrench, Phone, Mail, ImagePlus,
   ClipboardList, ListTodo, Plus, ScanBarcode, FolderOpen,
   Megaphone, Building2, Landmark, ShieldCheck, Cpu, Receipt, Zap, Truck,
-  Home, CheckCircle, X, ChevronRight,
+  Home, CheckCircle, X, ChevronRight, Users, UserPlus, Pencil,
 } from 'lucide-vue-next'
 
 const NOTICE_DAYS = 30
@@ -1222,15 +1423,28 @@ const deletePhotoBusy   = ref(false)
 const complianceCerts    = ref<any[]>([])
 const loadingCompliance  = ref(false)
 
+// ── Tenants state ──
+const tenantAssignments = ref<any[]>([])
+const loadingTenants    = ref(false)
+const allTenants        = ref<any[]>([])
+const assignModal       = ref(false)
+const assigning         = ref(false)
+const assignForm        = ref({ tenant_id: null as number | null, unit_id: null as number | null, start_date: '', end_date: '', notes: '' })
+const editTenantModal   = ref(false)
+const editingAssignment = ref<any>(null)
+const savingTenant      = ref(false)
+const editTenantForm    = ref({ full_name: '', email: '', phone: '', id_number: '', start_date: '', end_date: '', notes: '' })
+
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
 const activeUnit = ref<number | null>(null)
-const activeSection = ref<'overview' | 'leases' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
+const activeSection = ref<'overview' | 'leases' | 'tenants' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
 
 const sectionTabs = computed(() => {
   const tabs: Array<{ key: string; label: string; icon: any }> = [
     { key: 'overview', label: 'Overview', icon: Wrench },
     { key: 'leases',   label: 'Leases',   icon: FileSignature },
+    { key: 'tenants',  label: 'Tenants',  icon: Users },
   ]
   if (auth.isAgency) {
     tabs.push({ key: 'mandate', label: 'Mandate', icon: FileSignature })
@@ -1596,6 +1810,9 @@ watch(activeSection, (sec) => {
   if (sec === 'suppliers' && !loadingSuppliers.value) {
     loadSuppliers()
   }
+  if (sec === 'tenants' && !loadingTenants.value) {
+    loadTenantAssignments()
+  }
 })
 
 watch(activeLease, () => {
@@ -1789,6 +2006,115 @@ function loadSuppliers() {
     .then(r => { propertySuppliers.value = r.data.results ?? r.data })
     .catch(() => { toast.error('Failed to load suppliers') })
     .finally(() => { loadingSuppliers.value = false })
+}
+
+// ── Tenants ──
+function loadTenantAssignments() {
+  if (!property.value) return
+  loadingTenants.value = true
+  api.get('/tenant/assignments/', { params: { property: property.value.id } })
+    .then(r => { tenantAssignments.value = r.data.results ?? r.data })
+    .catch(() => { toast.error('Failed to load tenant assignments') })
+    .finally(() => { loadingTenants.value = false })
+}
+
+function loadAllTenants() {
+  api.get('/tenant/tenants/')
+    .then(r => { allTenants.value = r.data.results ?? r.data })
+    .catch(() => { toast.error('Failed to load tenants list') })
+}
+
+function openAssignModal() {
+  assignForm.value = {
+    tenant_id: null,
+    unit_id: activeUnit.value,
+    start_date: new Date().toISOString().slice(0, 10),
+    end_date: '',
+    notes: '',
+  }
+  if (!allTenants.value.length) loadAllTenants()
+  assignModal.value = true
+}
+
+async function submitAssign() {
+  assigning.value = true
+  try {
+    await api.post('/tenant/tenants/assign-unit/', {
+      tenant_id: assignForm.value.tenant_id,
+      unit_id: assignForm.value.unit_id,
+      start_date: assignForm.value.start_date,
+      end_date: assignForm.value.end_date || null,
+      notes: assignForm.value.notes,
+    })
+    toast.success('Tenant assigned successfully')
+    assignModal.value = false
+    loadTenantAssignments()
+  } catch (err: any) {
+    const msg = err.response?.data?.detail || extractApiError(err) || 'Failed to assign tenant'
+    toast.error(msg)
+  } finally {
+    assigning.value = false
+  }
+}
+
+async function endAssignment(assignment: any) {
+  const today = new Date().toISOString().slice(0, 10)
+  try {
+    await api.patch(`/tenant/assignments/${assignment.id}/`, { end_date: today })
+    toast.success('Assignment ended')
+    loadTenantAssignments()
+  } catch (err: any) {
+    toast.error(extractApiError(err) || 'Failed to end assignment')
+  }
+}
+
+function openEditTenant(assignment: any) {
+  editingAssignment.value = assignment
+  editTenantForm.value = {
+    full_name: assignment.tenant_name || '',
+    email: assignment.tenant_email || '',
+    phone: assignment.tenant_phone || '',
+    id_number: '',
+    start_date: assignment.start_date || '',
+    end_date: assignment.end_date || '',
+    notes: assignment.notes || '',
+  }
+  // Fetch full person details to get id_number
+  const tenantId = assignment.tenant
+  api.get(`/tenant/tenants/${tenantId}/`)
+    .then(r => { editTenantForm.value.id_number = r.data.person?.id_number || '' })
+    .catch(() => {})
+  editTenantModal.value = true
+}
+
+async function saveEditTenant() {
+  if (!editingAssignment.value) return
+  savingTenant.value = true
+  try {
+    // 1) Update person details
+    const a = editingAssignment.value
+    const tenantDetail = (await api.get(`/tenant/tenants/${a.tenant}/`)).data
+    const personId = tenantDetail.person.id
+    await api.patch(`/auth/persons/${personId}/`, {
+      full_name: editTenantForm.value.full_name,
+      email: editTenantForm.value.email,
+      phone: editTenantForm.value.phone,
+      id_number: editTenantForm.value.id_number,
+    })
+    // 2) Update assignment details
+    await api.patch(`/tenant/assignments/${a.id}/`, {
+      start_date: editTenantForm.value.start_date,
+      end_date: editTenantForm.value.end_date || null,
+      notes: editTenantForm.value.notes,
+    })
+    toast.success('Tenant updated')
+    editTenantModal.value = false
+    loadTenantAssignments()
+  } catch (err: any) {
+    toast.error(extractApiError(err) || 'Failed to update tenant')
+  } finally {
+    savingTenant.value = false
+  }
 }
 
 function loadOverviewData(propertyId: number) {

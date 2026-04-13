@@ -4,6 +4,7 @@
  * Fixed at top with glassmorphism backdrop.
  * Hides text links below 900px (logo + CTA only on mobile).
  */
+const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
 ---
 
 <nav id="main-nav">
@@ -15,7 +16,7 @@
     <a href="/#integrations">Integrations</a>
     <a href="/pricing">Pricing</a>
   </div>
-  <a href="https://app.klikk.co.za/login" target="_blank" class="btn-nav">Login</a>
+  <a href={`${appUrl}/login`} target="_blank" class="btn-nav">Login</a>
 </nav>
 
 <style>

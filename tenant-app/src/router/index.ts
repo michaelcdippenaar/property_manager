@@ -88,5 +88,12 @@ export default route(function () {
     ],
   })
 
+  Router.beforeEach((to) => {
+    if (to.meta.public) return true
+    const token = localStorage.getItem('access_token')
+    if (!token) return { name: 'login' }
+    return true
+  })
+
   return Router
 })

@@ -137,10 +137,21 @@ class InviteUserView(APIView):
                 f"This invitation was sent by {request.user.full_name}."
             )
             html_body = (
-                f"<p>{greeting.strip()}</p>"
-                f"<p>You've been invited to join Klikk as a <strong>{role}</strong>.</p>"
-                f'<p><a href="{invite_url}">Accept Invitation</a></p>'
-                f"<p>This invitation was sent by {request.user.full_name}.</p>"
+                f'<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">'
+                f'<p style="font-size:24px;font-weight:700;color:#2B2D6E;margin:0 0 24px;">Klikk<span style="color:#FF3D7F;">.</span></p>'
+                f'<p style="font-size:16px;color:#333;margin:0 0 8px;">{greeting.strip()}</p>'
+                f'<p style="font-size:16px;color:#333;margin:0 0 24px;">You\'ve been invited to join Klikk as a <strong>{role}</strong>.</p>'
+                f'<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 24px;">'
+                f'<tr><td style="border-radius:8px;background-color:#2B2D6E;">'
+                f'<a href="{invite_url}" target="_blank" '
+                f'style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;'
+                f'color:#ffffff;text-decoration:none;border-radius:8px;">Accept Invitation</a>'
+                f'</td></tr></table>'
+                f'<p style="font-size:13px;color:#888;margin:0 0 8px;">Or copy and paste this link into your browser:</p>'
+                f'<p style="font-size:13px;color:#2B2D6E;word-break:break-all;margin:0 0 24px;">{invite_url}</p>'
+                f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />'
+                f'<p style="font-size:13px;color:#888;margin:0;">This invitation was sent by {request.user.full_name}.</p>'
+                f'</div>'
             )
             send_email(
                 subject="You've been invited to Klikk",

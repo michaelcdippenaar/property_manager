@@ -327,9 +327,12 @@ onMounted(async () => {
 }
 
 .composer-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
   border-top: 0.5px solid var(--klikk-border);
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 </style>

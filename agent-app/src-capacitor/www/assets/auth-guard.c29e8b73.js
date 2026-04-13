@@ -1,1 +1,0 @@
-import{b as u}from"./index.1bf044a4.js";import{u as a}from"./auth.57ed4858.js";import"./axios.180a2c50.js";var c=u(({router:r})=>{r.beforeEach(async e=>{const t=a();if(e.meta.public)return!0;if(!t.isAuthenticated)return"/login";if(!t.user)try{await t.fetchMe()}catch{return t.logout(),"/login"}return t.canAccessAgentApp?!0:(await t.logout(),"/login")})});export{c as default};

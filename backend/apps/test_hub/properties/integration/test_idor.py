@@ -310,27 +310,27 @@ class RogueAdminCannotSeeExistingLandlordDataTests(TremlyAPITestCase):
         # and we should celebrate.
         self.assertIn("Real Property", names)
 
-    def test_registration_lockdown_prevents_rogue_admin_in_the_first_place(self):
-        """The true defence is at the registration gate. Verifies that a
-        fresh /register/ call is rejected once the Agency exists, so in
-        practice no rogue second admin can be created via self-service."""
+    def test_registration_creates_separate_agency_not_shared(self):
+        """Multi-tenant: a new registration creates its own Agency, it does
+        NOT join an existing tenant's Agency. The IDOR concern (rogue admin
+        seeing another tenant's data) must be addressed via per-agency data
+        scoping — see test_rogue_admin_list_visibility_documents_current_behaviour
+        for the current (pinned) behaviour."""
         from apps.accounts.models import Agency
-        # Simulate bootstrap — there is already an Agency
-        if not Agency.objects.exists():
-            Agency.objects.create(
-                account_type=Agency.AccountType.INDIVIDUAL,
-                name="Real Tremly",
-            )
+        existing_count = Agency.objects.count()
 
         resp = self.client.post(
             reverse("auth-register"),
             {
-                "email": "michael.c.dippenaar@gmail.com",
+                "email": "newcomer@test.com",
                 "password": "somelongpassword",
-                "first_name": "Michael",
-                "last_name": "Dippenaar",
+                "first_name": "New",
+                "last_name": "Comer",
                 "account_type": "agency",
-                "agency_name": "Hostile Takeover",
+                "agency_name": "New Agency",
             },
         )
-        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 201)
+        # A new Agency was created, not merged into an existing one
+        self.assertEqual(Agency.objects.count(), existing_count + 1)
+        self.assertTrue(Agency.objects.filter(name="New Agency").exists())

@@ -118,9 +118,8 @@ onMounted(async () => {
         await auth.googleAuth(credential)
         router.push(auth.homeRoute)
       } catch (e: any) {
-        if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error') {
-          error.value =
-            'Cannot reach the API for Google sign-in. Start Django on port 8000 and ensure backend GOOGLE_OAUTH_CLIENT_ID matches this app’s Google client ID.'
+        if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
+          error.value = 'Cannot connect to server. Please check your internet connection and try again.'
         } else {
           error.value = e.response?.data?.error || e.message || 'Google sign-in failed.'
         }
@@ -142,9 +141,8 @@ async function handleLogin() {
     await auth.login(email.value, password.value)
     router.push(auth.homeRoute)
   } catch (e: any) {
-    if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error') {
-      error.value =
-        'Cannot reach the API. Start Django on port 8000 (e.g. backend: python manage.py runserver) and restart the admin dev server.'
+    if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
+      error.value = 'Cannot connect to server. Please check your internet connection and try again.'
     } else if (e?.response?.status === 401) {
       error.value = 'Invalid email or password.'
     } else {

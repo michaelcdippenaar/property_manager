@@ -54,13 +54,12 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         user = User.objects.create_user(**validated_data, role=User.Role.ADMIN)
 
-        # Create the singleton Agency record
-        if not Agency.objects.exists():
-            if account_type == Agency.AccountType.AGENCY:
-                name = agency_name.strip()
-            else:
-                name = f"{validated_data.get('first_name', '')} {validated_data.get('last_name', '')}".strip() or user.email
-            Agency.objects.create(account_type=account_type, name=name)
+        # Create an Agency for this new user
+        if account_type == Agency.AccountType.AGENCY:
+            name = agency_name.strip()
+        else:
+            name = f"{validated_data.get('first_name', '')} {validated_data.get('last_name', '')}".strip() or user.email
+        Agency.objects.create(account_type=account_type, name=name)
 
         return user
 

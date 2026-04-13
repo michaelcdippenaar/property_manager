@@ -32,17 +32,6 @@ class RegisterView(APIView):
     throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
-        if Agency.objects.exists():
-            log_auth_event(
-                "register_blocked",
-                request=request,
-                metadata={"reason": "agency_already_exists",
-                          "attempted_email": (request.data.get("email") or "").strip().lower()},
-            )
-            return Response(
-                {"detail": "Self-registration is closed. Please ask your administrator for an invitation."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
