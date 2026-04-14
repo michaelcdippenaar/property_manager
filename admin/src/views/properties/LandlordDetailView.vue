@@ -1065,11 +1065,15 @@ const tabs = [
 ]
 
 function onChatRequestUpload(docType: string) {
-  // Route the user to the CIPC/document tab where uploads live.
-  // The chat's tool call tells us which doc type — toast for now; the
-  // upload UI lives on the 'document' tab which handles any doc type.
-  toast.info(`Switch to the CIPC tab to upload ${docType.replace(/_/g, ' ')}.`)
-  setTab('document')
+  // The chat's tool call tells us which doc type (or 'any' for bulk).
+  // All uploads go through the FICA tab's dropzone + AI classifier —
+  // the classifier sorts and labels automatically, so the owner never
+  // has to upload one-by-one.
+  const pretty = docType && docType !== 'any'
+    ? docType.replace(/_/g, ' ')
+    : 'all your documents'
+  toast.info(`Drop ${pretty} into the FICA uploader — I'll sort them.`)
+  setTab('classification')
 }
 
 onMounted(() => initLandlord())

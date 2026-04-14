@@ -73,7 +73,7 @@
                 <FileUp :size="16" class="text-accent-600 shrink-0" />
                 <div class="min-w-0">
                   <div class="text-xs font-semibold text-gray-900 truncate">
-                    Upload: {{ prettyDocType(tc.input?.doc_type) }}
+                    {{ isBulkUpload(tc) ? 'Upload everything you have' : `Upload: ${prettyDocType(tc.input?.doc_type)}` }}
                   </div>
                   <div class="text-[11px] text-gray-600 truncate">
                     {{ tc.input?.reason }}
@@ -84,7 +84,7 @@
                 class="text-xs font-semibold text-accent-700 hover:text-accent-800 whitespace-nowrap ml-2"
                 @click="$emit('request-upload', String(tc.input?.doc_type ?? ''))"
               >
-                Upload
+                {{ isBulkUpload(tc) ? 'Open uploader' : 'Upload' }}
               </button>
             </div>
 
@@ -202,6 +202,11 @@ const visibleMessages = computed<ChatMessage[]>(() =>
 function extractToolUses(msg: ChatMessage): ContentBlock[] {
   if (!Array.isArray(msg.tool_calls)) return []
   return msg.tool_calls.filter((b) => b?.type === 'tool_use')
+}
+
+function isBulkUpload(tc: ContentBlock): boolean {
+  const dt = String(tc?.input?.doc_type ?? '').toLowerCase()
+  return dt === 'any' || dt === 'all' || dt === 'bulk' || dt === ''
 }
 
 function prettyDocType(raw: unknown): string {
