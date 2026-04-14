@@ -3,6 +3,7 @@
  * CTA — Final call-to-action section
  */
 const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
+const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.klikk.co.za';
 ---
 
 <section class="cta-section">
@@ -15,7 +16,7 @@ const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
     <h2 class="reveal reveal-delay-1">Ready to manage<br><em>smarter?</em></h2>
     <p class="reveal reveal-delay-2">No demo call. No sales process. No credit card. Start managing your properties professionally today.</p>
     <div class="cta-actions reveal reveal-delay-3">
-      <a href={`${appUrl}/register`} target="_blank" class="cta-btn-primary">
+      <a href={registerUrl} target="_blank" class="cta-btn-primary">
         Start Free Today
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       </a>

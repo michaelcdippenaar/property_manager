@@ -1,7 +1,7 @@
-# Secrets
+# Secrets — actual .env files with real values are never committed
+# Template files (.env.development, .env.staging, .env.production) ARE committed
 .env
 .env.local
-admin/.env.production
 *.pem
 *.dump
 .secrets/

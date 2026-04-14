@@ -61,6 +61,12 @@ const router = createRouter({
           meta: { title: 'Maintenance Issues' },
         },
         {
+          path: 'maintenance/issues/:id',
+          name: 'maintenance-detail',
+          component: () => import('../views/maintenance/MaintenanceDetailView.vue'),
+          meta: { title: 'Maintenance Issue' },
+        },
+        {
           path: 'maintenance/suppliers',
           name: 'maintenance-suppliers',
           component: () => import('../views/maintenance/SuppliersView.vue'),

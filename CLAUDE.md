@@ -70,4 +70,4 @@ The bidirectional bridge between development and marketing. Read `content/README
 - **Website design:** Bricolage Grotesque + DM Sans — see `website-development` skill
 - **API base:** `http://localhost:8000/api/v1/`
 - **Auth:** JWT (access + refresh tokens via simplejwt)
-- **Admin frontend:** `http://localhost:5173/` (Vite dev server)
+- **Admin frontend:** `http://localhost:5173/` (Vite dev server). If localhost:5173 is blank or curl returns an empty reply, **Cursor has likely bound 127.0.0.1:5173 for port forwarding** (same port as Vite). **Fix in Cursor (not in this repo):** press **Cmd+Shift+P** → run **“Ports: Focus on Ports View”** → in the **Ports** tab (bottom panel, next to Terminal), find **5173** → right‑click → **Stop Forwarding Port** (or **Change Local Port** and pick e.g. **15173** if you still need a tunnel). Then reload `http://localhost:5173/`. This can start after you **Forward a Port**, use **dev tunnels**, a **Cursor/VS Code update**, or **Remote / Dev Container** auto‑forward; `.vscode/settings.json` in this repo sets `onAutoForward: ignore` for 5173 in remote workflows only.

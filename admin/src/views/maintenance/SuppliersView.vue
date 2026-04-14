@@ -633,6 +633,10 @@ async function saveSupplier() {
     const payload = { ...form.value }
     if (!payload.insurance_expiry) (payload as any).insurance_expiry = null
     if (!payload.service_radius_km) (payload as any).service_radius_km = null
+    if (!payload.latitude) (payload as any).latitude = null
+    else (payload as any).latitude = Math.round(payload.latitude * 1e6) / 1e6
+    if (!payload.longitude) (payload as any).longitude = null
+    else (payload as any).longitude = Math.round(payload.longitude * 1e6) / 1e6
 
     if (editing.value) {
       await api.patch(`/maintenance/suppliers/${editing.value}/`, payload)
@@ -644,7 +648,13 @@ async function saveSupplier() {
     toast.success('Supplier saved')
     await loadSuppliers()
   } catch (err: any) {
-    toast.error(err.response?.data?.detail || 'Failed to save supplier')
+    const data = err.response?.data
+    if (data && typeof data === 'object' && !data.detail) {
+      const msgs = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+      toast.error(msgs.join(' | '))
+    } else {
+      toast.error(data?.detail || 'Failed to save supplier')
+    }
   } finally {
     saving.value = false
   }

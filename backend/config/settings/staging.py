@@ -21,3 +21,14 @@ if _extra_cors:
 _csrf = _split_csv(config("CSRF_TRUSTED_ORIGINS", default=""))
 if _csrf:
     CSRF_TRUSTED_ORIGINS = _csrf
+
+# ── HTTPS / security headers ──────────────────────────────────────────────────
+# Caddy handles TLS termination, but Django still needs to trust the proxy
+# and emit secure cookie + HSTS headers.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+SECURE_SSL_REDIRECT = False        # Caddy enforces HTTPS; avoid double-redirect loop
+SESSION_COOKIE_SECURE = True       # Only send session cookie over HTTPS
+CSRF_COOKIE_SECURE = True          # Only send CSRF cookie over HTTPS
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"

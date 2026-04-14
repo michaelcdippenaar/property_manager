@@ -5,7 +5,8 @@ COPY website/package.json website/package-lock.json ./
 RUN npm ci
 COPY website/ .
 COPY content/ /content/
-RUN npm run build
+ARG BUILD_MODE=production
+RUN npm run build -- --mode $BUILD_MODE
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html

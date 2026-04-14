@@ -1,14 +1,12 @@
 version: "3.9"
 
-# Production compose — runs on the ISP-hosted VM.
-# Mirrors staging exactly; update URLs in backend/.env when production domains differ.
+# Staging compose — runs on the Ubuntu home server.
+# All images are built with BUILD_MODE=staging so they pick up .env.staging vars.
 #
 # Before first run on the server:
-#   cp backend/.env.production backend/.env
-#   # fill in: SECRET_KEY, ANTHROPIC_API_KEY, DB_PASSWORD, EMAIL_HOST_PASSWORD
-#   docker compose -f deploy/docker-compose.prod.yml up -d
-#   docker compose -f deploy/docker-compose.prod.yml exec backend python manage.py migrate
-#   docker compose -f deploy/docker-compose.prod.yml exec backend python manage.py createsuperuser
+#   cp backend/.env.staging backend/.env
+#   # fill in SECRET_KEY, ANTHROPIC_API_KEY, DB_PASSWORD, EMAIL_HOST_PASSWORD
+#   docker compose -f deploy/docker-compose.staging.yml up -d
 
 services:
   # ── Database ──────────────────────────────────────────────────────────────
@@ -18,7 +16,7 @@ services:
     environment:
       POSTGRES_DB: klikk_db
       POSTGRES_USER: klikk_user
-      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set}"
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-klikk_pass}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks: [internal]
@@ -39,11 +37,12 @@ services:
       context: ../backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     env_file:
       - ../backend/.env
     environment:
       DB_HOST: db
-      DJANGO_SETTINGS_MODULE: config.settings.production
+      DJANGO_SETTINGS_MODULE: config.settings.staging
     depends_on:
       db:
         condition: service_healthy
@@ -65,7 +64,7 @@ services:
       context: ../admin
       dockerfile: Dockerfile
       args:
-        BUILD_MODE: production
+        BUILD_MODE: staging
     restart: unless-stopped
     networks: [edge]
     deploy:
@@ -80,7 +79,7 @@ services:
       context: ..
       dockerfile: website/Dockerfile
       args:
-        BUILD_MODE: production
+        BUILD_MODE: staging
     restart: unless-stopped
     networks: [edge]
     deploy:
@@ -95,7 +94,7 @@ services:
       context: ../agent-app
       dockerfile: Dockerfile
       args:
-        BUILD_MODE: production
+        BUILD_MODE: staging
     restart: unless-stopped
     networks: [edge]
     deploy:
@@ -147,7 +146,7 @@ services:
       - backend
 
 networks:
-  internal: {}   # backend ↔ db, backend ↔ gotenberg (not exposed to Caddy)
+  internal: {}   # backend ↔ db, backend ↔ gotenberg (not exposed)
   edge: {}       # caddy ↔ frontend containers + backend
 
 volumes:

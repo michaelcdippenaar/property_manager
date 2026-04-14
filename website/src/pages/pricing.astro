@@ -14,6 +14,7 @@ const data = yaml.load(raw) as any;
 const tiers = Object.values(data.tiers) as any[];
 const allInclude: string[] = data.all_plans_include;
 const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
+const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.klikk.co.za';
 ---
 
 <BaseLayout
@@ -65,7 +66,7 @@ const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
               </li>
             ))}
           </ul>
-          <a href={tier.price_monthly === null ? '#' : `${appUrl}/register`} target={tier.price_monthly === null ? undefined : '_blank'} class={`tier-cta${tier.highlight ? ' tier-cta-primary' : ''}`}>
+          <a href={tier.price_monthly === null ? '#' : registerUrl} target={tier.price_monthly === null ? undefined : '_blank'} class={`tier-cta${tier.highlight ? ' tier-cta-primary' : ''}`}>
             {tier.price_monthly === null ? 'Contact Sales' : tier.price_monthly === 0 ? 'Start Free' : 'Get Started'}
           </a>
         </div>

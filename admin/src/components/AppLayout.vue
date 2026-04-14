@@ -40,14 +40,12 @@
             class="relative"
             @mouseenter="openDropdown = section.key"
             @mouseleave="openDropdown = null"
-            @click.stop="openDropdown = openDropdown === section.key ? null : section.key"
           >
             <button
               class="header-nav-link"
               :class="isSectionActive(section) ? 'header-nav-link-active' : ''"
             >
               <span class="whitespace-nowrap">{{ section.label }}</span>
-              <span v-if="activeSectionChild(section)" class="opacity-60 font-normal whitespace-nowrap">· {{ activeSectionChild(section) }}</span>
               <ChevronDown :size="12" class="opacity-50 flex-shrink-0" />
             </button>
 

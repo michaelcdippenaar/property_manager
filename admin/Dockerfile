@@ -4,7 +4,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
-RUN npx vite build
+ARG BUILD_MODE=production
+RUN npx vite build --mode $BUILD_MODE
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
