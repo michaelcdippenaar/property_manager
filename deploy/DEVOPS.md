@@ -257,26 +257,97 @@ make -f deploy/Makefile ps STACK=staging
 
 ---
 
-## 9. Deploying an Update
+## 9. Git Workflow
+
+### Why `git pull origin main` shows no output
+
+`git pull` only downloads commits the server does not have yet.
+**"Already up to date"** is the correct, expected output when the server is already at the
+latest commit. It is not an error — it means nothing to pull.
+
+### How to check what the server actually has
 
 ```bash
-# On the server:
-cd ~/apps/property_manager
+# Where is the server right now?
+git log --oneline -5
+
+# What is on GitHub that the server does not have yet?
+git fetch origin
+git log HEAD..origin/main --oneline
+# Empty output = server is up to date. Lines = commits waiting to be pulled.
+
+# Check for any local modifications on the server (should always be clean)
+git status
+```
+
+### The normal deploy loop (Mac → GitHub → server)
+
+```
+Mac                      GitHub                   Server (staging)
+───                      ──────                   ────────────────
+edit code
+git add <files>
+git commit -m "..."  →  git push origin main  →  git pull origin main
+                                                  make -f deploy/Makefile staging-build
+                                                  make -f deploy/Makefile staging-up
+                                                  make -f deploy/Makefile backend-migrate STACK=staging
+```
+
+### The server must never have local edits
+
+If `git status` shows modified files on the server, the pull will be blocked.
+The server should be **read-only** — all edits happen on the Mac.
+
+```bash
+# If the server has accidental local changes, stash them:
+git stash
 git pull origin main
 
-# Rebuild changed images (Docker caches unchanged layers — fast)
-make -f deploy/Makefile staging-build
+# Then inspect what was stashed (and discard if it was junk):
+git stash show -p
+git stash drop
+```
 
-# Restart with new images
-make -f deploy/Makefile staging-up
+### SSH into the staging server
 
-# Apply any new database migrations
-make -f deploy/Makefile backend-migrate STACK=staging
+```bash
+ssh mc@192.168.1.235        # password: pass
+cd ~/apps/property_manager
 ```
 
 ---
 
-## 10. Security Notes
+## 10. Deploying an Update
+
+```bash
+# 1. SSH into the server
+ssh mc@192.168.1.235
+cd ~/apps/property_manager
+
+# 2. Check what is coming before pulling (optional but good practice)
+git fetch origin
+git log HEAD..origin/main --oneline
+
+# 3. Pull
+git pull origin main
+# "Already up to date" → nothing to do. Lines of commits → continue below.
+
+# 4. Rebuild changed images (Docker caches unchanged layers — fast)
+make -f deploy/Makefile staging-build
+
+# 5. Restart with new images
+make -f deploy/Makefile staging-up
+
+# 6. Apply any new database migrations
+make -f deploy/Makefile backend-migrate STACK=staging
+
+# 7. Confirm all containers are healthy
+make -f deploy/Makefile ps STACK=staging
+```
+
+---
+
+## 11. Security Notes
 
 | Topic | Detail |
 |-------|--------|
