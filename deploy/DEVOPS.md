@@ -486,19 +486,14 @@ docker compose -f deploy/docker-compose.staging.yml build
 # Step 6 — Start all containers
 docker compose -f deploy/docker-compose.staging.yml up -d
 
-# Step 7 — Confirm all 7 containers are running
-docker compose -f deploy/docker-compose.staging.yml ps
-# All should show "Up" — backend may show "health: starting" for ~30s, then "healthy"
-
-# Step 8 — Run database migrations
+# Step 7 — Wait ~30 seconds for backend health check to pass, then run migrations
 docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py migrate
 
-# Step 9 — Create a Django superuser
+# Step 8 — Create a Django superuser (first time only)
 docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py createsuperuser
 
-# Step 10 — Check logs for any errors
-docker compose -f deploy/docker-compose.staging.yml logs --tail=50 backend
-docker compose -f deploy/docker-compose.staging.yml logs --tail=20 caddy
+# Step 9 — Run the full health check (MANDATORY — all checks must pass before you are done)
+bash deploy/health-check.sh staging
 ```
 
 ---
@@ -531,14 +526,58 @@ docker compose -f deploy/docker-compose.staging.yml up -d
 # Step 6 — Run migrations if any migration files were in the pull output
 docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py migrate
 
-# Step 7 — Confirm healthy
-docker compose -f deploy/docker-compose.staging.yml ps
-docker compose -f deploy/docker-compose.staging.yml logs --tail=30 backend
+# Step 7 — Run the full health check (MANDATORY — all checks must pass before you are done)
+bash deploy/health-check.sh staging
 ```
 
 ---
 
-## 12. Troubleshooting
+## 12. Health Check
+
+Run `deploy/health-check.sh` after every `docker compose up`. It is mandatory —
+do not consider a deploy complete until all checks show ✔.
+
+```bash
+# From the repo root on the server
+bash deploy/health-check.sh staging
+bash deploy/health-check.sh production
+```
+
+### What it checks
+
+| # | Check | How |
+|---|-------|-----|
+| 1 | All 7 containers are running | `docker compose ps` |
+| 2 | backend and db pass their health checks | Docker health status |
+| 3 | Backend API responds 200 | `GET /api/v1/health/` inside container |
+| 4 | PostgreSQL accepting connections | `pg_isready` + Django DB connection |
+| 5 | No pending migrations | `manage.py migrate --check` |
+| 6 | Gotenberg PDF service responds 200 | `GET http://gotenberg:3000/health` |
+| 7 | All 3 frontend nginx containers serve 200 | `GET http://localhost/` inside each container |
+| 8 | Caddy is running and admin API responds | `GET http://localhost:2019/config/` |
+| 9 | No critical Django system errors | `manage.py check --deploy` |
+
+### Reading the output
+
+```
+✔  check passed
+✖  check FAILED — read the message, fix it, re-run the script
+→  informational — not a failure
+```
+
+If any check fails, do not stop investigating. The script exits with code 1
+so Haiku/Claude can detect failure automatically and report it.
+
+### Re-run after fixing
+
+```bash
+bash deploy/health-check.sh staging
+# Keep fixing and re-running until all checks show ✔
+```
+
+---
+
+## 13. Troubleshooting
 
 ### Container exits immediately / won't start
 
