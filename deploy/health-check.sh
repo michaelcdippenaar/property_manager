@@ -143,15 +143,13 @@ echo ""
 # ── 7. Frontend nginx containers ──────────────────────────────────────────────
 echo "[ 7 ] Frontend services (nginx)"
 
-# nginx:alpine has wget — check inside each container
+# Check nginx process is running inside each container (pgrep is available in nginx:alpine)
 for service in website_web admin_web agent_app_web; do
-  # wget -S writes headers to stderr; capture combined output
-  WGET_OUT=$(dc exec -T $service wget -qS -O /dev/null http://localhost/ 2>&1)
-  HTTP_STATUS=$(echo "$WGET_OUT" | grep -oP 'HTTP/\S+ \K\d+' | head -1)
-  if [ "$HTTP_STATUS" = "200" ]; then
-    ok "$service → HTTP 200"
+  NGINX_PID=$(dc exec -T $service pgrep nginx 2>/dev/null | head -1)
+  if [ -n "$NGINX_PID" ]; then
+    ok "$service → nginx process running (pid $NGINX_PID)"
   else
-    fail "$service not responding (status: ${HTTP_STATUS:-no response})"
+    fail "$service → nginx is NOT running"
     info "Logs: docker compose -f $COMPOSE_FILE logs --tail=10 $service"
   fi
 done

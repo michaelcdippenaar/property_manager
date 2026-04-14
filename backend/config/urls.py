@@ -2,10 +2,18 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.views.static import serve
+from django.http import JsonResponse
 from graphene_django.views import GraphQLView
 from .stats import StatsView
 
+
+def health_check(request):
+    """Simple liveness probe used by Docker health check and deploy/health-check.sh."""
+    return JsonResponse({"status": "ok"})
+
+
 urlpatterns = [
+    path("api/v1/health/", health_check, name="health-check"),
     path("admin/", admin.site.urls),
     path("graphql/", GraphQLView.as_view(graphiql=settings.DEBUG)),
     path("api/v1/auth/", include("apps.accounts.urls")),
