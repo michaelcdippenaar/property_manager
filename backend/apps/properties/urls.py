@@ -2,12 +2,13 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     BankAccountViewSet, ComplianceCertificateViewSet, InsurancePolicyViewSet,
-    LandlordViewSet, PropertyAgentConfigViewSet, PropertyGroupViewSet,
-    PropertyOwnershipViewSet, PropertyValuationViewSet, PropertyViewSet,
-    UnitInfoViewSet, UnitViewSet,
+    LandlordViewSet, PropertyAgentAssignmentViewSet, PropertyAgentConfigViewSet,
+    PropertyGroupViewSet, PropertyOwnershipViewSet, PropertyValuationViewSet,
+    PropertyViewSet, UnitInfoViewSet, UnitViewSet,
 )
 from .owner_views import OwnerDashboardView, OwnerPropertiesView
 from .classify_view import LandlordClassifyView, LandlordClassifyRegistrationView
+from .chat_view import LandlordChatView
 from .municipal_bill_view import ParseMunicipalBillView
 from .mandate_views import RentalMandateViewSet
 from .viewing_views import PropertyViewingViewSet
@@ -25,6 +26,7 @@ router.register("insurance-policies", InsurancePolicyViewSet, basename="insuranc
 router.register("valuations", PropertyValuationViewSet, basename="property-valuation")
 router.register("mandates", RentalMandateViewSet, basename="rental-mandate")
 router.register("viewings", PropertyViewingViewSet, basename="property-viewing")
+router.register("agent-assignments", PropertyAgentAssignmentViewSet, basename="agent-assignment")
 router.register("", PropertyViewSet, basename="property")
 
 owner_urls = [
@@ -36,6 +38,7 @@ urlpatterns = [
     path("owner/", include(owner_urls)),
     path("landlords/<int:pk>/classify/", LandlordClassifyView.as_view(), name="landlord-classify"),
     path("landlords/<int:pk>/classify-registration/", LandlordClassifyRegistrationView.as_view(), name="landlord-classify-registration"),
+    path("landlords/<int:pk>/chat/", LandlordChatView.as_view(), name="landlord-chat"),
     path("parse-municipal-bill/", ParseMunicipalBillView.as_view(), name="parse-municipal-bill"),
     path("", include(router.urls)),
 ]

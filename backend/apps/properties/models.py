@@ -186,6 +186,11 @@ class BankAccount(models.Model):
     account_type = models.CharField(max_length=30, blank=True, help_text="e.g. Cheque, Savings, Transmission")
     account_holder = models.CharField(max_length=200)
     is_default = models.BooleanField(default=False)
+    confirmation_letter = models.FileField(
+        upload_to='bank_accounts/confirmation_letters/',
+        blank=True,
+        null=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -193,6 +198,35 @@ class BankAccount(models.Model):
 
     def __str__(self):
         return f"{self.bank_name} — {self.account_number[-4:]}" if self.account_number else self.bank_name
+
+
+class LandlordChatMessage(models.Model):
+    """A single message in the owner-onboarding chat for a landlord.
+
+    Persisted so the chat has memory across sessions — the agent can come
+    back a week later and the conversation picks up where it left off.
+    """
+    class Role(models.TextChoices):
+        USER = "user", "User"
+        ASSISTANT = "assistant", "Assistant"
+        SYSTEM = "system", "System"
+
+    landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name="chat_messages")
+    role = models.CharField(max_length=16, choices=Role.choices)
+    content = models.TextField(blank=True, help_text="Plain-text content of the message.")
+    tool_calls = models.JSONField(null=True, blank=True, help_text="Tool use / tool result blocks for this turn.")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [models.Index(fields=["landlord", "created_at"])]
+
+    def __str__(self):
+        return f"[{self.role}] {self.landlord.name}: {self.content[:40]}"
 
 
 class PropertyOwnership(models.Model):
@@ -768,3 +802,52 @@ class PropertyViewing(models.Model):
 
     def __str__(self):
         return f"Viewing: {self.prospect} @ {self.property.name} on {self.scheduled_at:%Y-%m-%d %H:%M}"
+
+
+class PropertyAgentAssignment(models.Model):
+    """
+    Links an agent to a property with a specific role.
+    Estate agents get transaction-only access that ends on completion.
+    Managing agents get ongoing operational access.
+    Replaces the flat Property.agent FK for fine-grained access control.
+    """
+
+    class AssignmentType(models.TextChoices):
+        ESTATE = "estate", "Estate Agent (transaction)"
+        MANAGING = "managing", "Managing Agent (ongoing)"
+
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        COMPLETED = "completed", "Completed"
+        INACTIVE = "inactive", "Inactive"
+
+    property = models.ForeignKey(
+        Property, on_delete=models.CASCADE, related_name="agent_assignments",
+    )
+    agent = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="property_assignments",
+    )
+    mandate = models.ForeignKey(
+        "properties.RentalMandate", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="agent_assignments",
+        help_text="Mandate under which this assignment was made",
+    )
+    assignment_type = models.CharField(max_length=20, choices=AssignmentType.choices)
+    assigned_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, related_name="+",
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ACTIVE,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("property", "agent")
+        indexes = [
+            models.Index(fields=["agent", "status"]),
+            models.Index(fields=["property", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.agent} → {self.property.name} ({self.assignment_type}/{self.status})"
