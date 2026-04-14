@@ -1,7 +1,10 @@
-# Secrets — actual .env files with real values are never committed
-# Template files (.env.development, .env.staging, .env.production) ARE committed
+# Secrets — never committed to git
+# .env.staging / .env.production / .env.development  ← committed (no secrets, just config)
+# .env.secrets                                        ← server-only (real passwords, keys)
+# .env                                                ← legacy catch-all
 .env
 .env.local
+.env.secrets
 *.pem
 *.dump
 .secrets/
