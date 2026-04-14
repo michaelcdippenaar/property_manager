@@ -639,7 +639,6 @@
       <OwnerChatPanel
         v-if="landlord?.id"
         :landlord-id="landlord.id"
-        @request-upload="onChatRequestUpload"
       />
     </div>
 
@@ -1063,18 +1062,6 @@ const tabs = [
   { key: 'classification', label: 'FICA', icon: ShieldCheck },
   { key: 'assistant', label: 'Assistant', icon: Sparkles },
 ]
-
-function onChatRequestUpload(docType: string) {
-  // The chat's tool call tells us which doc type (or 'any' for bulk).
-  // All uploads go through the FICA tab's dropzone + AI classifier —
-  // the classifier sorts and labels automatically, so the owner never
-  // has to upload one-by-one.
-  const pretty = docType && docType !== 'any'
-    ? docType.replace(/_/g, ' ')
-    : 'all your documents'
-  toast.info(`Drop ${pretty} into the FICA uploader — I'll sort them.`)
-  setTab('classification')
-}
 
 onMounted(() => initLandlord())
 

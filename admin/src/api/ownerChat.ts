@@ -54,3 +54,25 @@ export async function sendChatMessage(
   )
   return data
 }
+
+/** Upload one or more files to the landlord's FICA document collection.
+ *  Reuses the existing bulk upload endpoint — the same one the FICA tab
+ *  uses. Returns nothing meaningful; caller should re-fetch gap analysis. */
+export async function uploadLandlordDocuments(
+  landlordId: number,
+  files: File[] | FileList,
+): Promise<void> {
+  const form = new FormData()
+  const arr = Array.from(files)
+  for (const f of arr) form.append('files', f)
+  await api.post(
+    `/properties/landlords/${landlordId}/fica-documents/`,
+    form,
+    { headers: { 'Content-Type': 'multipart/form-data' } },
+  )
+}
+
+/** Run the Claude Vision classifier on all uploaded documents. */
+export async function classifyLandlord(landlordId: number): Promise<void> {
+  await api.post(`/properties/landlords/${landlordId}/classify/`)
+}

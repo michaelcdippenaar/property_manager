@@ -82,9 +82,10 @@
               </div>
               <button
                 class="text-xs font-semibold text-accent-700 hover:text-accent-800 whitespace-nowrap ml-2"
-                @click="$emit('request-upload', String(tc.input?.doc_type ?? ''))"
+                :disabled="uploading || sending"
+                @click="pickFiles"
               >
-                {{ isBulkUpload(tc) ? 'Open uploader' : 'Upload' }}
+                {{ uploading ? 'Uploading…' : isBulkUpload(tc) ? 'Choose files' : 'Choose file' }}
               </button>
             </div>
 
@@ -134,13 +135,34 @@
 
     <!-- Composer -->
     <div class="border-t border-gray-200 p-3 bg-white">
+      <div v-if="uploading" class="text-xs text-gray-500 italic mb-2">
+        <Loader2 :size="12" class="inline animate-spin mr-1" />
+        Uploading &amp; classifying documents…
+      </div>
       <form class="flex items-end gap-2" @submit.prevent="submit">
+        <input
+          ref="fileInput"
+          type="file"
+          multiple
+          accept=".pdf,.jpg,.jpeg,.png,.docx,.doc"
+          class="hidden"
+          @change="onFilesChosen"
+        />
+        <button
+          type="button"
+          class="rounded-md border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          :disabled="sending || uploading"
+          title="Attach documents — the AI will sort and label them"
+          @click="pickFiles"
+        >
+          <Paperclip :size="14" />
+        </button>
         <textarea
           v-model="draft"
           :disabled="sending"
           class="input flex-1 resize-none text-sm"
           rows="2"
-          placeholder="Type a reply… (Enter to send, Shift+Enter for new line)"
+          placeholder="Type a reply, or attach documents… (Enter to send)"
           @keydown.enter.exact.prevent="submit"
         />
         <button
@@ -161,6 +183,7 @@ import {
   CheckCircle2,
   FileUp,
   Loader2,
+  Paperclip,
   RefreshCw,
   Search,
   Send,
@@ -171,16 +194,17 @@ import type { ChatMessage, ContentBlock } from '../../api/ownerChat'
 import { useOwnerChatStore } from '../../stores/ownerChat'
 
 const props = defineProps<{ landlordId: number }>()
-defineEmits<{ (e: 'request-upload', docType: string): void }>()
 
 const chat = useOwnerChatStore()
 
 const draft = ref('')
 const scrollEl = ref<HTMLElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const allMessages = computed<ChatMessage[]>(() => chat.messages(props.landlordId))
 const loading = computed(() => chat.isLoading(props.landlordId))
 const sending = computed(() => chat.isSending(props.landlordId))
+const uploading = computed(() => chat.isUploading(props.landlordId))
 const errorMsg = computed(() => chat.error(props.landlordId))
 
 /** Hide raw tool_result turns (they're noisy) — keep user + assistant. */
@@ -212,6 +236,19 @@ function isBulkUpload(tc: ContentBlock): boolean {
 function prettyDocType(raw: unknown): string {
   const s = String(raw ?? '')
   return s.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function pickFiles(): void {
+  fileInput.value?.click()
+}
+
+async function onFilesChosen(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement
+  const files = input.files
+  if (!files || !files.length) return
+  await chat.upload(props.landlordId, files)
+  // Reset so selecting the same file again re-triggers change
+  input.value = ''
 }
 
 async function submit(): Promise<void> {
