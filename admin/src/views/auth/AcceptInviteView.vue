@@ -14,6 +14,21 @@
         <p class="text-sm text-gray-500 mt-2">Loading invite...</p>
       </div>
 
+      <!-- Cancelled / expired invite -->
+      <div v-else-if="inviteCancelled" class="card p-8 text-center space-y-4">
+        <div class="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
+          <ClockAlert :size="26" class="text-amber-500" />
+        </div>
+        <div class="space-y-1">
+          <h2 class="text-lg font-semibold text-gray-900">Invitation Expired</h2>
+          <p class="text-sm text-gray-500 leading-relaxed">
+            The invite from <strong class="text-gray-700">{{ cancelledBy }}</strong> is no longer valid.
+          </p>
+        </div>
+        <p class="text-sm text-gray-400">Contact them to request a new invitation.</p>
+        <router-link to="/login" class="inline-block mt-1 text-sm font-medium text-navy hover:underline">Go to sign in</router-link>
+      </div>
+
       <!-- Invalid invite -->
       <div v-else-if="inviteError" class="card p-8 text-center space-y-3">
         <AlertCircle :size="24" class="mx-auto text-red-500" />
@@ -125,7 +140,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useGoogleAuth } from '../../composables/useGoogleAuth'
 import api from '../../api'
-import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-vue-next'
+import { Eye, EyeOff, AlertCircle, Loader2, ClockAlert } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -135,6 +150,8 @@ const google = useGoogleAuth()
 const token = (route.query.token as string) || ''
 const loadingInvite = ref(true)
 const inviteError = ref('')
+const inviteCancelled = ref(false)
+const cancelledBy = ref('')
 const invite = reactive({ email: '', role: '' })
 
 const form = reactive({ first_name: '', last_name: '', password: '' })
@@ -195,7 +212,13 @@ onMounted(async () => {
     invite.email = data.email
     invite.role = data.role
   } catch (e: any) {
-    inviteError.value = e.response?.data?.detail || 'Invalid or expired invite.'
+    const responseData = e.response?.data
+    if (e.response?.status === 410 || responseData?.detail === 'invite_cancelled') {
+      inviteCancelled.value = true
+      cancelledBy.value = responseData?.invited_by || 'Klikk'
+    } else {
+      inviteError.value = responseData?.detail || 'Invalid or expired invite.'
+    }
   } finally {
     loadingInvite.value = false
   }

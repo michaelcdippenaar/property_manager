@@ -83,8 +83,9 @@
 
     <!-- Pending Invites -->
     <div v-if="invites.length" class="card overflow-hidden">
-      <div class="px-4 py-3 bg-gray-50 border-b border-gray-200">
+      <div class="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
         <h3 class="text-sm font-semibold text-gray-700">Pending Invites</h3>
+        <span class="text-xs text-gray-400">{{ invites.length }} awaiting acceptance</span>
       </div>
       <table class="w-full text-sm">
         <thead class="border-b border-gray-100">
@@ -93,19 +94,49 @@
             <th class="text-left px-4 py-2 font-medium text-gray-500">Role</th>
             <th class="text-left px-4 py-2 font-medium text-gray-500">Invited by</th>
             <th class="text-left px-4 py-2 font-medium text-gray-500">Sent</th>
+            <th class="text-right px-4 py-2 font-medium text-gray-500">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-50">
           <tr v-for="inv in invites" :key="inv.id" class="text-gray-600">
-            <td class="px-4 py-2">{{ inv.email }}</td>
-            <td class="px-4 py-2">
+            <td class="px-4 py-2.5">{{ inv.email }}</td>
+            <td class="px-4 py-2.5">
               <span :class="roleBadgeClass(inv.role)" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize">{{ inv.role }}</span>
             </td>
-            <td class="px-4 py-2">{{ inv.invited_by || '—' }}</td>
-            <td class="px-4 py-2 text-gray-400">{{ formatDate(inv.created_at) }}</td>
+            <td class="px-4 py-2.5">{{ inv.invited_by || '—' }}</td>
+            <td class="px-4 py-2.5 text-gray-400">{{ formatDate(inv.created_at) }}</td>
+            <td class="px-4 py-2.5 text-right">
+              <button
+                @click="confirmCancelInvite(inv)"
+                class="text-gray-400 hover:text-red-500 p-1 rounded transition-colors"
+                title="Revoke invite"
+              >
+                <Trash2 :size="14" />
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Cancel Invite Confirmation Modal -->
+    <div v-if="cancellingInvite" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40" @click.self="cancellingInvite = null">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-sm p-6 space-y-4">
+        <h3 class="text-lg font-semibold text-gray-900">Revoke Invitation</h3>
+        <p class="text-sm text-gray-600">
+          Are you sure you want to revoke the invitation for
+          <strong class="text-gray-800">{{ cancellingInvite.email }}</strong>?
+          If they click the link in their email, they'll see an "Invitation Expired" page.
+        </p>
+        <div v-if="cancelInviteError" class="text-sm text-red-600">{{ cancelInviteError }}</div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button @click="cancellingInvite = null" class="btn-secondary">Keep</button>
+          <button @click="cancelInvite" class="btn-primary !bg-red-600 hover:!bg-red-700" :disabled="cancellingInviteLoading">
+            <Loader2 v-if="cancellingInviteLoading" :size="15" class="animate-spin" />
+            Revoke
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Edit Modal -->
@@ -220,7 +251,7 @@ const loading = ref(false)
 const search = ref('')
 const roleFilter = ref('')
 
-const invites = ref<{ id: number; email: string; role: string; invited_by: string | null; created_at: string }[]>([])
+const invites = ref<InviteRecord[]>([])
 
 const showInvite = ref(false)
 const inviteForm = ref({ email: '', role: 'agent', first_name: '' })
@@ -236,6 +267,17 @@ const editError = ref('')
 const deletingUser = ref<UserRecord | null>(null)
 const deleting = ref(false)
 const deleteError = ref('')
+
+interface InviteRecord {
+  id: number
+  email: string
+  role: string
+  invited_by: string | null
+  created_at: string
+}
+const cancellingInvite = ref<InviteRecord | null>(null)
+const cancellingInviteLoading = ref(false)
+const cancelInviteError = ref('')
 
 let debounceTimer: ReturnType<typeof setTimeout>
 function debouncedLoad() {
@@ -287,8 +329,8 @@ async function sendInvite() {
   inviteSuccess.value = ''
   try {
     await api.post('/auth/users/invite/', inviteForm.value)
-    inviteSuccess.value = `Invitation sent to ${inviteForm.value.email}`
     inviteForm.value = { email: '', role: 'agent', first_name: '' }
+    showInvite.value = false
     await loadUsers()
   } catch (e: any) {
     inviteError.value = e.response?.data?.detail || 'Failed to send invite.'
@@ -319,6 +361,26 @@ async function deleteUser() {
     deleteError.value = e.response?.data?.detail || 'Failed to delete user.'
   } finally {
     deleting.value = false
+  }
+}
+
+function confirmCancelInvite(inv: InviteRecord) {
+  cancellingInvite.value = inv
+  cancelInviteError.value = ''
+}
+
+async function cancelInvite() {
+  if (!cancellingInvite.value) return
+  cancellingInviteLoading.value = true
+  cancelInviteError.value = ''
+  try {
+    await api.delete(`/auth/users/invites/${cancellingInvite.value.id}/`)
+    invites.value = invites.value.filter(i => i.id !== cancellingInvite.value!.id)
+    cancellingInvite.value = null
+  } catch (e: any) {
+    cancelInviteError.value = e.response?.data?.detail || 'Failed to revoke invite.'
+  } finally {
+    cancellingInviteLoading.value = false
   }
 }
 

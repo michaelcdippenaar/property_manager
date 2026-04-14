@@ -75,11 +75,16 @@ class UserDetailView(APIView):
 
 
 class PendingInvitesView(generics.ListAPIView):
-    """List pending (unaccepted) invites."""
+    """List pending (unaccepted, uncancelled) invites."""
     permission_classes = [IsAdmin]
 
     def get(self, request, *args, **kwargs):
-        invites = UserInvite.objects.filter(accepted_at__isnull=True).order_by("-created_at")
+        invites = (
+            UserInvite.objects
+            .filter(accepted_at__isnull=True, cancelled_at__isnull=True)
+            .select_related("invited_by")
+            .order_by("-created_at")
+        )
         data = [
             {
                 "id": inv.id,
@@ -92,6 +97,26 @@ class PendingInvitesView(generics.ListAPIView):
             for inv in invites
         ]
         return Response(data)
+
+
+class CancelInviteView(APIView):
+    """Cancel (revoke) a pending invite. The token becomes unusable and the
+    recipient will see an 'Invitation Expired' page if they click the link."""
+    permission_classes = [IsAdmin]
+
+    def delete(self, request, pk):
+        from django.utils import timezone
+        try:
+            invite = UserInvite.objects.get(
+                pk=pk,
+                accepted_at__isnull=True,
+                cancelled_at__isnull=True,
+            )
+        except UserInvite.DoesNotExist:
+            return Response({"detail": "Invite not found or already resolved."}, status=status.HTTP_404_NOT_FOUND)
+        invite.cancelled_at = timezone.now()
+        invite.save(update_fields=["cancelled_at"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class InviteUserView(APIView):
@@ -128,33 +153,124 @@ class InviteUserView(APIView):
             base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
             invite_url = f"{base_url}/accept-invite?token={invite.token}"
 
-            greeting = f"Hi {first_name},\n\n" if first_name else "Hi,\n\n"
+            sender_name = request.user.full_name
+            greeting_line = f"Hi {first_name}," if first_name else "Hi there,"
+            role_display = role.capitalize()
+
+            # Plain-text fallback
             body = (
-                f"{greeting}"
-                f"You've been invited to join Klikk as a {role}.\n"
-                f"Click the link below to accept your invitation:\n"
-                f"{invite_url}\n\n"
-                f"This invitation was sent by {request.user.full_name}."
+                f"{greeting_line}\n\n"
+                f"{sender_name} has invited you to join Klikk as a {role_display}.\n\n"
+                f"Accept your invitation here:\n{invite_url}\n\n"
+                f"If you weren't expecting this, you can safely ignore this email.\n\n"
+                f"— The Klikk Team"
             )
-            html_body = (
-                f'<div style="font-family:Inter,Helvetica,Arial,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">'
-                f'<p style="font-size:24px;font-weight:700;color:#2B2D6E;margin:0 0 24px;">Klikk<span style="color:#FF3D7F;">.</span></p>'
-                f'<p style="font-size:16px;color:#333;margin:0 0 8px;">{greeting.strip()}</p>'
-                f'<p style="font-size:16px;color:#333;margin:0 0 24px;">You\'ve been invited to join Klikk as a <strong>{role}</strong>.</p>'
-                f'<table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:0 auto 24px;">'
-                f'<tr><td style="border-radius:8px;background-color:#2B2D6E;">'
-                f'<a href="{invite_url}" target="_blank" '
-                f'style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;'
-                f'color:#ffffff;text-decoration:none;border-radius:8px;">Accept Invitation</a>'
-                f'</td></tr></table>'
-                f'<p style="font-size:13px;color:#888;margin:0 0 8px;">Or copy and paste this link into your browser:</p>'
-                f'<p style="font-size:13px;color:#2B2D6E;word-break:break-all;margin:0 0 24px;">{invite_url}</p>'
-                f'<hr style="border:none;border-top:1px solid #eee;margin:24px 0;" />'
-                f'<p style="font-size:13px;color:#888;margin:0;">This invitation was sent by {request.user.full_name}.</p>'
-                f'</div>'
-            )
+
+            html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background-color:#F0F0F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+    <tr>
+      <td align="center" style="padding:40px 16px 48px;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+
+          <!-- Wordmark -->
+          <tr>
+            <td align="center" style="padding-bottom:28px;">
+              <span style="font-size:30px;font-weight:800;color:#2B2D6E;letter-spacing:-0.5px;">Klikk<span style="color:#FF3D7F;">.</span></span>
+            </td>
+          </tr>
+
+          <!-- Card -->
+          <tr>
+            <td style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(43,45,110,0.10);">
+
+              <!-- Card header -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="background:#2B2D6E;padding:36px 40px 32px;">
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em;">You're invited</p>
+                    <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;line-height:1.25;">{greeting_line}</h1>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Card body -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="padding:32px 40px 0;">
+
+                    <!-- Role pill -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
+                      <tr>
+                        <td style="background:#EEF0FA;border-radius:100px;padding:6px 18px;">
+                          <span style="font-size:13px;font-weight:600;color:#2B2D6E;">{role_display}</span>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <p style="margin:0 0 8px;font-size:16px;color:#374151;line-height:1.6;">
+                      <strong style="color:#111827;">{sender_name}</strong> has invited you to join <strong style="color:#2B2D6E;">Klikk</strong> — South Africa's smart property management platform.
+                    </p>
+                    <p style="margin:0 0 32px;font-size:15px;color:#6B7280;line-height:1.6;">
+                      Click the button below to create your account and get started.
+                    </p>
+
+                    <!-- CTA button -->
+                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:32px;">
+                      <tr>
+                        <td style="border-radius:10px;background:#2B2D6E;">
+                          <a href="{invite_url}" target="_blank"
+                             style="display:inline-block;padding:15px 36px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;letter-spacing:0.01em;">
+                            Accept Invitation &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <!-- Fallback link -->
+                    <p style="margin:0 0 8px;font-size:13px;color:#9CA3AF;">Or copy and paste this link into your browser:</p>
+                    <p style="margin:0;font-size:12px;color:#2B2D6E;word-break:break-all;background:#F8F8FC;border:1px solid #E5E5F0;border-radius:8px;padding:12px 14px;">{invite_url}</p>
+
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Card footer -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td style="padding:28px 40px 32px;margin-top:8px;border-top:1px solid #F3F4F6;margin:24px 40px 0;">
+                    <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
+                      This invitation was sent by <strong style="color:#6B7280;">{sender_name}</strong> via Klikk.<br />
+                      If you weren't expecting this, you can safely ignore this email.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:28px 0 0;">
+              <p style="margin:0;font-size:12px;color:#9CA3AF;">&copy; 2025 Klikk &middot; All rights reserved</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>"""
+
             send_email(
-                subject="You've been invited to Klikk",
+                subject=f"{sender_name} invited you to join Klikk",
                 body=body,
                 to_emails=email,
                 html_body=html_body,

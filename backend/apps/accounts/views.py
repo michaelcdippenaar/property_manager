@@ -307,9 +307,25 @@ class AcceptInviteView(APIView):
         """Return invite details (email, role) for the frontend to pre-fill."""
         token = request.query_params.get("token", "")
         try:
-            invite = UserInvite.objects.get(token=token, accepted_at__isnull=True)
+            invite = UserInvite.objects.select_related("invited_by").get(token=token)
         except (UserInvite.DoesNotExist, ValueError):
-            return Response({"detail": "Invalid or expired invite."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Invalid invite link."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if invite.cancelled_at is not None:
+            return Response(
+                {
+                    "detail": "invite_cancelled",
+                    "invited_by": invite.invited_by.full_name if invite.invited_by else "Klikk",
+                },
+                status=status.HTTP_410_GONE,
+            )
+
+        if invite.accepted_at is not None:
+            return Response(
+                {"detail": "This invitation has already been used. Please sign in instead."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         return Response({"email": invite.email, "role": invite.role})
 
     def post(self, request):

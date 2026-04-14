@@ -6,7 +6,7 @@ from .views import (
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
     AcceptInviteView,
 )
-from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, AgencySettingsView
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, AgencySettingsView
 from .oauth_views import GoogleAuthView
 from .lookup_views import EntityLookupView
 
@@ -27,6 +27,7 @@ urlpatterns = [
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
     path("users/invite/", InviteUserView.as_view(), name="user-invite"),
     path("users/invites/", PendingInvitesView.as_view(), name="user-invites"),
+    path("users/invites/<int:pk>/", CancelInviteView.as_view(), name="user-invite-cancel"),
     # Auth hardening
     path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),

@@ -147,9 +147,14 @@ class UserInvite(models.Model):
     invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="invites_sent")
     created_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    cancelled_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["-created_at"]
+
+    @property
+    def is_pending(self):
+        return self.accepted_at is None and self.cancelled_at is None
 
     def __str__(self):
         return f"Invite for {self.email} ({self.role})"
