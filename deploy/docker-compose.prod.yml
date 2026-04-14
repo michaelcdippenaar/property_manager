@@ -17,11 +17,10 @@ services:
     image: postgres:16.3
     restart: unless-stopped
     env_file:
-      - ../backend/.env.secrets   # provides DB_PASSWORD
+      - ../backend/.env.secrets   # provides POSTGRES_PASSWORD directly
     environment:
       POSTGRES_DB: klikk_db
       POSTGRES_USER: klikk_user
-      POSTGRES_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set in backend/.env.secrets}"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks: [internal]
