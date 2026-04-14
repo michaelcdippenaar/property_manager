@@ -5,6 +5,12 @@ WORKDIR /app
 # Create non-root user before installing deps
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
+RUN apt-get update && apt-get install -y \
+    libcairo2-dev \
+    pkg-config \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
