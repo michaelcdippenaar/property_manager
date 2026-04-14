@@ -45,29 +45,38 @@ The bidirectional bridge between development and marketing. Read `content/README
 
 | Skill | When to use |
 |-------|-------------|
-| `product-status` | Check/update feature statuses, roadmap summaries |
-| `website-development` | Build Astro website components, content-driven patterns |
-| `marketing-strategy` | Write marketing copy, blog posts, campaigns |
-| `sales-enablement` | Sales calls, demo prep, prospect research |
+| `klikk-platform-product-status` | Check/update feature statuses, roadmap summaries |
+| `klikk-marketing-website` | Build Astro website components, content-driven patterns |
+| `klikk-marketing-strategy` | Write marketing copy, blog posts, campaigns |
+| `klikk-marketing-sales-enablement` | Sales calls, demo prep, prospect research |
+| `klikk-marketing-competitive-intel` | Competitive intelligence, market comparison, feature gaps |
 | `klikk-design-standard` | Build/modify Vue admin UI |
-| `mobile-ux-ui` | Build/modify Quasar/Capacitor mobile UI (iOS HIG + Android MD3 specs) |
-| `lease-rental-agreement` | Generate SA lease agreements |
-| `lease-tiptap` | TipTap rich text editor for lease templates |
-| `lease-tiptap-to-pdf` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
-| `gotenberg` | Gotenberg Docker PDF service, HTML/Office→PDF, merge/split/encrypt |
-| `lease-format-document` | Format/restructure lease template HTML |
-| `lease-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
-| `lease-test-battery` | Run full lease + e-signing integration test battery |
-| `security-audit` | Security reviews |
-| `stellenbosch-property-intel` | Scrape, enrich, classify, deduplicate and map Winelands properties |
-| `za-municipal-bill-extractor` | Extract property data from SA municipal bills (tool_use pattern) |
-| `za-company-doc-classifier` | Classify SA owner docs (FICA/CIPC), extract fields, persons graph |
+| `klikk-design-mobile-ux` | Build/modify Quasar/Capacitor mobile UI (iOS HIG + Android MD3 specs) |
+| `klikk-design-frontend-taste` | Senior UI/UX engineering, metric-based design rules |
+| `klikk-leases-rental-agreement` | Generate SA lease agreements |
+| `klikk-leases-tiptap-editor` | TipTap rich text editor for lease templates |
+| `klikk-leases-pdf-export` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
+| `klikk-platform-gotenberg` | Gotenberg Docker PDF service, HTML/Office→PDF, merge/split/encrypt |
+| `klikk-leases-format-template` | Format/restructure lease template HTML |
+| `klikk-leases-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
+| `klikk-leases-test-battery` | Run full lease + e-signing integration test battery |
+| `klikk-security-audit` | Security reviews |
+| `klikk-security-auth-hardening` | Auth hardening, rate limiting, 2FA, JWT security |
+| `klikk-security-api-review` | API endpoint security: auth, rate limiting, CORS, webhooks |
+| `klikk-security-vuln-scan` | Django codebase vulnerability scan (SQLi, XSS, CSRF, IDOR) |
+| `klikk-security-compliance` | POPIA/GDPR compliance checks |
+| `klikk-security-user-model` | User model, roles, permissions security review |
+| `klikk-platform-testing` | All testing work on the Tremly platform |
+| `klikk-rental-master` | SA rental law knowledge base (RHA, PIE Act, deposits, eviction) |
+| `klikk-property-stellenbosch-intel` | Scrape, enrich, classify, deduplicate and map Winelands properties |
+| `klikk-property-municipal-bills` | Extract property data from SA municipal bills (tool_use pattern) |
+| `klikk-documents-owner-cipro` | Classify SA owner/landlord docs (FICA/CIPRO/CIPC), extract fields, persons graph, mandate readiness |
 
 ## Conventions
 
 - **South African context:** POPIA, RHA, ZAR, SA terminology throughout
 - **Design tokens:** Navy (#2B2D6E), Accent (#FF3D7F) — see `klikk-design-standard` skill
-- **Website design:** Bricolage Grotesque + DM Sans — see `website-development` skill
+- **Website design:** Bricolage Grotesque + DM Sans — see `klikk-marketing-website` skill
 - **API base:** `http://localhost:8000/api/v1/`
 - **Auth:** JWT (access + refresh tokens via simplejwt)
 - **Admin frontend:** `http://localhost:5173/` (Vite dev server). If localhost:5173 is blank or curl returns an empty reply, **Cursor has likely bound 127.0.0.1:5173 for port forwarding** (same port as Vite). **Fix in Cursor (not in this repo):** press **Cmd+Shift+P** → run **“Ports: Focus on Ports View”** → in the **Ports** tab (bottom panel, next to Terminal), find **5173** → right‑click → **Stop Forwarding Port** (or **Change Local Port** and pick e.g. **15173** if you still need a tunnel). Then reload `http://localhost:5173/`. This can start after you **Forward a Port**, use **dev tunnels**, a **Cursor/VS Code update**, or **Remote / Dev Container** auto‑forward; `.vscode/settings.json` in this repo sets `onAutoForward: ignore` for 5173 in remote workflows only.
