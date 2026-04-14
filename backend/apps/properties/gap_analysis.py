@@ -54,6 +54,15 @@ _REQUIRED_FIELDS_BY_ENTITY: dict[str, list[str]] = {
 PROOF_OF_ADDRESS_WARN_DAYS = 90
 PROOF_OF_ADDRESS_BLOCK_DAYS = 180
 
+# Identity documents are interchangeable for FICA purposes — any one of
+# these satisfies the "sa_id" requirement. Passport is the fallback for
+# foreign nationals or when the SA ID isn't to hand.
+_IDENTITY_DOC_SYNONYMS: set[str] = {
+    "sa_id", "smart_id", "id_book", "id_card", "id_document",
+    "green_id", "green_id_book", "identity_document",
+    "passport", "drivers_licence", "driver_licence", "drivers_license",
+}
+
 
 @dataclass
 class MandateReadiness:
@@ -145,10 +154,15 @@ def _compute_rental_mandate(landlord) -> MandateReadiness:
         "marital_regime": extracted.get("marital_regime"),
     }
 
-    # Missing required docs
+    # Missing required docs.
+    # The "sa_id" requirement is satisfied by any identity document
+    # synonym (passport, smart ID card, green book, etc.).
     required_docs = _REQUIRED_DOCS_BY_ENTITY.get(entity_type, [])
     present = _present_doc_types(data)
+    identity_satisfied = bool(present & _IDENTITY_DOC_SYNONYMS)
     for doc_key in required_docs:
+        if doc_key == "sa_id" and identity_satisfied:
+            continue
         if doc_key not in present:
             readiness.missing_fields.append(f"document:{doc_key}")
 
@@ -165,6 +179,7 @@ def _compute_rental_mandate(landlord) -> MandateReadiness:
     _check_bank_holder_match(landlord, readiness)
     _check_title_deed_ownership(data, readiness)
     _check_proof_of_address_age(data, readiness)
+    _check_identity_doc_expiry(data, readiness)
 
     # Authority / signatories (entity-type specific)
     readiness.required_signatories = _compute_signatories(data, landlord, readiness)
@@ -298,6 +313,23 @@ def _check_proof_of_address_age(data: dict, readiness: MandateReadiness) -> None
         readiness.warnings.append(
             f"Proof of address dated {doc_date.isoformat()} is past the 3-month FICA threshold — consider refreshing."
         )
+
+
+def _check_identity_doc_expiry(data: dict, readiness: MandateReadiness) -> None:
+    """Passports and driver's licences expire — flag any that already have."""
+    today = date.today()
+    for bucket_key in ("fica", "cipc"):
+        bucket = data.get(bucket_key) or {}
+        for doc in bucket.get("documents") or []:
+            t = _norm_type((doc or {}).get("type"))
+            if t not in {"passport", "drivers_licence", "driver_licence", "drivers_license"}:
+                continue
+            expiry = _parse_iso_date((doc.get("extracted") or {}).get("expiry_date"))
+            if expiry and expiry < today:
+                label = "Passport" if t == "passport" else "Driver's licence"
+                readiness.blocking_issues.append(
+                    f"{label} on file expired on {expiry.isoformat()}. Upload a current one before signing the mandate."
+                )
 
 
 def _compute_signatories(data: dict, landlord, readiness: MandateReadiness) -> list[dict]:

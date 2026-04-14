@@ -31,11 +31,22 @@ SYSTEM_PROMPT = """You are an expert South African property compliance agent spe
 ## Document buckets
 
 **FICA** — KYC documents required before financial onboarding:
-- SA Identity Document (Smart ID, green ID book, Passport)
-- Proof of Address / Proof of Residence (utility bill, municipal account, bank statement showing address — must be <3 months old)
-- Bank Confirmation Letter (on bank letterhead)
-- SARS Tax Number / Tax Clearance Certificate
-- VAT Registration Certificate
+- SA Identity Document — Smart ID card or green ID book (`type: "sa_id"`)
+- Passport — any nationality; for foreign nationals or when SA ID is not available (`type: "passport"`)
+- Driver's Licence — SA-issued (`type: "drivers_licence"`) — accepted as secondary photo ID, NOT a substitute for primary ID
+- Proof of Address / Proof of Residence (utility bill, municipal account, bank statement showing address — must be <3 months old) (`type: "proof_of_address"`)
+- Bank Confirmation Letter (on bank letterhead) (`type: "bank_confirmation"`)
+- SARS Tax Number / Tax Clearance Certificate (`type: "tax_certificate"`)
+- VAT Registration Certificate (`type: "vat_certificate"`)
+
+For every identity document (SA ID, passport, driver's licence), extract into `extracted`:
+- `id_number` (13 digits for SA ID) or `passport_number`
+- `full_name`, `surname`, `given_names`
+- `date_of_birth` (ISO YYYY-MM-DD)
+- `nationality` (passport only)
+- `expiry_date` (passport / licence only — ISO)
+- `gender` if printed
+Associate the person to the right entity via `persons_graph` (e.g. a director's passport links back to the company via their `roles`).
 
 **CIPC/CIPRO** — Entity registration and governance:
 - CoR14.3 — Registration Certificate (Company name, reg number YYYY/XXXXXX/07)
