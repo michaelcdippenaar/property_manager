@@ -88,15 +88,78 @@ class MandateReadiness:
 # Helpers
 # ---------------------------------------------------------------------------
 
+# Canonical doc-type aliases. Classifiers (and humans) refer to the same
+# document by many names; this maps them all to the one key the gap
+# analysis and required-docs lists speak. Extend as new labels appear in
+# the wild — better to absorb variants here than to fix each caller.
+_DOC_TYPE_ALIASES: dict[str, str] = {
+    # MOI family
+    "cor15_1a": "moi",
+    "cor15_1b": "moi",
+    "cor15": "moi",
+    "memorandum_of_incorporation": "moi",
+    "moi_cor15_1a": "moi",
+    # Bank confirmation
+    "bank_confirmation_letter": "bank_confirmation",
+    "bank_letter": "bank_confirmation",
+    "bank_account_confirmation": "bank_confirmation",
+    "bank_reference_letter": "bank_confirmation",
+    # Proof of address
+    "municipal_account": "proof_of_address",
+    "municipal_bill": "proof_of_address",
+    "utility_bill": "proof_of_address",
+    "proof_of_residence": "proof_of_address",
+    "bank_statement": "proof_of_address",
+    "rates_bill": "proof_of_address",
+    # Tax
+    "sars_tax_certificate": "tax_certificate",
+    "tax_clearance_certificate": "tax_certificate",
+    "sars_notice_of_registration": "tax_certificate",
+    "tax_clearance_pin": "tax_certificate",
+    "it77c": "tax_certificate",
+    # VAT
+    "vat_registration_certificate": "vat_certificate",
+    "vat_registration": "vat_certificate",
+    "vat404": "vat_certificate",
+    # Title deed
+    "deed_of_transfer": "title_deed",
+    "deed": "title_deed",
+    # Company
+    "registration_certificate": "cor14_3",
+    "cor_14_3": "cor14_3",
+    # Directors
+    "director_notice": "cor39",
+    "cor_39": "cor39",
+    # CC
+    "ck_1": "ck1",
+    "founding_statement": "ck1",
+    # Trust
+    "deed_of_trust": "trust_deed",
+    "letter_of_authority": "letters_of_authority",
+    "loa": "letters_of_authority",
+    # Identity
+    "identity_document": "sa_id",
+    "id_document": "sa_id",
+    "id_book": "sa_id",
+    "id_card": "sa_id",
+    "smart_id": "sa_id",
+    "green_id": "sa_id",
+    "green_id_book": "sa_id",
+    "driver_licence": "drivers_licence",
+    "drivers_license": "drivers_licence",
+}
+
+
 def _norm_type(raw: str | None) -> str:
     if not raw:
         return ""
     s = raw.strip().lower()
-    for ch in (".", "-", " ", "/"):
+    for ch in (".", "-", " ", "/", "(", ")", ","):
         s = s.replace(ch, "_")
     while "__" in s:
         s = s.replace("__", "_")
-    return s.strip("_")
+    s = s.strip("_")
+    return _DOC_TYPE_ALIASES.get(s, s)
 
 
 def _present_doc_types(classification_data: dict) -> set[str]:
