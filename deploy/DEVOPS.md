@@ -106,6 +106,12 @@ agent-app/.env.development / .env.staging / .env.production
 
 ## 5. Secrets
 
+> ⚠️ **BEFORE GOING TO PRODUCTION — move secrets out of the repo:**
+> Currently secrets live only on the server in `backend/.env.secrets` (gitignored).
+> GitHub push protection will block any attempt to commit real API keys even to a private repo.
+> Before launch, save the filled `.env.secrets` file in Bitwarden so you never lose it
+> and can recreate any server in minutes. See Bitwarden convention below.
+
 ### What goes in `backend/.env.secrets`
 
 ```bash
