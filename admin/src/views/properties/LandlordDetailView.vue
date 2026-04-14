@@ -34,7 +34,7 @@
           leave-to-class="opacity-0 scale-95 -translate-y-1"
         >
           <div v-if="menuOpen" class="absolute right-0 mt-1.5 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 origin-top-right">
-            <button class="menu-item" @click="menuOpen = false; activeTab = 'bank'">
+            <button class="menu-item" @click="menuOpen = false; setTab('bank')">
               <Landmark :size="15" class="text-gray-400" /> Add bank account
             </button>
             <div class="my-1 border-t border-gray-100" />
@@ -55,7 +55,7 @@
         :class="activeTab === tab.key
           ? 'border-navy text-navy'
           : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'"
-        @click="activeTab = tab.key"
+        @click="setTab(tab.key)"
       >
         <component :is="tab.icon" :size="15" />
         {{ tab.label }}
@@ -153,6 +153,33 @@
               <input v-model="local.representative_phone" class="input" />
             </div>
           </div>
+        </div>
+
+        <!-- Address -->
+        <div v-if="local.address" class="card p-5 space-y-4">
+          <div class="text-xs font-semibold uppercase tracking-wide text-navy">Address (Domicilium)</div>
+          <div>
+            <label class="label">Search address</label>
+            <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="col-span-2">
+              <label class="label">Street</label>
+              <input v-model="local.address.street" class="input" />
+            </div>
+            <div>
+              <label class="label">City</label>
+              <input v-model="local.address.city" class="input" />
+            </div>
+            <div>
+              <label class="label">Province</label>
+              <input v-model="local.address.province" class="input" />
+            </div>
+            <div>
+              <label class="label">Postal code</label>
+              <input v-model="local.address.postal_code" class="input" />
+            </div>
+          </div>
           <button type="submit" class="btn-primary text-sm" :disabled="saving">
             <Loader2 v-if="saving" :size="14" class="animate-spin" />
             Save Changes
@@ -197,39 +224,6 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- ── Tab: Address ── -->
-    <div v-else-if="activeTab === 'address'" class="max-w-2xl pt-6">
-      <div class="card p-5 space-y-4">
-        <div class="text-xs font-semibold uppercase tracking-wide text-navy">Address (Domicilium)</div>
-        <div>
-          <label class="label">Search address</label>
-          <AddressAutocomplete input-class="input" @select="onAddressSelect" />
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="col-span-2">
-            <label class="label">Street</label>
-            <input v-model="local.address.street" class="input" />
-          </div>
-          <div>
-            <label class="label">City</label>
-            <input v-model="local.address.city" class="input" />
-          </div>
-          <div>
-            <label class="label">Province</label>
-            <input v-model="local.address.province" class="input" />
-          </div>
-          <div>
-            <label class="label">Postal code</label>
-            <input v-model="local.address.postal_code" class="input" />
-          </div>
-        </div>
-        <button class="btn-primary text-sm" :disabled="saving" @click="saveLandlord">
-          <Loader2 v-if="saving" :size="14" class="animate-spin" />
-          Save Address
-        </button>
       </div>
     </div>
 
@@ -297,6 +291,26 @@
             <button v-if="ba.id" class="text-xs text-red-500 hover:underline" @click="deleteBankAccount(ba)">Remove</button>
             <button v-else class="text-xs text-gray-400 hover:underline" @click="local.bank_accounts.splice(idx, 1)">Cancel</button>
           </div>
+        </div>
+
+        <!-- Confirmation letter — only shown for saved accounts -->
+        <div v-if="ba.id" class="pt-2 border-t border-gray-100">
+          <div class="text-xs font-medium text-gray-500 mb-1.5">Bank Confirmation Letter</div>
+          <div v-if="ba.confirmation_letter_url" class="flex items-center gap-3">
+            <a :href="ba.confirmation_letter_url" target="_blank"
+               class="flex items-center gap-1.5 text-xs text-navy hover:underline">
+              <FileText :size="13" /> View letter
+            </a>
+            <button class="text-xs text-red-500 hover:underline" @click="removeConfirmationLetter(ba)">
+              Remove
+            </button>
+          </div>
+          <label v-else class="inline-flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+            <Upload :size="13" />
+            <span>Upload confirmation letter</span>
+            <input type="file" class="sr-only" accept=".pdf,.jpg,.jpeg,.png"
+                   @change="uploadConfirmationLetter(ba, $event)" />
+          </label>
         </div>
       </div>
     </div>
@@ -618,6 +632,15 @@
           </div>
         </div>
       </template>
+    </div>
+
+    <!-- ── Tab: Onboarding Assistant (AI chat) ── -->
+    <div v-else-if="activeTab === 'assistant'" class="max-w-3xl pt-6">
+      <OwnerChatPanel
+        v-if="landlord?.id"
+        :landlord-id="landlord.id"
+        @request-upload="onChatRequestUpload"
+      />
     </div>
 
     <!-- ── Tab: Registration Documents ── -->
@@ -968,6 +991,7 @@ import { extractApiError } from '../../utils/api-errors'
 import { formatDate } from '../../utils/formatters'
 import { useLandlordsStore } from '../../stores/landlords'
 import { useOwnershipsStore } from '../../stores/ownerships'
+import OwnerChatPanel from '../../components/landlord/OwnerChatPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -981,7 +1005,20 @@ const loading = ref(false)
 const saving = ref(false)
 const menuOpen = ref(false)
 const menuRef = ref<HTMLElement>()
-const activeTab = ref('details')
+const VALID_TABS = ['details', 'bank', 'properties', 'document', 'classification', 'assistant'] as const
+type TabKey = typeof VALID_TABS[number]
+const activeTab = ref<TabKey>(
+  VALID_TABS.includes(route.query.tab as TabKey) ? (route.query.tab as TabKey) : 'details'
+)
+
+function setTab(key: TabKey) {
+  activeTab.value = key
+  router.replace({ query: { ...route.query, tab: key } })
+}
+
+watch(() => route.query.tab, (t) => {
+  if (VALID_TABS.includes(t as TabKey)) activeTab.value = t as TabKey
+})
 const ficaDocs = ref<any[]>([])
 const uploadingDocs = ref(false)
 const classifying = ref(false)
@@ -1020,12 +1057,20 @@ const entityLabel = computed(() => {
 
 const tabs = [
   { key: 'details', label: 'Details', icon: FileText },
-  { key: 'address', label: 'Address', icon: MapPin },
   { key: 'bank', label: 'Bank Accounts', icon: Landmark },
   { key: 'properties', label: 'Properties', icon: Home },
   { key: 'document', label: 'CIPC', icon: FileUp },
   { key: 'classification', label: 'FICA', icon: ShieldCheck },
+  { key: 'assistant', label: 'Assistant', icon: Sparkles },
 ]
+
+function onChatRequestUpload(docType: string) {
+  // Route the user to the CIPC/document tab where uploads live.
+  // The chat's tool call tells us which doc type — toast for now; the
+  // upload UI lives on the 'document' tab which handles any doc type.
+  toast.info(`Switch to the CIPC tab to upload ${docType.replace(/_/g, ' ')}.`)
+  setTab('document')
+}
 
 onMounted(() => initLandlord())
 
@@ -1046,7 +1091,7 @@ function initLandlord() {
   regPatchedFields.value = []
   classifyError.value = ''
   classifyRegError.value = ''
-  activeTab.value = 'details'
+  activeTab.value = VALID_TABS.includes(route.query.tab as TabKey) ? (route.query.tab as TabKey) : 'details'
   loadLandlord()
   loadFicaDocs()
   loadAllProperties()
@@ -1212,6 +1257,35 @@ async function deleteBankAccount(ba: any) {
     toast.success('Bank account removed')
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to delete bank account'))
+  }
+}
+
+async function uploadConfirmationLetter(ba: any, e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const form = new FormData()
+  form.append('file', file)
+  try {
+    const { data } = await api.post(
+      `/properties/bank-accounts/${ba.id}/upload-confirmation/`,
+      form,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
+    )
+    Object.assign(ba, data)
+    toast.success('Confirmation letter uploaded')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Upload failed'))
+  }
+  ;(e.target as HTMLInputElement).value = ''
+}
+
+async function removeConfirmationLetter(ba: any) {
+  try {
+    await api.delete(`/properties/bank-accounts/${ba.id}/remove-confirmation/`)
+    ba.confirmation_letter_url = null
+    toast.success('Letter removed')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Remove failed'))
   }
 }
 
