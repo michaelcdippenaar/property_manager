@@ -6,6 +6,7 @@ WORKDIR /app
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 RUN apt-get update && apt-get install -y \
+    build-essential \
     libcairo2-dev \
     pkg-config \
     python3-dev \
