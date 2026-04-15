@@ -212,6 +212,48 @@ export const useLeasesStore = defineStore('leases', () => {
     }
   }
 
+  /**
+   * Create a successor lease following the given source. Backend copies
+   * property/unit/rent/deposit/terms; tenants are NOT copied (see plan).
+   * Any `overrides` passed are merged on top before save (start/end dates,
+   * rent, etc.).
+   */
+  /**
+   * Fetch all leases where the given Person is the primary tenant.
+   * Uses the `primary_tenant` filter exposed by the backend.
+   */
+  async function fetchForPerson(personId: number): Promise<Lease[]> {
+    try {
+      const { data } = await api.get('/leases/', {
+        params: { primary_tenant: personId, page_size: 50 },
+      })
+      const rows: Lease[] = data.results ?? data
+      for (const l of rows) upsert(l)
+      return rows
+    } catch (err) {
+      error.value = extractApiError(err, 'Failed to load leases for tenant')
+      throw err
+    }
+  }
+
+  async function createRenewal(
+    sourceId: number,
+    overrides: Record<string, unknown> = {},
+  ): Promise<Lease> {
+    try {
+      const { data } = await api.post(`/leases/${sourceId}/renewal/`, overrides)
+      const created = upsert(data)
+      loadedAt.value = null
+      await maybeRefreshParentProperty(data)
+      // Refresh the source so its successor_lease_id is up to date.
+      try { await fetchOne(sourceId, { force: true }) } catch { /* non-fatal */ }
+      return created
+    } catch (err) {
+      error.value = extractApiError(err, 'Failed to draft renewal')
+      throw err
+    }
+  }
+
   async function remove(id: number): Promise<void> {
     const cached = items.value.get(id)
     try {
@@ -268,10 +310,12 @@ export const useLeasesStore = defineStore('leases', () => {
     fetchOne,
     fetchActiveFor,
     fetchForUnit,
+    fetchForPerson,
     create,
     importLease,
     update,
     remove,
+    createRenewal,
     invalidate,
   }
 })

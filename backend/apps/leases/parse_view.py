@@ -1,11 +1,9 @@
 import base64
-import io
 import json
 import os
 import re
 
 import anthropic
-from pypdf import PdfReader
 from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -30,6 +28,9 @@ South African leases frequently have 2–4 tenants who are ALL jointly and sever
   "THE LESSEES" followed by multiple named parties
   Listed individually under headings like "1. PARTIES" or "DIE HUURDER"
   Repeated in a signature block at the back of the document
+  Klikk lease template: "1.2.1 Tenant One", "1.2.2 Tenant Two (if applicable)",
+    "1.2.3 Tenant Three (if applicable)", "1.2.4 Tenant Four (if applicable)" — each
+    in their own table block with "Tenant/Occupant 1/2/3/4 Full Legal Name:" field.
 
 YOU MUST scan the ENTIRE document — intro, body, annexures, AND signature pages — and capture EVERY person who appears as a lessee/tenant/huurder.
 Do NOT stop after finding the first name. Put the first one in primary_tenant and ALL remaining ones in co_tenants.
@@ -38,6 +39,9 @@ IMPORTANT DISTINCTIONS:
 - "tenants" = legal signatories (jointly and severally liable). There can be up to 4. ALL are equally important.
 - "occupants" = people who physically live in the property (may overlap with tenants, or be different — e.g. a student whose parent signs).
 - "guarantors" = sureties who guarantee a specific tenant's obligations.
+- "Guardian/Co-Debtor" rows (e.g. "Tenant 1 Guardian/Co-Debtor Full Legal Name (If Applicable)")
+  are GUARANTORS, NOT additional tenants. Map them to the guarantors array with for_tenant set
+  to the tenant they cover. Do NOT place guardians/co-debtors in co_tenants.
 
 PROPERTY / PREMISES (critical — SA leases use many wordings):
 - Look for "PREMISES", "DIE PAND", "ERF", "UNIT", "SECTIONAL TITLE", "ADDRESS",
@@ -200,8 +204,7 @@ def _repair_json_with_claude(client: anthropic.Anthropic, broken: str) -> dict |
     return _parse_extracted_json(_message_text(message))
 
 
-# If pypdf yields fewer chars than this, the PDF is likely scanned — send native PDF to Claude.
-MIN_EXTRACTED_TEXT_CHARS = 800
+# Always send the native PDF to Claude — pypdf text extraction is unreliable for table-structured leases.
 
 
 def normalize_extracted_lease(d: dict) -> dict:
@@ -268,20 +271,6 @@ class ParseLeaseDocumentView(APIView):
         if len(pdf_bytes) > 32 * 1024 * 1024:
             return Response({"error": "PDF is too large (max 32 MB)."}, status=400)
 
-        try:
-            reader = PdfReader(io.BytesIO(pdf_bytes))
-            pages_text = []
-            for page in reader.pages:
-                text = page.extract_text()
-                if text:
-                    pages_text.append(text)
-            pdf_text = "\n\n".join(pages_text)
-        except Exception as e:
-            return Response({"error": f"Could not read PDF: {e}"}, status=400)
-
-        text_len = len(pdf_text.strip())
-        use_native_pdf = text_len < MIN_EXTRACTED_TEXT_CHARS
-
         # Read key directly from .env file (bypass os.environ which Claude Code clears)
         _env_path = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "..", "..", ".env")
@@ -301,29 +290,25 @@ class ParseLeaseDocumentView(APIView):
 
         client = anthropic.Anthropic(api_key=api_key)
 
-        if use_native_pdf:
-            b64_pdf = base64.standard_b64encode(pdf_bytes).decode("ascii")
-            user_content = [
-                {
-                    "type": "document",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "application/pdf",
-                        "data": b64_pdf,
-                    },
+        b64_pdf = base64.standard_b64encode(pdf_bytes).decode("ascii")
+        user_content = [
+            {
+                "type": "document",
+                "source": {
+                    "type": "base64",
+                    "media_type": "application/pdf",
+                    "data": b64_pdf,
                 },
-                {
-                    "type": "text",
-                    "text": (
-                        EXTRACTION_PROMPT
-                        + "\n\nThe lease is attached as a PDF. "
-                        "Most pages may be scanned images — read the full document visually. "
-                        f"(Selectable text in this file was only ~{text_len} characters.)"
-                    ),
-                },
-            ]
-        else:
-            user_content = EXTRACTION_PROMPT + pdf_text[:80000]
+            },
+            {
+                "type": "text",
+                "text": (
+                    EXTRACTION_PROMPT
+                    + "\n\nThe lease is attached as a PDF. Read the full document visually, "
+                    "including all tables and form fields."
+                ),
+            },
+        ]
 
         try:
             message = client.messages.create(
@@ -351,9 +336,6 @@ class ParseLeaseDocumentView(APIView):
             )
 
         extracted = normalize_extracted_lease(extracted)
-        if use_native_pdf:
-            extracted["_parse_via"] = "pdf_document"
-        else:
-            extracted["_parse_via"] = "extracted_text"
+        extracted["_parse_via"] = "pdf_document"
 
         return Response(extracted)

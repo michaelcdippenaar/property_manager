@@ -1,11 +1,16 @@
 <template>
   <div class="max-w-4xl mx-auto space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-sm text-gray-500">Build and manage reusable lease document templates. Templates are not property-specific — one template can be used across all properties.</p>
-      <button class="btn-primary flex-shrink-0" @click="showCreate = true">
-        <Plus :size="15" /> New Template
-      </button>
-    </div>
+    <PageHeader
+      title="Lease Templates"
+      subtitle="Build and manage reusable lease document templates. Templates are not property-specific — one template can be used across all properties."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Leases', to: '/leases' }, { label: 'Templates' }]"
+    >
+      <template #actions>
+        <button class="btn-primary flex-shrink-0" @click="showCreate = true">
+          <Plus :size="15" /> New Template
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Template grid -->
     <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -53,7 +58,7 @@
                   <Pencil :size="12" /> Rename
                 </button>
                 <button
-                  class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-red-500"
+                  class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2 text-danger-500"
                   @click="archiveTemplate($event, tmpl)"
                 >
                   <Archive :size="12" /> Archive
@@ -210,6 +215,7 @@ import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2, MoreVer
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import { useToast } from '../../composables/useToast'
 
 const router = useRouter()

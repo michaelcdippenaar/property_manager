@@ -2,18 +2,18 @@
   <div class="space-y-6">
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-bold text-navy" style="font-family: 'Bricolage Grotesque', 'Inter', sans-serif;">
-          Self-Check Status
-        </h1>
-        <p class="text-sm text-gray-500 mt-0.5">Module self-health diagnostics</p>
-      </div>
-      <button class="btn-primary" @click="runSelfCheck" :disabled="running">
-        <RefreshCw :size="15" :class="running ? 'animate-spin' : ''" />
-        {{ running ? 'Running…' : 'Run Self-Check' }}
-      </button>
-    </div>
+    <PageHeader
+      title="Self-Check Status"
+      subtitle="Module self-health diagnostics"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Testing', to: '/testing' }, { label: 'Self-Check' }]"
+    >
+      <template #actions>
+        <button class="btn-primary" @click="runSelfCheck" :disabled="running">
+          <RefreshCw :size="15" :class="running ? 'animate-spin' : ''" />
+          {{ running ? 'Running…' : 'Run Self-Check' }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Latest result -->
     <div class="card">
@@ -156,6 +156,7 @@
 import { ref, onMounted } from 'vue'
 import { testingApi } from '../../api/testing'
 import { RefreshCw, CheckCircle, XCircle, AlertTriangle } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const loading = ref(true)
 const running = ref(false)

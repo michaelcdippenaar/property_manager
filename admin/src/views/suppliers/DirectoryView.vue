@@ -1,19 +1,7 @@
 <template>
   <div class="space-y-5">
     <div class="flex items-center justify-between">
-      <div class="flex gap-2">
-        <button
-          v-for="f in statusFilters"
-          :key="f.value"
-          @click="activeFilter = f.value; loadSuppliers()"
-          class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
-          :class="activeFilter === f.value
-            ? 'bg-navy text-white'
-            : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'"
-        >
-          {{ f.label }}
-        </button>
-      </div>
+      <FilterPills v-model="activeFilter" :options="statusFilters" @update:modelValue="loadSuppliers()" />
       <div class="flex gap-2">
         <label class="btn-ghost cursor-pointer text-sm">
           <Upload :size="14" /> Import Excel
@@ -27,10 +15,10 @@
 
     <!-- Import results banner -->
     <div v-if="importResult" class="card p-4 flex items-center justify-between"
-      :class="importResult.errors?.length ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'">
+      :class="importResult.errors?.length ? 'bg-warning-50 border-warning-100' : 'bg-success-50 border-success-100'">
       <div class="text-sm">
         <span class="font-medium">{{ importResult.created }} supplier(s) imported.</span>
-        <span v-if="importResult.errors?.length" class="text-amber-700 ml-2">
+        <span v-if="importResult.errors?.length" class="text-warning-700 ml-2">
           {{ importResult.errors.length }} error(s): {{ importResult.errors.slice(0, 3).join('; ') }}
         </span>
       </div>
@@ -83,7 +71,7 @@
                 <span
                   v-for="t in s.trades"
                   :key="t.id"
-                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-blue-50 text-blue-700"
+                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-info-50 text-info-700"
                 >
                   {{ t.label }}
                 </span>
@@ -296,7 +284,7 @@
             <!-- Trades -->
             <div class="flex flex-wrap gap-1.5">
               <span v-for="t in detail.trades" :key="t.id"
-                class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-info-50 text-info-700">
                 {{ t.label }}
               </span>
             </div>
@@ -335,7 +323,7 @@
                   </div>
                   <div class="flex items-center gap-1">
                     <a :href="doc.file" target="_blank" class="p-1 text-gray-400 hover:text-navy"><ExternalLink :size="12" /></a>
-                    <button @click="deleteDocument(doc)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
+                    <button @click="deleteDocument(doc)" class="p-1 text-gray-400 hover:text-danger-500"><Trash2 :size="12" /></button>
                   </div>
                 </div>
               </div>
@@ -414,7 +402,7 @@
                     <span class="text-xs text-gray-400 ml-2">{{ lnk.property_city }}</span>
                     <span v-if="lnk.is_preferred" class="badge-blue text-micro ml-2">Preferred</span>
                   </div>
-                  <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
+                  <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-danger-500"><Trash2 :size="12" /></button>
                 </div>
               </div>
               <p v-else class="text-xs text-gray-400">No properties linked</p>
@@ -435,7 +423,7 @@
                 <div>
                   <span class="text-gray-400 text-xs">Rating</span>
                   <p class="text-gray-800 flex items-center gap-1">
-                    <Star v-if="detail.rating" :size="12" class="text-amber-400 fill-amber-400" />
+                    <Star v-if="detail.rating" :size="12" class="text-warning-500 fill-warning-500" />
                     {{ detail.rating ?? '—' }}
                   </p>
                 </div>
@@ -444,7 +432,7 @@
 
             <!-- Delete -->
             <div class="border-t border-gray-100 pt-4">
-              <button class="btn-ghost text-red-600 hover:bg-red-50 w-full" @click="deleteSupplier(detail)">
+              <button class="btn-ghost text-danger-600 hover:bg-danger-50 w-full" @click="deleteSupplier(detail)">
                 <Trash2 :size="14" /> Delete Supplier
               </button>
             </div>
@@ -454,41 +442,39 @@
     </Teleport>
 
     <!-- Property Group create dialog -->
-    <Teleport to="body">
-      <div v-if="groupDialog" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/40" @click="groupDialog = false" />
-        <div class="relative card w-full max-w-md p-6 space-y-4">
-          <h2 class="font-semibold text-gray-900">Create Property Group</h2>
-          <div>
-            <label class="label">Group name</label>
-            <input v-model="newGroup.name" class="input" placeholder="e.g. Welgevonden, Premium >R10m" />
-          </div>
-          <div>
-            <label class="label">Description</label>
-            <input v-model="newGroup.description" class="input" placeholder="Optional" />
-          </div>
-          <div>
-            <label class="label">Properties</label>
-            <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 mt-1">
-              <label v-for="p in allProperties" :key="p.id" class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
-                <input type="checkbox" :value="p.id" v-model="newGroup.property_ids" class="rounded" />
-                {{ p.name }} — {{ p.city }}
-              </label>
-            </div>
-          </div>
-          <div class="flex justify-end gap-2 pt-2">
-            <button class="btn-ghost" @click="groupDialog = false">Cancel</button>
-            <button class="btn-primary" :disabled="!newGroup.name" @click="createGroup">Create Group</button>
+    <BaseModal :open="groupDialog" title="Create Property Group" size="md" @close="groupDialog = false">
+      <div class="space-y-4">
+        <div>
+          <label class="label">Group name</label>
+          <input v-model="newGroup.name" class="input" placeholder="e.g. Welgevonden, Premium >R10m" />
+        </div>
+        <div>
+          <label class="label">Description</label>
+          <input v-model="newGroup.description" class="input" placeholder="Optional" />
+        </div>
+        <div>
+          <label class="label">Properties</label>
+          <div class="max-h-40 overflow-y-auto border border-gray-200 rounded-lg p-2 space-y-1 mt-1">
+            <label v-for="p in allProperties" :key="p.id" class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-50 p-1 rounded">
+              <input type="checkbox" :value="p.id" v-model="newGroup.property_ids" class="rounded" />
+              {{ p.name }} — {{ p.city }}
+            </label>
           </div>
         </div>
       </div>
-    </Teleport>
+      <template #footer>
+        <button class="btn-ghost" @click="groupDialog = false">Cancel</button>
+        <button class="btn-primary" :disabled="!newGroup.name" @click="createGroup">Create Group</button>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import api from '../../api'
+import FilterPills from '../../components/FilterPills.vue'
+import BaseModal from '../../components/BaseModal.vue'
 import {
   Plus, Search, X, Loader2, Pencil, Star, Trash2, MapPin,
   Upload, FileText, ExternalLink, Layers,
@@ -718,9 +704,11 @@ async function deleteDocument(doc: any) {
 
 async function attachProperty() {
   if (!detail.value || !selectedPropertyId.value) return
-  await api.post(`/maintenance/suppliers/${detail.value.id}/properties/`, {
+  const { data: newLink } = await api.post(`/maintenance/suppliers/${detail.value.id}/properties/`, {
     property: selectedPropertyId.value,
   })
+  // Optimistically update so the dropdown removes the linked property immediately
+  detailProperties.value = [...detailProperties.value, newLink]
   selectedPropertyId.value = ''
   await openDetail(detail.value)
   await loadSuppliers()

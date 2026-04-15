@@ -2,41 +2,72 @@
   <div class="space-y-5">
 
     <!-- ── Page header ── -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <button
-          class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          aria-label="Back"
-          @click="$router.back()"
-        >
-          <ArrowLeft :size="18" />
-        </button>
-        <div>
-          <h1 class="text-xl font-bold text-gray-900">{{ property?.name ?? '…' }}</h1>
-          <div v-if="property?.units?.length" class="flex items-center gap-1.5 mt-0.5">
-            <select
-              :value="activeUnit"
-              @change="switchUnit(Number(($event.target as HTMLSelectElement).value))"
-              class="text-xs text-gray-500 bg-transparent border-none p-0 pr-4 cursor-pointer hover:text-navy focus:outline-none focus:text-navy appearance-none"
-              style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27none%27 stroke=%27%239ca3af%27 stroke-width=%272%27%3E%3Cpath d=%27M3 5l3 3 3-3%27/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right center; background-size: 12px;"
-            >
-              <option v-for="u in property.units" :key="u.id" :value="u.id">
+    <div class="mb-6">
+      <Breadcrumb
+        :items="[
+          { label: 'Dashboard', to: '/' },
+          { label: 'Properties', to: '/properties' },
+          { label: property?.name ?? '…' },
+        ]"
+        class="mb-2"
+      />
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button
+            class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            aria-label="Back"
+            @click="$router.back()"
+          >
+            <ArrowLeft :size="18" />
+          </button>
+          <div>
+            <h1 class="text-xl font-bold text-gray-900">{{ property?.name ?? '…' }}</h1>
+          <div v-if="(property?.units?.length ?? 0) > 1" class="flex items-center gap-1 mt-1.5 flex-wrap">
+            <template v-if="property.units.length <= 6">
+              <button
+                v-for="u in property.units"
+                :key="u.id"
+                @click="switchUnit(u.id)"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
+                :class="activeUnit === u.id
+                  ? 'bg-navy text-white'
+                  : 'bg-white border border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-700'"
+              >
+                <span
+                  class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  :class="{
+                    'bg-success-400': u.status === 'occupied',
+                    'bg-info-300':    u.status === 'available',
+                    'bg-warning-400': u.status === 'maintenance',
+                    'bg-gray-300':    !u.status,
+                    'bg-white/60':    activeUnit === u.id,
+                  }"
+                />
                 Unit {{ u.unit_number }}
-              </option>
-            </select>
-            <span class="inline-flex items-center gap-1 text-xs text-gray-500"
-              :aria-label="`Unit status: ${activeUnitData?.status ?? 'unknown'}`"
-            >
-              <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                :class="{
-                  'bg-success-500': activeUnitData?.status === 'occupied',
-                  'bg-info-400':    activeUnitData?.status === 'available',
-                  'bg-warning-400': activeUnitData?.status === 'maintenance',
-                  'bg-gray-300':    !activeUnitData?.status,
-                }"
-              />
-              <span class="capitalize">{{ activeUnitData?.status ?? '—' }}</span>
-            </span>
+              </button>
+            </template>
+            <template v-else>
+              <select
+                :value="activeUnit"
+                @change="switchUnit(Number(($event.target as HTMLSelectElement).value))"
+                class="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600 focus:outline-none focus:border-navy focus:ring-1 focus:ring-navy/20 cursor-pointer"
+              >
+                <option v-for="u in property.units" :key="u.id" :value="u.id">
+                  Unit {{ u.unit_number }} ({{ u.status }})
+                </option>
+              </select>
+              <span class="inline-flex items-center gap-1 text-xs text-gray-500">
+                <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  :class="{
+                    'bg-success-500': activeUnitData?.status === 'occupied',
+                    'bg-info-400':    activeUnitData?.status === 'available',
+                    'bg-warning-400': activeUnitData?.status === 'maintenance',
+                    'bg-gray-300':    !activeUnitData?.status,
+                  }"
+                />
+                <span class="capitalize">{{ activeUnitData?.status ?? '—' }}</span>
+              </span>
+            </template>
           </div>
           <p v-else class="text-xs text-gray-400 mt-0.5">{{ property?.address }}</p>
         </div>
@@ -61,6 +92,9 @@
             <button class="menu-item" @click="menuOpen = false; goCreateLease()">
               <FileSignature :size="15" class="text-gray-400" /> Create lease
             </button>
+            <button class="menu-item" @click="menuOpen = false; showImportWizard = true">
+              <Upload :size="15" class="text-gray-400" /> Import old lease
+            </button>
             <button class="menu-item" @click="handleAdvertise">
               <Megaphone :size="15" class="text-gray-400" /> Advertise unit
             </button>
@@ -76,6 +110,7 @@
             </button>
           </div>
         </Transition>
+      </div>
       </div>
     </div>
 
@@ -102,13 +137,13 @@
           :key="tab.key"
           class="px-4 py-2 text-sm font-medium transition-colors relative flex items-center gap-1.5"
           :class="activeSection === tab.key ? 'text-navy' : 'text-gray-400 hover:text-gray-600'"
-          @click="activeSection = tab.key"
+          @click="setSection(tab.key as SectionKey)"
         >
           <component :is="tab.icon" :size="13" />
           {{ tab.label }}
           <span
             v-if="tab.key === 'maintenance' && openMaintenance.length > 0"
-            class="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger-500 text-white text-[10px] font-bold leading-none"
+            class="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-danger-500 text-white text-xs font-bold leading-none"
           >{{ openMaintenance.length }}</span>
           <span v-if="activeSection === tab.key" class="absolute bottom-0 left-0 right-0 h-0.5 bg-navy rounded-full" />
         </button>
@@ -144,21 +179,38 @@
             <div class="flex items-center gap-3 flex-shrink-0">
               <div class="text-center px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
                 <div class="text-lg font-bold text-gray-900">{{ totalUnits }}</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Units</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wide mt-0.5">Units</div>
               </div>
               <div class="text-center px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                <div class="text-lg font-bold text-success-600">{{ occupiedUnits }}</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Occupied</div>
+                <div class="flex items-center justify-center h-[22px]">
+                  <CheckCircle :size="20" :class="occupiedUnits > 0 ? 'text-success-600' : 'text-gray-300'" />
+                </div>
+                <div class="text-xs text-gray-400 uppercase tracking-wide mt-0.5">Occupied</div>
               </div>
               <div class="text-center px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
                 <div class="text-lg font-bold text-navy">R{{ totalMonthlyIncome.toLocaleString('en-ZA', { maximumFractionDigits: 0 }) }}</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Monthly income</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wide mt-0.5">Monthly income</div>
               </div>
               <div class="text-center px-4 py-2.5 rounded-xl bg-gray-50 border border-gray-100">
                 <div class="text-lg font-bold" :class="openMaintenance.length > 0 ? 'text-warning-600' : 'text-gray-400'">{{ openMaintenance.length }}</div>
-                <div class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">Open jobs</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wide mt-0.5">Open jobs</div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Lease timeline (expanded detail) -->
+        <div v-if="currentLeases.length || previousLeases.length" class="card overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <CalendarClock :size="14" class="text-navy" />
+              <span class="text-xs font-semibold uppercase tracking-wide text-navy">Lease Timeline</span>
+              <span class="text-xs text-gray-400">· Active, pending &amp; past leases</span>
+            </div>
+            <button class="text-xs text-navy hover:underline" @click="setSection('leases')">All leases →</button>
+          </div>
+          <div class="px-6 py-6">
+            <LeaseTimelineGantt :leases="[...currentLeases, ...previousLeases]" />
           </div>
         </div>
 
@@ -180,7 +232,7 @@
                 </div>
                 <div v-if="loadingLease" class="h-3 w-12 bg-gray-100 rounded animate-pulse" />
                 <button v-else-if="!currentLeases.length" class="text-xs text-navy hover:underline" @click.stop="goCreateLease()">Create lease</button>
-                <button v-else class="text-xs text-navy hover:underline" @click.stop="activeSection = 'leases'">View all</button>
+                <button v-else class="text-xs text-navy hover:underline" @click.stop="setSection('leases')">View all</button>
               </div>
 
               <div v-if="loadingLease" class="p-5 space-y-3 animate-pulse">
@@ -189,30 +241,33 @@
               </div>
 
               <div v-else-if="currentLeases.length" class="divide-y divide-gray-50">
-                <div
-                  v-for="lease in currentLeases"
-                  :key="lease.id"
-                  class="px-5 py-4 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
-                  @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
-                >
-                  <div class="flex items-center gap-2">
-                    <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
-                      {{ lease.status === 'active' ? 'Active' : 'Pending' }}
-                    </span>
-                    <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
-                  </div>
-                  <div class="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
-                      <div class="font-medium text-gray-900">{{ lease.primary_tenant_name || lease.primary_tenant?.full_name || '—' }}</div>
+                <div v-for="lease in currentLeases" :key="lease.id">
+                  <div
+                    class="px-5 py-4 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                    @click="setSection('leases'); toggleExpand(lease.id)"
+                  >
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2">
+                        <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                          {{ lease.status === 'active' ? 'Active' : 'Pending' }}
+                        </span>
+                        <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
+                      </div>
+                      <ChevronDown :size="15" class="text-gray-400 transition-transform duration-200" :class="expandedLeaseIds.includes(lease.id) ? 'rotate-180' : ''" />
                     </div>
-                    <div>
-                      <div class="text-xs text-gray-400 mb-0.5">Period</div>
-                      <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
-                    </div>
-                    <div>
-                      <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
-                      <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                    <div class="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+                        <div class="font-medium text-gray-900">{{ lease.tenant_name || '—' }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400 mb-0.5">Period</div>
+                        <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+                        <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -235,7 +290,7 @@
                 <button
                   v-if="openMaintenance.length"
                   class="text-xs text-navy hover:underline"
-                  @click="activeSection = 'maintenance'"
+                  @click="setSection('maintenance')"
                 >View all</button>
               </div>
 
@@ -276,7 +331,7 @@
             <div class="card p-4 space-y-3">
               <div class="flex items-center justify-between">
                 <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner</div>
-                <button class="text-xs text-navy hover:underline" @click="activeSection = 'landlord'">View details →</button>
+                <RouterLink v-if="owner?.landlord" :to="`/landlords/${owner.landlord}`" class="text-xs text-navy hover:underline">View details →</RouterLink>
               </div>
 
               <div v-if="loadingOwner" class="space-y-2 animate-pulse">
@@ -327,45 +382,160 @@
 
       </div>
 
+      <!-- ── Information tab ── -->
+      <div v-else-if="activeSection === 'information' && property" class="pt-6">
+        <PropertyInformationEditor :property="property" @saved="handleInformationSaved" />
+      </div>
+
       <!-- ── Leases tab ── -->
       <div v-else-if="activeSection === 'leases'" class="space-y-4 pt-6">
         <div class="flex items-center justify-between">
           <p class="text-sm text-gray-500">All leases for this unit.</p>
-          <button class="btn-ghost btn-sm" @click="goCreateLease()">
-            <FilePlus2 :size="14" /> New lease
-          </button>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost btn-sm" @click="showImportWizard = true">
+              <Upload :size="14" /> Import old lease
+            </button>
+            <button class="btn-ghost btn-sm" @click="goCreateLease()">
+              <FilePlus2 :size="14" /> New lease
+            </button>
+          </div>
         </div>
 
         <!-- Active / pending leases -->
         <div v-if="loadingLease || loadingPrevLeases" class="card p-5 animate-pulse"><div class="h-20 bg-gray-100 rounded" /></div>
         <template v-else>
-          <div
-            v-for="lease in currentLeases"
-            :key="lease.id"
-            class="card p-5 space-y-3 cursor-pointer hover:shadow-md transition-shadow"
-            @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
-                  {{ lease.status === 'active' ? 'Active' : 'Pending' }}
-                </span>
-                <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
+          <div v-for="lease in currentLeases" :key="lease.id" class="card overflow-hidden">
+            <!-- Summary row -->
+            <div
+              class="p-5 space-y-3 cursor-pointer hover:bg-gray-50 transition-colors"
+              @click="toggleExpand(lease.id)"
+            >
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span :class="lease.status === 'active' ? 'badge-green' : 'badge-purple'">
+                    {{ lease.status === 'active' ? 'Active' : 'Pending' }}
+                  </span>
+                  <span class="text-sm font-semibold text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</span>
+                </div>
+                <ChevronDown :size="16" class="text-gray-400 transition-transform duration-200" :class="expandedLeaseIds.includes(lease.id) ? 'rotate-180' : ''" />
               </div>
-              <ChevronRight :size="16" class="text-gray-400" />
+              <div class="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
+                  <div class="font-medium text-gray-900">{{ lease.tenant_name || '—' }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-0.5">Period</div>
+                  <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+                </div>
+                <div>
+                  <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
+                  <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                </div>
+              </div>
             </div>
-            <div class="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
-                <div class="font-medium text-gray-900">{{ lease.primary_tenant_name || lease.primary_tenant?.full_name || '—' }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-400 mb-0.5">Period</div>
-                <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
-              </div>
-              <div>
-                <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
-                <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+
+            <!-- Expanded detail -->
+            <div v-if="expandedLeaseIds.includes(lease.id)" class="bg-slate-50 border-t border-gray-200 px-5 py-4">
+              <div class="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-4">
+                <!-- Left -->
+                <div class="space-y-4">
+                  <!-- Tenants -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tenants — jointly &amp; severally liable</div>
+                    <div class="flex flex-wrap gap-2">
+                      <div
+                        v-for="(name, i) in (lease.all_tenant_names?.length ? lease.all_tenant_names : [lease.tenant_name].filter(Boolean))"
+                        :key="i"
+                        class="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg"
+                      >
+                        <div class="w-5 h-5 rounded-full bg-navy/10 flex items-center justify-center text-navy text-micro font-bold flex-shrink-0">{{ i + 1 }}</div>
+                        <span class="text-sm text-gray-800 font-medium">{{ name }}</span>
+                      </div>
+                    </div>
+                    <div v-if="lease.occupants?.length" class="pt-2 border-t border-gray-100">
+                      <div class="text-xs text-gray-400 mb-1.5">Occupants</div>
+                      <div class="flex flex-wrap gap-1.5">
+                        <span v-for="oc in lease.occupants" :key="oc.id" class="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 rounded text-xs text-gray-600">
+                          <Users :size="10" class="text-gray-400" />
+                          {{ oc.person.full_name }}
+                          <span v-if="oc.relationship_to_tenant" class="text-gray-400">· {{ oc.relationship_to_tenant }}</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Terms -->
+                  <div class="bg-white rounded-xl border border-gray-200 p-4">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lease terms</div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      <div>
+                        <div class="text-xs text-gray-400">Monthly rent</div>
+                        <div class="text-sm font-semibold text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString() }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Deposit</div>
+                        <div class="text-sm font-semibold text-gray-900">R{{ Number(lease.deposit).toLocaleString() }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Period</div>
+                        <div class="text-sm font-semibold text-gray-900">{{ leasePeriodMonths(lease.start_date, lease.end_date) }}</div>
+                        <div class="text-xs text-gray-400">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Payment ref</div>
+                        <div class="text-sm font-semibold text-gray-900 font-mono">{{ lease.payment_reference || '—' }}</div>
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-3 pt-3 border-t border-gray-100">
+                      <div>
+                        <div class="text-xs text-gray-400">Water</div>
+                        <div class="text-sm text-gray-700">{{ lease.water_included ? `Included (${lease.water_limit_litres?.toLocaleString()} L)` : 'Excluded' }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Electricity</div>
+                        <div class="text-sm text-gray-700">{{ lease.electricity_prepaid ? 'Prepaid' : 'Included' }}</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Notice period</div>
+                        <div class="text-sm text-gray-700">{{ lease.notice_period_days }} days</div>
+                      </div>
+                      <div>
+                        <div class="text-xs text-gray-400">Max occupants</div>
+                        <div class="text-sm text-gray-700">{{ lease.max_occupants }}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- E-Signing (hidden for already-active leases with no signing in progress) -->
+                  <div v-if="lease.status !== 'active'" class="bg-white rounded-xl border border-gray-200 p-4">
+                    <ESigningPanel
+                      :key="lease.id"
+                      :lease-id="lease.id"
+                      :lease-tenants="leaseTenants(lease)"
+                      :lease-data="lease"
+                    />
+                  </div>
+                </div>
+
+                <!-- Right: actions + documents -->
+                <div class="space-y-4">
+                  <div class="bg-white rounded-xl border border-gray-200 p-4 space-y-2">
+                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Documents ({{ lease.document_count ?? 0 }})</div>
+                    <div v-if="lease.documents?.length" class="space-y-1.5">
+                      <a
+                        v-for="doc in lease.documents" :key="doc.id"
+                        :href="doc.file_url" target="_blank"
+                        class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs text-gray-700 group"
+                      >
+                        <FileText :size="13" class="text-gray-400 group-hover:text-navy flex-shrink-0" />
+                        <span class="truncate">{{ doc.description || doc.document_type?.replace('_', ' ') }}</span>
+                        <Download :size="11" class="text-gray-300 group-hover:text-navy ml-auto flex-shrink-0" />
+                      </a>
+                    </div>
+                    <p v-else class="text-xs text-gray-400">No documents attached</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -374,35 +544,76 @@
         <!-- Previous leases -->
         <div v-if="previousLeases.length" class="space-y-2">
           <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Previous leases</p>
-          <div
-            v-for="lease in previousLeases"
-            :key="lease.id"
-            class="card p-4 flex items-center gap-4 cursor-pointer hover:shadow-md transition-shadow"
-            @click="$router.push({ path: '/leases', query: { expand: lease.id } })"
-          >
-            <span :class="{
-              'badge-gray': lease.status === 'expired',
-              'badge-red':  lease.status === 'cancelled' || lease.status === 'voided',
-              'badge-amber': lease.status === 'draft',
-            }">{{ lease.status }}</span>
-            <div class="flex-1 min-w-0">
-              <div class="text-sm font-medium text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</div>
-              <div class="text-xs text-gray-400">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+          <div v-for="lease in previousLeases" :key="lease.id" class="card overflow-hidden">
+            <div
+              class="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-50 transition-colors"
+              @click="toggleExpand(lease.id)"
+            >
+              <span :class="{
+                'badge-gray': lease._displayStatus === 'expired',
+                'badge-red':  lease._displayStatus === 'cancelled' || lease._displayStatus === 'voided',
+                'badge-amber': lease._displayStatus === 'draft',
+              }">{{ lease._displayStatus }}</span>
+              <div class="flex-1 min-w-0">
+                <div class="text-sm font-medium text-gray-900">{{ lease.lease_number || `Lease #${lease.id}` }}</div>
+                <div class="text-xs text-gray-400">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+              </div>
+              <div class="text-sm text-gray-600">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+              <ChevronDown :size="14" class="text-gray-400 flex-shrink-0 transition-transform duration-200" :class="expandedLeaseIds.includes(lease.id) ? 'rotate-180' : ''" />
             </div>
-            <div class="text-sm text-gray-600">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
-            <ChevronRight :size="14" class="text-gray-400 flex-shrink-0" />
+            <!-- Expanded detail for previous leases -->
+            <div v-if="expandedLeaseIds.includes(lease.id)" class="bg-slate-50 border-t border-gray-200 px-5 py-4 space-y-4">
+              <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Lease details</div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <div class="text-xs text-gray-400">Tenant</div>
+                    <div class="font-medium text-gray-900">{{ lease.tenant_name || '—' }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400">Monthly rent</div>
+                    <div class="font-semibold text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString() }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400">Deposit</div>
+                    <div class="font-semibold text-gray-900">R{{ Number(lease.deposit).toLocaleString() }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-gray-400">Payment ref</div>
+                    <div class="font-mono text-gray-900">{{ lease.payment_reference || '—' }}</div>
+                  </div>
+                </div>
+                <div v-if="lease.documents?.length" class="mt-3 pt-3 border-t border-gray-100 space-y-1.5">
+                  <div class="text-xs text-gray-400 mb-1">Documents</div>
+                  <a
+                    v-for="doc in lease.documents" :key="doc.id"
+                    :href="doc.file_url" target="_blank"
+                    class="flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors text-xs text-gray-700 group"
+                  >
+                    <FileText :size="13" class="text-gray-400 group-hover:text-navy flex-shrink-0" />
+                    <span class="truncate">{{ doc.description || doc.document_type?.replace('_', ' ') }}</span>
+                    <Download :size="11" class="text-gray-300 group-hover:text-navy ml-auto flex-shrink-0" />
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <EmptyState
           v-if="!loadingLease && !loadingPrevLeases && !currentLeases.length && !previousLeases.length"
           title="No leases yet"
-          description="Create a lease to get started."
+          description="Create a new lease or import an existing one from a PDF."
           :icon="FileSignature"
         >
-          <button class="btn-primary" @click="goCreateLease()">
-            <Plus :size="15" /> Create lease
-          </button>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost btn-sm" @click="showImportWizard = true">
+              <Upload :size="14" /> Import old lease
+            </button>
+            <button class="btn-primary btn-sm" @click="goCreateLease()">
+              <Plus :size="14" /> Create lease
+            </button>
+          </div>
         </EmptyState>
       </div>
 
@@ -502,10 +713,101 @@
         </EmptyState>
       </div>
 
-      <!-- ── Documentation tab ── -->
-      <!-- ── Mandate tab ── -->
-      <div v-else-if="activeSection === 'mandate'">
-        <MandateTab :property-id="Number(route.params.id)" />
+      <!-- ── Agency tab (mandate + agents) ── -->
+      <div v-else-if="activeSection === 'agency'" class="space-y-6">
+        <!-- Mandate section -->
+        <section class="card overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center gap-2">
+            <FileSignature :size="14" class="text-navy" />
+            <h3 class="text-xs font-semibold uppercase tracking-wide text-navy">Mandate</h3>
+          </div>
+          <div class="p-5">
+            <MandateTab :property-id="Number(route.params.id)" />
+          </div>
+        </section>
+
+        <!-- Agents section -->
+        <section class="card overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <UserCog :size="14" class="text-navy" />
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-navy">Agents</h3>
+              <span v-if="agentAssignments.length" class="text-xs text-gray-400">({{ agentAssignments.length }})</span>
+            </div>
+            <button @click="showAssignAgent = true" class="btn-ghost btn-sm text-navy">
+              <UserPlus :size="14" /> Assign agent
+            </button>
+          </div>
+
+          <div v-if="loadingAgentAssignments" class="p-8 text-center text-gray-400">
+            <Loader2 :size="20" class="animate-spin mx-auto" />
+          </div>
+
+          <div v-else-if="agentAssignments.length" class="table-scroll">
+            <table class="table-wrap">
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Assigned</th>
+                  <th class="!text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="a in agentAssignments" :key="a.id">
+                  <td>
+                    <div class="font-medium text-gray-900">{{ a.agent_name }}</div>
+                    <div class="text-xs text-gray-400">{{ a.agent_email }}</div>
+                  </td>
+                  <td>
+                    <span :class="a.assignment_type === 'managing' ? 'bg-info-100 text-info-700' : 'bg-info-50 text-info-600'" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium">
+                      {{ a.assignment_type_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <span :class="{
+                      'bg-success-100 text-success-700': a.status === 'active',
+                      'bg-gray-100 text-gray-500': a.status === 'completed',
+                      'bg-warning-100 text-warning-700': a.status === 'inactive',
+                    }" class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize">
+                      {{ a.status }}
+                    </span>
+                  </td>
+                  <td class="text-gray-500 text-xs">
+                    {{ formatAgentDate(a.created_at) }}
+                    <span v-if="a.assigned_by_name" class="text-gray-400"> by {{ a.assigned_by_name }}</span>
+                  </td>
+                  <td class="text-right space-x-1">
+                    <select
+                      v-if="a.status === 'active'"
+                      :value="a.status"
+                      @change="updateAssignmentStatus(a, ($event.target as HTMLSelectElement).value)"
+                      class="text-xs border border-gray-200 rounded px-1.5 py-1 text-gray-600"
+                    >
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                    <button @click="removeAssignment(a)" class="text-gray-400 hover:text-danger-600 p-1 rounded">
+                      <Trash2 :size="14" />
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="p-5">
+            <EmptyState
+              title="No agents assigned"
+              description="Assign estate agents or managing agents to this property."
+              :icon="UserCog"
+            >
+              <button @click="showAssignAgent = true" class="btn-primary btn-sm">Assign agent</button>
+            </EmptyState>
+          </div>
+        </section>
       </div>
 
       <div v-else-if="activeSection === 'documentation'" class="space-y-4">
@@ -523,14 +825,14 @@
                   <span class="text-xs font-semibold text-gray-800">{{ cat.label }}</span>
                 </div>
                 <div class="flex items-center gap-2">
-                  <span v-if="docsByCategory[cat.key]?.length" class="text-[10px] font-semibold text-navy bg-surface-secondary px-1.5 py-0.5 rounded-full">{{ docsByCategory[cat.key].length }}</span>
-                  <label class="btn-ghost btn-sm cursor-pointer !py-0.5 !px-2 !text-[11px]">
+                  <span v-if="docsByCategory[cat.key]?.length" class="text-xs font-semibold text-navy bg-surface-secondary px-1.5 py-0.5 rounded-full">{{ docsByCategory[cat.key].length }}</span>
+                  <label class="btn-ghost btn-sm cursor-pointer !py-0.5 !px-2 !text-micro">
                     <Upload :size="11" /> Upload
                     <input type="file" class="hidden" @change="(e: Event) => uploadDocForCategory(e, cat.types[0])" />
                   </label>
                 </div>
               </div>
-              <p class="text-[10px] text-gray-400 mt-1">{{ cat.desc }}</p>
+              <p class="text-xs text-gray-400 mt-1">{{ cat.desc }}</p>
             </div>
 
             <div v-if="docsByCategory[cat.key]?.length" class="divide-y divide-gray-50">
@@ -547,10 +849,10 @@
                   <FileText :size="13" class="text-gray-400 flex-shrink-0" />
                   <div class="min-w-0">
                     <div class="font-medium truncate">{{ doc.name }}</div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">{{ fmtDate(doc.uploaded_at) }}</div>
+                    <div class="text-xs text-gray-400 mt-0.5">{{ fmtDate(doc.uploaded_at) }}</div>
                   </div>
                 </a>
-                <span class="badge-gray text-[9px] flex-shrink-0 capitalize">{{ doc.doc_type.replace(/_/g, ' ') }}</span>
+                <span class="badge-gray text-xs flex-shrink-0 capitalize">{{ doc.doc_type.replace(/_/g, ' ') }}</span>
               </div>
             </div>
 
@@ -569,7 +871,7 @@
             placeholder="Parking, noise hours, pets, visitors, refuse collection, braai areas…"
             @blur="saveHouseRules"
           />
-          <p v-if="rulesSaved" class="text-[11px] text-success-600 mt-1">Saved</p>
+          <p v-if="rulesSaved" class="text-micro text-success-600 mt-1">Saved</p>
         </div>
       </div>
 
@@ -632,7 +934,7 @@
                     <div class="font-medium text-gray-900">{{ item.name }}</div>
                     <div v-if="item.notes" class="text-xs text-gray-400 truncate max-w-[200px]">{{ item.notes }}</div>
                   </td>
-                  <td><span class="badge-gray capitalize text-[10px]">{{ item.category }}</span></td>
+                  <td><span class="badge-gray capitalize text-xs">{{ item.category }}</span></td>
                   <td class="text-gray-700">{{ item.quantity }}</td>
                   <td><span :class="conditionBadge(item.condition_in)">{{ item.condition_in }}</span></td>
                   <td>
@@ -672,52 +974,139 @@
         </template>
       </div>
 
-      <!-- ── Maintenance & Tasks tab ── -->
-      <div v-else-if="activeSection === 'maintenance'" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-gray-500">Maintenance requests and tasks for this property.</p>
-          <RouterLink to="/maintenance/issues" class="btn-primary btn-sm">
-            <Wrench :size="14" /> All requests
-          </RouterLink>
+      <!-- ── Maintenance tab (includes suppliers) ── -->
+      <div v-else-if="activeSection === 'maintenance'" class="space-y-6">
+        <!-- Open requests -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900">Open requests</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Maintenance issues and tasks for this property.</p>
+            </div>
+            <RouterLink to="/maintenance/issues" class="btn-primary btn-sm">
+              <Wrench :size="14" /> All requests
+            </RouterLink>
+          </div>
+
+          <div class="card">
+            <div v-if="loadingMaintenance" class="p-5 space-y-3 animate-pulse">
+              <div v-for="i in 3" :key="i" class="h-4 bg-gray-100 rounded" />
+            </div>
+
+            <div v-else-if="openMaintenance.length" class="divide-y divide-gray-50">
+              <div
+                v-for="req in openMaintenance"
+                :key="req.id"
+                class="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                @click="router.push({ name: 'maintenance-detail', params: { id: req.id } })"
+              >
+                <div class="min-w-0">
+                  <div class="text-sm font-medium text-gray-800 truncate">{{ req.title }}</div>
+                  <div class="text-xs text-gray-400 mt-0.5">{{ req.unit ?? '' }}</div>
+                </div>
+                <span
+                  class="flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
+                  :class="{
+                    'bg-danger-50 text-danger-600':  req.priority === 'urgent' || req.priority === 'high',
+                    'bg-warning-50 text-warning-600': req.priority === 'medium',
+                    'bg-gray-100 text-gray-500':      req.priority === 'low',
+                  }"
+                >{{ req.priority }}</span>
+              </div>
+            </div>
+
+            <EmptyState
+              v-else
+              title="No open requests"
+              description="All maintenance requests are resolved."
+              :icon="Wrench"
+            />
+          </div>
         </div>
 
-        <div class="card">
-          <div class="px-5 py-3 border-b border-gray-100">
-            <span class="text-xs font-semibold uppercase tracking-wide text-navy">Open Requests</span>
+        <!-- Suppliers -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-semibold text-gray-900">Suppliers</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Service providers linked to this property.</p>
+            </div>
+            <RouterLink to="/maintenance/suppliers" class="btn-ghost btn-sm text-navy">
+              <Truck :size="14" /> Manage all suppliers
+            </RouterLink>
           </div>
 
-          <div v-if="loadingMaintenance" class="p-5 space-y-3 animate-pulse">
-            <div v-for="i in 3" :key="i" class="h-4 bg-gray-100 rounded" />
+          <div v-if="loadingSuppliers" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
+            <div v-for="i in 3" :key="i" class="card p-5"><div class="h-28 bg-gray-100 rounded" /></div>
           </div>
 
-          <div v-else-if="openMaintenance.length" class="divide-y divide-gray-50">
+          <div v-else-if="propertySuppliers.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div
-              v-for="req in openMaintenance"
-              :key="req.id"
-              class="px-5 py-3 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors cursor-pointer"
-              @click="router.push('/maintenance/issues')"
+              v-for="s in propertySuppliers"
+              :key="s.id"
+              class="card p-5 space-y-3 hover:shadow-md transition-shadow cursor-pointer"
+              @click="$router.push(`/maintenance/suppliers/${s.id}`)"
             >
-              <div class="min-w-0">
-                <div class="text-sm font-medium text-gray-800 truncate">{{ req.title }}</div>
-                <div class="text-xs text-gray-400 mt-0.5">{{ req.unit ?? '' }}</div>
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3 min-w-0">
+                  <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
+                    <Truck :size="16" class="text-navy" />
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-sm font-semibold text-gray-900 truncate">{{ s.display_name || s.company_name || s.name }}</div>
+                    <div v-if="s.company_name && s.name !== s.company_name" class="text-xs text-gray-400 truncate">{{ s.name }}</div>
+                  </div>
+                </div>
+                <span
+                  v-if="s.property_links?.some((l: any) => l.property === property?.id && l.is_preferred)"
+                  class="badge-green text-xs flex-shrink-0"
+                >Preferred</span>
               </div>
-              <span
-                class="flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                :class="{
-                  'bg-danger-50 text-danger-600':  req.priority === 'urgent' || req.priority === 'high',
-                  'bg-warning-50 text-warning-600': req.priority === 'medium',
-                  'bg-gray-100 text-gray-500':      req.priority === 'low',
-                }"
-              >{{ req.priority }}</span>
+
+              <div v-if="s.trades?.length" class="flex flex-wrap gap-1">
+                <span
+                  v-for="t in s.trades"
+                  :key="t.id"
+                  class="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize"
+                >{{ t.trade_display || t.trade }}</span>
+              </div>
+
+              <div class="space-y-1.5 text-xs">
+                <a
+                  v-if="s.phone"
+                  :href="`tel:${s.phone}`"
+                  class="flex items-center gap-2 text-gray-600 hover:text-navy"
+                  @click.stop
+                >
+                  <Phone :size="12" class="text-gray-400 flex-shrink-0" />
+                  {{ s.phone }}
+                </a>
+                <a
+                  v-if="s.email"
+                  :href="`mailto:${s.email}`"
+                  class="flex items-center gap-2 text-gray-600 hover:text-navy truncate"
+                  @click.stop
+                >
+                  <Mail :size="12" class="text-gray-400 flex-shrink-0" />
+                  {{ s.email }}
+                </a>
+              </div>
+
+              <div v-if="s.active_jobs_count" class="border-t border-gray-100 pt-2 flex items-center gap-1.5">
+                <Wrench :size="12" class="text-warning-500" />
+                <span class="text-xs text-gray-600">{{ s.active_jobs_count }} active job{{ s.active_jobs_count !== 1 ? 's' : '' }}</span>
+              </div>
             </div>
           </div>
 
           <EmptyState
             v-else
-            title="No open requests"
-            description="All maintenance requests are resolved."
-            :icon="Wrench"
-          />
+            title="No suppliers linked"
+            description="Link suppliers to this property from the suppliers page."
+            :icon="Truck"
+          >
+            <RouterLink to="/maintenance/suppliers" class="btn-primary btn-sm">Manage suppliers</RouterLink>
+          </EmptyState>
         </div>
       </div>
 
@@ -765,7 +1154,7 @@
             :placeholder="activeUnit ? 'Write a compelling description for this unit listing…' : 'Write a compelling description for this property listing…'"
             @blur="saveAdDescription"
           />
-          <p v-if="adSaved" class="text-[11px] text-success-600">Saved</p>
+          <p v-if="adSaved" class="text-micro text-success-600">Saved</p>
         </div>
 
         <!-- Photos -->
@@ -795,26 +1184,33 @@
             <div v-for="i in 4" :key="i" class="aspect-[4/3] bg-gray-100 rounded-lg" />
           </div>
 
-          <div v-else-if="unitPhotos.length" class="grid grid-cols-8 gap-2">
-            <div
-              v-for="photo in unitPhotos"
-              :key="photo.id"
-              class="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group"
-            >
-              <img
-                :src="photo.thumbnail_url || photo.photo_url"
-                class="w-full h-full object-cover"
-                :alt="photo.caption || 'Unit photo'"
-              />
-              <button
-                class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                @click="deletePhoto(photo)"
-                title="Delete photo"
+          <draggable
+            v-else-if="unitPhotos.length"
+            v-model="unitPhotos"
+            item-key="id"
+            class="grid grid-cols-8 gap-2"
+            ghost-class="opacity-30"
+            @end="savePhotoOrder"
+          >
+            <template #item="{ element: photo }">
+              <div
+                class="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group cursor-grab active:cursor-grabbing"
               >
-                <X :size="12" />
-              </button>
-            </div>
-          </div>
+                <img
+                  :src="photo.thumbnail_url || photo.photo_url"
+                  class="w-full h-full object-cover pointer-events-none"
+                  :alt="photo.caption || 'Unit photo'"
+                />
+                <button
+                  class="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-danger-600"
+                  @click.stop="deletePhoto(photo)"
+                  title="Delete photo"
+                >
+                  <X :size="12" />
+                </button>
+              </div>
+            </template>
+          </draggable>
 
           <div v-else class="py-4">
             <EmptyState title="No photos yet" description="Upload photos to showcase this unit in listings." :icon="ImagePlus" />
@@ -822,238 +1218,6 @@
         </div>
       </div>
 
-      <!-- ── Landlord tab ── -->
-      <div v-else-if="activeSection === 'landlord'" class="space-y-4">
-        <p class="text-sm text-gray-500">Owner and representative information for this property.</p>
-
-        <div v-if="loadingOwner" class="grid grid-cols-1 lg:grid-cols-2 gap-4 animate-pulse">
-          <div class="card p-5"><div class="h-32 bg-gray-100 rounded" /></div>
-          <div class="card p-5"><div class="h-32 bg-gray-100 rounded" /></div>
-        </div>
-
-        <template v-else-if="owner">
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <!-- Owner entity -->
-            <div class="card p-5 space-y-3">
-              <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner Entity</div>
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
-                  <Building2 :size="18" class="text-navy" />
-                </div>
-                <div class="min-w-0">
-                  <div class="text-sm font-semibold text-gray-900">{{ owner.owner_name }}</div>
-                  <div class="text-xs text-gray-400 capitalize">{{ owner.owner_type }}</div>
-                </div>
-              </div>
-
-              <div class="space-y-2 text-xs">
-                <div v-if="owner.registration_number" class="flex justify-between">
-                  <span class="text-gray-400">Registration</span>
-                  <span class="text-gray-700 font-medium">{{ owner.registration_number }}</span>
-                </div>
-                <div v-if="owner.vat_number" class="flex justify-between">
-                  <span class="text-gray-400">VAT number</span>
-                  <span class="text-gray-700 font-medium">{{ owner.vat_number }}</span>
-                </div>
-                <div v-if="owner.owner_email" class="flex justify-between">
-                  <span class="text-gray-400">Email</span>
-                  <a :href="`mailto:${owner.owner_email}`" class="text-navy hover:underline">{{ owner.owner_email }}</a>
-                </div>
-                <div v-if="owner.owner_phone" class="flex justify-between">
-                  <span class="text-gray-400">Phone</span>
-                  <a :href="`tel:${owner.owner_phone}`" class="text-gray-700 hover:text-navy">{{ owner.owner_phone }}</a>
-                </div>
-              </div>
-
-              <div v-if="owner.owner_address?.street" class="border-t border-gray-100 pt-2.5 text-xs text-gray-600">
-                <div class="text-gray-400 text-[10px] uppercase tracking-wide mb-1">Address</div>
-                <div>{{ owner.owner_address.street }}</div>
-                <div v-if="owner.owner_address.city">{{ owner.owner_address.city }}<span v-if="owner.owner_address.province">, {{ owner.owner_address.province }}</span></div>
-                <div v-if="owner.owner_address.postal_code">{{ owner.owner_address.postal_code }}</div>
-              </div>
-            </div>
-
-            <!-- Representative -->
-            <div class="card p-5 space-y-3">
-              <div class="text-xs font-semibold uppercase tracking-wide text-navy">Representative</div>
-
-              <div v-if="owner.representative_name" class="space-y-3">
-                <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
-                    <span class="text-navy font-bold text-sm">{{ initials(owner.representative_name) }}</span>
-                  </div>
-                  <div class="min-w-0">
-                    <div class="text-sm font-semibold text-gray-900">{{ owner.representative_name }}</div>
-                    <div v-if="owner.representative_id_number" class="text-xs text-gray-400">ID: {{ owner.representative_id_number }}</div>
-                  </div>
-                </div>
-
-                <div class="space-y-1.5 text-xs">
-                  <a
-                    v-if="owner.representative_phone"
-                    :href="`tel:${owner.representative_phone}`"
-                    class="flex items-center gap-2 text-gray-600 hover:text-navy"
-                  >
-                    <Phone :size="12" class="text-gray-400 flex-shrink-0" />
-                    {{ owner.representative_phone }}
-                  </a>
-                  <a
-                    v-if="owner.representative_email"
-                    :href="`mailto:${owner.representative_email}`"
-                    class="flex items-center gap-2 text-gray-600 hover:text-navy truncate"
-                  >
-                    <Mail :size="12" class="text-gray-400 flex-shrink-0" />
-                    {{ owner.representative_email }}
-                  </a>
-                </div>
-              </div>
-
-              <p v-else class="text-xs text-gray-400">No representative assigned.</p>
-            </div>
-          </div>
-
-          <!-- Bank details -->
-          <div v-if="owner.bank_details?.bank_name" class="card p-5 space-y-3">
-            <div class="text-xs font-semibold uppercase tracking-wide text-navy">Banking Details</div>
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 text-xs">
-              <div>
-                <div class="text-gray-400">Bank</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ owner.bank_details.bank_name }}</div>
-              </div>
-              <div>
-                <div class="text-gray-400">Account holder</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ owner.bank_details.account_holder || '—' }}</div>
-              </div>
-              <div>
-                <div class="text-gray-400">Account number</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ owner.bank_details.account_number || '—' }}</div>
-              </div>
-              <div>
-                <div class="text-gray-400">Branch code</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ owner.bank_details.branch_code || '—' }}</div>
-              </div>
-              <div>
-                <div class="text-gray-400">Account type</div>
-                <div class="font-semibold text-gray-900 mt-0.5 capitalize">{{ owner.bank_details.account_type || '—' }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Ownership period -->
-          <div class="card p-5 space-y-3">
-            <div class="text-xs font-semibold uppercase tracking-wide text-navy">Ownership</div>
-            <div class="grid grid-cols-3 gap-4 text-xs">
-              <div>
-                <div class="text-gray-400">Since</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ fmtDate(owner.start_date) }}</div>
-              </div>
-              <div>
-                <div class="text-gray-400">Status</div>
-                <span :class="owner.is_current ? 'badge-green' : 'badge-gray'">{{ owner.is_current ? 'Current owner' : 'Former owner' }}</span>
-              </div>
-              <div v-if="owner.end_date">
-                <div class="text-gray-400">Until</div>
-                <div class="font-semibold text-gray-900 mt-0.5">{{ fmtDate(owner.end_date) }}</div>
-              </div>
-            </div>
-            <div v-if="owner.notes" class="border-t border-gray-100 pt-2.5 text-xs text-gray-600">
-              <div class="text-gray-400 text-[10px] uppercase tracking-wide mb-1">Notes</div>
-              {{ owner.notes }}
-            </div>
-          </div>
-        </template>
-
-        <EmptyState
-          v-else
-          title="No owner linked"
-          description="Link an owner to this property from the landlords page."
-          :icon="Building2"
-        >
-          <RouterLink to="/landlords" class="btn-primary btn-sm">Manage landlords</RouterLink>
-        </EmptyState>
-      </div>
-
-      <!-- ── Suppliers tab ── -->
-      <div v-else-if="activeSection === 'suppliers'" class="space-y-4">
-        <div class="flex items-center justify-between">
-          <p class="text-sm text-gray-500">Suppliers linked to this property.</p>
-          <RouterLink to="/maintenance/suppliers" class="btn-ghost btn-sm text-navy">
-            <Truck :size="14" /> Manage all suppliers
-          </RouterLink>
-        </div>
-
-        <div v-if="loadingSuppliers" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-pulse">
-          <div v-for="i in 3" :key="i" class="card p-5"><div class="h-28 bg-gray-100 rounded" /></div>
-        </div>
-
-        <div v-else-if="propertySuppliers.length" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            v-for="s in propertySuppliers"
-            :key="s.id"
-            class="card p-5 space-y-3 hover:shadow-md transition-shadow cursor-pointer"
-            @click="$router.push(`/maintenance/suppliers/${s.id}`)"
-          >
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-10 h-10 rounded-full bg-surface-secondary flex items-center justify-center flex-shrink-0">
-                  <Truck :size="16" class="text-navy" />
-                </div>
-                <div class="min-w-0">
-                  <div class="text-sm font-semibold text-gray-900 truncate">{{ s.display_name || s.company_name || s.name }}</div>
-                  <div v-if="s.company_name && s.name !== s.company_name" class="text-xs text-gray-400 truncate">{{ s.name }}</div>
-                </div>
-              </div>
-              <span
-                v-if="s.property_links?.some((l: any) => l.property === property?.id && l.is_preferred)"
-                class="badge-green text-[10px] flex-shrink-0"
-              >Preferred</span>
-            </div>
-
-            <div v-if="s.trades?.length" class="flex flex-wrap gap-1">
-              <span
-                v-for="t in s.trades"
-                :key="t.id"
-                class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize"
-              >{{ t.trade_display || t.trade }}</span>
-            </div>
-
-            <div class="space-y-1.5 text-xs">
-              <a
-                v-if="s.phone"
-                :href="`tel:${s.phone}`"
-                class="flex items-center gap-2 text-gray-600 hover:text-navy"
-                @click.stop
-              >
-                <Phone :size="12" class="text-gray-400 flex-shrink-0" />
-                {{ s.phone }}
-              </a>
-              <a
-                v-if="s.email"
-                :href="`mailto:${s.email}`"
-                class="flex items-center gap-2 text-gray-600 hover:text-navy truncate"
-                @click.stop
-              >
-                <Mail :size="12" class="text-gray-400 flex-shrink-0" />
-                {{ s.email }}
-              </a>
-            </div>
-
-            <div v-if="s.active_jobs_count" class="border-t border-gray-100 pt-2 flex items-center gap-1.5">
-              <Wrench :size="12" class="text-warning-500" />
-              <span class="text-xs text-gray-600">{{ s.active_jobs_count }} active job{{ s.active_jobs_count !== 1 ? 's' : '' }}</span>
-            </div>
-          </div>
-        </div>
-
-        <EmptyState
-          v-else
-          title="No suppliers linked"
-          description="Link suppliers to this property from the suppliers page."
-          :icon="Truck"
-        >
-          <RouterLink to="/maintenance/suppliers" class="btn-primary btn-sm">Manage suppliers</RouterLink>
-        </EmptyState>
-      </div>
 
     </template>
 
@@ -1228,7 +1392,7 @@
           <textarea v-model="renewNotes" class="input h-16 resize-none mt-1" placeholder="Any special conditions for this renewal period…" />
         </div>
         <div v-if="renewEndDate" class="rounded-lg border border-navy/20 bg-navy/5 px-4 py-3 text-xs text-gray-700 space-y-1">
-          <div class="font-semibold text-navy text-[11px] uppercase tracking-wide mb-1.5">Addendum summary</div>
+          <div class="font-semibold text-navy text-micro uppercase tracking-wide mb-1.5">Addendum summary</div>
           <div>Period: <strong>{{ fmtDate(activeLease?.end_date) }} → {{ fmtDate(renewEndDate) }}</strong></div>
           <div>Rent: <strong>R{{ Number(renewRent || 0).toLocaleString('en-ZA') }}/mo</strong></div>
           <div v-if="renewNotes" class="text-gray-500 italic">{{ renewNotes }}</div>
@@ -1358,11 +1522,54 @@
       </template>
     </BaseModal>
 
+    <!-- Assign Agent Modal -->
+    <BaseModal :open="showAssignAgent" title="Assign Agent" @close="showAssignAgent = false">
+      <div class="space-y-4">
+        <div>
+          <label class="label">Agent</label>
+          <select v-model="assignAgentForm.agent" class="input">
+            <option value="">— Select agent —</option>
+            <option v-for="u in availableAgents" :key="u.id" :value="u.id">{{ u.full_name }} ({{ u.email }})</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Assignment Type</label>
+          <select v-model="assignAgentForm.assignment_type" class="input">
+            <option value="managing">Managing Agent (ongoing)</option>
+            <option value="estate">Estate Agent (transaction)</option>
+          </select>
+          <p class="text-xs text-gray-400 mt-1">
+            {{ assignAgentForm.assignment_type === 'managing'
+              ? 'Ongoing property management — maintenance, tenants, fiduciary duty.'
+              : 'Transaction-based — access ends when deal completes.' }}
+          </p>
+        </div>
+        <div v-if="assignAgentError" class="text-sm text-danger-600">{{ assignAgentError }}</div>
+      </div>
+      <template #footer>
+        <button class="btn-ghost" @click="showAssignAgent = false">Cancel</button>
+        <button class="btn-primary" :disabled="assigningAgent || !assignAgentForm.agent" @click="assignAgent">
+          <Loader2 v-if="assigningAgent" :size="14" class="animate-spin" />
+          Assign
+        </button>
+      </template>
+    </BaseModal>
+
+    <ImportLeaseWizard
+      v-if="showImportWizard"
+      :prefilled-property-id="property?.id"
+      :prefilled-property-name="property?.name"
+      :prefilled-unit-id="activeUnit ?? undefined"
+      @close="showImportWizard = false"
+      @done="showImportWizard = false; setSection('leases'); property?.id && loadUnitLeases(activeUnit ?? property.units?.[0]?.id)"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import draggable from 'vuedraggable'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { usePropertiesStore } from '../../stores/properties'
@@ -1371,16 +1578,23 @@ import { useOwnershipsStore } from '../../stores/ownerships'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
+import Breadcrumb from '../../components/Breadcrumb.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LeaseTimelineGantt from '../../components/LeaseTimelineGantt.vue'
+import PropertyInformationEditor from '../../components/PropertyInformationEditor.vue'
+import type { PropertyInformationItem } from '../../types/property'
 import MandateTab from './MandateTab.vue'
+import ImportLeaseWizard from '../leases/ImportLeaseWizard.vue'
+import ESigningPanel from '../leases/ESigningPanel.vue'
 import {
   ArrowLeft, MoreHorizontal, FilePlus2, Ban, Upload, FileText,
   FileSignature, Loader2, Calendar, Wrench, Phone, Mail, ImagePlus,
   ClipboardList, ListTodo, Plus, ScanBarcode, FolderOpen,
   Megaphone, Building2, Landmark, ShieldCheck, Cpu, Receipt, Zap, Truck,
-  Home, CheckCircle, X, ChevronRight, Users, UserPlus, Pencil,
+  Home, CheckCircle, X, ChevronRight, ChevronDown, Users, UserPlus, Pencil, UserCog, Trash2, Download,
+  CalendarClock, Info,
 } from 'lucide-vue-next'
 
 const NOTICE_DAYS = 30
@@ -1410,6 +1624,37 @@ const previousLeases    = ref<any[]>([])
 const loadingPrevLeases = ref(false)
 const propertySuppliers = ref<any[]>([])
 const loadingSuppliers  = ref(false)
+
+// ── Agent assignments state ──
+const agentAssignments = ref<any[]>([])
+const loadingAgentAssignments = ref(false)
+const showImportWizard = ref(false)
+const expandedLeaseIds = ref<number[]>([])
+
+function toggleExpand(id: number) {
+  const idx = expandedLeaseIds.value.indexOf(id)
+  if (idx === -1) expandedLeaseIds.value.push(id)
+  else expandedLeaseIds.value.splice(idx, 1)
+}
+
+function leaseTenants(lease: any) {
+  const co = (lease.co_tenants ?? []).map((ct: any) => ct.person ?? ct)
+  const primary = lease.primary_tenant_detail
+  return primary ? [primary, ...co] : co
+}
+
+function leasePeriodMonths(start: string, end: string): string {
+  if (!start || !end) return '—'
+  const s = new Date(start)
+  const e = new Date(end)
+  const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
+  return months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : '—'
+}
+const showAssignAgent = ref(false)
+const assignAgentForm = ref({ agent: '', assignment_type: 'managing' })
+const assigningAgent = ref(false)
+const assignAgentError = ref('')
+const availableAgents = ref<any[]>([])
 const loadingPhotos    = ref(false)
 const uploadingPhotos  = ref(false)
 const uploadProgress   = ref(0)
@@ -1418,6 +1663,7 @@ const uploadProgress   = ref(0)
 const deletePhotoOpen   = ref(false)
 const deletingPhoto     = ref<any>(null)
 const deletePhotoBusy   = ref(false)
+const savingPhotoOrder  = ref(false)
 
 // Overview dashboard data
 const complianceCerts    = ref<any[]>([])
@@ -1438,24 +1684,51 @@ const editTenantForm    = ref({ full_name: '', email: '', phone: '', id_number: 
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
 const activeUnit = ref<number | null>(null)
-const activeSection = ref<'overview' | 'leases' | 'tenants' | 'mandate' | 'inventory' | 'maintenance' | 'advertising' | 'landlord' | 'documentation' | 'suppliers'>('overview')
+const VALID_SECTIONS = ['overview', 'information', 'leases', 'tenants', 'agency', 'inventory', 'maintenance', 'advertising', 'documentation'] as const
+type SectionKey = typeof VALID_SECTIONS[number]
+function normaliseTab(t: unknown): SectionKey | null {
+  const raw = typeof t === 'string' ? t : ''
+  const aliased = raw === 'mandate' ? 'agency' : raw
+  return (VALID_SECTIONS as readonly string[]).includes(aliased) ? (aliased as SectionKey) : null
+}
+const activeSection = ref<SectionKey>(normaliseTab(route.query.tab) ?? 'overview')
+
+function setSection(key: SectionKey) {
+  activeSection.value = key
+  router.replace({ query: { ...route.query, tab: key } })
+}
+
+watch(() => route.query.tab, (t) => {
+  const k = normaliseTab(t)
+  if (k) activeSection.value = k
+})
+
+// Auto-expand a specific lease when deep-linked via ?lease=<id>
+// Used by the dashboard "Submit for signing" CTA so the user lands on the
+// drafted successor lease with its signing panel already visible.
+function applyLeaseQuery(q: unknown) {
+  const id = Number(q)
+  if (!Number.isFinite(id) || id <= 0) return
+  if (!expandedLeaseIds.value.includes(id)) expandedLeaseIds.value.push(id)
+}
+applyLeaseQuery(route.query.lease)
+watch(() => route.query.lease, applyLeaseQuery)
 
 const sectionTabs = computed(() => {
   const tabs: Array<{ key: string; label: string; icon: any }> = [
-    { key: 'overview', label: 'Overview', icon: Wrench },
+    { key: 'overview', label: 'Overview', icon: Home },
+    { key: 'information', label: 'Information', icon: Info },
     { key: 'leases',   label: 'Leases',   icon: FileSignature },
     { key: 'tenants',  label: 'Tenants',  icon: Users },
   ]
   if (auth.isAgency) {
-    tabs.push({ key: 'mandate', label: 'Mandate', icon: FileSignature })
+    tabs.push({ key: 'agency', label: 'Agency', icon: UserCog })
   }
   tabs.push(
-    { key: 'landlord', label: 'Landlord', icon: Building2 },
     { key: 'documentation', label: 'Documentation', icon: FolderOpen },
     { key: 'inventory', label: 'Inventory', icon: ClipboardList },
-    { key: 'suppliers', label: 'Suppliers', icon: Truck },
+    { key: 'maintenance', label: 'Maintenance', icon: ListTodo },
     { key: 'advertising', label: 'Advertising', icon: Megaphone },
-    { key: 'maintenance', label: 'Maintenance & Tasks', icon: ListTodo },
   )
   return tabs
 })
@@ -1646,9 +1919,9 @@ const leaseMilestones = computed(() => {
     ms.push({
       label: 'Renewal start (unsigned)',
       date: l.renewal_start_date,
-      dotClass: 'bg-amber-100 border-amber-400',
+      dotClass: 'bg-warning-100 border-warning-400',
       note: 'Addendum pending signature',
-      noteClass: 'text-amber-600',
+      noteClass: 'text-warning-600',
     })
   }
 
@@ -1711,7 +1984,7 @@ async function initProperty(id: number) {
   // Reset state for new property
   property.value = null
   activeUnit.value = null
-  activeSection.value = 'overview'
+  activeSection.value = VALID_SECTIONS.includes(route.query.tab as SectionKey) ? (route.query.tab as SectionKey) : 'overview'
   owner.value = null
   activeLease.value = null
   currentLeases.value = []
@@ -1810,6 +2083,10 @@ watch(activeSection, (sec) => {
   if (sec === 'suppliers' && !loadingSuppliers.value) {
     loadSuppliers()
   }
+  if (sec === 'agents' && !loadingAgentAssignments.value) {
+    loadAgentAssignments()
+    if (!availableAgents.value.length) loadAvailableAgents()
+  }
   if (sec === 'tenants' && !loadingTenants.value) {
     loadTenantAssignments()
   }
@@ -1833,9 +2110,20 @@ function loadUnitLeases(unitId: number) {
   loadingLease.value = true
   leasesStore.fetchForUnit(unitId)
     .then(all => {
+      const today = new Date(); today.setHours(0, 0, 0, 0)
       const CURRENT = new Set(['active', 'pending'])
-      currentLeases.value  = all.filter((l: any) => CURRENT.has(l.status))
-      previousLeases.value = all.filter((l: any) => !CURRENT.has(l.status))
+      // A lease whose end_date has passed is visually expired, regardless of stored status.
+      const decorated = all.map((l: any) => {
+        const end = l.end_date ? new Date(l.end_date) : null
+        const isPastEnd = !!(end && end.getTime() < today.getTime())
+        const displayStatus = isPastEnd ? 'expired' : l.status
+        return { ...l, _displayStatus: displayStatus }
+      })
+      // Sort by lease period — newest start_date first.
+      const byStartDesc = (a: any, b: any) =>
+        new Date(b.start_date || 0).getTime() - new Date(a.start_date || 0).getTime()
+      currentLeases.value  = decorated.filter((l: any) => CURRENT.has(l._displayStatus)).sort(byStartDesc)
+      previousLeases.value = decorated.filter((l: any) => !CURRENT.has(l._displayStatus)).sort(byStartDesc)
       activeLease.value    = currentLeases.value[0] ?? null
     })
     .catch(() => { activeLease.value = null })
@@ -1928,6 +2216,19 @@ async function doDeletePhoto() {
   }
 }
 
+async function savePhotoOrder() {
+  if (!property.value) return
+  savingPhotoOrder.value = true
+  try {
+    const payload = unitPhotos.value.map((p: any, idx: number) => ({ id: p.id, position: idx }))
+    await api.patch(`/properties/${property.value.id}/photos/`, payload)
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save photo order'))
+  } finally {
+    savingPhotoOrder.value = false
+  }
+}
+
 function loadPhotosAsync(propertyId: number, unitId: number | null): Promise<void> {
   // Only show skeleton on initial load — keep existing photos visible during refreshes
   if (!unitPhotos.value.length) loadingPhotos.value = true
@@ -2006,6 +2307,69 @@ function loadSuppliers() {
     .then(r => { propertySuppliers.value = r.data.results ?? r.data })
     .catch(() => { toast.error('Failed to load suppliers') })
     .finally(() => { loadingSuppliers.value = false })
+}
+
+// ── Agent assignments ──
+function loadAgentAssignments() {
+  if (!property.value) return
+  loadingAgentAssignments.value = true
+  api.get('/properties/agent-assignments/', { params: { property: property.value.id } })
+    .then(r => { agentAssignments.value = r.data.results ?? r.data })
+    .catch(() => { toast.error('Failed to load agent assignments') })
+    .finally(() => { loadingAgentAssignments.value = false })
+}
+
+function loadAvailableAgents() {
+  api.get('/auth/users/', { params: { role: '' } })
+    .then(r => {
+      const agentRoles = ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent']
+      const all = r.data.results ?? r.data
+      availableAgents.value = all.filter((u: any) => agentRoles.includes(u.role) && u.is_active)
+    })
+    .catch(() => {})
+}
+
+async function assignAgent() {
+  if (!property.value || !assignAgentForm.value.agent) return
+  assigningAgent.value = true
+  assignAgentError.value = ''
+  try {
+    await api.post('/properties/agent-assignments/', {
+      property: property.value.id,
+      agent: Number(assignAgentForm.value.agent),
+      assignment_type: assignAgentForm.value.assignment_type,
+    })
+    showAssignAgent.value = false
+    assignAgentForm.value = { agent: '', assignment_type: 'managing' }
+    loadAgentAssignments()
+  } catch (e: any) {
+    assignAgentError.value = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0] || 'Failed to assign agent.'
+  } finally {
+    assigningAgent.value = false
+  }
+}
+
+async function updateAssignmentStatus(assignment: any, newStatus: string) {
+  try {
+    await api.patch(`/properties/agent-assignments/${assignment.id}/`, { status: newStatus })
+    assignment.status = newStatus
+  } catch {
+    toast.error('Failed to update assignment')
+  }
+}
+
+async function removeAssignment(assignment: any) {
+  if (!confirm(`Remove ${assignment.agent_name} from this property?`)) return
+  try {
+    await api.delete(`/properties/agent-assignments/${assignment.id}/`)
+    agentAssignments.value = agentAssignments.value.filter((a: any) => a.id !== assignment.id)
+  } catch {
+    toast.error('Failed to remove assignment')
+  }
+}
+
+function formatAgentDate(iso: string) {
+  return new Date(iso).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 // ── Tenants ──
@@ -2251,7 +2615,7 @@ function conditionBadge(cond: string): string {
     damaged: 'badge-red',
     missing: 'badge-red',
   }
-  return `${map[cond] || 'badge-gray'} text-[10px]`
+  return `${map[cond] || 'badge-gray'} text-xs`
 }
 
 // ── Renew lease ──
@@ -2329,6 +2693,12 @@ function handleArchive() {
   toast.info('Archive feature coming soon')
 }
 
+function handleInformationSaved(items: PropertyInformationItem[]) {
+  if (property.value) {
+    property.value.information_items = items
+  }
+}
+
 async function confirmVoid() {
   voiding.value = true
   try {
@@ -2383,7 +2753,7 @@ const daysToNextPayment = computed(() => {
 </script>
 
 <style scoped>
-.label { @apply text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5; }
+.label { @apply text-micro font-medium text-gray-400 uppercase tracking-wide mb-0.5; }
 .menu-item {
   @apply w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-gray-700
          hover:bg-gray-50 transition-colors text-left;

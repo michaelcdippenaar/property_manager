@@ -8,11 +8,11 @@
       </div>
       <div class="card p-4">
         <div class="text-xs text-gray-400 uppercase tracking-wide">Quoted</div>
-        <div class="text-2xl font-bold text-amber-600 mt-1">{{ stats.pending_quotes }}</div>
+        <div class="text-2xl font-bold text-warning-600 mt-1">{{ stats.pending_quotes }}</div>
       </div>
       <div class="card p-4">
         <div class="text-xs text-gray-400 uppercase tracking-wide">Awarded</div>
-        <div class="text-2xl font-bold text-green-600 mt-1">{{ stats.awarded_jobs }}</div>
+        <div class="text-2xl font-bold text-success-600 mt-1">{{ stats.awarded_jobs }}</div>
       </div>
       <div class="card p-4">
         <div class="text-xs text-gray-400 uppercase tracking-wide">Completed</div>
@@ -58,9 +58,12 @@
           </div>
         </button>
 
-        <div v-if="!loading && !jobs.length" class="text-center text-gray-400 py-16">
-          No jobs for this filter
-        </div>
+        <EmptyState
+          v-if="!loading && !jobs.length"
+          title="No jobs"
+          description="No jobs for this filter."
+          :icon="Briefcase"
+        />
       </div>
 
       <!-- Detail panel -->
@@ -84,9 +87,9 @@
           <div class="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-5">
             <p class="text-sm text-gray-600 whitespace-pre-wrap">{{ selected.job_description }}</p>
 
-            <div v-if="selected.dispatch_notes" class="p-3 bg-blue-50 rounded-lg">
-              <div class="text-xs font-medium text-blue-700 mb-1">Agent notes</div>
-              <p class="text-sm text-blue-800">{{ selected.dispatch_notes }}</p>
+            <div v-if="selected.dispatch_notes" class="p-3 bg-info-50 rounded-lg">
+              <div class="text-xs font-medium text-info-700 mb-1">Agent notes</div>
+              <p class="text-sm text-info-700">{{ selected.dispatch_notes }}</p>
             </div>
 
             <!-- Status -->
@@ -98,11 +101,11 @@
             <!-- Existing quote -->
             <div v-if="selected.quote" class="border-t border-gray-100 pt-4">
               <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Your Quote</h3>
-              <div class="p-3 bg-green-50 rounded-lg space-y-1">
-                <div class="text-lg font-bold text-green-800">R{{ Number(selected.quote.amount).toLocaleString() }}</div>
-                <div v-if="selected.quote.estimated_days" class="text-sm text-green-700">{{ selected.quote.estimated_days }} days</div>
-                <div v-if="selected.quote.available_from" class="text-sm text-green-700">Available: {{ selected.quote.available_from }}</div>
-                <p v-if="selected.quote.description" class="text-sm text-green-700">{{ selected.quote.description }}</p>
+              <div class="p-3 bg-success-50 rounded-lg space-y-1">
+                <div class="text-lg font-bold text-success-700">R{{ Number(selected.quote.amount).toLocaleString() }}</div>
+                <div v-if="selected.quote.estimated_days" class="text-sm text-success-700">{{ selected.quote.estimated_days }} days</div>
+                <div v-if="selected.quote.available_from" class="text-sm text-success-700">Available: {{ selected.quote.available_from }}</div>
+                <p v-if="selected.quote.description" class="text-sm text-success-700">{{ selected.quote.description }}</p>
               </div>
             </div>
 
@@ -134,7 +137,7 @@
                   <Loader2 v-if="submitting" :size="14" class="animate-spin" />
                   Submit Quote
                 </button>
-                <button @click="declineJob" :disabled="submitting" class="btn-ghost text-red-600">
+                <button @click="declineJob" :disabled="submitting" class="btn-ghost text-danger-600">
                   Decline
                 </button>
               </div>
@@ -153,7 +156,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '../../api'
-import { X, Loader2 } from 'lucide-vue-next'
+import { X, Loader2, Briefcase } from 'lucide-vue-next'
+import EmptyState from '../../components/EmptyState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 
 const loading = ref(true)

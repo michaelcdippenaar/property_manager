@@ -18,7 +18,7 @@
                 {{ selectedUnit.propertyName }}
                 <span v-if="selectedUnit.unitNumber" class="text-gray-400 font-normal">— Unit {{ selectedUnit.unitNumber }}</span>
               </div>
-              <div class="text-[11px] text-gray-400 truncate">{{ selectedUnit.address }}, {{ selectedUnit.city }}</div>
+              <div class="text-micro text-gray-400 truncate">{{ selectedUnit.address }}, {{ selectedUnit.city }}</div>
             </div>
             <div v-else class="flex-1 text-sm text-gray-400">Select property…</div>
             <ChevronRight :size="14" class="text-gray-300 flex-shrink-0" />
@@ -42,7 +42,7 @@
 
         <!-- Action buttons (right) -->
         <div class="flex items-center gap-2 px-5 flex-shrink-0">
-          <div v-if="submitError" class="flex items-center gap-1 text-xs text-red-600 max-w-[200px]">
+          <div v-if="submitError" class="flex items-center gap-1 text-xs text-danger-600 max-w-[200px]">
             <AlertCircle :size="12" class="flex-shrink-0" />
             <span class="truncate">{{ submitError }}</span>
           </div>
@@ -54,7 +54,7 @@
           >
             <FolderOpen :size="12" />
             Drafts
-            <span v-if="drafts.length" class="bg-gray-200 text-gray-600 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">{{ drafts.length }}</span>
+            <span v-if="drafts.length" class="bg-gray-200 text-gray-600 text-xs font-semibold px-1.5 py-0.5 rounded-full">{{ drafts.length }}</span>
           </button>
           <button
             class="btn-ghost text-xs flex items-center gap-1"
@@ -95,10 +95,10 @@
           >
             <div class="flex-1 min-w-0">
               <div class="text-sm font-medium text-gray-900 truncate">{{ d.summary || 'Untitled draft' }}</div>
-              <div class="text-[11px] text-gray-400">{{ formatDraftDate(d.updated_at) }}</div>
+              <div class="text-micro text-gray-400">{{ formatDraftDate(d.updated_at) }}</div>
             </div>
             <button
-              class="text-gray-400 hover:text-red-500 flex-shrink-0"
+              class="text-gray-400 hover:text-danger-500 flex-shrink-0"
               title="Delete draft"
               @click.stop="deleteDraft(d.id)"
             >
@@ -137,9 +137,9 @@
                 <Building2 :size="14" class="text-gray-400 flex-shrink-0" />
                 <div class="flex-1 min-w-0">
                   <div class="text-sm font-medium text-gray-900 truncate">{{ p.name }}</div>
-                  <div class="text-[11px] text-gray-400 truncate">{{ p.address }}</div>
+                  <div class="text-micro text-gray-400 truncate">{{ p.address }}</div>
                 </div>
-                <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
+                <span class="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded flex-shrink-0">
                   {{ p.units?.length || 0 }} {{ p.units?.length === 1 ? 'unit' : 'units' }}
                 </span>
                 <ChevronRight
@@ -163,14 +163,14 @@
                 >
                   <div class="flex-1 min-w-0">
                     <div class="text-sm font-medium text-gray-900">Unit {{ u.unit_number }}</div>
-                    <div class="text-[11px] text-gray-400">{{ u.bedrooms }} bed · {{ u.bathrooms }} bath</div>
+                    <div class="text-micro text-gray-400">{{ u.bedrooms }} bed · {{ u.bathrooms }} bath</div>
                   </div>
                   <span
-                    class="text-[10px] font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
+                    class="text-xs font-medium px-1.5 py-0.5 rounded-full flex-shrink-0"
                     :class="{
-                      'bg-emerald-50 text-emerald-700': u.status === 'occupied',
-                      'bg-blue-50 text-blue-700': u.status === 'available',
-                      'bg-amber-50 text-amber-700': u.status === 'maintenance',
+                      'bg-success-50 text-success-700': u.status === 'occupied',
+                      'bg-info-50 text-info-700': u.status === 'available',
+                      'bg-warning-50 text-warning-700': u.status === 'maintenance',
                     }"
                   >
                     {{ u.status }}
@@ -189,8 +189,8 @@
       <!-- ── Done screen ── -->
       <div v-if="step === 3" class="flex-1 flex items-center justify-center">
         <div class="text-center space-y-5 max-w-md">
-          <div class="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
-            <CheckCircle2 :size="28" class="text-emerald-500" />
+          <div class="w-14 h-14 rounded-full bg-success-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 :size="28" class="text-success-500" />
           </div>
           <div>
             <div class="font-semibold text-gray-900 text-lg">Lease created!</div>
@@ -272,51 +272,51 @@
                 <div v-if="landlordInfo?.name" class="border border-navy/20 rounded-lg p-3 bg-navy/5 space-y-2">
                   <div class="grid grid-cols-2 gap-1.5">
                     <div class="col-span-2">
-                      <div class="text-[10px] text-gray-400 uppercase">Name</div>
+                      <div class="text-xs text-gray-400 uppercase">Name</div>
                       <div class="text-xs font-medium text-gray-900">{{ landlordInfo.name }}</div>
                     </div>
                     <div>
-                      <div class="text-[10px] text-gray-400 uppercase">Email</div>
+                      <div class="text-xs text-gray-400 uppercase">Email</div>
                       <div class="text-xs text-gray-700">{{ landlordInfo.email || '—' }}</div>
                     </div>
                     <div>
-                      <div class="text-[10px] text-gray-400 uppercase">Phone</div>
+                      <div class="text-xs text-gray-400 uppercase">Phone</div>
                       <div class="text-xs text-gray-700">{{ landlordInfo.phone || '—' }}</div>
                     </div>
                     <div v-if="landlordInfo.id_number">
-                      <div class="text-[10px] text-gray-400 uppercase">ID / Reg no.</div>
+                      <div class="text-xs text-gray-400 uppercase">ID / Reg no.</div>
                       <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.id_number }}</div>
                     </div>
                     <div v-if="landlordInfo.address">
-                      <div class="text-[10px] text-gray-400 uppercase">Address</div>
+                      <div class="text-xs text-gray-400 uppercase">Address</div>
                       <div class="text-xs text-gray-700">{{ landlordInfo.address }}</div>
                     </div>
                   </div>
                   <!-- Bank account -->
                   <div v-if="landlordInfo.bank_account" class="border-t border-navy/10 pt-2 mt-2">
-                    <div class="text-[10px] text-navy/50 uppercase font-semibold mb-1">Bank Account (Default)</div>
+                    <div class="text-xs text-navy/50 uppercase font-semibold mb-1">Bank Account (Default)</div>
                     <div class="grid grid-cols-2 gap-1.5">
                       <div>
-                        <div class="text-[10px] text-gray-400 uppercase">Bank</div>
+                        <div class="text-xs text-gray-400 uppercase">Bank</div>
                         <div class="text-xs text-gray-700">{{ landlordInfo.bank_account.bank_name }}</div>
                       </div>
                       <div>
-                        <div class="text-[10px] text-gray-400 uppercase">Account holder</div>
+                        <div class="text-xs text-gray-400 uppercase">Account holder</div>
                         <div class="text-xs text-gray-700">{{ landlordInfo.bank_account.account_holder }}</div>
                       </div>
                       <div>
-                        <div class="text-[10px] text-gray-400 uppercase">Account no.</div>
+                        <div class="text-xs text-gray-400 uppercase">Account no.</div>
                         <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.bank_account.account_number }}</div>
                       </div>
                       <div>
-                        <div class="text-[10px] text-gray-400 uppercase">Branch code</div>
+                        <div class="text-xs text-gray-400 uppercase">Branch code</div>
                         <div class="text-xs text-gray-700 font-mono">{{ landlordInfo.bank_account.branch_code }}</div>
                       </div>
                     </div>
                   </div>
-                  <div v-else class="text-[10px] text-amber-600 mt-1">No bank account on file — add one on the Landlords page.</div>
+                  <div v-else class="text-xs text-warning-600 mt-1">No bank account on file — add one on the Landlords page.</div>
                 </div>
-                <div v-else class="border border-amber-200 rounded-lg p-3 bg-amber-50 text-xs text-amber-700">
+                <div v-else class="border border-warning-100 rounded-lg p-3 bg-warning-50 text-xs text-warning-700">
                   No landlord linked to this property. Link one from the property's Landlord tab or the <router-link to="/landlords" class="underline font-medium">Landlords page</router-link>.
                 </div>
               </section>
@@ -347,7 +347,7 @@
 
         <!-- Right: Template preview -->
         <template v-if="!selectedTemplateId && !loadingTemplates">
-          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+          <div class="flex-1 bg-gray-100 flex items-center justify-center">
             <div class="text-center text-gray-400">
               <FileSignature :size="36" class="mx-auto mb-3 opacity-30" />
               <p class="font-medium text-sm">No template selected</p>
@@ -357,7 +357,7 @@
         </template>
 
         <template v-else-if="loadingContent">
-          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+          <div class="flex-1 bg-gray-100 flex items-center justify-center">
             <div class="flex items-center gap-2 text-gray-400 text-sm">
               <Loader2 :size="16" class="animate-spin" /> Loading template…
             </div>
@@ -365,7 +365,7 @@
         </template>
 
         <template v-else-if="selectedTemplateId && !templateHtml">
-          <div class="flex-1 bg-[#e8eaed] flex items-center justify-center">
+          <div class="flex-1 bg-gray-100 flex items-center justify-center">
             <div class="text-center text-gray-400 space-y-3">
               <p class="text-sm">This template has no content yet.</p>
               <button
@@ -378,7 +378,7 @@
           </div>
         </template>
 
-        <div v-else-if="templateHtml" class="flex-1 bg-[#f8f9fa] overflow-y-auto">
+        <div v-else-if="templateHtml" class="flex-1 bg-gray-50 overflow-y-auto">
           <div class="tiptap-editor tiptap-page-container mx-auto" style="padding: 32px 0;">
             <EditorContent :editor="previewEditor" />
           </div>
@@ -426,8 +426,8 @@ const SectionLabel = defineComponent({
   props: { text: String, color: String },
   setup(props) {
     const colors: Record<string, string> = {
-      navy: 'text-navy', blue: 'text-blue-600', green: 'text-emerald-600',
-      amber: 'text-amber-600', purple: 'text-violet-600',
+      navy: 'text-navy', blue: 'text-info-600', green: 'text-success-600',
+      amber: 'text-warning-600', purple: 'text-violet-600',
     }
     return () => h('div', {
       class: `text-xs font-semibold uppercase tracking-wide ${colors[props.color ?? 'navy'] ?? 'text-gray-500'}`,
@@ -445,7 +445,7 @@ const PersonBlock = defineComponent({
     return () => {
       const p = props.modelValue as any
       const cls = 'input text-xs py-1.5'
-      const errCls = 'input text-xs py-1.5 !border-red-400 !ring-red-100'
+      const errCls = 'input text-xs py-1.5 !border-danger-400 !ring-danger-100'
       return h('div', { class: 'grid grid-cols-2 gap-1.5' }, [
         h('div', { class: 'col-span-2' }, [
           h('input', { class: props.hasError && !p.full_name ? errCls : cls, value: p.full_name, placeholder: 'Full name *', onInput: (e: any) => upd('full_name', e.target.value) }),
@@ -484,7 +484,7 @@ const LeaseFormFields = defineComponent({
 
     function docCheckboxes(person: any, onUpdate: (v: any) => void) {
       return h('div', { class: 'mt-2 pt-2 border-t border-navy/10' }, [
-        h('div', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide mb-1.5 flex items-center gap-1.5' }, [
+        h('div', { class: 'text-xs font-semibold text-navy/50 uppercase tracking-wide mb-1.5 flex items-center gap-1.5' }, [
           h('svg', { class: 'w-3 h-3', fill: 'none', stroke: 'currentColor', viewBox: '0 0 24 24' },
             h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2',
               d: 'M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z' }),
@@ -516,7 +516,7 @@ const LeaseFormFields = defineComponent({
       const f = props.form as any
       const errs = props.errors as string[]
       const inputCls = 'input'
-      const errInputCls = 'input !border-red-400 !ring-red-100'
+      const errInputCls = 'input !border-danger-400 !ring-danger-100'
 
       const showLease = !props.tab || props.tab === 'lease'
       const showTenants = !props.tab || props.tab === 'tenants'
@@ -559,7 +559,7 @@ const LeaseFormFields = defineComponent({
           ]),
           h('div', { class: 'relative border border-navy/20 rounded-lg p-3 bg-navy/5' }, [
             h('div', { class: 'flex items-center justify-between mb-1.5' }, [
-              h('span', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
+              h('span', { class: 'text-xs font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
             ]),
             h(PersonBlock, { modelValue: f.primary_tenant, hasError: errs.includes('primary_tenant'), 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) }),
             docCheckboxes(f.primary_tenant, (v: any) => updForm('primary_tenant', v)),
@@ -567,9 +567,9 @@ const LeaseFormFields = defineComponent({
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>
             h('div', { key: i, class: 'relative border border-navy/20 rounded-lg p-3 bg-navy/5' }, [
               h('div', { class: 'flex items-center justify-between mb-1.5' }, [
-                h('span', { class: 'text-[10px] font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
+                h('span', { class: 'text-xs font-semibold text-navy/50 uppercase tracking-wide' }, `Tenant ${i + 2}`),
                 h('button', {
-                  class: 'text-gray-400 hover:text-red-500',
+                  class: 'text-gray-400 hover:text-danger-500',
                   onClick: () => updForm('co_tenants', f.co_tenants.filter((_: any, j: number) => j !== i)),
                 }, h(X, { size: 12 })),
               ]),
@@ -593,9 +593,9 @@ const LeaseFormFields = defineComponent({
           ]),
           ...(f.occupants?.length
             ? f.occupants.map((oc: any, i: number) =>
-                h('div', { key: i, class: 'relative border border-emerald-100 rounded-lg p-3 bg-emerald-50/40' }, [
+                h('div', { key: i, class: 'relative border border-success-100 rounded-lg p-3 bg-success-50/40' }, [
                   h('div', { class: 'flex items-center justify-end mb-1.5' }, [
-                    h('button', { class: 'text-gray-400 hover:text-red-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
+                    h('button', { class: 'text-gray-400 hover:text-danger-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
                   ]),
                   h(PersonBlock, { modelValue: oc, 'onUpdate:modelValue': (v: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? v : o)) }),
                   h('div', { class: 'mt-1.5' }, [
@@ -616,9 +616,9 @@ const LeaseFormFields = defineComponent({
           ]),
           ...(f.guarantors?.length
             ? f.guarantors.map((g: any, i: number) =>
-                h('div', { key: i, class: 'relative border border-amber-100 rounded-lg p-3 bg-amber-50/40' }, [
+                h('div', { key: i, class: 'relative border border-warning-100 rounded-lg p-3 bg-warning-50/40' }, [
                   h('div', { class: 'flex items-center justify-end mb-1.5' }, [
-                    h('button', { class: 'text-gray-400 hover:text-red-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
+                    h('button', { class: 'text-gray-400 hover:text-danger-500', onClick: () => updForm('guarantors', f.guarantors.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
                   ]),
                   h(PersonBlock, { modelValue: g, 'onUpdate:modelValue': (v: any) => updForm('guarantors', f.guarantors.map((gg: any, j: number) => j === i ? v : gg)) }),
                   h('div', { class: 'mt-1.5' }, [

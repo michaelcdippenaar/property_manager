@@ -23,7 +23,8 @@ export const useAuthStore = defineStore('auth', () => {
   const agency = ref<AgencyInfo | null>(null)
 
   const isAuthenticated = computed(() => !!accessToken.value)
-  const isAgent = computed(() => ['agent', 'admin'].includes(user.value?.role ?? ''))
+  const STAFF_ROLES = ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant', 'viewer']
+  const isAgent = computed(() => STAFF_ROLES.includes(user.value?.role ?? ''))
   const isSupplier = computed(() => user.value?.role === 'supplier')
   const isOwner = computed(() => user.value?.role === 'owner')
   const isTenant = computed(() => user.value?.role === 'tenant')
@@ -33,6 +34,9 @@ export const useAuthStore = defineStore('auth', () => {
   const homeRoute = computed(() => {
     if (isSupplier.value) return '/jobs'
     if (isOwner.value) return '/owner'
+    const role = user.value?.role
+    if (role === 'agency_admin') return '/agency'
+    if (role === 'agent' || role === 'estate_agent' || role === 'managing_agent') return '/agent'
     return '/'
   })
 

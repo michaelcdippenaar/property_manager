@@ -38,6 +38,15 @@ class Lease(models.Model):
     # Renewal tracking — set when a renewal addendum is created
     renewal_start_date = models.DateField(null=True, blank=True, help_text="Start of renewed period; dots after this date shown as unsigned/pending")
 
+    # Succession chain — links a newly drafted lease back to the one it follows
+    previous_lease = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="successor_lease",
+    )
+
     # Human-readable lease reference, e.g. L-202601-0001 (auto-generated on import)
     lease_number = models.CharField(max_length=50, blank=True)
 

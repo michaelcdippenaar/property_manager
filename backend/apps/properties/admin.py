@@ -10,6 +10,7 @@ from .models import (
     MunicipalAccount,
     MunicipalBill,
     Property,
+    PropertyAgentAssignment,
     PropertyDetail,
     PropertyGroup,
     PropertyOwnership,
@@ -190,3 +191,11 @@ class MunicipalBillAdmin(admin.ModelAdmin):
     list_filter = ("payment_status", "billing_year")
     search_fields = ("property__name", "account_number", "payment_reference")
     date_hierarchy = "due_date"
+
+
+@admin.register(PropertyAgentAssignment)
+class PropertyAgentAssignmentAdmin(admin.ModelAdmin):
+    list_display = ("property", "agent", "assignment_type", "status", "created_at")
+    list_filter = ("assignment_type", "status")
+    search_fields = ("property__name", "agent__email", "agent__first_name", "agent__last_name")
+    raw_id_fields = ("property", "agent", "assigned_by", "mandate")

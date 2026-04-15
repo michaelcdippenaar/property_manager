@@ -25,6 +25,10 @@ class Property(models.Model):
     postal_code = models.CharField(max_length=10)
     description = models.TextField(blank=True)
     house_rules = models.TextField(blank=True, help_text="House rules shown to tenants — parking, noise, pets, visitors, etc.")
+    information_items = models.JSONField(
+        default=list, blank=True,
+        help_text="Landlord notes ingested into the tenant maintenance RAG. Each item: {id, label, body, category, updated_at}."
+    )
     image = models.ImageField(upload_to="properties/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

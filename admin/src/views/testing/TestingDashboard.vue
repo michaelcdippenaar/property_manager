@@ -2,18 +2,18 @@
   <div class="space-y-6">
 
     <!-- Page header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-navy" style="font-family: 'Bricolage Grotesque', 'Inter', sans-serif;">
-          Developer Testing Portal
-        </h1>
-        <p class="text-sm text-gray-500 mt-0.5">Test suite health, run history and RAG store status</p>
-      </div>
-      <button class="btn-primary" @click="triggerFullRun" :disabled="triggering">
-        <Play :size="15" />
-        {{ triggering ? 'Running…' : 'Run All Tests' }}
-      </button>
-    </div>
+    <PageHeader
+      title="Developer Testing Portal"
+      subtitle="Test suite health, run history and RAG store status"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Testing' }]"
+    >
+      <template #actions>
+        <button class="btn-primary" @click="triggerFullRun" :disabled="triggering">
+          <Play :size="15" />
+          {{ triggering ? 'Running…' : 'Run All Tests' }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Top row: Health Score + Suite Summary -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
@@ -113,14 +113,14 @@
     <div class="card">
       <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-7 h-7 rounded-lg bg-yellow-50 flex items-center justify-center">
-            <Zap :size="14" class="text-yellow-500" />
+          <div class="w-7 h-7 rounded-lg bg-warning-50 flex items-center justify-center">
+            <Zap :size="14" class="text-warning-500" />
           </div>
           <h2 class="text-sm font-semibold text-gray-800">Frontend Tests <span class="text-gray-400 font-normal">(Vitest Browser)</span></h2>
         </div>
         <div class="flex items-center gap-3">
           <span v-if="frontendStats.last_run" class="text-xs text-gray-400">
-            Last: <span :class="(frontendStats.last_run.tests_failed ?? 0) > 0 ? 'text-red-500' : 'text-green-500'">
+            Last: <span :class="(frontendStats.last_run.tests_failed ?? 0) > 0 ? 'text-danger-500' : 'text-success-500'">
               {{ frontendStats.last_run.tests_passed }}/{{ frontendStats.last_run.tests_run }} passed
             </span>
             · {{ formatTime(frontendStats.last_run.run_at) }}
@@ -141,13 +141,13 @@
         </div>
         <div v-if="frontendStats.last_run" class="flex items-center gap-4 text-sm">
           <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-green-500"></span>
-            <span class="font-semibold text-green-700">{{ frontendStats.last_run.tests_passed }}</span>
+            <span class="w-2 h-2 rounded-full bg-success-500"></span>
+            <span class="font-semibold text-success-700">{{ frontendStats.last_run.tests_passed }}</span>
             <span class="text-gray-400 text-xs">passed</span>
           </div>
           <div class="flex items-center gap-1.5" v-if="(frontendStats.last_run.tests_failed ?? 0) > 0">
-            <span class="w-2 h-2 rounded-full bg-red-500"></span>
-            <span class="font-semibold text-red-600">{{ frontendStats.last_run.tests_failed }}</span>
+            <span class="w-2 h-2 rounded-full bg-danger-500"></span>
+            <span class="font-semibold text-danger-600">{{ frontendStats.last_run.tests_failed }}</span>
             <span class="text-gray-400 text-xs">failed</span>
           </div>
         </div>
@@ -165,9 +165,9 @@
             <li v-for="name in tests" :key="name"
                 class="px-5 py-1.5 flex items-center gap-2">
               <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    :class="frontendFailedNames.includes(name) ? 'bg-red-500' : 'bg-yellow-400'"></span>
+                    :class="frontendFailedNames.includes(name) ? 'bg-danger-500' : 'bg-warning-500'"></span>
               <span class="text-xs font-mono"
-                    :class="frontendFailedNames.includes(name) ? 'text-red-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
+                    :class="frontendFailedNames.includes(name) ? 'text-danger-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
             </li>
           </ul>
         </div>
@@ -184,17 +184,17 @@
         </div>
         <div class="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
           <div class="h-full rounded-full transition-all duration-300"
-               :class="frontendProgress.failed > 0 ? 'bg-red-400' : 'bg-yellow-400'"
+               :class="frontendProgress.failed > 0 ? 'bg-danger-400' : 'bg-warning-500'"
                :style="{ width: (frontendProgress.pct ?? 0) + '%' }"></div>
         </div>
         <p class="text-xs font-mono text-gray-400 truncate">{{ frontendProgress.current }}</p>
         <!-- Failure details -->
         <div v-if="frontendRunDone && frontendProgress.failures.length > 0" class="mt-3 space-y-2">
-          <div class="text-xs font-semibold text-red-600 uppercase tracking-wide">Failures</div>
+          <div class="text-xs font-semibold text-danger-600 uppercase tracking-wide">Failures</div>
           <div v-for="(f, i) in frontendProgress.failures" :key="i"
-               class="rounded-lg border border-red-200 bg-red-50/50 overflow-hidden">
-            <div class="px-3 py-1.5 bg-red-100/60 text-xs font-mono font-semibold text-red-800 truncate">{{ f.test }}</div>
-            <pre class="px-3 py-2 text-[10px] leading-relaxed text-red-700 font-mono whitespace-pre-wrap break-words">{{ f.error }}</pre>
+               class="rounded-lg border border-danger-100 bg-danger-50/50 overflow-hidden">
+            <div class="px-3 py-1.5 bg-danger-100/60 text-xs font-mono font-semibold text-danger-700 truncate">{{ f.test }}</div>
+            <pre class="px-3 py-2 text-xs leading-relaxed text-danger-700 font-mono whitespace-pre-wrap break-words">{{ f.error }}</pre>
           </div>
         </div>
       </div>
@@ -316,6 +316,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { testingApi } from '../../api/testing'
 import { Play, RefreshCw, CheckCircle, XCircle, TestTube2, BarChart2, Zap } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const router = useRouter()
 const loading = ref(true)
@@ -426,10 +427,12 @@ const ragStatus = ref({
 })
 
 // ── Computed ────────────────────────────────────────────────────────
+// Hex values map to Tailwind semantic tokens (success-500, warning-500, danger-500)
+// Inline SVG stroke can't use Tailwind classes, so we read the token hex from tailwind.config.js.
 const scoreColor = computed(() => {
-  if (health.value.score > 80) return '#22c55e'
-  if (health.value.score >= 50) return '#f59e0b'
-  return '#ef4444'
+  if (health.value.score > 80) return '#14b8a6' // success-500
+  if (health.value.score >= 50) return '#f59e0b' // warning-500
+  return '#ef4444' // danger-500
 })
 
 const scoreTier = computed(() => {
@@ -482,11 +485,11 @@ const suiteSummary = computed(() => [
 // ── Helpers ────────────────────────────────────────────────────────
 function moduleHealthColor(mod: { passing: number; failing: number }) {
   const total = mod.passing + mod.failing
-  if (total === 0) return '#9ca3af'
+  if (total === 0) return '#9ca3af' // gray-400
   const rate = mod.passing / total
-  if (rate > 0.8) return '#22c55e'
-  if (rate >= 0.5) return '#f59e0b'
-  return '#ef4444'
+  if (rate > 0.8) return '#14b8a6' // success-500
+  if (rate >= 0.5) return '#f59e0b' // warning-500
+  return '#ef4444' // danger-500
 }
 
 function formatTime(iso: string) {

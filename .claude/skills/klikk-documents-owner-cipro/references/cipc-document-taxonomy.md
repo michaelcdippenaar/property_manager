@@ -184,6 +184,43 @@ Trusts are **not** registered with CIPC. They are registered with the **Master o
   - `master_office` (e.g. "Pretoria", "Cape Town")
   - `issue_date`
 - **Critical check:** The trustees listed on the Letter of Authority must match the ID copies provided for FICA
+- **Applies to both inter vivos AND testamentary trusts.** The Master issues identical Letters of Authority regardless of how the trust was created.
+
+### Last Will and Testament ⭐ TESTAMENTARY TRUST FOUNDING DOCUMENT
+- Founding document for a **testamentary trust** (created by the deceased's will, comes into existence on death). This replaces the Trust Deed for testamentary trusts — do NOT flag "trust deed missing" if a certified will is present and the trust is testamentary.
+- **Key classification signals:** "Last Will and Testament", "Laaste Wil en Testament", "testator", "executor", "I bequeath", "upon my death", "testamentary trust", handwritten or signed by deceased, witnessed by two people
+- Filename hints: `will`, `testament`, `testamente` (Afrikaans), `signed_testament`
+- Extract:
+  - `testator_full_name`
+  - `testator_id_number`
+  - `date_of_will` (date signed by testator)
+  - `witnesses[]` (at least 2 required for a valid SA will)
+  - `executor_name` (person nominated to wind up the estate)
+  - `testamentary_trust_clause` — does the will create a trust? quote the clause
+  - `trustees_appointed[]` (if a trust is created): `full_name`, `id_number`
+  - `beneficiaries[]`: `full_name`, `relationship_to_testator`, `benefit_description`
+  - `trust_name` (if named in will, e.g. "MC Dippenaar Testamentêre Trust")
+- **Variants:** "Certified copy of Will", "Signed original Will" — treat both as the same doc_type; prefer certified for FICA.
+
+### J246 — Trust Registration Form (Master of the High Court)
+- The application form submitted to register a trust with the Master. Commonly the *proof of registration* for testamentary trusts before Letters of Authority are issued.
+- **Key classification signal:** "J246", "Trust Registration", Master of the High Court letterhead, trust name + trustees table
+- Extract:
+  - `trust_name`
+  - `trust_number` (IT format, if assigned)
+  - `registration_date`
+  - `master_office`
+  - `trustees[]`: `full_name`, `id_number`
+
+### Accounting Officer / Auditor Letter (Trust)
+- Annual letter from the trust's accounting officer or auditor confirming financial oversight. Not a founding document — it's a *good-standing* signal.
+- **Key classification signal:** "Accounting Officer", "Auditor's Letter", "to whom it may concern", trust name, financial year references
+- Extract:
+  - `trust_name`
+  - `accounting_officer_name`
+  - `practice_name` (firm)
+  - `letter_date`
+  - `financial_year_end`
 
 ---
 
@@ -234,7 +271,72 @@ Partnerships are not registered with CIPC. They are governed by a contract betwe
 
 ---
 
-## 6. Extraction Field Schemas {#extraction-schemas}
+## 6. Additional CIPC Filings (2023+) {#additional-cipc}
+
+These are all Companies Act / Financial Intelligence Centre Act filings that became mandatory or commonly requested from 2023 onward. Each one is a separate uploaded document, not a sub-page of another form.
+
+### Beneficial Ownership Register (BO Register)
+- Mandatory for all SA companies from 2023 under the General Laws Amendment Act. Lists every natural person who ultimately owns ≥5% of the company.
+- **Key classification signal:** "Beneficial Ownership", "BO Register", "natural person ownership", CIPC header, shareholder disclosure table
+- Extract: `company_name`, `registration_number`, `filing_date`, `beneficial_owners[]` with `full_name`, `id_number`, `ownership_percentage`
+
+### Securities Register
+- Statutory register of all securities (shares) issued by the company. Required under Companies Act s50.
+- **Key classification signal:** "Securities Register", "Register of Securities", columns for shareholder name / number of shares / certificate number / date of issue / date of transfer
+- Extract: `company_name`, `registration_number`, `shareholders[]` with `full_name`, `shares_held`, `share_class`, `certificate_number`
+
+### Disclosure / Ownership Structure Diagram
+- A visual or tabular representation of the ownership chain, often produced for FICA or bank onboarding. Not a CIPC-issued form — usually drafted by the accountant.
+- **Key classification signal:** tree diagram, "Ownership Structure", "Group Structure", company names connected to shareholders
+- Extract: `entity_tree` (flexible JSON — parent/child relationships)
+
+### Share Certificate
+- Physical certificate issued to a shareholder evidencing their shareholding. Usually one per shareholder per issuance.
+- **Key classification signal:** "Share Certificate", "Certificate No.", share count and class printed prominently, company seal or director signatures
+- Extract: `company_name`, `registration_number`, `certificate_number`, `shareholder_name`, `shareholder_id_number`, `shares_held`, `share_class`, `issue_date`
+
+### Board Resolution / Shareholders Resolution
+- Written decision of the directors or shareholders — used for authorising mandates, signatures, bank account operations, property transactions.
+- **Key classification signal:** "Resolution of the Board of Directors", "Shareholders' Resolution", "IT IS RESOLVED THAT", date + director signatures
+- Extract: `company_name`, `resolution_date`, `resolution_type` (e.g. "mandate authorisation", "bank signatory"), `resolved_text` (short summary), `authorised_person`, `signatories[]`
+
+---
+
+## 7. Personal / FICA / Estate Documents {#personal-fica}
+
+Non-CIPC documents that still need to be classified and linked to a person or entity for FICA / mandate purposes.
+
+### Spousal Consent
+- Required when the signing person is married in community of property (ICOP) and the transaction is one listed in s15(2) of the Matrimonial Property Act. Also common for estate property.
+- **Key classification signal:** "Consent", "Spousal Consent", "I, [spouse], consent to...", signed + witnessed
+- Extract: `consenting_spouse_name`, `consenting_spouse_id_number`, `consent_date`, `transaction_described`, `signatory_spouse_name` (the one the consent is being given *to*)
+
+### Court Order
+- Any sealed order of a South African court. Context-sensitive — could relate to estate administration, divorce, sequestration, or a property dispute. Extract enough to route for human review; do NOT attempt to interpret the order's legal effect.
+- **Key classification signal:** court letterhead ("IN THE HIGH COURT OF SOUTH AFRICA" / Magistrate's Court), case number format (e.g. `12345/2016`), judge's signature, court stamp, "IT IS ORDERED"
+- Extract: `court_name`, `case_number`, `order_date`, `parties[]`, `order_summary` (one short sentence), `relates_to` (best guess: `estate` | `divorce` | `sequestration` | `property` | `other`)
+- **Always flag for human review.** Court orders often have consequences that aren't visible from the document alone.
+
+### Founding Affidavit
+- Sworn statement filed in support of a court application. Not itself a court order — it's *evidence* submitted by an applicant.
+- **Key classification signal:** "FOUNDING AFFIDAVIT", "I, the undersigned", "do hereby make oath and state", Commissioner of Oaths stamp, case number
+- Extract: `deponent_name`, `deponent_id_number`, `case_number`, `relief_sought` (one line), `commissioner_date`
+- Treat as a pointer to a related court order or pending matter. Flag for human review.
+
+### Death Certificate
+- Issued by Department of Home Affairs. Essential for testamentary trusts (proves the testator has died and the will is operative).
+- **Key classification signal:** "Department of Home Affairs", "Death Certificate", "Sterftesertifikaat", deceased's name + ID + date of death, reference number starting `DHA-`
+- Extract: `deceased_full_name`, `deceased_id_number`, `date_of_death`, `place_of_death`, `certificate_number`
+
+### Letter of Executorship (Master's Certificate — Estate)
+- Authorises the executor of a deceased estate. Distinct from the Trust Letters of Authority — this is for the estate, not the trust.
+- **Key classification signal:** "Master of the High Court", "Letter of Executorship", "Estate Late [name]", deceased ID number, executor name
+- Extract: `estate_name` (e.g. "Estate Late John Smith"), `deceased_id_number`, `executor_name`, `executor_id_number`, `master_office`, `issue_date`, `estate_number`
+- **Often mis-classified as Trust Letters of Authority.** The disambiguator: Letter of Executorship references a *deceased person's estate*; Trust LoA references a *trust name + IT number*.
+
+---
+
+## 8. Extraction Field Schemas {#extraction-schemas}
 
 ### Standard company document extraction
 

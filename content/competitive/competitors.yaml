@@ -1,0 +1,843 @@
+# South African Property Management Software — Competitive Intelligence
+# Last updated: 2026-04-14
+# Source: Direct website scraping + market research
+
+competitors:
+
+  payprop:
+    name: PayProp
+    url: https://www.payprop.com/za
+    founded: 2004
+    hq: Cape Town, SA (also UK, US, Canada)
+    tagline: Automated rental payment platform
+    focus: Trust accounting + rent collection + disbursement
+    clients: 1,300+ SA agencies
+    volume: R62 billion annually
+    pricing:
+      model: "% of volume + license"
+      setup: "R3,245 - R12,257"
+      monthly_license: "R434"
+      processing_fee: "<1.25% of rent processed"
+      users: Unlimited included
+    user_types:
+      - Letting agents / rental agencies (primary)
+      - Landlords (passive portal)
+      - Tenants (payment portal)
+    features:
+      trust_accounting: true  # Core product — Absa-held trust accounts
+      rent_collection: true   # Automated matching of incoming payments
+      disbursements: true     # Same-day to landlords, contractors, commission
+      arrears_management: true
+      maintenance: basic      # Basic ticket system
+      tenant_portal: true     # Branded self-service
+      reporting: true         # Portfolio analytics + PayProp Rental Index
+      lease_management: false
+      inspections: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+      mobile_app: false
+      property_marketing: false
+    integrations:
+      - Averly (tenant screening)
+      - PropertyInspect
+      - TPN
+      - Absa (banking)
+      - API available
+    compliance:
+      ppra: true
+      pasa: true
+      trust_accounts: true
+    strengths:
+      - Market leader in automated rent processing
+      - Rock-solid trust accounting
+      - Processes R62B annually — proven at scale
+      - Unlimited users included
+    weaknesses:
+      - No lease management or generation
+      - No inspections
+      - No CRM or property marketing
+      - No e-signing
+      - No AI
+      - Web only — no mobile app
+
+  weconnectu:
+    name: WeConnectU
+    url: https://www.weconnectu.co.za
+    founded: 2018
+    hq: South Africa
+    tagline: End-to-end property management ecosystem
+    focus: Community schemes + rental portfolios + maintenance
+    clients: 800+
+    units: 750,000+
+    pricing:
+      model: Custom quotes only
+      setup: Not disclosed
+      monthly: Not disclosed
+    user_types:
+      - Property management companies
+      - Rental portfolio managers
+      - Community scheme managers (body corporate, HOA)
+      - Maintenance/inspections teams
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true    # Full lifecycle
+      maintenance: true         # RedRabbit integrated platform
+      inspections: true         # RedRabbit — photo/video reports
+      tenant_screening: true    # Integrated credit checks
+      community_management: true # Body corporate + HOA
+      dashboards: true
+      reporting: true
+      tenant_portal: false      # Not confirmed
+      owner_portal: false       # Not confirmed
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+      mobile_app: false
+      property_marketing: false
+    integrations:
+      - Netcash (payments)
+      - RedRabbit (own inspections/maintenance)
+      - Banking system
+    compliance:
+      popia: true
+    notable_clients:
+      - Rawson
+      - RE/MAX
+      - Harcourts
+      - Seeff
+      - Keller Williams
+    strengths:
+      - Strong brand clients (Rawson, RE/MAX, etc.)
+      - Community scheme management (body corporate/HOA)
+      - Integrated inspections and maintenance
+      - 750k+ units — proven at scale
+    weaknesses:
+      - Opaque pricing (must book demo)
+      - No confirmed portals for tenants/owners
+      - No e-signing
+      - No AI features
+      - No mobile app
+
+  propdata:
+    name: Prop Data
+    url: https://www.propdata.net
+    founded: 2000s
+    hq: South Africa
+    tagline: One real estate platform. More ways to grow.
+    focus: Property marketing + CRM + listing syndication
+    clients: 20,000+ professionals
+    pricing:
+      model: Per month
+      starting: "R259/mo"
+    user_types:
+      - Real estate agencies
+      - Property developers
+      - Franchise groups
+      - Individual agents
+    features:
+      crm: true               # Core product
+      listing_management: true
+      portal_syndication: true
+      websites: true           # Custom branded agency sites
+      marketing: true          # Paid ads, social, newsletters
+      reporting: true
+      trust_accounting: false
+      rent_collection: false
+      lease_management: false
+      maintenance: false
+      inspections: false
+      tenant_portal: false
+      esigning: false
+      ai_features: false
+      mobile_app: false
+    integrations:
+      - Flow Living
+      - Lightstone
+      - PromProperty
+      - reOS
+      - CommVersion
+      - HubSpot
+    strengths:
+      - Strong CRM and listing management
+      - Multi-portal syndication
+      - SEO-optimized agency websites
+    weaknesses:
+      - Purely marketing/CRM — no rental management at all
+      - No accounting, maintenance, or inspections
+      - Not a competitor for property management — only marketing
+
+  tpn:
+    name: TPN (Tenant Profile Network)
+    url: https://mrisoftware.tpn.co.za
+    founded: 2000
+    hq: South Africa (acquired by MRI Software)
+    tagline: SA's leading rental-focused credit bureau
+    focus: Tenant screening + credit checks + rental payment profiling
+    clients: 5,000+ property managers/agents
+    pricing:
+      model: Per-check
+      details: Not publicly disclosed
+    user_types:
+      - Property managers
+      - Letting agents
+      - Landlords
+      - Estate agencies
+    features:
+      tenant_screening: true   # Core — RentCheck, SmartCheck
+      credit_checks: true      # 3 bureau + rental history
+      tenant_monitoring: true
+      vacancy_surveys: true
+      legal_docs: true
+      trust_accounting: false
+      rent_collection: false
+      lease_management: false
+      maintenance: false
+      inspections: false
+      crm: false
+      esigning: false
+      ai_features: false
+    integrations:
+      - PayProp
+      - PropWorx
+      - reOS
+      - Experian
+      - Most major SA property platforms
+    compliance:
+      nca_registered: true   # National Credit Act credit bureau
+      popia: true
+    strengths:
+      - De facto standard for SA tenant screening
+      - 5-year payment history data
+      - Integrated with most SA platforms
+    weaknesses:
+      - Not a management platform — data/screening only
+      - Now owned by MRI (enterprise pricing risk)
+
+  entegral:
+    name: Entegral
+    url: https://www.entegral.net
+    founded: 2000s
+    hq: South Africa
+    tagline: Africa's leading independent real estate platform
+    focus: CRM + website builder + listing syndication + FICA compliance
+    clients: 20+ years in market
+    pricing:
+      model: Per product per month
+      crm: "R889/mo"
+      syndication: "R199/mo"
+      website_lite: "R399/mo + R1,999 setup"
+      website_standard: "R889/mo + R3,999 setup"
+      website_premium: "R2,199/mo + R19,999 setup"
+    user_types:
+      - Independent agents/brokers
+      - Franchise offices
+      - Property management companies
+    features:
+      crm: true
+      listing_management: true
+      portal_syndication: true
+      websites: true
+      fica_compliance: true    # Vault FICA module
+      virtual_tours: true
+      bond_origination: true
+      trust_accounting: false
+      rent_collection: false
+      lease_management: false
+      maintenance: false
+      inspections: false
+      tenant_portal: false
+      esigning: false
+      ai_features: false
+    integrations:
+      - Facebook Ads
+      - Property portals (multiple)
+      - Google Analytics
+      - Developer Hub / API
+    strengths:
+      - Strong CRM and website offering
+      - FICA compliance module (Vault)
+      - Virtual tours
+      - Independently owned
+    weaknesses:
+      - No rental management, accounting, or maintenance
+      - Sales/marketing focused only
+      - Expensive website tiers
+
+  mri_rentbook:
+    name: MRI Rentbook
+    url: https://www.mrisoftware.com/za/products/rentbook/
+    founded: 1971 (MRI); Rentbook acquired
+    hq: Global (SA office)
+    tagline: Free property management for up to 20 properties
+    focus: Freemium rental management
+    pricing:
+      model: Freemium + pay-per-lease
+      free_tier: "Up to 20 properties"
+      paid: Pay-per-lease after 20
+    features:
+      trust_accounting: true
+      rent_collection: true
+      maintenance: true
+      tenant_portal: true
+      mobile_app: true
+      lease_management: basic
+      inspections: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+    strengths:
+      - Free for small landlords (up to 20 properties)
+      - Backed by MRI (enterprise credibility)
+      - Mobile app available
+    weaknesses:
+      - Limited features vs full platforms
+      - Enterprise parent = risk of pricing changes
+      - SA-specific features through acquisitions, not core
+
+  reos:
+    name: reOS
+    url: https://www.reos.co.za
+    hq: South Africa
+    tagline: Automated rental management
+    focus: Payment processing + reconciliation + invoicing
+    pricing:
+      model: "% of transactions"
+      monthly: "R0/mo subscription"
+      processing_fee: "0.55% of transactions"
+      eft_fee: "R3.50/outgoing EFT"
+      typical_monthly: "~R1,760"
+    user_types:
+      - Office administrators
+      - Office managers
+      - Business owners (agencies)
+      - Property owners/landlords
+    features:
+      trust_accounting: true
+      rent_collection: true
+      reconciliation: true    # 100% automatic matching
+      disbursements: true     # Instant including after-hours
+      lease_renewals: true
+      reporting: true
+      maintenance: false
+      inspections: false
+      tenant_portal: false
+      owner_portal: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+      mobile_app: false
+    integrations:
+      - SBL
+      - Property Inspect
+      - TPN
+      - Lightstone
+      - Prop Data
+      - Lesaka
+    compliance:
+      ppra: true
+      fic: true
+      pasa: true
+      popia: true
+    notable_clients:
+      - Tyson Properties
+      - Rawson Properties
+      - RE/MAX
+    strengths:
+      - Zero monthly subscription
+      - Instant disbursements (including after-hours)
+      - Claims 30+ hours/month saved
+      - Strong compliance credentials
+    weaknesses:
+      - Payments only — no management, maintenance, or inspections
+      - No portals
+      - No CRM or marketing
+
+  talozen:
+    name: Talozen
+    url: https://www.talozen.com
+    hq: South Africa
+    tagline: Management platform for Real Estate Sales and Rentals
+    focus: Full rental + sales lifecycle with digital document generation and integrations
+    threat_level: HIGH
+    pricing:
+      model: Not publicly disclosed
+      details: Contact sales for pricing
+    user_types:
+      - Property managers
+      - Estate agents
+      - Landlords/owners
+      - Tenants (portal)
+      - Buyers (sales flow)
+    features:
+      inventory_management: true    # Links owner, tenant, property — paperless collection
+      lease_management: true        # Lease applications, renewals, reminders
+      mandate_management: true      # Mandate applications with digital signing
+      esigning: true                # Digital document generation and signing — compliance-focused
+      sales: true                   # Marketing websites, OTP generation, bond originator integration
+      lead_tracking: true           # Prospect → approved tenant/buyer pipeline
+      dashboards: true              # Real-time dashboards, reporting, insights
+      tenant_portal: true           # Implied from inventory flow
+      owner_portal: true            # Implied from inventory flow
+      bond_origination: true        # Ooba integration, affordability results
+      trust_accounting: false       # Integrates with PayProp/Xero instead of building own
+      maintenance: false            # Not mentioned
+      inspections: false            # Not mentioned
+      crm: partial                  # Lead tracking but not full CRM
+      ai_features: false            # Not mentioned
+      mobile_app: false             # Not mentioned
+      property_marketing: true      # Creates marketing websites automatically
+    integrations:
+      - MRI Software
+      - PayProp (trust accounting)
+      - Xero (accounting)
+      - Ooba (bond origination)
+      - Payment gateways (unspecified)
+    compliance:
+      document_compliance: true     # Regular updates to ensure documents remain compliant
+    testimonials:
+      - "Quadrupled operational capacity without additional staff"
+      - "Streamlined lease signing processes significantly"
+    strengths:
+      - E-signing (one of only two SA platforms with this — Klikk is the other)
+      - Full sales + rentals in one platform
+      - Strong integration ecosystem (PayProp, Xero, MRI, Ooba)
+      - Paperless inventory management — modern approach
+      - Automates marketing website creation for sales listings
+      - Claims 4x operational capacity improvement
+    weaknesses:
+      - No trust accounting (relies on PayProp/Xero integration)
+      - No maintenance management mentioned
+      - No inspections module
+      - No AI features
+      - No mobile app mentioned
+      - Opaque pricing (must contact sales)
+      - No independent third-party reviews found
+      - Website blocks automated scraping (403) — limited transparency
+
+  propworx:
+    name: PropWorx
+    url: https://propworx.co.za
+    founded: 2004
+    hq: Pretoria (also Portugal)
+    tagline: Cloud-based property management for agents
+    focus: Full rental + sales management + accounting
+    pricing:
+      model: Per user license per month
+      complete_lite: "R795/user/mo"
+      complete_pro: "R1,095/user/mo"
+      sales_lite: "R395/user/mo"
+      sales_pro: "R595/user/mo"
+      inspection: "R395/user/mo"
+      maintenance: "R395/user/mo"
+      legal: "R395/user/mo"
+      viewer: "R95/user/mo"
+    user_types:
+      - Complete Lite (rental admin)
+      - Complete Pro (rental + accounting)
+      - Sales Lite/Pro
+      - Inspection User
+      - Maintenance User
+      - Legal User
+      - Viewer (read-only)
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true
+      maintenance: true
+      inspections: true
+      tenant_portal: true
+      owner_portal: true
+      crm: true
+      sales: true
+      legal: true              # Arrears + debt collection
+      commission_management: true
+      reporting: true
+      esigning: false
+      ai_features: false
+      mobile_app: false
+      property_marketing: false
+    integrations:
+      - 3PIM (FNB investments)
+      - TPN
+      - Netcash
+      - Property Inspect
+      - Chapps
+      - Microsoft 365
+      - Google Workspace
+    strengths:
+      - Most feature-complete platform in SA
+      - 8 user types with granular module access
+      - Both rentals AND sales
+      - Franchise/franchisor portals
+    weaknesses:
+      - No e-signing
+      - No AI features
+      - No mobile app
+      - Expensive per-user licensing
+      - Founded 2004 — legacy codebase risk
+
+  buildium:
+    name: Buildium
+    url: https://www.buildium.com
+    hq: Boston, US (owned by RealPage)
+    tagline: The smarter way to manage residential properties
+    focus: Full rental management for SMB property managers (US market)
+    threat_level: MEDIUM  # SA entry risk; modern design language
+    pricing:
+      model: Tiered monthly subscription
+      essential: "~$55/mo (50 units)"
+      growth: "~$174/mo (150 units)"
+      premium: "~$375/mo (unlimited)"
+    user_types:
+      - Property managers
+      - Landlords
+      - Tenants (portal)
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: basic
+      maintenance: true
+      tenant_portal: true
+      owner_portal: true
+      reporting: true
+      mobile_app: true
+      inspections: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+      property_marketing: false
+    brand_colors:
+      primary: "#73B680"
+      secondary: "#153d58"
+      accent: "#ff5c23"
+    design_patterns:
+      - glassmorphism modals (backdrop-filter blur)
+      - 12-column bento grid with asymmetric hero
+      - sticky mobile CTA wrapper
+      - award badge showcase (Capterra, G2)
+      - pricing comparison tables with highlighted tiers
+    integrations:
+      - Zillow Rental Manager
+      - TransUnion SmartMove (screening)
+      - Electronic signatures (3rd party)
+    strengths:
+      - Modern, design-forward UI (bento grid, glassmorphism)
+      - Strong US SMB market presence
+      - Award-winning UX (Capterra Top 20)
+      - Full accounting + tenant portal
+    weaknesses:
+      - No e-signing
+      - No AI features of any kind
+      - US-focused — no SA regulatory compliance
+      - Per-unit pricing can be expensive at scale
+
+  appfolio:
+    name: AppFolio
+    url: https://www.appfolio.com
+    hq: Santa Barbara, US (NASDAQ: APPF)
+    tagline: What real performance looks like
+    focus: AI-powered full property management — residential, commercial, student housing
+    threat_level: HIGH  # "AI Built-In" positioning; if they enter SA market it's critical
+    pricing:
+      model: Per-unit per-month (minimum commitment)
+      core: "~$1.49/unit/mo (min $298/mo)"
+      plus: "~$3/unit/mo"
+    user_types:
+      - Property managers
+      - Investors
+      - Residents (tenants)
+      - Vendors (suppliers)
+      - Owners (landlords)
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true
+      maintenance: true
+      tenant_portal: true
+      owner_portal: true
+      crm: true
+      sales: true
+      reporting: true
+      mobile_app: true
+      inspections: true
+      esigning: false
+      ai_features: true  # Predictive/workflow AI — NOT generative LLM
+    ai_modules:
+      - "Realm-X Assistant (workflow automation AI)"
+      - "Realm-X Flows (automated task chains)"
+      - "Realm-X Performers (performance analytics AI)"
+      - "Resident Onboarding AI"
+    brand_colors:
+      primary: "#0d4f8b"
+      secondary: "#1a73c8"
+    design_patterns:
+      - narrative-first hero ("AI Built-In, Not Bolted-On")
+      - role-segmented login portals per user type
+      - named AI modules (Realm-X brand family)
+      - staggered social proof ("scaled to 14,000 units")
+      - outcome-first copywriting (performance metrics in headlines)
+    integrations:
+      - Yardi (migration)
+      - TransUnion (screening)
+      - Multiple payment processors
+    strengths:
+      - "AI Built-In" brand positioning (not bolted-on)
+      - Named AI modules create memorable feature identity
+      - Role-segmented portals reduce cognitive load
+      - Large US enterprise client base
+      - Publicly traded — strong financial credibility
+    weaknesses:
+      - AI is predictive/workflow only — NOT generative LLM (Klikk uses Claude)
+      - No e-signing
+      - US-centric — no SA regulatory compliance (RHA, ECTA)
+      - Expensive per-unit pricing
+      - No SA presence
+    klikk_response: "Klikk's generative AI (Claude API) writes leases, answers tenant questions,
+      and parses documents — AppFolio's AI only automates existing workflows. Different capability
+      tier entirely."
+
+  propertyware:
+    name: Propertyware
+    url: https://www.propertyware.com
+    hq: US (owned by RealPage)
+    tagline: With Propertyware, it's not what you can't do, it's what you can
+    focus: Customisable full property management — API-first, single-family focused
+    threat_level: MEDIUM  # Already has SA presence via RealPage; API-first is a competing angle
+    pricing:
+      model: Per-unit per-month tiered
+      basic: "~$1/unit/mo (min $250/mo)"
+      plus: "~$1.50/unit/mo (min $350/mo)"
+      premium: "~$2/unit/mo (min $450/mo)"
+    user_types:
+      - Property managers
+      - Landlords
+      - Tenants (portal)
+      - Owners
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true
+      maintenance: true
+      inspections: true
+      tenant_portal: true
+      owner_portal: true
+      reporting: true
+      mobile_app: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+    brand_colors:
+      primary: "#00bcd4"  # vivid cyan
+      secondary: "#e53935"  # red accent
+    design_patterns:
+      - CSS variable-driven color system (runtime theming)
+      - dual CTAs ("Free Demo" + "Free Trial")
+      - three-pillar value props (Powerful / Customisable / Open)
+      - webcast/ebook content marketing cards
+      - API-first / open integration messaging
+    integrations:
+      - Open REST API (key differentiator)
+      - Multiple payment gateways
+      - Inspection tools
+    strengths:
+      - API-first architecture — highly customisable
+      - Free trial (reduces conversion friction vs. demo-only competitors)
+      - Inspections + maintenance included
+      - CSS variable system enables white-labelling
+    weaknesses:
+      - No e-signing
+      - No AI features
+      - No mobile app
+      - No SA-specific compliance
+      - Owned by RealPage (enterprise focus, pricing changes likely)
+
+  rent_manager:
+    name: Rent Manager
+    url: https://www.rentmanager.com
+    hq: Cincinnati, US
+    tagline: Property management software built for you
+    focus: Full management + accounting for residential and commercial portfolios
+    threat_level: MEDIUM  # Large global footprint; 400+ integrations is a competitive signal
+    pricing:
+      model: Per-user per-month
+      single_user: "~$90/mo"
+      multiple_users: "Custom"
+    user_types:
+      - Property managers
+      - Landlords
+      - Tenants (portal)
+      - Owners
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true
+      maintenance: true
+      inspections: true
+      tenant_portal: true
+      owner_portal: true
+      crm: true
+      sales: true
+      reporting: true
+      mobile_app: false
+      esigning: false
+      ai_features: false
+      property_marketing: false
+    brand_colors:
+      primary: "#3777bc"
+      secondary: "#f58220"  # orange hover/CTA accent
+    design_patterns:
+      - bordered containers with coloured top accent lines
+      - 6-category feature carousel (auto-rotating)
+      - 400+ partner integration grid (visual trust signal)
+      - upcoming events calendar widget
+      - mobile-first hamburger nav (transforms at 1200px)
+      - slide-left sidebar animation on mobile
+    integrations:
+      - 400+ partner integrations (largest ecosystem in category)
+      - Microsoft 365
+      - Google Workspace
+      - Multiple payment processors
+      - Inspection tools
+    strengths:
+      - 400+ integrations — largest ecosystem in the category
+      - Both residential AND commercial
+      - Strong accounting suite
+      - Long track record
+    weaknesses:
+      - No e-signing
+      - No AI features
+      - No dedicated mobile app
+      - Per-user pricing becomes expensive for large teams
+      - Legacy UI compared to DoorLoop/Buildium
+
+  doorloop:
+    name: DoorLoop
+    url: https://www.doorloop.com
+    hq: Miami, US
+    tagline: Property management software built for speed
+    focus: Speed-first full management — fast onboarding, modern UX, conversion-optimised
+    threat_level: HIGH  # STRATEGIC DESIGN THREAT — identical navy+pink colour language as Klikk
+    g2_rating: 4.8
+    g2_reviews: 1836  # across G2, Capterra, GetApp, SoftwareAdvice
+    pricing:
+      model: Per-unit per-month tiered
+      starter: "~$59/mo (20 units)"
+      pro: "~$119/mo (unlimited)"
+      premium: "~$169/mo (unlimited + premium support)"
+    user_types:
+      - Property managers
+      - Landlords
+      - Tenants (portal)
+      - Owners
+    features:
+      trust_accounting: true
+      rent_collection: true
+      lease_management: true
+      maintenance: true
+      tenant_portal: true
+      owner_portal: true
+      reporting: true
+      mobile_app: true
+      inspections: false
+      crm: false
+      sales: false
+      esigning: false
+      ai_features: false
+    brand_colors:
+      primary: "#2f3e83"   # near-identical to Klikk navy #2B2D6E — STRATEGIC THREAT
+      secondary: "#ff4998"  # near-identical to Klikk accent #FF3D7F — STRATEGIC THREAT
+    design_patterns:
+      - transparent-to-white sticky nav (20px scroll trigger)
+      - "36-second demo" scheduling form (urgency + simplicity)
+      - skeleton loaders replacing spinners
+      - G2/Capterra/GetApp review badge cluster (4.8+ stars)
+      - PostHog event tracking on every CTA
+      - VWO A/B testing integration
+      - email localStorage auto-fill for returning visitors
+      - dot-pattern SVG section dividers
+      - animated menu underlines
+      - .avif image format for performance
+      - spring animations on interactive elements
+    integrations:
+      - QuickBooks
+      - Zapier
+      - Multiple payment processors
+    strengths:
+      - Highest G2 rating in category (4.8+ with 1,836 reviews)
+      - Modern design language (identical navy+pink to Klikk — closest visual competitor)
+      - Fast onboarding (36-second demo CTA reduces friction)
+      - Strong analytics infrastructure (PostHog + VWO)
+      - Skeleton loaders + spring animations (higher motion polish than most competitors)
+    weaknesses:
+      - No e-signing (Klikk's ECTA s13 is a major differentiator)
+      - No AI features of any kind
+      - No inspections module
+      - US-only — no SA regulatory compliance
+      - No CRM or sales module
+    klikk_response: "DoorLoop's design language mirrors Klikk's navy+pink palette. Differentiate
+      on: (1) generative AI suite — DoorLoop has zero AI; (2) native e-signing with ECTA s13
+      audit trail; (3) dedicated tenant mobile app; (4) RHA-compliant lease generation for SA."
+
+# ──────────────────────────────────────────
+# Klikk positioning
+# ──────────────────────────────────────────
+
+klikk_differentiators:
+  generative_ai:
+    # AppFolio has predictive/workflow AI (Realm-X). NO competitor has generative LLM-powered AI.
+    - "Tenant Chat AI (Claude API + RAG) — answers lease queries from your documents"
+    - "Lease Builder AI (TipTap + Claude) — generates RHA-compliant leases from legislation"
+    - "Document Parser AI — extracts structured data from municipal bills, FICA/CIPC docs"
+    - "Supplier Matcher AI — match_score + match_reasons for maintenance requests"
+  regulatory:
+    - "Native e-signing (Gotenberg, ECTA s13 compliant, SHA-256 audit trail) — only Klikk + Talozen in SA"
+    - "RHA-compliant lease generation (SA-specific; customisable templates for other jurisdictions)"
+  mobile:
+    - "Dedicated tenant mobile app (Flutter, native iOS + Android compilation — not a web wrapper)"
+  platform:
+    - "Full rental lifecycle in one platform"
+
+klikk_gaps:
+  critical:
+    - Trust accounting (PayProp, WeConnectU, reOS, PropWorx, Buildium, Rent Manager all have this)
+    - Bank reconciliation and payment processing
+    - Tenant/owner statement generation
+  high:
+    - TPN tenant credit screening integration
+    - Bulk payment processing (debit orders via Netcash)
+    - Arrears management + automated reminders
+  medium:
+    - Sales module (PropWorx, Prop Data, Entegral, AppFolio, Rent Manager)
+    - CRM / leads management
+    - Property marketing / portal syndication
+  low:
+    - Franchise/franchisor portals
+    - Microsoft 365 / Google Workspace integration
+
+market_opportunity:
+  generative_ai_moat:
+    # AppFolio has predictive AI — this distinction is critical for positioning
+    - "Generative AI (LLM-powered) vs. predictive AI — only Klikk uses Claude for chat, lease building, and document parsing"
+    - "AppFolio's Realm-X automates workflows; Klikk's AI writes documents, answers questions, and extracts data — different capability tier"
+    - "No SA competitor has ANY AI features — Klikk is the only AI-native property platform in SA"
+  e_signing_moat:
+    - "E-signing with ECTA s13 audit trail — only Klikk + Talozen in SA; none of the 5 international platforms have it"
+    - "Talozen relies on PayProp/Xero integration; Klikk is self-contained (Gotenberg)"
+  mobile_moat:
+    - "Dedicated tenant mobile app — only MRI Rentbook (limited) and Klikk in SA market"
+    - "DoorLoop has a mobile app but no SA presence; Klikk is the only SA platform with native iOS + Android"
+  design_differentiation:
+    - "DoorLoop uses near-identical navy+pink palette — differentiate via motion intensity (skeleton loaders, spring animations, glassmorphism)"
+    - "Most SA platforms are 10+ years old (PropWorx 2004, PayProp 2004) — modern UX is itself a differentiator"
+  underserved:
+    - "Small landlords (1-5 properties) — only MRI Rentbook free tier; Klikk free tier would own this segment"
+    - "Self-managing owners who don't use agencies — AI tenant chat + AI lease builder enables solo landlords"
+    - "Dev/API-first buyers — Propertyware targets this; Klikk REST API + webhooks could compete here"

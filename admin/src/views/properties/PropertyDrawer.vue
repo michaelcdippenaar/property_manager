@@ -107,8 +107,8 @@
 
         <div v-else-if="linkedTemplate" class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center flex-shrink-0">
-              <FileSignature :size="15" class="text-indigo-600" />
+            <div class="w-8 h-8 rounded-lg bg-navy/10 flex items-center justify-center flex-shrink-0">
+              <FileSignature :size="15" class="text-navy" />
             </div>
             <div>
               <div class="text-sm font-medium text-gray-900">{{ linkedTemplate.name }}</div>

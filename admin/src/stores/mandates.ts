@@ -118,6 +118,32 @@ export const useMandatesStore = defineStore('mandates', () => {
     }
   }
 
+  /**
+   * Send an existing mandate PDF to the backend for Claude Vision extraction.
+   * Server-side is stateless — this does NOT create or attach anything; it
+   * just returns structured fields so the admin modal can be pre-filled.
+   * The caller must still POST to `/properties/mandates/` to actually create
+   * the RentalMandate once the user confirms.
+   */
+  async function parseDocument(
+    propertyId: number,
+    file: File,
+  ): Promise<{ extracted: Record<string, any>; missing: string[]; warnings: string[]; filename: string }> {
+    const fd = new FormData()
+    fd.append('document', file)
+    try {
+      const { data } = await api.post(
+        `/properties/${propertyId}/mandates/parse-document/`,
+        fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } },
+      )
+      return data
+    } catch (err) {
+      error.value = extractApiError(err, 'Failed to read mandate document')
+      throw err
+    }
+  }
+
   function invalidate(propertyId?: number): void {
     if (propertyId === undefined) {
       byProperty.value = new Map()
@@ -143,6 +169,7 @@ export const useMandatesStore = defineStore('mandates', () => {
     update,
     remove,
     sendForSigning,
+    parseDocument,
     invalidate,
   }
 })

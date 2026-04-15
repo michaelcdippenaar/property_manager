@@ -2,11 +2,12 @@ from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     RegisterView, LoginView, MeView, OTPSendView, OTPVerifyView,
-    TenantsListView, PersonViewSet, PersonDetailView, PushTokenView,
+    TenantsListView, PersonViewSet, PersonDetailView, PersonDocumentListCreateView,
+    PersonDocumentDetailView, PushTokenView,
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
     AcceptInviteView,
 )
-from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, AgencySettingsView
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView
 from .oauth_views import GoogleAuthView
 from .lookup_views import EntityLookupView
 
@@ -22,12 +23,15 @@ urlpatterns = [
     path("tenants/", TenantsListView.as_view(), name="tenants-list"),
     path("persons/", PersonViewSet.as_view(), name="persons-list"),
     path("persons/<int:pk>/", PersonDetailView.as_view(), name="persons-detail"),
+    path("persons/<int:person_pk>/documents/", PersonDocumentListCreateView.as_view(), name="person-documents"),
+    path("persons/<int:person_pk>/documents/<int:pk>/", PersonDocumentDetailView.as_view(), name="person-document-detail"),
     # Admin role management
     path("users/", UserListView.as_view(), name="user-list"),
     path("users/<int:pk>/", UserDetailView.as_view(), name="user-detail"),
     path("users/invite/", InviteUserView.as_view(), name="user-invite"),
     path("users/invites/", PendingInvitesView.as_view(), name="user-invites"),
     path("users/invites/<int:pk>/", CancelInviteView.as_view(), name="user-invite-cancel"),
+    path("users/invites/<int:pk>/resend/", ResendInviteView.as_view(), name="user-invite-resend"),
     # Auth hardening
     path("change-password/", ChangePasswordView.as_view(), name="auth-change-password"),
     path("logout/", LogoutView.as_view(), name="auth-logout"),

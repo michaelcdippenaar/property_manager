@@ -3,12 +3,10 @@ AI municipal bill parser for property onboarding.
 
 POST /api/v1/properties/parse-municipal-bill/
 
-Accepts a municipal bill upload (PDF/image), sends it to Claude,
+Accepts a municipal bill upload (PDF/image), sends it to Claude via tool_use,
 and returns structured property data extracted from the bill.
 """
 
-import base64
-import json
 import mimetypes
 from datetime import date
 
@@ -20,65 +18,85 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.properties.extraction_utils import (
+    MUNICIPAL_BILL_TOOL,
+    MAX_FILE_SIZE_BYTES,
+    call_claude_with_tools,
+    encode_file,
+    extract_pdf_text,
+)
 
-SYSTEM_PROMPT = """You are an expert at reading South African municipal bills / rates accounts.
+SYSTEM_PROMPT = """You are an expert at reading South African municipal bills and rates accounts.
 
-Given a municipal bill document (PDF or image), extract all property and account information you can find.
+You will receive a municipal bill document (PDF or image) and must extract all property and billing data you can find.
 
-Common South African municipalities: City of Cape Town, Stellenbosch, Drakenstein, City of Johannesburg, eThekwini, Tshwane, Nelson Mandela Bay, Buffalo City, Mangaung, etc.
+## How to read SA municipal bills
 
-## Fields to extract
+SA municipal bills are bilingual (English/Afrikaans) and follow a standard layout:
+1. **Header**: Municipality name, VAT number, contact details
+2. **Account holder block**: Owner name and postal address (top-left)
+3. **Account details**: Account number, date, valuation, plot/erf number
+4. **Meter readings table**: Service type (W=Water, E=Electricity), meter numbers, previous/current readings, consumption
+5. **Line items table**: Service charges with tariff, VAT, and amount columns
+6. **Totals**: "Total monthly" or "TOTAL NOW DUE"
+7. **Footer**: Payment instructions, messages
 
-- **property_name**: The property/stand name or description (e.g. "18 Irene Park", "Erf 1234 Stellenbosch")
-- **address**: Full street address of the property
-- **city**: City/town name
-- **province**: Province (Western Cape, Gauteng, KwaZulu-Natal, etc.)
-- **postal_code**: Postal code if shown
-- **erf_number**: Erf/stand number (e.g. "Erf 1234", "Stand 567")
-- **municipal_account_number**: The municipal account number
-- **property_type**: One of: apartment, house, townhouse, commercial (infer from usage/zoning)
-- **owner_name**: Property owner name as shown on the bill
-- **owner_id_or_reg**: Owner ID number or company registration if shown
-- **zoning**: Zoning type if shown (residential, commercial, industrial, agricultural)
-- **property_size_m2**: Property size in m² if shown
-- **rates_amount**: Monthly rates amount in ZAR
-- **refuse_amount**: Refuse/waste removal amount if shown
-- **water_account**: Water meter number or account
-- **electricity_account**: Electricity meter/account number if shown
-- **total_due**: Total amount due
-- **billing_date**: Date of the bill (ISO format)
-- **due_date**: Payment due date (ISO format)
+## Key field locations
 
-## Output
+- **Owner name**: First line of the account holder address block (top-left)
+- **Owner postal address**: Lines 2-5 of the account holder block — this is the account holder's MAILING address, NOT necessarily the property address. For companies or landlords who own multiple properties, this will be their office/company address.
+- **Property address**: Labelled "LOCATION" on the right side of the bill — this is the ACTUAL PHYSICAL PROPERTY being rated, in reversed format (e.g. "PAUL KRUGER STREET 9" means 9 Paul Kruger Street). ALWAYS use this as both `address` and `property_name`. Re-order the reversed format to normal order (number last → number first: "PAUL KRUGER STREET 9" → "9 Paul Kruger Street"). Do NOT use the name block address for `address` or `property_name`.
+- **Account number**: Labelled "ACCOUNT NUMBER" or "Rekeningnr."
+- **Account date**: Labelled "ACCOUNT DATE" or "Datum" — in DD/MM/YYYY format
+- **Due date**: Labelled "Due Date" or "Datum Verskuldig" — convert DD/MM/YYYY to YYYY-MM-DD
+- **Erf/Plot**: Labelled "PLOT" — code like "MDRIF 4087 00001" (Stellenbosch) or "ERF 1234" (Cape Town)
+- **Valuation**: Labelled "VALUATION" — property value in ZAR
+- **Usage/Zoning**: "RES" = Residential, "BUS" = Business, "IND" = Industrial
+- **Area**: Property size — Stellenbosch shows hectares (multiply by 10000 for m²)
+- **Deposit**: Labelled "DEPOSIT/GUARANTEE" — shown as credit (negative)
 
-Respond ONLY with valid JSON — no markdown, no explanation:
+**CRITICAL for Stellenbosch bills:** The LOCATION field is the property address (e.g. "PAUL KRUGER STREET 9"). The name block address is the owner's postal address — these are often DIFFERENT, especially when the owner is a company. Always extract the property address from LOCATION, not the name block.
 
-{{
-  "property_name": "",
-  "address": "",
-  "city": "",
-  "province": "",
-  "postal_code": "",
-  "erf_number": "",
-  "municipal_account_number": "",
-  "property_type": "apartment | house | townhouse | commercial",
-  "owner_name": "",
-  "owner_id_or_reg": "",
-  "zoning": "",
-  "property_size_m2": null,
-  "rates_amount": null,
-  "refuse_amount": null,
-  "water_account": "",
-  "electricity_account": "",
-  "total_due": null,
-  "billing_date": "",
-  "due_date": "",
-  "municipality": "",
-  "confidence_notes": []
-}}
+## Service line items
 
-For `confidence_notes`, include any notes about uncertain extractions or fields you couldn't find.
-Only extract what is explicitly present. Use null for missing numeric fields and "" for missing text fields."""
+| Line label | Target field | Notes |
+|-----------|-------------|-------|
+| Rates Monthly RES / Property Rates | rates_amount | Zero-rated (no VAT) |
+| Refuse Removal / Vullis | refuse_amount | Includes VAT |
+| Sewerage Levy | sewerage_amount | Includes VAT |
+| Water: DOM Basic + Water: DOM Cons | water_amount | Sum both, use Amount column |
+| Elekt/Elect Basic + Elekt Cons | electricity_amount | Sum both, use Amount column |
+| Special Rate | (note in confidence_notes) | Area-specific levy |
+
+## Meter readings
+
+In the meter table:
+- **W** = Water meter. Consumption in kilolitres.
+- **E** = Electricity meter. Consumption in kWh.
+
+## Important rules
+
+1. Convert ALL dates from DD/MM/YYYY to YYYY-MM-DD
+2. All monetary amounts are in ZAR — return as plain numbers, no currency symbols
+3. For property_size_m2: if shown in hectares (decimal like .2067), multiply by 10000
+4. For deposit_amount: remove the trailing minus sign, return as positive number
+5. The municipality name may not be explicitly stated — infer from:
+   - VAT registration number (4700102181 = Stellenbosch Municipality)
+   - Postal address on letterhead
+   - Phone area code (021 = Western Cape metros)
+6. Province: infer from municipality (Stellenbosch = Western Cape)
+7. property_type: infer from zoning code. "RES" = house. "Sectional Title" = apartment. If unclear, use null.
+
+## Confidence scoring
+
+Rate each field 0-100:
+- **95-100**: Clearly printed, unambiguous, exact match to a labelled field
+- **85-94**: Present on bill but needs minor interpretation (e.g., address assembly from multiple lines)
+- **70-84**: Requires inference from context (e.g., municipality from VAT number)
+- **50-69**: Moderate inference (e.g., property_type from zoning code)
+- **Below 50**: Uncertain guess — prefer null over a low-confidence value
+
+Today's date: {today}"""
 
 
 class ParseMunicipalBillView(APIView):
@@ -105,33 +123,19 @@ class ParseMunicipalBillView(APIView):
                 status=http_status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
-        # Read and encode file
         data = file.read()
-        mime, _ = mimetypes.guess_type(file.name)
-        if not mime:
-            mime = "application/octet-stream"
 
-        if mime.startswith("image/"):
-            file_block = {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": mime,
-                    "data": base64.standard_b64encode(data).decode(),
-                },
-            }
-        elif mime == "application/pdf":
-            file_block = {
-                "type": "document",
-                "source": {
-                    "type": "base64",
-                    "media_type": "application/pdf",
-                    "data": base64.standard_b64encode(data).decode(),
-                },
-            }
-        else:
+        if len(data) > MAX_FILE_SIZE_BYTES:
             return Response(
-                {"detail": f"Unsupported file type: {mime}. Upload a PDF, JPG, or PNG."},
+                {"detail": "File too large (max 10 MB)."},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
+
+        mime, _ = mimetypes.guess_type(file.name)
+        file_block = encode_file(data=data, filename=file.name, mime=mime)
+        if file_block is None:
+            return Response(
+                {"detail": f"Unsupported file type. Upload a PDF, JPG, or PNG."},
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -139,45 +143,37 @@ class ParseMunicipalBillView(APIView):
             {
                 "type": "text",
                 "text": (
-                    f"Extract property information from this South African municipal bill.\n"
-                    f"Filename: {file.name}\n\n"
-                    "Return ONLY the JSON object as specified in your instructions."
+                    f"Extract all property and billing information from this South African municipal bill.\n"
+                    f"Filename: {file.name}"
                 ),
             },
             file_block,
         ]
 
+        # For PDFs, also append extracted text as supplementary context
+        if mime == "application/pdf":
+            pdf_text = extract_pdf_text(data)
+            if pdf_text.strip():
+                content.append({
+                    "type": "text",
+                    "text": f"[Supplementary text extracted from PDF]\n{pdf_text}",
+                })
+
         client = anthropic.Anthropic(api_key=api_key)
         system = SYSTEM_PROMPT.format(today=date.today().isoformat())
 
-        try:
-            message = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=2048,
-                system=system,
-                messages=[{"role": "user", "content": content}],
-            )
-        except anthropic.APIError as exc:
+        extracted, error = call_claude_with_tools(
+            client, system, content, MUNICIPAL_BILL_TOOL
+        )
+
+        if error:
             return Response(
-                {"detail": f"Claude API error: {exc}"},
+                {"detail": error},
                 status=http_status.HTTP_502_BAD_GATEWAY,
             )
 
-        raw = message.content[0].text.strip()
-
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```", 2)[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-            raw = raw.rsplit("```", 1)[0].strip()
-
-        try:
-            extracted = json.loads(raw)
-        except json.JSONDecodeError:
-            return Response(
-                {"detail": "Claude returned invalid JSON.", "raw": raw[:500]},
-                status=http_status.HTTP_502_BAD_GATEWAY,
-            )
-
-        return Response({"extracted": extracted, "filename": file.name})
+        return Response({
+            "extracted": extracted,
+            "filename": file.name,
+            "confidence_scores": extracted.get("confidence_scores", {}),
+        })

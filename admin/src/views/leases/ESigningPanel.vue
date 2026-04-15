@@ -13,11 +13,11 @@
       <!-- Header with progress -->
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span v-if="latestSub.status === 'completed'" class="inline-flex items-center gap-1.5 text-sm font-medium text-green-700">
+          <span v-if="latestSub.status === 'completed'" class="inline-flex items-center gap-1.5 text-sm font-medium text-success-700">
             <CheckCircle2 :size="15" />
             Lease fully signed
           </span>
-          <span v-else-if="latestSub.status === 'declined'" class="inline-flex items-center gap-1.5 text-sm font-medium text-red-600">
+          <span v-else-if="latestSub.status === 'declined'" class="inline-flex items-center gap-1.5 text-sm font-medium text-danger-600">
             <XCircle :size="15" />
             Signing declined
           </span>
@@ -28,11 +28,11 @@
           <!-- Live connection indicator -->
           <span
             v-if="latestSub.status !== 'completed' && latestSub.status !== 'declined'"
-            class="inline-flex items-center gap-1 text-[10px]"
-            :class="wsConnected ? 'text-green-500' : 'text-gray-300'"
+            class="inline-flex items-center gap-1 text-xs"
+            :class="wsConnected ? 'text-success-500' : 'text-gray-300'"
             :title="wsConnected ? 'Live updates active' : 'Reconnecting…'"
           >
-            <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-green-400 animate-pulse' : 'bg-gray-300'" />
+            <span class="w-1.5 h-1.5 rounded-full" :class="wsConnected ? 'bg-success-400 animate-pulse' : 'bg-gray-300'" />
             {{ wsConnected ? 'Live' : '' }}
           </span>
         </div>
@@ -50,7 +50,7 @@
       <!-- Progress bar -->
       <div v-if="latestSub.status !== 'completed' && latestSub.status !== 'declined'" class="w-full bg-gray-100 rounded-full h-1.5">
         <div
-          class="bg-green-500 h-1.5 rounded-full transition-all duration-500"
+          class="bg-success-500 h-1.5 rounded-full transition-all duration-500"
           :style="{ width: `${(signedCount / totalSigners) * 100}%` }"
         />
       </div>
@@ -66,7 +66,7 @@
           <div
             v-if="idx < latestSub.signers.length - 1"
             class="absolute left-[11px] top-6 bottom-0 w-px"
-            :class="isSignerDone(signer) ? 'bg-green-300' : 'bg-gray-200'"
+            :class="isSignerDone(signer) ? 'bg-success-400' : 'bg-gray-200'"
           />
 
           <!-- Status dot -->
@@ -74,9 +74,9 @@
             class="absolute left-0 top-0.5 w-6 h-6 rounded-full flex items-center justify-center border-2"
             :class="signerDotClass(signer)"
           >
-            <CheckCircle2 v-if="isSignerDone(signer)" :size="14" class="text-green-600" />
-            <XCircle v-else-if="isSignerDeclined(signer)" :size="14" class="text-red-500" />
-            <Eye v-else-if="isSignerViewing(signer)" :size="12" class="text-blue-600" />
+            <CheckCircle2 v-if="isSignerDone(signer)" :size="14" class="text-success-600" />
+            <XCircle v-else-if="isSignerDeclined(signer)" :size="14" class="text-danger-500" />
+            <Eye v-else-if="isSignerViewing(signer)" :size="12" class="text-info-600" />
             <Clock v-else :size="12" class="text-gray-400" />
           </div>
 
@@ -84,7 +84,7 @@
           <div class="min-w-0">
             <div class="flex items-center gap-2 flex-wrap">
               <span class="text-sm font-medium text-gray-900">{{ signer.name || signer.email }}</span>
-              <span class="text-[11px] text-gray-400">{{ signer.role }}</span>
+              <span class="text-micro text-gray-400">{{ signer.role }}</span>
             </div>
 
             <!-- Status narrative -->
@@ -127,11 +127,11 @@
       <!-- Landlord can sign — shown when all tenants have signed -->
       <div
         v-if="landlordCanSign"
-        class="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl mt-2"
+        class="flex items-center gap-3 px-4 py-3 bg-info-50 border border-info-100 rounded-xl mt-2"
       >
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-semibold text-blue-900">All tenants have signed</div>
-          <div class="text-xs text-blue-600 mt-0.5">The landlord can now review and sign the lease</div>
+          <div class="text-sm font-semibold text-info-700">All tenants have signed</div>
+          <div class="text-xs text-info-600 mt-0.5">The landlord can now review and sign the lease</div>
         </div>
         <button
           class="btn-primary text-xs flex items-center gap-1.5 flex-shrink-0"
@@ -147,7 +147,7 @@
       <!-- Cancel pending submission — only allowed before anyone has signed -->
       <button
         v-if="latestSub && latestSub.status !== 'completed' && latestSub.status !== 'declined' && signedCount === 0"
-        class="text-xs text-red-400 hover:text-red-600 flex items-center gap-1 mt-2 transition-colors"
+        class="text-xs text-danger-400 hover:text-danger-600 flex items-center gap-1 mt-2 transition-colors"
         @click="cancelSubmission"
       >
         <X :size="11" />
@@ -166,7 +166,7 @@
     </template>
 
     <!-- ── Empty state: no submissions yet ── -->
-    <div v-else class="text-center py-6">
+    <div v-else-if="leaseData?.status !== 'active'" class="text-center py-6">
       <div class="w-12 h-12 rounded-full bg-navy/5 flex items-center justify-center mx-auto mb-3">
         <Send :size="20" class="text-navy" />
       </div>
@@ -183,7 +183,7 @@
     <!-- Error banner -->
     <div
       v-if="errorMsg"
-      class="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"
+      class="flex items-center gap-2 px-4 py-3 bg-danger-50 border border-danger-100 rounded-xl text-sm text-danger-700"
     >
       <AlertCircle :size="14" class="flex-shrink-0" />
       {{ errorMsg }}
@@ -191,7 +191,7 @@
 
     <div
       v-if="linkHint"
-      class="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800"
+      class="flex items-center gap-2 px-4 py-3 bg-success-50 border border-success-100 rounded-xl text-sm text-success-700"
     >
       <CheckCircle2 :size="14" class="flex-shrink-0" />
       {{ linkHint }}
@@ -217,21 +217,21 @@
             v-for="(signer, idx) in draftSigners"
             :key="idx"
             class="rounded-xl border p-4 space-y-3"
-            :class="!signer.email ? 'border-amber-300 bg-amber-50/40' : 'border-gray-200'"
+            :class="!signer.email ? 'border-warning-100 bg-warning-50/40' : 'border-gray-200'"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="text-xs font-semibold text-gray-600">Signer {{ idx + 1 }}</span>
                 <span
                   v-if="!signer.email"
-                  class="text-micro px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium"
+                  class="text-micro px-1.5 py-0.5 rounded-full bg-warning-100 text-warning-700 font-medium"
                 >
                   Email required
                 </span>
               </div>
               <button
                 v-if="draftSigners.length > 1"
-                class="text-xs text-red-400 hover:text-red-600 transition-colors"
+                class="text-xs text-danger-400 hover:text-danger-600 transition-colors"
                 @click="removeSigner(idx)"
               >
                 Remove
@@ -249,7 +249,7 @@
                   v-model="signer.email"
                   type="email"
                   class="input"
-                  :class="!signer.email ? 'border-amber-400 focus:border-amber-500' : ''"
+                  :class="!signer.email ? 'border-warning-500 focus:border-warning-500' : ''"
                   placeholder="signer@example.com"
                 />
               </div>
@@ -483,9 +483,9 @@ function isSignerViewing(s: any): boolean {
 }
 
 function signerDotClass(s: any): string {
-  if (isSignerDone(s)) return 'border-green-500 bg-green-50'
-  if (isSignerDeclined(s)) return 'border-red-400 bg-red-50'
-  if (isSignerViewing(s)) return 'border-blue-400 bg-blue-50'
+  if (isSignerDone(s)) return 'border-success-500 bg-success-50'
+  if (isSignerDeclined(s)) return 'border-danger-400 bg-danger-50'
+  if (isSignerViewing(s)) return 'border-info-500 bg-info-50'
   return 'border-gray-300 bg-white'
 }
 
@@ -504,9 +504,9 @@ function signerNarrative(s: any): string {
 
 function signerNarrativeColor(s: any): string {
   const st = (s.status ?? '').toLowerCase()
-  if (st === 'completed' || st === 'signed') return 'text-green-600'
-  if (st === 'declined') return 'text-red-500'
-  if (st === 'opened') return 'text-blue-600'
+  if (st === 'completed' || st === 'signed') return 'text-success-600'
+  if (st === 'declined') return 'text-danger-500'
+  if (st === 'opened') return 'text-info-600'
   return 'text-gray-400'
 }
 

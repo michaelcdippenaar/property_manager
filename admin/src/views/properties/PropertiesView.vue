@@ -1,15 +1,30 @@
 <template>
   <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-sm text-gray-500">Manage your property portfolio, units, and occupancy.</p>
-      <button class="btn-primary flex-shrink-0" @click="dialog = true">
-        <Plus :size="15" /> Add Property
-      </button>
-    </div>
+    <PageHeader
+      title="Properties"
+      subtitle="Manage your property portfolio, units, and occupancy."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Properties' }]"
+    >
+      <template #actions>
+        <button class="btn-primary" @click="dialog = true">
+          <Plus :size="15" /> Add Property
+        </button>
+      </template>
+    </PageHeader>
 
     <div class="card">
-      <div class="px-4 pt-4 pb-3 border-b border-gray-100">
-        <SearchInput v-model="search" placeholder="Search properties…" />
+      <div class="px-4 pt-4 pb-3 border-b border-gray-100 flex flex-col gap-3">
+        <SearchInput v-model="search" placeholder="Search properties…" class="flex-1" />
+        <FilterPills v-model="statusFilter" :options="statusOptions" />
+      </div>
+
+      <!-- Bulk action bar -->
+      <div v-if="selectedPropertyIds.length > 0" class="px-4 py-2.5 bg-navy/5 border-b border-navy/10 flex items-center gap-3">
+        <span class="text-sm font-medium text-navy">{{ selectedPropertyIds.length }} selected</span>
+        <button class="btn-primary btn-sm" @click="openBulkAssign">
+          <UserCircle :size="14" /> Assign Agent
+        </button>
+        <button class="btn-ghost btn-sm text-gray-500" @click="selectedPropertyIds = []">Clear</button>
       </div>
 
       <div v-if="loading" class="p-6 space-y-3 animate-pulse">
@@ -19,11 +34,37 @@
       <div v-else-if="filteredProperties.length" class="table-scroll"><table class="table-wrap">
         <thead>
           <tr>
-            <th scope="col">Unit</th>
+            <th scope="col" class="w-8">
+              <input
+                type="checkbox"
+                class="rounded border-gray-300 text-navy focus:ring-navy/30"
+                :checked="allSelected"
+                :indeterminate="someSelected && !allSelected"
+                @change="toggleSelectAll"
+              />
+            </th>
+            <th scope="col">
+              <button class="flex items-center gap-1 hover:text-gray-700 transition-colors" @click="toggleSort('address')">
+                Unit <component :is="sortIcon('address')" :size="12" />
+              </button>
+            </th>
             <th scope="col">Tenant</th>
-            <th scope="col">Status</th>
-            <th scope="col">Lease Expiry</th>
-            <th scope="col">Maintenance</th>
+            <th scope="col">
+              <button class="flex items-center gap-1 hover:text-gray-700 transition-colors" @click="toggleSort('status')">
+                Status <component :is="sortIcon('status')" :size="12" />
+              </button>
+            </th>
+            <th scope="col">
+              <button class="flex items-center gap-1 hover:text-gray-700 transition-colors" @click="toggleSort('expiry')">
+                Lease Expiry <component :is="sortIcon('expiry')" :size="12" />
+              </button>
+            </th>
+            <th scope="col">
+              <button class="flex items-center gap-1 hover:text-gray-700 transition-colors" @click="toggleSort('maintenance')">
+                Maintenance <component :is="sortIcon('maintenance')" :size="12" />
+              </button>
+            </th>
+            <th scope="col">Agents</th>
             <th scope="col" class="text-right">Actions</th>
           </tr>
         </thead>
@@ -35,12 +76,20 @@
               class="cursor-pointer hover:bg-gray-50"
               @click="router.push(`/properties/${p.id}`)"
             >
+              <td class="w-8" @click.stop>
+                <input
+                  type="checkbox"
+                  class="rounded border-gray-300 text-navy focus:ring-navy/30"
+                  :checked="selectedPropertyIds.includes(p.id)"
+                  @change="toggleProperty(p.id)"
+                />
+              </td>
               <td>
                 <div class="flex items-center gap-3">
-                  <div class="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                  <div class="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
                     <img v-if="p.cover_photo" :src="p.cover_photo" class="w-full h-full object-cover" :alt="p.name" />
                     <div v-else class="w-full h-full flex items-center justify-center">
-                      <Building2 :size="18" class="text-gray-300" />
+                      <Building2 :size="20" class="text-gray-300" />
                     </div>
                   </div>
                   <div class="min-w-0">
@@ -58,10 +107,10 @@
               </td>
               <td>
                 <span :class="{
-                  'badge-green':  u.status === 'occupied' && u.active_lease_info?.status === 'active',
-                  'badge-purple': u.status === 'occupied' && u.active_lease_info?.status === 'pending',
-                  'badge-blue':   u.status === 'available',
-                  'badge-amber':  u.status === 'maintenance',
+                  'badge-emerald':    u.status === 'occupied' && u.active_lease_info?.status === 'active',
+                  'badge-indigo':     u.status === 'occupied' && u.active_lease_info?.status === 'pending',
+                  'badge-gray':       u.status === 'available',
+                  'badge-amber-deep': u.status === 'maintenance',
                 }">{{
                   u.status === 'occupied' && u.active_lease_info?.status === 'pending' ? 'Pending'
                   : u.status === 'occupied' ? 'Occupied'
@@ -78,14 +127,21 @@
                     >{{ daysUntil(u.active_lease_info.end_date) }}d</span>
                     <span class="text-xs text-gray-500">{{ leasePct(u.active_lease_info) }}%</span>
                   </div>
-                  <div class="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    class="mt-1 h-1.5 bg-gray-100 rounded-full overflow-hidden"
+                    role="progressbar"
+                    :aria-valuenow="leasePct(u.active_lease_info)"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
+                    :title="`Lease ${leasePct(u.active_lease_info)}% elapsed, ${daysUntil(u.active_lease_info.end_date)} days remaining`"
+                  >
                     <div
                       class="h-full rounded-full transition-all"
                       :class="leasePct(u.active_lease_info) >= 90 ? 'bg-danger-400' : leasePct(u.active_lease_info) >= 75 ? 'bg-warning-400' : 'bg-navy'"
                       :style="`width:${leasePct(u.active_lease_info)}%`"
                     />
                   </div>
-                  <div class="text-[10px] text-gray-400 mt-0.5">{{ fmtDate(u.active_lease_info.end_date) }}</div>
+                  <div class="text-xs text-gray-400 mt-0.5">{{ fmtDate(u.active_lease_info.end_date) }}</div>
                 </template>
                 <span v-else class="text-xs text-gray-300">No lease</span>
               </td>
@@ -97,6 +153,21 @@
                   <Wrench :size="11" />
                   {{ u.open_maintenance_count }}
                 </span>
+                <span v-else class="text-xs text-gray-300">—</span>
+              </td>
+              <td>
+                <div v-if="p.assigned_agents?.length" class="flex flex-wrap gap-1">
+                  <span
+                    v-for="ag in p.assigned_agents"
+                    :key="ag.id"
+                    class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                    :class="ag.assignment_type === 'estate' ? 'bg-info-50 text-info-700' : 'bg-info-50 text-info-700'"
+                    :title="`${ag.name} — ${ag.assignment_type === 'estate' ? 'Estate Agent' : 'Managing Agent'}`"
+                  >
+                    <UserCircle :size="11" />
+                    {{ ag.name.split(' ')[0] }}
+                  </span>
+                </div>
                 <span v-else class="text-xs text-gray-300">—</span>
               </td>
               <td class="text-right">
@@ -112,6 +183,17 @@
           </template>
         </tbody>
       </table></div>
+
+      <EmptyState
+        v-else-if="hasActiveFilters"
+        title="No matches"
+        description="No properties match your current filters. Try clearing them to see everything."
+        :icon="Building2"
+      >
+        <button class="btn-secondary btn-sm" @click="clearFilters">
+          Clear filters
+        </button>
+      </EmptyState>
 
       <EmptyState
         v-else
@@ -136,7 +218,7 @@
             <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
               <Sparkles :size="12" /> Auto-fill from Municipal Bill
             </div>
-            <span v-if="billFilename" class="text-[10px] text-gray-400 truncate max-w-[160px]">{{ billFilename }}</span>
+            <span v-if="billFilename" class="text-xs text-gray-400 truncate max-w-[160px]">{{ billFilename }}</span>
           </div>
           <p class="text-xs text-gray-500 mb-2">Upload a rates bill — AI will extract the address, erf number, and property details.</p>
           <label class="btn-ghost btn-sm cursor-pointer inline-flex items-center gap-1.5"
@@ -220,16 +302,52 @@
       </template>
     </BaseModal>
 
+    <!-- Bulk Assign Agent Modal -->
+    <BaseModal :open="bulkAssignDialog" title="Assign Agent to Properties" @close="bulkAssignDialog = false">
+      <div class="space-y-4">
+        <p class="text-sm text-gray-500">
+          Assign an agent to <strong>{{ selectedPropertyIds.length }}</strong> selected {{ selectedPropertyIds.length === 1 ? 'property' : 'properties' }}.
+        </p>
+
+        <div>
+          <label class="label">Agent</label>
+          <select v-model="bulkAssignForm.agent" class="input">
+            <option :value="null">— Select agent —</option>
+            <option v-for="u in agentUsers" :key="u.id" :value="u.id">{{ u.full_name }} ({{ u.email }})</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="label">Assignment type</label>
+          <select v-model="bulkAssignForm.assignment_type" class="input">
+            <option value="managing">Managing Agent (ongoing)</option>
+            <option value="estate">Estate Agent (transaction)</option>
+          </select>
+        </div>
+
+        <div v-if="bulkAssignError" class="text-sm text-danger-600">{{ bulkAssignError }}</div>
+      </div>
+
+      <template #footer>
+        <button class="btn-ghost" @click="bulkAssignDialog = false">Cancel</button>
+        <button class="btn-primary" :disabled="bulkAssigning || !bulkAssignForm.agent" @click="doBulkAssign">
+          <Loader2 v-if="bulkAssigning" :size="14" class="animate-spin" />
+          Assign to {{ selectedPropertyIds.length }} {{ selectedPropertyIds.length === 1 ? 'property' : 'properties' }}
+        </button>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import BaseModal from '../../components/BaseModal.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
@@ -239,7 +357,9 @@ import { PROPERTY_TYPES, PROPERTY_TYPE_VALUES } from '../../constants/property'
 import { useLandlordsStore } from '../../stores/landlords'
 import { usePropertiesStore } from '../../stores/properties'
 import { useOwnershipsStore } from '../../stores/ownerships'
-import { AlertTriangle, CheckCircle2, Loader2, Plus, Building2, Sparkles, Trash2, Upload, Wrench } from 'lucide-vue-next'
+import { AlertTriangle, ArrowDownUp, ArrowUpAZ, ArrowDownAZ, CheckCircle2, Loader2, Plus, Building2, Sparkles, Trash2, Upload, UserCircle, Wrench } from 'lucide-vue-next'
+import FilterPills from '../../components/FilterPills.vue'
+import type { PillOption } from '../../components/FilterPills.vue'
 
 const router = useRouter()
 
@@ -249,6 +369,15 @@ const ownershipsStore = useOwnershipsStore()
 const { list: properties, loading } = storeToRefs(propertiesStore)
 const saving = ref(false)
 const search = ref('')
+const statusFilter = ref('all')
+const hasActiveFilters = computed(() => search.value.trim() !== '' || statusFilter.value !== 'all')
+function clearFilters() {
+  search.value = ''
+  statusFilter.value = 'all'
+}
+type SortField = 'address' | 'status' | 'expiry' | 'maintenance'
+const sortBy = ref<SortField>('expiry')
+const sortDir = ref<'asc' | 'desc'>('asc')
 const dialog = ref(false)
 const propertyTypes = PROPERTY_TYPES
 const propertyTypeValues = PROPERTY_TYPE_VALUES
@@ -260,6 +389,87 @@ const newPropertyLandlordId = ref<number | null>(null)
 const deleteDialog = ref(false)
 const deleting = ref(false)
 const deletingProperty = ref<any>(null)
+
+// Bulk selection & assign
+const selectedPropertyIds = ref<number[]>([])
+const bulkAssignDialog = ref(false)
+const bulkAssigning = ref(false)
+const bulkAssignError = ref('')
+const bulkAssignForm = ref<{ agent: number | null; assignment_type: string }>({ agent: null, assignment_type: 'managing' })
+const agentUsers = ref<any[]>([])
+
+const allSelected = computed(() => filteredProperties.value.length > 0 && filteredProperties.value.every(p => selectedPropertyIds.value.includes(p.id)))
+const someSelected = computed(() => filteredProperties.value.some(p => selectedPropertyIds.value.includes(p.id)))
+
+function toggleProperty(id: number) {
+  const idx = selectedPropertyIds.value.indexOf(id)
+  if (idx >= 0) selectedPropertyIds.value.splice(idx, 1)
+  else selectedPropertyIds.value.push(id)
+}
+
+function toggleSelectAll() {
+  if (allSelected.value) {
+    selectedPropertyIds.value = []
+  } else {
+    selectedPropertyIds.value = filteredProperties.value.map(p => p.id)
+  }
+}
+
+async function openBulkAssign() {
+  bulkAssignError.value = ''
+  bulkAssignForm.value = { agent: null, assignment_type: 'managing' }
+  // Load agent users if not yet loaded
+  if (!agentUsers.value.length) {
+    try {
+      const { data } = await api.get('/auth/users/', { params: { role: '' } })
+      const users = Array.isArray(data) ? data : data.results ?? []
+      agentUsers.value = users.filter((u: any) =>
+        ['agent', 'estate_agent', 'managing_agent', 'agency_admin'].includes(u.role)
+      )
+    } catch {
+      agentUsers.value = []
+    }
+  }
+  bulkAssignDialog.value = true
+}
+
+async function doBulkAssign() {
+  if (!bulkAssignForm.value.agent) return
+  bulkAssigning.value = true
+  bulkAssignError.value = ''
+  let successCount = 0
+  let skipCount = 0
+  const ids = [...selectedPropertyIds.value] as number[]
+  for (const propId of ids) {
+    // Skip if agent already assigned to this property
+    const prop = properties.value.find(p => p.id === propId)
+    if (prop?.assigned_agents?.some((a: any) => a.agent_id === bulkAssignForm.value.agent)) {
+      skipCount++
+      continue
+    }
+    try {
+      await api.post('/properties/agent-assignments/', {
+        property: propId,
+        agent: bulkAssignForm.value.agent,
+        assignment_type: bulkAssignForm.value.assignment_type,
+        status: 'active',
+      })
+      successCount++
+    } catch (err: any) {
+      bulkAssignError.value = extractApiError(err, `Failed on property #${propId}`)
+    }
+  }
+  bulkAssigning.value = false
+  if (successCount > 0) {
+    toast.success(`Agent assigned to ${successCount} ${successCount === 1 ? 'property' : 'properties'}${skipCount ? ` (${skipCount} already assigned)` : ''}`)
+    selectedPropertyIds.value = []
+    bulkAssignDialog.value = false
+    await propertiesStore.fetchAll({ force: true })
+  } else if (skipCount > 0) {
+    toast.info(`Agent already assigned to all ${skipCount} selected properties`)
+    bulkAssignDialog.value = false
+  }
+}
 
 // Municipal bill parser
 const parsingBill = ref(false)
@@ -281,12 +491,25 @@ async function parseMunicipalBill(e: Event) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     const ext = data.extracted
-    if (ext.property_name && !newProperty.value.name) newProperty.value.name = ext.property_name
     if (ext.address) newProperty.value.address = ext.address
     if (ext.city) newProperty.value.city = ext.city
     if (ext.province) newProperty.value.province = ext.province
     if (ext.postal_code) newProperty.value.postal_code = ext.postal_code
     if (ext.property_type && propertyTypeValues.includes(ext.property_type)) newProperty.value.property_type = ext.property_type
+    // Populate selectedAddress so AddressAutocomplete shows the extracted address string
+    if (ext.address) {
+      selectedAddress.value = {
+        formatted: ext.address,
+        street: ext.address,
+        city: ext.city || '',
+        province: ext.province || '',
+        postal_code: ext.postal_code || '',
+        country: 'za',
+        lat: 0,
+        lng: 0,
+        place_id: '',
+      }
+    }
     billExtracted.value = true
   } catch (err: any) {
     billError.value = err?.response?.data?.detail || 'Failed to parse municipal bill.'
@@ -369,15 +592,79 @@ async function createProperty() {
   }
 }
 
+const statusOptions = computed((): PillOption[] => {
+  const all = properties.value
+  const countUnits = (status: string) =>
+    all.reduce((n, p) => {
+      const units = p.units?.length ? p.units : [{ status: p.property_active_lease_info ? 'occupied' : 'available' }]
+      return n + units.filter((u: any) => u.status === status).length
+    }, 0)
+  return [
+    { label: 'All', value: 'all', count: all.reduce((n, p) => n + (p.units?.length || 1), 0) },
+    { label: 'Occupied', value: 'occupied', count: countUnits('occupied') },
+    { label: 'Available', value: 'available', count: countUnits('available') },
+    { label: 'Maintenance', value: 'maintenance', count: countUnits('maintenance') },
+  ]
+})
+
+function unitMinExpiry(p: any): number {
+  const units = p.units?.length ? p.units : [{ active_lease_info: p.property_active_lease_info ?? null }]
+  const expiries = units
+    .map((u: any) => u.active_lease_info?.end_date ? daysUntil(u.active_lease_info.end_date) : Infinity)
+  return Math.min(...expiries)
+}
+
+function toggleSort(field: SortField) {
+  if (sortBy.value === field) {
+    sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc'
+  } else {
+    sortBy.value = field
+    sortDir.value = 'asc'
+  }
+}
+
+function sortIcon(field: SortField) {
+  if (sortBy.value !== field) return ArrowDownUp
+  return sortDir.value === 'asc' ? ArrowUpAZ : ArrowDownAZ
+}
+
 const filteredProperties = computed(() => {
   const q = search.value.toLowerCase()
-  if (!q) return properties.value
-  return properties.value.filter(p =>
-    p.name.toLowerCase().includes(q) ||
-    (p.address ?? '').toLowerCase().includes(q) ||
-    (p.city ?? '').toLowerCase().includes(q) ||
-    p.units?.some((u: any) => u.unit_number?.toLowerCase().includes(q))
-  )
+  let result = properties.value.filter(p => {
+    // Text search
+    const matchesSearch = !q ||
+      p.name.toLowerCase().includes(q) ||
+      (p.address ?? '').toLowerCase().includes(q) ||
+      (p.city ?? '').toLowerCase().includes(q) ||
+      p.units?.some((u: any) => u.unit_number?.toLowerCase().includes(q))
+    if (!matchesSearch) return false
+    // Status filter
+    if (statusFilter.value !== 'all') {
+      const units = p.units?.length ? p.units : [{ status: p.property_active_lease_info ? 'occupied' : 'available' }]
+      if (!units.some((u: any) => u.status === statusFilter.value)) return false
+    }
+    return true
+  })
+  // Sort
+  result = [...result].sort((a, b) => {
+    let cmp = 0
+    if (sortBy.value === 'address') {
+      cmp = (a.address || a.name || '').localeCompare(b.address || b.name || '')
+    } else if (sortBy.value === 'status') {
+      const order: Record<string, number> = { occupied: 0, maintenance: 1, available: 2 }
+      const aStatus = a.units?.[0]?.status ?? (a.property_active_lease_info ? 'occupied' : 'available')
+      const bStatus = b.units?.[0]?.status ?? (b.property_active_lease_info ? 'occupied' : 'available')
+      cmp = (order[aStatus] ?? 3) - (order[bStatus] ?? 3)
+    } else if (sortBy.value === 'expiry') {
+      cmp = unitMinExpiry(a) - unitMinExpiry(b)
+    } else if (sortBy.value === 'maintenance') {
+      const aM = a.units?.reduce((n: number, u: any) => n + (u.open_maintenance_count ?? 0), 0) ?? 0
+      const bM = b.units?.reduce((n: number, u: any) => n + (u.open_maintenance_count ?? 0), 0) ?? 0
+      cmp = bM - aM // descending by default (most issues first)
+    }
+    return sortDir.value === 'asc' ? cmp : -cmp
+  })
+  return result
 })
 
 function confirmDelete(p: any) {

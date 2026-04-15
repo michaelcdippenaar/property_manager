@@ -1,24 +1,22 @@
 <template>
-  <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-2">
-      <h2 class="text-lg font-semibold text-gray-800">Agent Questions</h2>
-      <div class="flex gap-2">
+  <div class="space-y-5">
+    <PageHeader
+      title="Agent Questions"
+      subtitle="Questions the AI could not answer from existing context. Answering a question adds it to the AI's knowledge base (RAG) so it can answer similar questions in future."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Maintenance', to: '/maintenance' }, { label: 'Questions' }]"
+    >
+      <template #actions>
         <select v-model="statusFilter" class="input text-sm w-36" @change="loadQuestions">
           <option value="">All</option>
           <option value="pending">Pending</option>
           <option value="answered">Answered</option>
           <option value="dismissed">Dismissed</option>
         </select>
-      </div>
-    </div>
-
-    <p class="text-sm text-gray-500">
-      Questions the AI could not answer from existing context. Answering a question adds it to the
-      AI's knowledge base (RAG) so it can answer similar questions in future.
-    </p>
+      </template>
+    </PageHeader>
 
     <div v-if="loading" class="text-sm text-gray-400">Loading…</div>
-    <div v-else-if="error" class="text-sm text-red-600">{{ error }}</div>
+    <div v-else-if="error" class="text-sm text-danger-600">{{ error }}</div>
     <div v-else-if="questions.length === 0" class="text-sm text-gray-400 py-8 text-center">
       No questions{{ statusFilter ? ` with status "${statusFilter}"` : '' }}.
     </div>
@@ -29,8 +27,8 @@
         :key="q.id"
         class="card p-4 space-y-3"
         :class="{
-          'border-l-4 border-amber-400': q.status === 'pending',
-          'border-l-4 border-green-400': q.status === 'answered',
+          'border-l-4 border-warning-500': q.status === 'pending',
+          'border-l-4 border-success-400': q.status === 'answered',
           'border-l-4 border-gray-300': q.status === 'dismissed',
         }"
       >
@@ -46,8 +44,8 @@
           <span
             class="text-xs px-2 py-0.5 rounded-full font-medium"
             :class="{
-              'bg-amber-100 text-amber-700': q.status === 'pending',
-              'bg-green-100 text-green-700': q.status === 'answered',
+              'bg-warning-100 text-warning-700': q.status === 'pending',
+              'bg-success-100 text-success-700': q.status === 'answered',
               'bg-gray-100 text-gray-500': q.status === 'dismissed',
             }"
           >
@@ -56,10 +54,10 @@
         </div>
 
         <!-- Answer display (if answered) -->
-        <div v-if="q.status === 'answered' && q.answer" class="bg-green-50 rounded-lg p-3 text-sm text-gray-700">
-          <div class="text-xs text-green-600 font-semibold mb-1">
+        <div v-if="q.status === 'answered' && q.answer" class="bg-success-50 rounded-lg p-3 text-sm text-gray-700">
+          <div class="text-xs text-success-600 font-semibold mb-1">
             Answer{{ q.answered_by_name ? ` by ${q.answered_by_name}` : '' }}
-            <span v-if="q.added_to_context" class="ml-2 text-indigo-600">· Added to AI knowledge</span>
+            <span v-if="q.added_to_context" class="ml-2 text-navy">· Added to AI knowledge</span>
           </div>
           {{ q.answer }}
         </div>
@@ -100,6 +98,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import api from '../../api'
+import PageHeader from '../../components/PageHeader.vue'
 
 interface AgentQuestion {
   id: number

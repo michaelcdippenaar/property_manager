@@ -248,3 +248,32 @@ def enqueue_owner_ingestion(landlord_id: int) -> None:
             logger.exception("owner_rag: background ingestion crashed for %s", landlord_id)
 
     transaction.on_commit(lambda: _run_in_thread(_go))
+
+
+def enqueue_property_information_ingestion(property_id: int) -> None:
+    """Re-ingest landlord-authored notes for a Property into the RAG collection.
+
+    Prunes docs for items removed since last save, upserts the rest. Fire-and-forget.
+    """
+    from apps.properties.models import Property
+    from core.contract_rag import (
+        delete_property_information,
+        ingest_property_information,
+    )
+
+    def _go():
+        try:
+            prop = Property.objects.filter(pk=property_id).only("id", "information_items").first()
+            if not prop:
+                return
+            items = prop.information_items or []
+            keep_ids = {(it.get("id") or "").strip() for it in items if isinstance(it, dict) and it.get("id")}
+            delete_property_information(property_id, keep_ids)
+            if items:
+                ingest_property_information(property_id, items)
+        except Exception:
+            logger.exception(
+                "property_info_rag: background ingestion crashed for property=%s", property_id
+            )
+
+    transaction.on_commit(lambda: _run_in_thread(_go))

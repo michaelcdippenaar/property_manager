@@ -27,12 +27,12 @@
         <div class="max-w-3xl mx-auto px-6 py-8 space-y-10">
 
           <!-- Save success toast -->
-          <div v-if="saveOk" class="flex items-center gap-2 px-4 py-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800">
-            <CheckCircle2 :size="15" class="text-green-500 flex-shrink-0" />
+          <div v-if="saveOk" class="flex items-center gap-2 px-4 py-3 bg-success-50 border border-success-100 rounded-xl text-sm text-success-700">
+            <CheckCircle2 :size="15" class="text-success-500 flex-shrink-0" />
             Lease saved successfully
           </div>
-          <div v-if="saveError" class="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-800">
-            <AlertCircle :size="15" class="text-red-500 flex-shrink-0" />
+          <div v-if="saveError" class="flex items-center gap-2 px-4 py-3 bg-danger-50 border border-danger-100 rounded-xl text-sm text-danger-700">
+            <AlertCircle :size="15" class="text-danger-500 flex-shrink-0" />
             {{ saveError }}
           </div>
 
@@ -163,7 +163,7 @@
                     v-if="allTenants.length > 1"
                     @click="removeTenant(t)"
                     :disabled="removingId === t.id"
-                    class="text-xs text-red-400 hover:text-red-700 transition-colors flex items-center gap-1"
+                    class="text-xs text-danger-400 hover:text-danger-700 transition-colors flex items-center gap-1"
                   >
                     <Loader2 v-if="removingId === t.id" :size="11" class="animate-spin" />
                     <Trash2 v-else :size="11" />
@@ -212,7 +212,7 @@
                   <input v-model="newTenant.email" type="email" class="input" />
                 </div>
               </div>
-              <div v-if="addTenantError" class="mt-2 text-xs text-red-600 flex items-center gap-1.5">
+              <div v-if="addTenantError" class="mt-2 text-xs text-danger-600 flex items-center gap-1.5">
                 <AlertCircle :size="12" class="flex-shrink-0" />
                 {{ addTenantError }}
               </div>
@@ -246,7 +246,7 @@
                   <div class="text-sm font-medium text-gray-800">{{ occ.person.full_name }}</div>
                   <div v-if="occ.relationship_to_tenant" class="text-xs text-gray-400">{{ occ.relationship_to_tenant }}</div>
                 </div>
-                <button @click="removeOccupant(occ)" class="p-1 text-gray-300 hover:text-red-500 transition-colors">
+                <button @click="removeOccupant(occ)" class="p-1 text-gray-300 hover:text-danger-500 transition-colors">
                   <X :size="14" />
                 </button>
               </div>
@@ -296,7 +296,7 @@
                   <div class="text-sm font-medium text-gray-800">{{ gua.person.full_name }}</div>
                   <div v-if="gua.covers_tenant" class="text-xs text-gray-400">covers {{ gua.covers_tenant.full_name }}</div>
                 </div>
-                <button @click="removeGuarantor(gua)" class="p-1 text-gray-300 hover:text-red-500 transition-colors">
+                <button @click="removeGuarantor(gua)" class="p-1 text-gray-300 hover:text-danger-500 transition-colors">
                   <X :size="14" />
                 </button>
               </div>
@@ -360,7 +360,7 @@
                 <a :href="doc.file_url" target="_blank" class="p-1.5 text-gray-400 hover:text-navy rounded transition-colors">
                   <Download :size="14" />
                 </a>
-                <button @click="deleteDocument(doc)" class="p-1.5 text-gray-300 hover:text-red-500 rounded transition-colors">
+                <button @click="deleteDocument(doc)" class="p-1.5 text-gray-300 hover:text-danger-500 rounded transition-colors">
                   <Trash2 :size="14" />
                 </button>
               </div>

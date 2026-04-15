@@ -1,16 +1,14 @@
 <template>
   <div class="max-w-3xl mx-auto">
-
-    <!-- Header -->
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <h1 class="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Settings :size="20" class="text-navy" />
-          Agency Settings
-        </h1>
-        <p class="text-sm text-gray-400 mt-1">Configure your agency details — these appear on mandates, leases and generated documents.</p>
-      </div>
-    </div>
+    <PageHeader
+      title="Agency Settings"
+      subtitle="Configure your agency details — these appear on mandates, leases and generated documents."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Settings' }, { label: 'Agency' }]"
+    >
+      <template #title-adornment>
+        <Settings :size="20" class="text-navy" />
+      </template>
+    </PageHeader>
 
     <!-- Loading -->
     <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400 py-12 justify-center">
@@ -32,13 +30,13 @@
         <div class="px-5 py-5 space-y-4">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <label class="label">Registered name <span class="text-red-400">*</span></label>
+              <label class="label">Registered name <span class="text-danger-400">*</span></label>
               <input v-model="form.name" type="text" class="input" required placeholder="e.g. Prestige Properties (Pty) Ltd" />
             </div>
             <div>
               <label class="label">Trading name (t/a)</label>
               <input v-model="form.trading_name" type="text" class="input" placeholder="e.g. Century 21 Stellenbosch" />
-              <p class="text-[11px] text-gray-400 mt-1">Shown on documents if different from registered name</p>
+              <p class="text-micro text-gray-400 mt-1">Shown on documents if different from registered name</p>
             </div>
             <div>
               <label class="label">CIPC registration number</label>
@@ -51,7 +49,7 @@
             <div>
               <label class="label">PPRA FFC number</label>
               <input v-model="form.eaab_ffc_number" type="text" class="input" placeholder="e.g. F148660" />
-              <p class="text-[11px] text-gray-400 mt-1">Fidelity Fund Certificate number</p>
+              <p class="text-micro text-gray-400 mt-1">Fidelity Fund Certificate number</p>
             </div>
           </div>
         </div>
@@ -166,7 +164,7 @@
               </label>
               <div>
                 <span class="text-sm font-medium text-gray-700">FICA registered</span>
-                <p class="text-[11px] text-gray-400">Registered as Accountable Institution with FIC</p>
+                <p class="text-micro text-gray-400">Registered as Accountable Institution with FIC</p>
               </div>
             </div>
           </div>
@@ -186,17 +184,17 @@
             <div>
               <label class="label">Statement date</label>
               <input v-model="form.statement_date" type="text" class="input" placeholder='e.g. "the 5th"' />
-              <p class="text-[11px] text-gray-400 mt-1">Day of month statements are issued</p>
+              <p class="text-micro text-gray-400 mt-1">Day of month statements are issued</p>
             </div>
             <div>
               <label class="label">Disbursement date</label>
               <input v-model="form.disbursement_date" type="text" class="input" placeholder='e.g. "the 7th"' />
-              <p class="text-[11px] text-gray-400 mt-1">Day of month owner payouts are made</p>
+              <p class="text-micro text-gray-400 mt-1">Day of month owner payouts are made</p>
             </div>
             <div class="col-span-2">
               <label class="label">Information Officer email</label>
               <input v-model="form.information_officer_email" type="email" class="input" placeholder="POPIA information officer" />
-              <p class="text-[11px] text-gray-400 mt-1">Required for POPIA compliance — appears on mandate documents</p>
+              <p class="text-micro text-gray-400 mt-1">Required for POPIA compliance — appears on mandate documents</p>
             </div>
           </div>
         </div>
@@ -233,12 +231,12 @@
               <button
                 v-if="logoPreview"
                 type="button"
-                class="btn-ghost text-xs text-red-500 ml-2"
+                class="btn-ghost text-xs text-danger-500 ml-2"
                 @click="removeLogo"
               >
                 Remove
               </button>
-              <p class="text-[11px] text-gray-400 mt-1">PNG, JPG or SVG. Used on documents and correspondence.</p>
+              <p class="text-micro text-gray-400 mt-1">PNG, JPG or SVG. Used on documents and correspondence.</p>
             </div>
           </div>
         </div>
@@ -266,6 +264,7 @@ import {
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { useAuthStore } from '../../stores/auth'
+import PageHeader from '../../components/PageHeader.vue'
 
 const { showToast } = useToast()
 const auth = useAuthStore()

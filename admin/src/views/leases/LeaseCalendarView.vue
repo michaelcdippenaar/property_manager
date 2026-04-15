@@ -1,18 +1,22 @@
 <template>
   <div class="space-y-5">
-    <!-- Description + month nav -->
-    <div class="flex items-center justify-between">
-      <p class="text-sm text-gray-500">Track rent due dates, lease start/end, inspections, and key deadlines across all properties.</p>
-      <div class="flex items-center gap-1 flex-shrink-0">
-        <button @click="prevMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
-          <ChevronLeft :size="18" />
-        </button>
-        <span class="text-sm font-semibold text-gray-800 min-w-[140px] text-center">{{ monthLabel }}</span>
-        <button @click="nextMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
-          <ChevronRight :size="18" />
-        </button>
-      </div>
-    </div>
+    <PageHeader
+      title="Lease Calendar"
+      subtitle="Track rent due dates, lease start/end, inspections, and key deadlines across all properties."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Leases', to: '/leases' }, { label: 'Calendar' }]"
+    >
+      <template #actions>
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <button @click="prevMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
+            <ChevronLeft :size="18" />
+          </button>
+          <span class="text-sm font-semibold text-gray-800 min-w-[140px] text-center">{{ monthLabel }}</span>
+          <button @click="nextMonth" class="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100">
+            <ChevronRight :size="18" />
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <!-- Legend + Filters (combined) -->
     <div class="flex items-center gap-2 flex-wrap">
@@ -108,6 +112,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import api from '../../api'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import BaseDrawer from '../../components/BaseDrawer.vue'
+import PageHeader from '../../components/PageHeader.vue'
 
 const currentYear = ref(new Date().getFullYear())
 const currentMonth = ref(new Date().getMonth())
@@ -122,12 +127,12 @@ const activeFilters = ref(new Set<string>([
 ]))
 
 const typeFilters = [
-  { value: 'rent_due', label: 'Rent', activeClass: 'bg-blue-100 text-blue-800', dotClass: 'bg-blue-400' },
-  { value: 'inspection_routine', label: 'Inspections', activeClass: 'bg-amber-100 text-amber-800', dotClass: 'bg-amber-400' },
+  { value: 'rent_due', label: 'Rent', activeClass: 'bg-info-100 text-info-700', dotClass: 'bg-info-500' },
+  { value: 'inspection_routine', label: 'Inspections', activeClass: 'bg-warning-100 text-warning-700', dotClass: 'bg-warning-500' },
   { value: 'contract_start', label: 'Start', activeClass: 'bg-navy/80 text-white', dotClass: 'bg-navy' },
   { value: 'contract_end', label: 'End', activeClass: 'bg-navy/80 text-white', dotClass: 'bg-navy' },
-  { value: 'deposit_due', label: 'Deposit', activeClass: 'bg-green-100 text-green-800', dotClass: 'bg-green-400' },
-  { value: 'notice_deadline', label: 'Notice', activeClass: 'bg-red-100 text-red-800', dotClass: 'bg-red-400' },
+  { value: 'deposit_due', label: 'Deposit', activeClass: 'bg-success-100 text-success-700', dotClass: 'bg-success-400' },
+  { value: 'notice_deadline', label: 'Notice', activeClass: 'bg-danger-100 text-danger-700', dotClass: 'bg-danger-400' },
   { value: 'renewal_review', label: 'Renewal', activeClass: 'bg-purple-100 text-purple-800', dotClass: 'bg-purple-400' },
 ]
 
@@ -218,13 +223,13 @@ function eventColor(type: string) {
   return {
     contract_start: 'bg-navy/80 text-white',
     contract_end: 'bg-navy/80 text-white',
-    deposit_due: 'bg-green-100 text-green-800',
-    first_rent: 'bg-blue-100 text-blue-800',
-    rent_due: 'bg-blue-100 text-blue-800',
-    inspection_in: 'bg-amber-100 text-amber-800',
-    inspection_out: 'bg-amber-100 text-amber-800',
-    inspection_routine: 'bg-amber-100 text-amber-800',
-    notice_deadline: 'bg-red-100 text-red-800',
+    deposit_due: 'bg-success-100 text-success-700',
+    first_rent: 'bg-info-100 text-info-700',
+    rent_due: 'bg-info-100 text-info-700',
+    inspection_in: 'bg-warning-100 text-warning-700',
+    inspection_out: 'bg-warning-100 text-warning-700',
+    inspection_routine: 'bg-warning-100 text-warning-700',
+    notice_deadline: 'bg-danger-100 text-danger-700',
     renewal_review: 'bg-purple-100 text-purple-800',
     custom: 'bg-gray-100 text-gray-700',
   }[type] ?? 'bg-gray-100 text-gray-700'

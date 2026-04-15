@@ -12,8 +12,11 @@ import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from apps.properties.models import Landlord, LandlordDocument
-from apps.properties.tasks import enqueue_owner_ingestion
+from apps.properties.models import Landlord, LandlordDocument, Property
+from apps.properties.tasks import (
+    enqueue_owner_ingestion,
+    enqueue_property_information_ingestion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,4 +69,35 @@ def enqueue_owner_rag_ingestion_on_document_save(
         logger.exception(
             "owner_rag: failed to enqueue ingestion for landlord %s (doc %s)",
             instance.landlord_id, instance.pk,
+        )
+
+
+@receiver(post_save, sender=Property)
+def enqueue_property_information_rag_ingestion(
+    sender, instance: Property, created: bool, update_fields=None, **kwargs
+):
+    """Re-ingest property notes when information_items changes.
+
+    Fires on:
+      - explicit save(update_fields={'information_items'}) from the admin API
+      - created properties that arrived with non-empty items (bulk imports / tests)
+      - full saves where information_items is present and non-empty (DRF PATCH
+        writes all fields by default, so we also fire when update_fields is None)
+    """
+    uf = set(update_fields or [])
+    items = instance.information_items or []
+    should_ingest = (
+        "information_items" in uf
+        or (created and items)
+        # DRF PATCH saves with update_fields=None; fire unconditionally so
+        # deletions (items → []) also prune the RAG collection.
+        or update_fields is None
+    )
+    if not should_ingest:
+        return
+    try:
+        enqueue_property_information_ingestion(instance.pk)
+    except Exception:
+        logger.exception(
+            "property_info_rag: failed to enqueue ingestion for property %s", instance.pk
         )

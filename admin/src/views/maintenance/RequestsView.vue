@@ -1,9 +1,10 @@
 <template>
   <div class="space-y-5">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <p class="text-sm text-gray-500">Track, assign, and resolve maintenance requests across all properties.</p>
-    </div>
+    <PageHeader
+      title="Maintenance issues"
+      subtitle="Track, assign, and resolve maintenance requests across all properties."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Maintenance' }, { label: 'Issues' }]"
+    />
 
     <!-- Tabs: Active / Archived -->
     <div class="flex items-center gap-0 border-b border-gray-200 -mb-1">
@@ -69,9 +70,12 @@
         </div>
       </button>
 
-      <div v-if="!requests.length" class="text-center text-gray-400 py-16">
-        No maintenance requests for this filter
-      </div>
+      <EmptyState
+        v-if="!requests.length"
+        title="No maintenance requests"
+        description="No maintenance requests for this filter."
+        :icon="Wrench"
+      />
     </div>
   </div>
 </template>
@@ -79,8 +83,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '../../api'
-import { Clock, Truck, Archive, MessageCircle, User } from 'lucide-vue-next'
+import { Clock, Truck, Archive, MessageCircle, User, Wrench } from 'lucide-vue-next'
+import EmptyState from '../../components/EmptyState.vue'
 import FilterPills from '../../components/FilterPills.vue'
+import PageHeader from '../../components/PageHeader.vue'
 
 const loading = ref(true)
 const activeFilter = ref('all')

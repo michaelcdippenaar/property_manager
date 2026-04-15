@@ -26,10 +26,10 @@
           </select>
           <router-link to="/landlords" class="text-xs text-navy hover:underline whitespace-nowrap">Manage landlords</router-link>
         </div>
-        <div v-if="linkedLandlord" class="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+        <div v-if="linkedLandlord" class="flex items-center gap-2 px-3 py-2 bg-info-50 border border-info-100 rounded-lg text-xs text-info-700">
           <UserCircle :size="14" class="flex-shrink-0" />
           Linked to <strong>{{ linkedLandlord.name }}</strong>
-          <span v-if="linkedLandlord.property_count > 1" class="text-blue-500">· {{ linkedLandlord.property_count }} properties</span>
+          <span v-if="linkedLandlord.property_count > 1" class="text-info-500">· {{ linkedLandlord.property_count }} properties</span>
         </div>
       </div>
 
@@ -171,11 +171,11 @@
         <div>
           <span
             v-if="saved"
-            class="text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full"
+            class="text-xs font-medium text-success-600 bg-success-50 px-2.5 py-1 rounded-full"
           >
             Saved
           </span>
-          <span v-if="error" class="text-xs text-red-600">{{ error }}</span>
+          <span v-if="error" class="text-xs text-danger-600">{{ error }}</span>
         </div>
         <button type="submit" class="btn-primary" :disabled="saving">
           <Loader2 v-if="saving" :size="14" class="animate-spin mr-1.5" />
@@ -199,7 +199,7 @@
         </div>
         <div class="text-gray-400">
           {{ h.start_date }} — {{ h.end_date || 'present' }}
-          <span v-if="h.is_current" class="ml-1 text-emerald-600 font-medium">current</span>
+          <span v-if="h.is_current" class="ml-1 text-success-600 font-medium">current</span>
         </div>
       </div>
     </div>

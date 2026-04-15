@@ -2,8 +2,11 @@
   <div class="flex flex-col h-screen bg-gray-50 overflow-hidden">
     <header class="bg-navy flex-shrink-0 z-50">
       <div class="flex items-center h-14 px-4 sm:px-6 gap-4 sm:gap-6">
-        <RouterLink to="/jobs" class="flex items-center mr-2 sm:mr-4 flex-shrink-0">
-          <span class="text-white font-bold text-xl leading-none whitespace-nowrap">Klikk<span class="text-pink-brand">.</span></span>
+        <RouterLink to="/jobs" class="flex items-center gap-2 mr-2 sm:mr-4 flex-shrink-0" aria-label="Home">
+          <span class="text-white font-extrabold text-lg leading-none tracking-tight whitespace-nowrap">Klikk<span class="text-accent">.</span></span>
+          <span class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/15 text-accent text-xs font-bold tracking-[0.12em] uppercase leading-none">
+            Supplier
+          </span>
         </RouterLink>
 
         <!-- Mobile hamburger -->
@@ -60,8 +63,10 @@
       </div>
     </header>
 
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
-      <RouterView />
+    <main class="flex-1 overflow-y-auto">
+      <div class="max-w-[1400px] mx-auto p-4 sm:p-6">
+        <RouterView />
+      </div>
     </main>
   </div>
 </template>
@@ -94,8 +99,8 @@ const initials = computed(() => {
   return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 })
 
-function handleLogout() {
-  auth.logout()
+async function handleLogout() {
+  await auth.logout()
   router.push('/login')
 }
 </script>

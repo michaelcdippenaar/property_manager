@@ -47,7 +47,7 @@
             :style="{ height: (fieldType === 'initials' ? 80 : 100) + 'px' }"
           />
         </div>
-        <p class="text-[10px] text-gray-400 mt-1.5 text-center">
+        <p class="text-xs text-gray-400 mt-1.5 text-center">
           Use your mouse or finger to {{ fieldType === 'initials' ? 'initial' : 'sign' }} above
         </p>
       </div>

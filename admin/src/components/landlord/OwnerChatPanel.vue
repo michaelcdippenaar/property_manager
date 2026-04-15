@@ -43,7 +43,7 @@
         <!-- User bubble -->
         <div v-if="msg.role === 'user'" class="flex justify-end">
           <div
-            class="max-w-[85%] rounded-lg bg-[#2B2D6E] text-white px-3 py-2 text-sm whitespace-pre-wrap shadow-sm"
+            class="max-w-[85%] rounded-lg bg-navy text-white px-3 py-2 text-sm whitespace-pre-wrap shadow-sm"
           >
             {{ msg.content }}
           </div>
@@ -75,7 +75,7 @@
                   <div class="text-xs font-semibold text-gray-900 truncate">
                     {{ isBulkUpload(tc) ? 'Upload everything you have' : `Upload: ${prettyDocType(tc.input?.doc_type)}` }}
                   </div>
-                  <div class="text-[11px] text-gray-600 truncate">
+                  <div class="text-micro text-gray-600 truncate">
                     {{ tc.input?.reason }}
                   </div>
                 </div>
@@ -105,7 +105,7 @@
             <!-- get_gap_analysis / search_owner_documents — just a subtle chip -->
             <div
               v-else-if="tc.name === 'get_gap_analysis' || tc.name === 'search_owner_documents'"
-              class="inline-flex items-center gap-1.5 text-[11px] text-gray-500 italic"
+              class="inline-flex items-center gap-1.5 text-micro text-gray-500 italic"
             >
               <Search :size="11" />
               {{ tc.name === 'get_gap_analysis' ? 'Checked gap analysis' : 'Searched documents' }}
@@ -114,7 +114,7 @@
             <!-- trigger_reclassification -->
             <div
               v-else-if="tc.name === 'trigger_reclassification'"
-              class="inline-flex items-center gap-1.5 text-[11px] text-gray-500 italic"
+              class="inline-flex items-center gap-1.5 text-micro text-gray-500 italic"
             >
               <RefreshCw :size="11" />
               Re-ran document analysis

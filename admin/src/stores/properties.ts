@@ -13,6 +13,43 @@ import { computed, ref } from 'vue'
 
 import api from '../api'
 import type { Property, Unit } from '../types/property'
+
+export interface PortfolioMaintenanceItem {
+  id: number
+  title: string
+  priority: 'low' | 'medium' | 'high' | 'urgent'
+  status: string
+  created_at: string
+  days_open: number
+}
+
+export interface PortfolioActiveLease {
+  id: number
+  lease_number: string
+  status: string
+  start_date: string | null
+  end_date: string | null
+  signed_at: string | null
+  monthly_rent: string | null
+  deposit: string | null
+  notice_period_days: number
+  notice_window_date: string | null
+  tenant_name: string
+  all_tenant_names: string[]
+  successor_lease_id: number | null
+}
+
+export interface PortfolioEntry {
+  property_id: number
+  property_name: string
+  property_address: string
+  property_type: string
+  units_total: number
+  units_occupied: number
+  active_lease: PortfolioActiveLease | null
+  top_maintenance: PortfolioMaintenanceItem[]
+  open_maintenance_count: number
+}
 import { extractApiError } from '../utils/api-errors'
 import { isFresh } from './_helpers'
 
@@ -133,6 +170,33 @@ export const usePropertiesStore = defineStore('properties', () => {
     }
   }
 
+  // ─── Dashboard portfolio ────────────────────────────────────────────────
+  // Lightweight rollup for DashboardView — returns per-property lifecycle
+  // snapshot (active lease, top maintenance, notice window). View-local cache.
+
+  const portfolio = ref<PortfolioEntry[]>([])
+  const portfolioLoading = ref(false)
+  const portfolioLoadedAt = ref<number | null>(null)
+
+  async function fetchPortfolio(opts: { force?: boolean } = {}): Promise<PortfolioEntry[]> {
+    if (!opts.force && isFresh(portfolioLoadedAt.value) && portfolio.value.length > 0) {
+      return portfolio.value
+    }
+    portfolioLoading.value = true
+    try {
+      const { data } = await api.get('/dashboard/portfolio/')
+      const rows: PortfolioEntry[] = Array.isArray(data) ? data : (data.results ?? [])
+      portfolio.value = rows
+      portfolioLoadedAt.value = Date.now()
+      return rows
+    } catch (err) {
+      error.value = extractApiError(err, 'Failed to load portfolio')
+      throw err
+    } finally {
+      portfolioLoading.value = false
+    }
+  }
+
   // ─── Unit sub-resource ───────────────────────────────────────────────────
   // Units are returned inline on the parent Property. After every mutation
   // we re-fetch the parent so its `units` array stays in sync — keeps the
@@ -193,12 +257,15 @@ export const usePropertiesStore = defineStore('properties', () => {
     loading,
     error,
     loadedAt,
+    portfolio,
+    portfolioLoading,
     // getters
     list,
     byId,
     // actions
     fetchAll,
     fetchOne,
+    fetchPortfolio,
     create,
     update,
     remove,

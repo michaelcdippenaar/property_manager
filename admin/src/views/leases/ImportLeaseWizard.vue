@@ -4,13 +4,32 @@
 
       <!-- Header -->
       <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
-        <div class="flex items-center gap-3">
-          <div class="w-7 h-7 rounded-lg bg-navy flex items-center justify-center">
+        <div class="flex items-center gap-3 min-w-0">
+          <button
+            @click="$emit('close')"
+            class="w-9 h-9 -ml-2 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-900 transition-colors flex-shrink-0"
+            :aria-label="prefilledPropertyName ? `Back to ${prefilledPropertyName}` : 'Back'"
+            :title="prefilledPropertyName ? `Back to ${prefilledPropertyName}` : 'Back (Esc)'"
+          >
+            <ArrowLeft :size="18" />
+          </button>
+          <div class="w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
             <Sparkles :size="14" class="text-white" />
           </div>
-          <div>
-            <div class="font-semibold text-gray-900 text-sm">Import Lease from PDF</div>
-            <div class="text-xs text-gray-400">AI extracts property, tenants, occupants and terms automatically</div>
+          <div class="min-w-0">
+            <nav v-if="prefilledPropertyName" aria-label="Breadcrumb" class="flex items-center gap-1 text-xs text-gray-400 mb-0.5">
+              <span class="truncate max-w-[200px]">{{ prefilledPropertyName }}</span>
+              <ChevronRight :size="12" class="flex-shrink-0" />
+              <span>Leases</span>
+              <ChevronRight :size="12" class="flex-shrink-0" />
+              <span class="text-gray-600 font-medium">Import</span>
+            </nav>
+            <div class="font-semibold text-gray-900 text-sm truncate">
+              Import lease
+              <span v-if="prefilledPropertyName" class="text-gray-500 font-normal">for {{ prefilledPropertyName }}</span>
+              <span v-else class="text-gray-500 font-normal">from PDF</span>
+            </div>
+            <div class="text-xs text-gray-400">AI extracts tenants, occupants and terms automatically</div>
           </div>
         </div>
         <div class="flex items-center gap-3">
@@ -30,14 +49,14 @@
         <div class="w-full max-w-xl space-y-6">
 
           <!-- Draft restore banner -->
-          <div v-if="hasDraft" class="flex items-center justify-between gap-3 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
-            <div class="flex items-center gap-2 text-sm text-amber-800">
-              <Clock :size="14" class="text-amber-500 flex-shrink-0" />
+          <div v-if="hasDraft" class="flex items-center justify-between gap-3 px-4 py-3 bg-warning-50 border border-warning-100 rounded-xl">
+            <div class="flex items-center gap-2 text-sm text-warning-700">
+              <Clock :size="14" class="text-warning-500 flex-shrink-0" />
               <span>Unsaved draft from <strong>{{ draftAge() }}</strong> — resume without re-parsing?</span>
             </div>
             <div class="flex items-center gap-2 flex-shrink-0">
-              <button @click="clearDraft" class="text-xs text-amber-600 hover:text-amber-900">Discard</button>
-              <button @click="restoreDraft" class="text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 px-3 py-1 rounded-lg transition-colors">Resume</button>
+              <button @click="clearDraft" class="text-xs text-warning-600 hover:text-warning-700">Discard</button>
+              <button @click="restoreDraft" class="text-xs font-semibold text-white bg-warning-500 hover:bg-warning-600 px-3 py-1 rounded-lg transition-colors">Resume</button>
             </div>
           </div>
           <div
@@ -74,11 +93,11 @@
           </div>
           <input ref="fileInput" type="file" accept=".pdf" class="hidden" @change="onFileSelected" />
 
-          <div v-if="parseError" class="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm">
-            <AlertCircle :size="15" class="text-red-500 mt-0.5 flex-shrink-0" />
+          <div v-if="parseError" class="flex items-start gap-2 p-3 bg-danger-50 border border-danger-100 rounded-xl text-sm">
+            <AlertCircle :size="15" class="text-danger-500 mt-0.5 flex-shrink-0" />
             <div>
-              <div class="font-medium text-red-700">Parse failed</div>
-              <div class="text-red-600 text-xs mt-0.5 font-mono whitespace-pre-wrap">{{ parseError }}</div>
+              <div class="font-medium text-danger-700">Parse failed</div>
+              <div class="text-danger-600 text-xs mt-0.5 font-mono whitespace-pre-wrap">{{ parseError }}</div>
             </div>
           </div>
         </div>
@@ -107,55 +126,92 @@
         <div class="flex-1 overflow-y-auto">
           <div class="max-w-xl mx-auto px-6 py-8 space-y-8">
 
+            <!-- Signed / historical toggle -->
+            <div
+              class="flex items-center justify-between gap-4 px-4 py-3 rounded-xl border cursor-pointer select-none transition-colors"
+              :class="form.status === 'active' ? 'bg-success-50 border-success-200' : 'bg-warning-50 border-warning-100'"
+              @click="form.status = form.status === 'active' ? 'pending' : 'active'"
+            >
+              <div>
+                <div class="text-sm font-semibold" :class="form.status === 'active' ? 'text-success-700' : 'text-warning-700'">
+                  {{ form.status === 'active' ? 'Already signed — mark as Active' : 'Not yet signed — mark as Pending' }}
+                </div>
+                <div class="text-xs mt-0.5" :class="form.status === 'active' ? 'text-success-600' : 'text-warning-600'">
+                  {{ form.status === 'active' ? 'Historical lease — no e-signing required' : 'Will require e-signing before becoming active' }}
+                </div>
+              </div>
+              <div
+                class="w-10 h-6 rounded-full transition-colors flex-shrink-0 flex items-center px-0.5"
+                :class="form.status === 'active' ? 'bg-success-500 justify-end' : 'bg-warning-100 justify-start'"
+              >
+                <div class="w-5 h-5 rounded-full bg-white shadow" />
+              </div>
+            </div>
+
             <!-- Property & Unit -->
             <section class="space-y-4">
               <SectionLabel text="Property" color="navy" />
-              <div class="grid grid-cols-2 gap-3">
-                <div class="col-span-2">
-                  <label class="label">Match existing or create new</label>
-                  <select v-model="useExistingProperty" class="input">
-                    <option :value="false">+ Create new property</option>
-                    <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.name }}</option>
-                  </select>
-                </div>
-                <template v-if="!useExistingProperty">
+
+              <!-- Locked: launched from a specific property page -->
+              <div v-if="prefilledPropertyId" class="col-span-2 flex items-center gap-2 px-3 py-2 bg-navy/5 border border-navy/20 rounded-lg text-sm text-navy">
+                <span class="font-medium">{{ properties.find(p => p.id === prefilledPropertyId)?.name || `Property #${prefilledPropertyId}` }}</span>
+                <span class="text-xs text-gray-400 ml-auto">linked from property page</span>
+              </div>
+
+              <template v-else>
+                <div class="grid grid-cols-2 gap-3">
                   <div class="col-span-2">
-                    <label class="label">Property name</label>
-                    <input v-model="form.property.name" class="input" placeholder="e.g. 18 Irene Park" />
-                  </div>
-                  <div class="col-span-2">
-                    <label class="label">Address</label>
-                    <input v-model="form.property.address" class="input" placeholder="Street address" />
-                  </div>
-                  <div>
-                    <label class="label">City</label>
-                    <input v-model="form.property.city" class="input" />
-                  </div>
-                  <div>
-                    <label class="label">Province</label>
-                    <input v-model="form.property.province" class="input" />
-                  </div>
-                  <div>
-                    <label class="label">Postal code</label>
-                    <input v-model="form.property.postal_code" class="input" />
-                  </div>
-                  <div>
-                    <label class="label">Type</label>
-                    <select v-model="form.property.property_type" class="input">
-                      <option value="house">House</option>
-                      <option value="apartment">Apartment</option>
-                      <option value="townhouse">Townhouse</option>
-                      <option value="commercial">Commercial</option>
+                    <label class="label">Match existing or create new</label>
+                    <select v-model="useExistingProperty" class="input">
+                      <option :value="false">+ Create new property</option>
+                      <option v-for="p in properties" :key="p.id" :value="p.id">{{ p.name }}</option>
                     </select>
                   </div>
-                </template>
-              </div>
+                  <template v-if="!useExistingProperty">
+                    <div class="col-span-2">
+                      <label class="label">Property name</label>
+                      <input v-model="form.property.name" class="input" placeholder="e.g. 18 Irene Park" />
+                    </div>
+                    <div class="col-span-2">
+                      <label class="label">Address</label>
+                      <input v-model="form.property.address" class="input" placeholder="Street address" />
+                    </div>
+                    <div>
+                      <label class="label">City</label>
+                      <input v-model="form.property.city" class="input" />
+                    </div>
+                    <div>
+                      <label class="label">Province</label>
+                      <input v-model="form.property.province" class="input" />
+                    </div>
+                    <div>
+                      <label class="label">Postal code</label>
+                      <input v-model="form.property.postal_code" class="input" />
+                    </div>
+                    <div>
+                      <label class="label">Type</label>
+                      <select v-model="form.property.property_type" class="input">
+                        <option value="house">House</option>
+                        <option value="apartment">Apartment</option>
+                        <option value="townhouse">Townhouse</option>
+                        <option value="commercial">Commercial</option>
+                      </select>
+                    </div>
+                  </template>
+                </div>
+              </template>
 
               <!-- Unit -->
               <div class="grid grid-cols-3 gap-3">
                 <div :class="(!useExistingProperty || !useExistingUnit) ? 'col-span-1' : 'col-span-3'">
                   <label class="label">Unit</label>
-                  <select v-if="useExistingProperty" v-model="useExistingUnit" class="input">
+                  <!-- Locked unit when launched from property page with a specific unit selected -->
+                  <div v-if="prefilledUnitId" class="px-3 py-2 bg-navy/5 border border-navy/20 rounded-lg text-sm text-navy font-medium">
+                    {{ unitsForProperty.find(u => u.id === prefilledUnitId)?.unit_number
+                      ? `Unit ${unitsForProperty.find(u => u.id === prefilledUnitId)?.unit_number}`
+                      : `Unit #${prefilledUnitId}` }}
+                  </div>
+                  <select v-else-if="useExistingProperty" v-model="useExistingUnit" class="input">
                     <option :value="false">+ Create new unit</option>
                     <option v-for="u in unitsForProperty" :key="u.id" :value="u.id">Unit {{ u.unit_number }}</option>
                   </select>
@@ -231,7 +287,7 @@
               <!-- Tenant 2, 3, 4 -->
               <div v-for="(ct, i) in form.co_tenants" :key="i" class="relative border border-navy/20 rounded-xl p-4 bg-navy/5">
                 <span class="absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide">Tenant {{ i + 2 }}</span>
-                <button @click="form.co_tenants.splice(i, 1)" class="absolute top-2.5 right-3 text-gray-400 hover:text-red-500"><X :size="14" /></button>
+                <button @click="form.co_tenants.splice(i, 1)" class="absolute top-2.5 right-3 text-gray-400 hover:text-danger-500"><X :size="14" /></button>
                 <div class="pt-4">
                   <PersonBlock v-model="form.co_tenants[i]" compact />
                 </div>
@@ -246,8 +302,8 @@
                   <Plus :size="12" /> Add
                 </button>
               </div>
-              <div v-for="(oc, i) in form.occupants" :key="i" class="relative border border-emerald-100 rounded-xl p-4 bg-emerald-50/40">
-                <button @click="form.occupants.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-red-500"><X :size="14" /></button>
+              <div v-for="(oc, i) in form.occupants" :key="i" class="relative border border-success-100 rounded-xl p-4 bg-success-50/40">
+                <button @click="form.occupants.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-danger-500"><X :size="14" /></button>
                 <PersonBlock v-model="form.occupants[i]" compact />
                 <div class="mt-2">
                   <label class="label">Relationship to tenant</label>
@@ -265,8 +321,8 @@
                   <Plus :size="12" /> Add
                 </button>
               </div>
-              <div v-for="(g, i) in form.guarantors" :key="i" class="relative border border-amber-100 rounded-xl p-4 bg-amber-50/40">
-                <button @click="form.guarantors.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-red-500"><X :size="14" /></button>
+              <div v-for="(g, i) in form.guarantors" :key="i" class="relative border border-warning-100 rounded-xl p-4 bg-warning-50/40">
+                <button @click="form.guarantors.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-danger-500"><X :size="14" /></button>
                 <PersonBlock v-model="form.guarantors[i]" compact />
                 <div class="mt-2">
                   <label class="label">Covers tenant</label>
@@ -276,6 +332,91 @@
               <p v-if="!form.guarantors.length" class="text-xs text-gray-400">None</p>
             </section>
 
+            <!-- Supporting Documents -->
+            <section class="space-y-3">
+              <div class="flex items-center justify-between">
+                <SectionLabel text="Supporting Documents" color="gray" />
+                <button
+                  @click="extraDocs.push({ personRole: 'primary_tenant', type: 'id_copy', description: '', file: null })"
+                  class="btn-ghost text-xs px-2 py-1"
+                >
+                  <Plus :size="12" /> Add document
+                </button>
+              </div>
+
+              <div v-if="!extraDocs.length" class="text-xs text-gray-400">
+                Optionally attach ID copies, proof of address or income. These are saved against the person and available for future leases.
+              </div>
+
+              <div
+                v-for="(doc, i) in extraDocs"
+                :key="i"
+                class="relative border border-gray-200 rounded-xl p-4 bg-gray-50/40 space-y-2"
+              >
+                <button @click="extraDocs.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-danger-500">
+                  <X :size="14" />
+                </button>
+
+                <div class="grid grid-cols-2 gap-2 pr-5">
+                  <!-- Person selector -->
+                  <div>
+                    <label class="label">Person</label>
+                    <select v-model="doc.personRole" class="input text-xs">
+                      <option value="primary_tenant">
+                        {{ form.primary_tenant.full_name || 'Tenant 1' }}
+                      </option>
+                      <option v-for="(ct, ci) in form.co_tenants" :key="'ct'+ci" :value="`co_tenant_${ci}`">
+                        {{ ct.full_name || `Co-tenant ${ci + 2}` }}
+                      </option>
+                      <option v-for="(g, gi) in form.guarantors" :key="'g'+gi" :value="`guarantor_${gi}`">
+                        {{ g.full_name || `Guarantor ${gi + 1}` }} (surety)
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Document type -->
+                  <div>
+                    <label class="label">Type</label>
+                    <select v-model="doc.type" class="input text-xs">
+                      <option value="id_copy">ID / Passport Copy</option>
+                      <option value="proof_of_address">Proof of Address</option>
+                      <option value="proof_of_income">Proof of Income</option>
+                      <option value="fica">FICA / KYC Document</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                  <label class="label">Description <span class="text-gray-400 font-normal">(optional)</span></label>
+                  <input v-model="doc.description" class="input text-xs" placeholder="e.g. Edwin Hanekom — SA ID" />
+                </div>
+
+                <!-- File picker -->
+                <div>
+                  <label class="label">File</label>
+                  <div class="flex items-center gap-2">
+                    <label
+                      class="flex-1 flex items-center gap-2 px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-navy transition-colors text-xs text-gray-500"
+                    >
+                      <FileText :size="13" class="flex-shrink-0" />
+                      <span class="truncate">{{ doc.file ? doc.file.name : 'Choose file (PDF, JPG, PNG)' }}</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        class="hidden"
+                        @change="(e: any) => { doc.file = e.target.files?.[0] ?? null; e.target.value = '' }"
+                      />
+                    </label>
+                    <button v-if="doc.file" @click="doc.file = null" class="text-gray-400 hover:text-danger-500 flex-shrink-0">
+                      <X :size="13" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
           </div>
         </div>
       </div>
@@ -283,8 +424,8 @@
       <!-- Step 3: Done -->
       <div v-if="step === 3" class="flex-1 flex items-center justify-center">
         <div class="text-center space-y-4 max-w-sm">
-          <div class="w-16 h-16 rounded-2xl bg-emerald-100 flex items-center justify-center mx-auto">
-            <CheckCircle2 :size="32" class="text-emerald-600" />
+          <div class="w-16 h-16 rounded-2xl bg-success-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 :size="32" class="text-success-600" />
           </div>
           <div>
             <div class="font-semibold text-gray-900 text-lg">Lease imported!</div>
@@ -299,7 +440,7 @@
 
       <!-- Footer (step 2 only) -->
       <div v-if="step === 2" class="flex items-center justify-between px-6 py-4 border-t border-gray-200 flex-shrink-0 bg-white">
-        <div v-if="importError" class="flex items-center gap-2 text-sm text-red-600">
+        <div v-if="importError" class="flex items-center gap-2 text-sm text-danger-600">
           <AlertCircle :size="14" />
           {{ importError }}
         </div>
@@ -322,12 +463,18 @@ import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
 import api from '../../api'
 import {
   Sparkles, X, FileText, AlertCircle, CheckCircle2,
-  Loader2, Plus, ChevronRight, Clock,
+  Loader2, Plus, ChevronRight, Clock, ArrowLeft,
 } from 'lucide-vue-next'
 import { usePropertiesStore } from '../../stores/properties'
 import { useLeasesStore } from '../../stores/leases'
 
 const DRAFT_KEY = 'lease_import_draft'
+
+const props = defineProps<{
+  prefilledPropertyId?: number
+  prefilledPropertyName?: string
+  prefilledUnitId?: number
+}>()
 
 const emit = defineEmits<{ close: []; done: [] }>()
 
@@ -337,8 +484,8 @@ const SectionLabel = defineComponent({
   props: { text: String, color: String },
   setup(props) {
     const colors: Record<string, string> = {
-      navy: 'text-navy', blue: 'text-blue-600', green: 'text-emerald-600',
-      amber: 'text-amber-600', purple: 'text-violet-600',
+      navy: 'text-navy', blue: 'text-info-600', green: 'text-success-600',
+      amber: 'text-warning-600', purple: 'text-violet-600',
     }
     return () => h('div', {
       class: `text-xs font-semibold uppercase tracking-wide ${colors[props.color ?? 'navy'] ?? 'text-gray-500'}`,
@@ -447,6 +594,14 @@ const pdfUrl = ref('')
 const pdfFileName = ref('')
 const pdfFile = ref<File | null>(null)  // keep the original File for auto-upload
 
+interface ExtraDoc {
+  personRole: string  // 'primary_tenant' | 'co_tenant_0' | 'guarantor_0' | etc.
+  type: string
+  description: string
+  file: File | null
+}
+const extraDocs = ref<ExtraDoc[]>([])
+
 function emptyPerson() {
   return { full_name: '', id_number: '', phone: '', email: '' }
 }
@@ -463,6 +618,7 @@ const form = ref({
   water_limit_litres: 4000,
   notice_period_days: 20,
   early_termination_penalty_months: 3,
+  status: 'active' as 'active' | 'pending',
   primary_tenant: emptyPerson(),
   co_tenants: [] as any[],
   occupants: [] as any[],
@@ -480,6 +636,13 @@ async function loadProperties() {
 
 onMounted(() => {
   loadProperties()
+  // Pre-fill property/unit when launched from the property detail page
+  if (props.prefilledPropertyId) {
+    useExistingProperty.value = props.prefilledPropertyId
+    if (props.prefilledUnitId) useExistingUnit.value = props.prefilledUnitId
+    // Skip draft restore when context is already provided
+    return
+  }
   // Check for an unsubmitted draft
   const raw = localStorage.getItem(DRAFT_KEY)
   if (raw) {
@@ -650,6 +813,33 @@ async function doImport() {
       })
     }
 
+    // Upload supporting documents to the correct Person record
+    if (extraDocs.value.length) {
+      const personIdMap: Record<string, number> = {
+        primary_tenant: created.primary_tenant_id,
+        ...(created.co_tenant_person_ids ?? []).reduce((acc: Record<string, number>, id: number, i: number) => {
+          acc[`co_tenant_${i}`] = id
+          return acc
+        }, {}),
+        ...(created.guarantor_person_ids ?? []).reduce((acc: Record<string, number>, id: number, i: number) => {
+          acc[`guarantor_${i}`] = id
+          return acc
+        }, {}),
+      }
+      for (const doc of extraDocs.value) {
+        if (!doc.file) continue
+        const personId = personIdMap[doc.personRole]
+        if (!personId) continue
+        const fd = new FormData()
+        fd.append('file', doc.file)
+        fd.append('document_type', doc.type)
+        fd.append('description', doc.description)
+        await api.post(`/auth/persons/${personId}/documents/`, fd, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        })
+      }
+    }
+
     clearDraft()
     step.value = 3
   } catch (e: any) {
@@ -672,11 +862,12 @@ function reset() {
   rawParsed.value = null
   useExistingProperty.value = false
   useExistingUnit.value = false
+  extraDocs.value = []
   form.value = {
     property: { name: '', address: '', city: '', province: '', postal_code: '', property_type: 'house' },
     unit: { unit_number: '1', bedrooms: 1, bathrooms: 1 },
     start_date: '', end_date: '', monthly_rent: '', deposit: '',
-    payment_reference: '', max_occupants: 1,
+    payment_reference: '', max_occupants: 1, status: 'active' as 'active' | 'pending',
     water_included: true, electricity_prepaid: true,
     water_limit_litres: 4000, notice_period_days: 20,
     early_termination_penalty_months: 3,

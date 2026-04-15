@@ -40,7 +40,7 @@ If no scenario is provided, default to `rental_mandate` — it's the dominant fl
 
 | Phase | Action |
 |-------|--------|
-| 1 | Declare entity type (Individual / Company / Trust / CC / Partnership) |
+| 1 | Declare entity type (Individual / Company / Trust [*inter vivos* or *testamentary*] / CC / Partnership). For trusts, distinguish on the founding document: Trust Deed = inter vivos; Last Will and Testament = testamentary. |
 | 2 | Ingest all files from folder (Glob + Read) |
 | 3 | Classify each document into FICA or CIPC bucket |
 | 4 | Extract structured fields per document |

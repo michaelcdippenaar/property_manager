@@ -1,18 +1,22 @@
 <template>
   <div class="space-y-5">
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-sm text-gray-500">View and manage all lease agreements.</p>
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <button class="btn-ghost" @click="showImport = true">
-          <Sparkles :size="15" class="text-accent" />
-          Import from PDF
-        </button>
-        <button class="btn-primary" @click="router.push('/leases/build')">
-          <Plus :size="15" /> New Lease
-        </button>
-      </div>
-    </div>
+    <PageHeader
+      title="Leases"
+      subtitle="View and manage all lease agreements."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Leases' }]"
+    >
+      <template #actions>
+        <div class="flex items-center gap-2">
+          <button class="btn-ghost" @click="showImport = true">
+            <Sparkles :size="15" class="text-accent" />
+            Import from PDF
+          </button>
+          <button class="btn-primary" @click="router.push('/leases/build')">
+            <Plus :size="15" /> New Lease
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <!-- Status tabs -->
     <div class="flex gap-1 border-b border-gray-200 overflow-x-auto">
@@ -28,7 +32,7 @@
         {{ tab.label }}
         <span
           v-if="tab.count != null"
-          class="ml-1.5 text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
+          class="ml-1.5 text-micro font-semibold px-1.5 py-0.5 rounded-full"
           :class="activeTab === tab.key ? 'bg-navy/10 text-navy' : 'bg-gray-100 text-gray-500'"
         >{{ tab.count }}</span>
       </button>
@@ -94,7 +98,7 @@
               <div
                 v-for="signer in liveSigners(lease.id)"
                 :key="signer.name"
-                class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[11px] font-medium"
+                class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-micro font-medium"
                 :title="`${signer.name}: ${signer.status}`"
               >
                 <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" :class="signerDot(signer.status)"></span>
@@ -112,7 +116,7 @@
               <span :class="statusBadge(lease.status)">{{ lease.status }}</span>
               <button
                 v-if="signingNarrative(lease.id).label === 'Needs signing' && lease.status === 'active'"
-                class="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-navy/10 text-navy hover:bg-navy hover:text-white transition-colors"
+                class="flex items-center gap-1 text-micro font-semibold px-2 py-0.5 rounded-full bg-navy/10 text-navy hover:bg-navy hover:text-white transition-colors"
                 @click.stop="expandAndSign(lease.id)"
                 aria-label="Send for signing"
               >
@@ -342,7 +346,7 @@
               Resume
             </button>
             <button
-              class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              class="p-1.5 text-gray-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors"
               title="Delete draft"
               @click="deleteDraft(d.id)"
             >
@@ -423,7 +427,7 @@
                 </a>
                 <button
                   @click="deleteDocument(doc)"
-                  class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  class="p-1.5 text-gray-400 hover:text-danger-500 hover:bg-danger-50 rounded-lg transition-colors"
                   title="Delete document"
                 >
                   <Trash2 :size="15" />
@@ -493,6 +497,7 @@ import ImportLeaseWizard from './ImportLeaseWizard.vue'
 import EditLeaseDrawer from './EditLeaseDrawer.vue'
 import ESigningPanel from './ESigningPanel.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import { useToast } from '../../composables/useToast'
@@ -747,9 +752,9 @@ function liveSigners(leaseId: number): { name: string; status: string }[] {
 }
 
 function signerDot(status: string): string {
-  if (status === 'completed' || status === 'signed') return 'bg-emerald-500'
-  if (status === 'opened') return 'bg-blue-500'
-  if (status === 'declined') return 'bg-red-500'
+  if (status === 'completed' || status === 'signed') return 'bg-success-500'
+  if (status === 'opened') return 'bg-info-500'
+  if (status === 'declined') return 'bg-danger-500'
   return 'bg-gray-300'
 }
 

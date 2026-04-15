@@ -23,7 +23,7 @@
       <span v-else-if="prefilledValue" class="font-semibold">{{ prefilledValue }}</span>
 
       <!-- Other signer's unfilled field -->
-      <span v-else class="text-gray-300 italic text-[11px] align-baseline">{{ displayLabel }}</span>
+      <span v-else class="text-gray-300 italic text-xs align-baseline">{{ displayLabel }}</span>
     </template>
 
     <!-- ══════════════ PREVIEW MODE (filled values) ══════════════ -->
@@ -34,7 +34,7 @@
     <!-- ══════════════ EDITOR MODE ══════════════ -->
     <template v-else>
       <span
-        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px]
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-micro
                font-medium cursor-grab active:cursor-grabbing select-none align-baseline leading-tight"
         :class="[chipClasses, selected ? 'ring-2 ring-navy/40' : '']"
         contenteditable="false"
@@ -136,9 +136,9 @@ const inputWidth = computed(() => {
 const chipClasses = computed(() => {
   const cat = props.node.attrs.category
   return {
-    landlord: 'bg-blue-100 text-blue-700 border border-blue-200',
-    tenant:   'bg-green-100 text-green-700 border border-green-200',
-    property: 'bg-amber-100 text-amber-700 border border-amber-200',
+    landlord: 'bg-info-100 text-info-700 border border-info-100',
+    tenant:   'bg-success-100 text-success-700 border border-success-100',
+    property: 'bg-warning-100 text-warning-700 border border-warning-100',
     lease:    'bg-purple-100 text-purple-700 border border-purple-200',
     agent:    'bg-cyan-100 text-cyan-700 border border-cyan-200',
   }[cat] ?? 'bg-gray-100 text-gray-600 border border-gray-200'
@@ -163,7 +163,7 @@ const iconComponent = computed(() => {
   font: inherit;
   font-size: inherit;
   line-height: inherit;
-  color: #1a1a1a;
+  color: theme('colors.gray.900');
   font-weight: 600;
   vertical-align: baseline;
   box-sizing: border-box;

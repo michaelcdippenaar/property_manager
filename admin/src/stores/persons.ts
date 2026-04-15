@@ -78,6 +78,17 @@ export const usePersonsStore = defineStore('persons', () => {
     }
   }
 
+  async function fetchPerson(id: number): Promise<Person> {
+    try {
+      const { data } = await api.get(`/auth/persons/${id}/`)
+      persons.value.set(data.id, data)
+      return data
+    } catch (err) {
+      error.value = extractApiError(err, 'Failed to load person')
+      throw err
+    }
+  }
+
   async function updatePerson(id: number, patch: Partial<Person>): Promise<Person> {
     try {
       const { data } = await api.patch(`/auth/persons/${id}/`, patch)
@@ -107,6 +118,7 @@ export const usePersonsStore = defineStore('persons', () => {
     personById,
     // actions
     fetchTenants,
+    fetchPerson,
     createPerson,
     updatePerson,
     invalidate,

@@ -1,8 +1,9 @@
 from rest_framework import serializers
 from .models import (
     BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
-    Property, PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
-    PropertyPhoto, PropertyValuation, PropertyViewing, Unit, UnitInfo,
+    Property, PropertyAgentAssignment, PropertyAgentConfig, PropertyDocument,
+    PropertyGroup, PropertyOwnership, PropertyPhoto, PropertyValuation,
+    PropertyViewing, Unit, UnitInfo,
 )
 
 
@@ -45,15 +46,67 @@ class PropertySerializer(serializers.ModelSerializer):
     nearest_lease_expiry = serializers.SerializerMethodField()
     cover_photo = serializers.SerializerMethodField()
     property_active_lease_info = serializers.SerializerMethodField()
+    assigned_agents = serializers.SerializerMethodField()
 
     class Meta:
         model = Property
         fields = "__all__"
 
+    _INFO_ALLOWED_CATEGORIES = {
+        "utilities", "safety", "access", "rules", "contacts", "waste", "other",
+    }
+
+    def validate_information_items(self, value):
+        if value in (None, ""):
+            return []
+        if not isinstance(value, list):
+            raise serializers.ValidationError("information_items must be a list.")
+        if len(value) > 50:
+            raise serializers.ValidationError("At most 50 information items are allowed.")
+        cleaned: list[dict] = []
+        for idx, item in enumerate(value):
+            if not isinstance(item, dict):
+                raise serializers.ValidationError(
+                    f"information_items[{idx}] must be an object."
+                )
+            label = (item.get("label") or "").strip()
+            if not label:
+                raise serializers.ValidationError(
+                    f"information_items[{idx}].label is required."
+                )
+            if len(label) > 120:
+                label = label[:120]
+            body = (item.get("body") or "").strip()
+            if len(body) > 4000:
+                body = body[:4000]
+            category = (item.get("category") or "other").strip().lower()
+            if category not in self._INFO_ALLOWED_CATEGORIES:
+                category = "other"
+            item_id = (item.get("id") or "").strip()
+            if not item_id:
+                import uuid
+                item_id = str(uuid.uuid4())
+            cleaned.append({
+                "id": item_id,
+                "label": label,
+                "body": body,
+                "category": category,
+                "updated_at": (item.get("updated_at") or "").strip() or None,
+            })
+        return cleaned
+
     def create(self, validated_data):
+        user = self.context["request"].user
         if "agent" not in validated_data:
-            validated_data["agent"] = self.context["request"].user
-        return super().create(validated_data)
+            validated_data["agent"] = user
+        prop = super().create(validated_data)
+        # Auto-assign the creator so the property appears in their scoped list
+        from .models import PropertyAgentAssignment
+        PropertyAgentAssignment.objects.get_or_create(
+            property=prop, agent=user,
+            defaults={"assignment_type": "managing", "assigned_by": user},
+        )
+        return prop
 
     def get_nearest_lease_expiry(self, obj):
         from apps.leases.models import Lease
@@ -91,6 +144,23 @@ class PropertySerializer(serializers.ModelSerializer):
             "status": lease.status,
         }
 
+    def get_assigned_agents(self, obj):
+        """Active agent assignments, filtered to the requesting user's agency."""
+        assignments = obj.agent_assignments.filter(status="active").select_related("agent")
+        request = self.context.get("request")
+        if request and request.user.agency_id and request.user.role != "admin":
+            assignments = assignments.filter(agent__agency_id=request.user.agency_id)
+        return [
+            {
+                "id": a.id,
+                "agent_id": a.agent_id,
+                "name": a.agent.full_name,
+                "role": a.agent.role,
+                "assignment_type": a.assignment_type,
+            }
+            for a in assignments
+        ]
+
     def get_cover_photo(self, obj):
         photo = obj.photos.first()
         if photo and photo.photo:
@@ -121,10 +191,18 @@ class PropertyAgentConfigSerializer(serializers.ModelSerializer):
 
 
 class BankAccountSerializer(serializers.ModelSerializer):
+    confirmation_letter_url = serializers.SerializerMethodField()
+
     class Meta:
         model = BankAccount
         fields = '__all__'
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'created_at', 'confirmation_letter_url']
+
+    def get_confirmation_letter_url(self, obj):
+        request = self.context.get('request')
+        if obj.confirmation_letter and request:
+            return request.build_absolute_uri(obj.confirmation_letter.url)
+        return None
 
 
 class LandlordDocumentSerializer(serializers.ModelSerializer):
@@ -156,9 +234,28 @@ class LandlordSerializer(serializers.ModelSerializer):
         return obj.ownerships.filter(is_current=True).count()
 
     def get_properties(self, obj):
+        # Prefetch each property's title-deed presence in one round-trip.
+        # Title deeds belong to properties (not the landlord entity) so the
+        # mandate-readiness check must ask "does each property have a deed?",
+        # not "does the landlord have a deed?".
+        from apps.properties.models import PropertyDocument
+        ownerships = list(
+            obj.ownerships.filter(is_current=True).select_related('property')
+        )
+        property_ids = [o.property_id for o in ownerships]
+        deeds_by_property = set(
+            PropertyDocument.objects
+            .filter(property_id__in=property_ids, doc_type=PropertyDocument.DocType.TITLE_DEED)
+            .values_list('property_id', flat=True)
+        )
         return [
-            {'id': o.property_id, 'name': o.property.name, 'ownership_id': o.id}
-            for o in obj.ownerships.filter(is_current=True).select_related('property')
+            {
+                'id': o.property_id,
+                'name': o.property.name,
+                'ownership_id': o.id,
+                'has_title_deed': o.property_id in deeds_by_property,
+            }
+            for o in ownerships
         ]
 
 
@@ -403,3 +500,32 @@ class PropertyViewingSerializer(serializers.ModelSerializer):
     def get_prospect_detail(self, obj):
         from apps.accounts.serializers import PersonSerializer
         return PersonSerializer(obj.prospect, context=self.context).data
+
+
+class PropertyAgentAssignmentSerializer(serializers.ModelSerializer):
+    agent_name = serializers.SerializerMethodField()
+    agent_email = serializers.CharField(source="agent.email", read_only=True)
+    agent_role = serializers.CharField(source="agent.role", read_only=True)
+    property_name = serializers.CharField(source="property.name", read_only=True)
+    property_address = serializers.CharField(source="property.address", read_only=True)
+    assignment_type_display = serializers.CharField(source="get_assignment_type_display", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    assigned_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PropertyAgentAssignment
+        fields = [
+            "id", "property", "property_name", "property_address",
+            "agent", "agent_name", "agent_email", "agent_role",
+            "assignment_type", "assignment_type_display",
+            "mandate", "status", "status_display",
+            "assigned_by", "assigned_by_name",
+            "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "assigned_by", "created_at", "updated_at"]
+
+    def get_agent_name(self, obj):
+        return obj.agent.get_full_name() if obj.agent else None
+
+    def get_assigned_by_name(self, obj):
+        return obj.assigned_by.get_full_name() if obj.assigned_by else None

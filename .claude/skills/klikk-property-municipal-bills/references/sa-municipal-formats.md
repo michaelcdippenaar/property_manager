@@ -77,13 +77,13 @@ This reference documents the bill layouts, field locations, and extraction patte
 | Bill Field | Extraction Target | Notes |
 |------------|-------------------|-------|
 | Name block (first line) | `owner_name` | "KLIKK (PTY) LTD" |
-| Name block (lines 2-5) | `address` | Street + suburb + city + postal code |
+| Name block (lines 2-5) | owner's postal address only | ⚠️ NOT the property address — this is the account holder's mailing address, which may be their company office |
 | ACCOUNT NUMBER | `municipal_account_number` | 7-9 digit number |
 | ACCOUNT DATE | `billing_date` | DD/MM/YYYY format → convert to YYYY-MM-DD |
 | Due Date / Datum Verskuldig | `due_date` | DD/MM/YYYY → YYYY-MM-DD |
 | VALUATION | `valuation` | In ZAR, no decimals (e.g. 9640000) |
 | PLOT | `erf_number` | "MDRIF 4087 00001" or "LACOL 2689 00001" |
-| LOCATION | `property_name` (supplement) | Reverse address format: "OTTERKUIL STREET 4" |
+| LOCATION | `address` + `property_name` | ⚠️ This IS the property address. Reversed format: "PAUL KRUGER STREET 9" → "9 Paul Kruger Street" |
 | USAGE | `zoning` | "RES" = residential |
 | AREA | `property_size_m2` | In hectares — multiply by 10000 for m². ".2067" = 2067m² |
 | Rates Monthly RES | `rates_amount` | No VAT on rates (zero-rated) |
@@ -106,11 +106,11 @@ This reference documents the bill layouts, field locations, and extraction patte
 - **PRDNS** = Paradise area
 
 ### Stellenbosch Address Patterns
-The bill shows the address in TWO places:
-1. **Name block** (top-left): normal format — "4 OTTERKUIL STREET / KARINDAL / STELLENBOSCH / 7600"
-2. **LOCATION field**: reversed — "OTTERKUIL STREET 4" or "BOSCH-EN-DAL AVENUE 1"
+The bill shows addresses in TWO places with different meanings:
+1. **Name block** (top-left): the account holder's **postal/mailing address** — "4 OTTERKUIL STREET / KARINDAL / STELLENBOSCH / 7600". For companies or landlords with multiple properties, this is their office address, NOT the property being rated.
+2. **LOCATION field** (right side, account details): the **physical property being rated** — reversed format: "PAUL KRUGER STREET 9" or "OTTERKUIL STREET 4".
 
-Always prefer the name block for the address. The LOCATION field confirms it.
+**Always use the LOCATION field as the property address.** The name block address is the owner's mailing address and should not be used as the property address. These two addresses are frequently different when the owner is a company (e.g. Klikk PTY LTD's office is at 4 Otterkuil but they own properties at Paul Kruger Street 9, Irene Park, etc.).
 
 ---
 

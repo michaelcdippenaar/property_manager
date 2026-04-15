@@ -25,6 +25,7 @@ export interface BankAccount {
   branch_code: string
   account_type: string
   is_default: boolean
+  confirmation_letter_url?: string | null
   created_at: string
 }
 

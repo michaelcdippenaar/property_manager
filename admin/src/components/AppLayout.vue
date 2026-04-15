@@ -4,10 +4,16 @@
     <!-- ── Header with navigation ── -->
     <header class="header-nav flex-shrink-0 z-50">
       <div class="h-16 flex items-center px-5 gap-2">
-        <!-- Logo -->
-        <RouterLink to="/" class="flex items-center gap-2 mr-3 flex-shrink-0">
-          <span class="font-extrabold text-white text-lg tracking-tight">
+        <!-- Logo + Role label -->
+        <RouterLink :to="auth.homeRoute" class="flex items-center gap-2 mr-3 flex-shrink-0" aria-label="Home">
+          <span class="font-extrabold text-white text-lg tracking-tight leading-none">
             Klikk<span class="text-accent">.</span>
+          </span>
+          <span
+            v-if="dashboardLabel"
+            class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/15 text-accent text-[10px] font-bold tracking-[0.12em] uppercase leading-none"
+          >
+            {{ dashboardLabel }}
           </span>
         </RouterLink>
 
@@ -25,11 +31,11 @@
         <nav class="hidden sm:flex items-center gap-1 flex-1">
           <!-- Dashboard -->
           <RouterLink
-            to="/"
+            :to="auth.homeRoute"
             class="header-nav-link"
-            :class="route.path === '/' ? 'header-nav-link-active' : ''"
+            :class="route.path === auth.homeRoute ? 'header-nav-link-active' : ''"
           >
-            <LayoutDashboard :size="15" />
+            <LayoutDashboard :size="16" />
             Dashboard
           </RouterLink>
 
@@ -37,13 +43,17 @@
           <div
             v-for="section in primaryNav"
             :key="section.key"
-            class="relative"
+            class="relative dropdown-root"
+            :data-dropdown-key="section.key"
             @mouseenter="openDropdown = section.key"
             @mouseleave="openDropdown = null"
           >
             <button
               class="header-nav-link"
               :class="isSectionActive(section) ? 'header-nav-link-active' : ''"
+              :aria-haspopup="true"
+              :aria-expanded="openDropdown === section.key"
+              @click.stop="openDropdown = openDropdown === section.key ? null : section.key"
             >
               <span class="whitespace-nowrap">{{ section.label }}</span>
               <ChevronDown :size="12" class="opacity-50 flex-shrink-0" />
@@ -59,23 +69,57 @@
             >
               <div
                 v-if="openDropdown === section.key"
-                class="absolute left-0 top-full w-48 z-50 origin-top-left pt-1"
+                class="absolute left-0 top-full w-72 z-50 origin-top-left pt-1"
               >
-                <div class="bg-white border border-gray-200 rounded-xl shadow-xl py-1">
+                <div class="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
+                  <!-- Subtle intro -->
+                  <div class="px-3.5 pt-2.5 pb-1 text-[11px] text-gray-400 italic">
+                    {{ section.sublabel }}
+                  </div>
+
+                  <!-- Items -->
+                  <div class="pb-1.5">
+                    <RouterLink
+                      v-for="item in section.items"
+                      :key="item.to"
+                      :to="item.to"
+                      class="flex items-start gap-3 px-3.5 py-2 text-sm transition-colors"
+                      :class="isActive(item.to) ? 'bg-navy/5' : 'hover:bg-gray-50'"
+                      @click="openDropdown = null"
+                    >
+                      <component
+                        :is="item.icon"
+                        :size="18"
+                        class="flex-shrink-0 mt-0.5"
+                        :class="isActive(item.to) ? 'text-navy' : 'text-gray-400'"
+                      />
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                          <span
+                            class="font-semibold"
+                            :class="isActive(item.to) ? 'text-navy' : 'text-gray-800'"
+                          >{{ item.label }}</span>
+                          <span
+                            v-if="item.badgeKey && badges[item.badgeKey]"
+                            class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
+                          >{{ badges[item.badgeKey] }}</span>
+                        </div>
+                        <div v-if="item.description" class="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                          {{ item.description }}
+                        </div>
+                      </div>
+                    </RouterLink>
+                  </div>
+
+                  <!-- Footer row -->
                   <RouterLink
-                    v-for="item in section.items"
-                    :key="item.to"
-                    :to="item.to"
-                    class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
-                    :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                    v-if="section.footer"
+                    :to="section.footer.to"
+                    class="flex items-center gap-2.5 px-3.5 py-2.5 text-xs font-medium border-t border-gray-100 bg-gray-50/60 text-gray-600 hover:bg-gray-100/80 hover:text-navy transition-colors"
                     @click="openDropdown = null"
                   >
-                    <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
-                    <span class="flex-1">{{ item.label }}</span>
-                    <span
-                      v-if="item.badgeKey && badges[item.badgeKey]"
-                      class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
-                    >{{ badges[item.badgeKey] }}</span>
+                    <component :is="section.footer.icon" :size="14" class="flex-shrink-0 text-gray-400" />
+                    <span>{{ section.footer.label }}</span>
                   </RouterLink>
                 </div>
               </div>
@@ -86,6 +130,7 @@
         <!-- ── User menu ── -->
         <div
           class="relative ml-auto flex-shrink-0"
+          data-user-menu
           @mouseenter="openDropdown = 'user'"
           @mouseleave="openDropdown = null"
           @click.stop="openDropdown = openDropdown === 'user' ? null : 'user'"
@@ -128,8 +173,8 @@
 
               <div class="my-1 border-t border-gray-100" />
 
-              <!-- Admin items (admin only) -->
-              <template v-if="auth.user?.role === 'admin'">
+              <!-- Admin items (admin + agency_admin) -->
+              <template v-if="canSeeAdmin">
                 <p class="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
                 <RouterLink
                   v-for="item in adminItems"
@@ -143,18 +188,20 @@
                   <span>{{ item.label }}</span>
                 </RouterLink>
 
-                <!-- Developer -->
-                <RouterLink
-                  v-for="item in developerItems"
-                  :key="item.to"
-                  :to="item.to"
-                  class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
-                  :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
-                  @click="openDropdown = null"
-                >
-                  <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
-                  <span>{{ item.label }}</span>
-                </RouterLink>
+                <!-- Developer (system admin only) -->
+                <template v-if="auth.user?.role === 'admin'">
+                  <RouterLink
+                    v-for="item in developerItems"
+                    :key="item.to"
+                    :to="item.to"
+                    class="flex items-center gap-2.5 px-3 py-2 text-sm transition-colors"
+                    :class="isActive(item.to) ? 'text-navy bg-navy/5 font-medium' : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
+                    @click="openDropdown = null"
+                  >
+                    <component :is="item.icon" :size="16" class="flex-shrink-0 text-gray-400" />
+                    <span>{{ item.label }}</span>
+                  </RouterLink>
+                </template>
 
                 <div class="my-1 border-t border-gray-100" />
               </template>
@@ -205,11 +252,11 @@
           <div class="p-4 space-y-1">
             <!-- Dashboard -->
             <RouterLink
-              to="/"
+              :to="auth.homeRoute"
               class="sidebar-link"
-              :class="route.path === '/' ? 'sidebar-link-active' : ''"
+              :class="route.path === auth.homeRoute ? 'sidebar-link-active' : ''"
             >
-              <LayoutDashboard :size="16" />
+              <LayoutDashboard :size="18" />
               Dashboard
             </RouterLink>
 
@@ -235,7 +282,7 @@
                   class="sidebar-link text-sm"
                   :class="isActive(item.to) ? 'sidebar-link-active' : ''"
                 >
-                  <component :is="item.icon" :size="15" class="text-gray-400" />
+                  <component :is="item.icon" :size="17" class="text-navy" />
                   <span class="flex-1">{{ item.label }}</span>
                   <span
                     v-if="item.badgeKey && badges[item.badgeKey]"
@@ -254,7 +301,7 @@
               <User :size="16" class="text-gray-400" />
               Profile
             </RouterLink>
-            <template v-if="auth.user?.role === 'admin'">
+            <template v-if="canSeeAdmin">
               <RouterLink
                 v-for="item in adminItems"
                 :key="item.to"
@@ -284,12 +331,14 @@
     </Transition>
 
     <!-- ── Main content ── -->
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6">
-      <RouterView v-slot="{ Component }">
-        <KeepAlive exclude="TemplateEditorView,TiptapEditorView,LeaseBuilderView">
-          <component :is="Component" />
-        </KeepAlive>
-      </RouterView>
+    <main class="flex-1 overflow-y-auto">
+      <div class="max-w-[1400px] mx-auto p-4 sm:p-6">
+        <RouterView v-slot="{ Component }">
+          <KeepAlive exclude="TemplateEditorView,TiptapEditorView,LeaseBuilderView">
+            <component :is="Component" />
+          </KeepAlive>
+        </RouterView>
+      </div>
     </main>
 
     <!-- AI assistant FAB -->
@@ -298,7 +347,7 @@
       class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 rounded-full bg-navy shadow-lg shadow-navy/25 flex items-center justify-center text-white hover:bg-navy-dark hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
       aria-label="Ask AI assistant"
     >
-      <Sparkles :size="18" />
+      <Sparkles :size="20" />
     </RouterLink>
 
     <!-- Toast notifications -->
@@ -307,15 +356,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import ToastContainer from './ToastContainer.vue'
 import {
-  LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText, FileSignature, Calendar,
-  LogOut, Sparkles, BookOpen, Info, ChevronDown, Truck,
-  Activity, HelpCircle, ShieldCheck, User, FlaskConical, Settings, Menu, X,
+  LogOut, BookOpen, Info, ChevronDown,
+  Activity, ShieldCheck, User, FlaskConical, Settings, Menu, X,
+  LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText,
+  FileSignature, Calendar, Sparkles, Truck, HelpCircle,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -328,35 +378,60 @@ const mobileExpanded = ref<string | null>(null)
 watch(() => route.path, () => { mobileMenuOpen.value = false })
 
 // ── Primary nav (always visible in header) ────────────────────────────────────
-const entityNavItems = [
-  { to: '/landlords', icon: UserCheck, label: 'Owners' },
-  { to: '/properties', icon: Building2, label: 'Properties' },
-  { to: '/tenants', icon: Users, label: 'Tenants' },
+interface NavItem {
+  to: string
+  icon: Component
+  label: string
+  description?: string
+  badgeKey?: string
+}
+
+const entityNavItems: NavItem[] = [
+  { to: '/properties', icon: Building2, label: 'Properties', description: 'Houses, flats, townhouses, units' },
+  { to: '/landlords',  icon: UserCheck, label: 'Owners',     description: 'Landlords, trusts, agencies' },
+  { to: '/tenants',    icon: Users,     label: 'Tenants',    description: 'Active and former occupants' },
 ]
 
-const leaseSubItems = [
-  { to: '/leases/overview', icon: LayoutDashboard, label: 'Overview' },
-  { to: '/leases/templates', icon: FileSignature, label: 'Templates' },
-  { to: '/leases', icon: FileText, label: 'Leases' },
-  { to: '/leases/calendar', icon: Calendar, label: 'Calendar' },
+const leaseSubItems: NavItem[] = [
+  { to: '/leases/overview',  icon: LayoutDashboard, label: 'Overview',  description: 'Portfolio-wide lease status' },
+  { to: '/leases',           icon: FileText,        label: 'Leases',    description: 'All signed and draft leases' },
+  { to: '/leases/templates', icon: FileSignature,   label: 'Templates', description: 'Reusable lease documents' },
+  { to: '/leases/calendar',  icon: Calendar,        label: 'Calendar',  description: 'Start / end dates and renewals' },
 ]
 
-const maintenanceSubItems = [
-  { to: '/maintenance/issues', icon: Wrench, label: 'Issues', badgeKey: 'open_issues' },
-  { to: '/maintenance/questions', icon: HelpCircle, label: 'Questions', badgeKey: 'pending_questions' },
-  { to: '/maintenance/suppliers', icon: Truck, label: 'Suppliers' },
+const maintenanceSubItems: NavItem[] = [
+  { to: '/maintenance/issues',    icon: Wrench,     label: 'Issues',    description: 'Open and resolved tickets', badgeKey: 'open_issues' },
+  { to: '/maintenance/questions', icon: HelpCircle, label: 'Questions', description: 'Tenant queries awaiting reply', badgeKey: 'pending_questions' },
+  { to: '/maintenance/suppliers', icon: Truck,      label: 'Suppliers', description: 'Service providers and vendors' },
 ]
 
 interface NavSection {
   key: string
   label: string
-  items: typeof entityNavItems
+  sublabel: string
+  items: NavItem[]
+  footer?: { to: string; icon: Component; label: string }
 }
 
 const primaryNav = computed<NavSection[]>(() => [
-  { key: 'entities', label: 'Entities', items: entityNavItems },
-  { key: 'leases', label: 'Leases', items: leaseSubItems },
-  { key: 'maintenance', label: 'Maintenance', items: maintenanceSubItems },
+  {
+    key: 'entities',
+    label: 'Entities',
+    sublabel: 'Who and what you manage',
+    items: entityNavItems,
+  },
+  {
+    key: 'leases',
+    label: 'Leases',
+    sublabel: 'Contracts and their lifecycle',
+    items: leaseSubItems,
+  },
+  {
+    key: 'maintenance',
+    label: 'Maintenance',
+    sublabel: 'Jobs, questions and trades',
+    items: maintenanceSubItems,
+  },
 ])
 
 // ── User menu items (under avatar dropdown) ───────────────────────────────────
@@ -368,6 +443,18 @@ const adminItems = computed(() => {
     items.push({ to: '/admin/agency', icon: Settings, label: 'Agency Settings' })
   }
   return items
+})
+
+const canSeeAdmin = computed(() => ['admin', 'agency_admin'].includes(auth.user?.role ?? ''))
+
+const dashboardLabel = computed(() => {
+  const role = auth.user?.role
+  if (role === 'agency_admin') return 'Agency'
+  if (role === 'admin') return 'Admin'
+  if (role === 'agent' || role === 'estate_agent' || role === 'managing_agent') return 'Agent'
+  if (role === 'accountant') return 'Accountant'
+  if (role === 'viewer') return 'Viewer'
+  return ''
 })
 
 const developerItems = [
@@ -399,14 +486,33 @@ async function loadBadges() {
   } catch { /* ignore */ }
 }
 
+function handleDocumentKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') openDropdown.value = null
+}
+function handleDocumentClick(e: MouseEvent) {
+  if (openDropdown.value === null) return
+  const target = e.target as HTMLElement | null
+  if (!target) return
+  if (target.closest('.dropdown-root') || target.closest('[data-user-menu]')) return
+  openDropdown.value = null
+}
+
 onMounted(() => {
   loadBadges()
   setInterval(loadBadges, 60_000)
+
+  document.addEventListener('keydown', handleDocumentKeydown)
+  document.addEventListener('click', handleDocumentClick)
 
   const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8000'
   const token = localStorage.getItem('access_token') || ''
   const ws = new WebSocket(`${wsUrl}/ws/maintenance/updates/?token=${token}`)
   ws.onmessage = () => loadBadges()
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleDocumentKeydown)
+  document.removeEventListener('click', handleDocumentClick)
 })
 
 function isActive(to: string) {
@@ -422,9 +528,9 @@ const initials = computed(() => {
   return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
 })
 
-function handleLogout() {
+async function handleLogout() {
   openDropdown.value = null
-  auth.logout()
+  await auth.logout()
   router.push('/login')
 }
 </script>

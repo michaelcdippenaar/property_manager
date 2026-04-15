@@ -14,9 +14,23 @@
       description="A signed rental mandate is required before you can list or manage this property. It formalises the agency relationship and commission terms with the owner."
       :icon="FileSignature"
     >
-      <button class="btn-primary" @click="showCreateModal = true">
-        <Plus :size="15" /> Create Mandate
-      </button>
+      <div class="flex items-center gap-2">
+        <button class="btn-primary" @click="showCreateModal = true">
+          <Plus :size="15" /> Create Mandate
+        </button>
+        <button class="btn-ghost" :disabled="parsing" @click="triggerUpload">
+          <Loader2 v-if="parsing" :size="15" class="animate-spin" />
+          <Upload v-else :size="15" />
+          {{ parsing ? 'Reading mandate…' : 'Upload existing mandate' }}
+        </button>
+        <input
+          ref="uploadInput"
+          type="file"
+          accept="application/pdf"
+          class="hidden"
+          @change="onUploadSelected"
+        />
+      </div>
     </EmptyState>
 
     <!-- ── Active mandate ── -->
@@ -30,7 +44,7 @@
             <div class="flex items-center gap-2 mb-1">
               <FileSignature :size="16" class="text-navy" />
               <span class="text-sm font-semibold text-gray-900">{{ mandateTypeLabel(activeMandate.mandate_type) }}</span>
-              <span class="text-[11px] px-2 py-0.5 rounded-full font-medium" :class="exclusivityBadge(activeMandate.exclusivity)">
+              <span class="text-micro px-2 py-0.5 rounded-full font-medium" :class="exclusivityBadge(activeMandate.exclusivity)">
                 {{ activeMandate.exclusivity === 'sole' ? 'Sole' : 'Open' }}
               </span>
             </div>
@@ -41,7 +55,7 @@
           </div>
 
           <!-- Status badge -->
-          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full" :class="statusBadgeClass(activeMandate.status)">
+          <span class="text-micro font-semibold px-2.5 py-1 rounded-full" :class="statusBadgeClass(activeMandate.status)">
             {{ statusLabel(activeMandate.status) }}
           </span>
         </div>
@@ -49,19 +63,19 @@
         <!-- Card body -->
         <div class="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
           <div>
-            <p class="text-[11px] text-gray-400 mb-0.5">Commission</p>
+            <p class="text-micro text-gray-400 mb-0.5">Commission</p>
             <p class="text-gray-800 font-medium">{{ commissionDisplay(activeMandate) }}</p>
           </div>
           <div>
-            <p class="text-[11px] text-gray-400 mb-0.5">Notice period</p>
+            <p class="text-micro text-gray-400 mb-0.5">Notice period</p>
             <p class="text-gray-800">{{ activeMandate.notice_period_days }} days</p>
           </div>
           <div v-if="activeMandate.mandate_type === 'full_management'">
-            <p class="text-[11px] text-gray-400 mb-0.5">Maintenance threshold</p>
+            <p class="text-micro text-gray-400 mb-0.5">Maintenance threshold</p>
             <p class="text-gray-800">R {{ Number(activeMandate.maintenance_threshold).toLocaleString('en-ZA', { minimumFractionDigits: 0 }) }}</p>
           </div>
           <div>
-            <p class="text-[11px] text-gray-400 mb-0.5">Owner</p>
+            <p class="text-micro text-gray-400 mb-0.5">Owner</p>
             <p class="text-gray-800">{{ activeMandate.owner_name || '—' }}</p>
             <p class="text-xs text-gray-400">{{ activeMandate.owner_email || '—' }}</p>
           </div>
@@ -101,6 +115,24 @@
             <Plus :size="12" />
             New Mandate
           </button>
+
+          <!-- Upload existing mandate (always available) -->
+          <button
+            class="btn-ghost text-xs flex items-center gap-1.5"
+            :disabled="parsing"
+            @click="triggerUpload"
+          >
+            <Loader2 v-if="parsing" :size="12" class="animate-spin" />
+            <Upload v-else :size="12" />
+            {{ parsing ? 'Reading…' : 'Upload mandate PDF' }}
+          </button>
+          <input
+            ref="uploadInput"
+            type="file"
+            accept="application/pdf"
+            class="hidden"
+            @change="onUploadSelected"
+          />
         </div>
       </div>
 
@@ -128,6 +160,21 @@
       @close="closeModal"
     >
       <form class="space-y-5" @submit.prevent="saveMandate">
+
+        <!-- Pre-fill banner (shown when modal opened from upload) -->
+        <div
+          v-if="prefillBanner"
+          class="rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-xs text-gray-700 flex items-start gap-2"
+        >
+          <FileSignature :size="14" class="text-accent mt-0.5 shrink-0" />
+          <div class="space-y-1">
+            <p class="font-medium text-gray-800">Pre-filled from uploaded mandate.</p>
+            <p>Review every field before saving. Missing fields are highlighted below.</p>
+            <p v-if="prefillMissing.length" class="text-micro text-warning-700">
+              Could not extract: {{ prefillMissing.join(', ') }}
+            </p>
+          </div>
+        </div>
 
         <!-- Mandate type -->
         <div>
@@ -172,7 +219,7 @@
         <!-- Dates -->
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="label">Start date <span class="text-red-400">*</span></label>
+            <label class="label">Start date <span class="text-danger-400">*</span></label>
             <input v-model="form.start_date" type="date" class="input" required />
           </div>
           <div>
@@ -195,7 +242,7 @@
 
         <!-- Owner info (read-only confirmation) -->
         <div v-if="ownerInfo.name || ownerInfo.email" class="rounded-xl bg-gray-50 px-4 py-3">
-          <p class="text-[11px] text-gray-400 mb-1">Owner contact (from landlord record)</p>
+          <p class="text-micro text-gray-400 mb-1">Owner contact (from landlord record)</p>
           <p class="text-sm font-medium text-gray-800">{{ ownerInfo.name }}</p>
           <p class="text-xs text-gray-500">{{ ownerInfo.email || '⚠️ No email — add it to the landlord record before sending' }}</p>
         </div>
@@ -205,6 +252,20 @@
           <label class="label">Notes <span class="text-gray-300">(internal)</span></label>
           <textarea v-model="form.notes" rows="2" class="input" />
         </div>
+
+        <!-- Already-signed checkbox (only for upload-initiated flows) -->
+        <label
+          v-if="uploadedFile"
+          class="flex items-start gap-2 rounded-xl bg-gray-50 px-4 py-3 cursor-pointer"
+        >
+          <input v-model="markAsSigned" type="checkbox" class="mt-0.5 accent-navy" />
+          <div class="text-xs">
+            <p class="font-medium text-gray-800">This mandate is already signed</p>
+            <p class="text-gray-500">
+              Mark as Active and attach the uploaded PDF as the signed document (skips the e-signing flow).
+            </p>
+          </div>
+        </label>
 
         <!-- Actions -->
         <div class="flex justify-end gap-3 pt-1">
@@ -224,8 +285,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import {
-  FileSignature, Loader2, Plus, Send, Pencil, PenTool,
+  FileSignature, Loader2, Plus, Send, Pencil, PenTool, Upload,
 } from 'lucide-vue-next'
+import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { extractApiError } from '../../utils/api-errors'
 import BaseModal from '../../components/BaseModal.vue'
@@ -241,9 +303,17 @@ const mandatesStore = useMandatesStore()
 const loading         = ref(false)
 const saving          = ref(false)
 const sending         = ref(false)
+const parsing         = ref(false)
 const showCreateModal = ref(false)
 const mandates        = ref<any[]>([])
 const editingMandate  = ref<any>(null)
+
+// Upload-and-extract state
+const uploadInput    = ref<HTMLInputElement | null>(null)
+const uploadedFile   = ref<File | null>(null)
+const prefillBanner  = ref(false)
+const prefillMissing = ref<string[]>([])
+const markAsSigned   = ref(false)
 
 const MANDATE_TYPES = [
   { value: 'full_management', label: 'Full Management', description: '10% monthly commission — agent handles all letting, rent, maintenance & admin', defaultRate: 10, period: 'monthly' },
@@ -310,6 +380,56 @@ function closeModal() {
   showCreateModal.value = false
   editingMandate.value  = null
   form.value = defaultForm()
+  // Clear upload/pre-fill state so the next "Create" opens clean.
+  uploadedFile.value   = null
+  prefillBanner.value  = false
+  prefillMissing.value = []
+  markAsSigned.value   = false
+}
+
+// ── Upload + auto-extract ─────────────────── //
+function triggerUpload() {
+  uploadInput.value?.click()
+}
+
+async function onUploadSelected(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''  // reset so re-selecting the same file still fires change
+  if (!file) return
+
+  parsing.value = true
+  try {
+    const result = await mandatesStore.parseDocument(props.propertyId, file)
+    const e = result.extracted || {}
+
+    // Merge extracted values onto the default form — preserve defaults for anything missing.
+    const base = defaultForm()
+    form.value = {
+      ...base,
+      mandate_type:          e.mandate_type          ?? base.mandate_type,
+      exclusivity:           e.exclusivity           ?? base.exclusivity,
+      commission_rate:       e.commission_rate       ?? base.commission_rate,
+      commission_period:     e.commission_period     ?? base.commission_period,
+      start_date:            e.start_date            ?? base.start_date,
+      end_date:              e.end_date              ?? base.end_date,
+      notice_period_days:    e.notice_period_days    ?? base.notice_period_days,
+      maintenance_threshold: e.maintenance_threshold ?? base.maintenance_threshold,
+      notes:                 e.notes                 ?? base.notes,
+    }
+
+    uploadedFile.value   = file
+    prefillBanner.value  = true
+    prefillMissing.value = result.missing || []
+    markAsSigned.value   = Boolean(e.is_signed)
+    editingMandate.value = null
+    showCreateModal.value = true
+    showToast('Mandate read — review the pre-filled fields below.', 'success')
+  } catch (err) {
+    showToast(extractApiError(err, 'Could not identify mandate fields in this document'), 'error')
+  } finally {
+    parsing.value = false
+  }
 }
 
 function onMandateTypeChange() {
@@ -337,11 +457,30 @@ async function saveMandate() {
       notes:                 form.value.notes,
     }
 
+    // Upload-and-already-signed flow: mark as active and attach the PDF.
+    if (!editingMandate.value && uploadedFile.value && markAsSigned.value) {
+      payload.status = 'active'
+    }
+
     if (editingMandate.value) {
       await mandatesStore.update(editingMandate.value.id, props.propertyId, payload)
       showToast('Mandate updated', 'success')
     } else {
-      await mandatesStore.create(payload)
+      const created = await mandatesStore.create(payload)
+      // If the user uploaded a pre-signed PDF, attach it to signed_document on the newly-created mandate.
+      if (uploadedFile.value && created?.id) {
+        const fd = new FormData()
+        fd.append('signed_document', uploadedFile.value)
+        if (markAsSigned.value) fd.append('status', 'active')
+        try {
+          await api.patch(`/properties/mandates/${created.id}/`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+          })
+          await mandatesStore.fetchByProperty(props.propertyId, { force: true })
+        } catch (attachErr) {
+          showToast(extractApiError(attachErr, 'Mandate created but PDF attach failed — retry from the card.'), 'error')
+        }
+      }
       showToast('Mandate created', 'success')
     }
 
@@ -407,11 +546,11 @@ function statusLabel(s: string) {
 function statusBadgeClass(s: string) {
   const map: Record<string, string> = {
     draft:            'bg-gray-100 text-gray-500',
-    sent:             'bg-blue-50 text-blue-700',
-    partially_signed: 'bg-amber-50 text-amber-700',
-    active:           'bg-green-50 text-green-700',
-    expired:          'bg-red-50 text-red-600',
-    cancelled:        'bg-red-50 text-red-600',
+    sent:             'bg-info-50 text-info-700',
+    partially_signed: 'bg-warning-50 text-warning-700',
+    active:           'bg-success-50 text-success-700',
+    expired:          'bg-danger-50 text-danger-600',
+    cancelled:        'bg-danger-50 text-danger-600',
   }
   return map[s] ?? 'bg-gray-100 text-gray-500'
 }

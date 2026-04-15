@@ -141,15 +141,23 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
 
         request_obj = super().create(validated_data)
 
-        # Link the chat session to the new maintenance request and persist messages
-        if conversation_id:
-            self._link_chat_session(request_obj, user, conversation_id)
-        elif initial_chat_history:
-            persist_chat_history_to_request(
-                request_obj,
-                initial_chat_history,
-                created_by=user,
-                source="maintenance_create_api",
+        # Link the chat session to the new maintenance request and persist messages.
+        # Wrapped in try/except so post-creation failures don't return a 500
+        # while the record is already committed (causes "error but still created").
+        try:
+            if conversation_id:
+                self._link_chat_session(request_obj, user, conversation_id)
+            elif initial_chat_history:
+                persist_chat_history_to_request(
+                    request_obj,
+                    initial_chat_history,
+                    created_by=user,
+                    source="maintenance_create_api",
+                )
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Post-creation step failed for maintenance request #%s", request_obj.pk
             )
         return request_obj
 

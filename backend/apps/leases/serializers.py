@@ -105,11 +105,16 @@ class LeaseSerializer(serializers.ModelSerializer):
     unit_label = serializers.SerializerMethodField()
     landlord_info = serializers.SerializerMethodField()
     property_id = serializers.IntegerField(source='unit.property_id', read_only=True)
+    successor_lease_id = serializers.SerializerMethodField()
 
     class Meta:
         model = Lease
         fields = "__all__"
         read_only_fields = ["created_at"]
+
+    def get_successor_lease_id(self, obj):
+        successor = obj.successor_lease.first() if hasattr(obj, "successor_lease") else None
+        return successor.id if successor else None
 
     def get_unit_label(self, obj):
         return f"{obj.unit.property.name} — Unit {obj.unit.unit_number}"

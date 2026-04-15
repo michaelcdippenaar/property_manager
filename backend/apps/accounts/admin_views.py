@@ -6,17 +6,21 @@ from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import User, UserInvite, Agency
-from .permissions import IsAdmin, IsAgentOrAdmin
+from .permissions import IsAdmin, IsAdminOrAgencyAdmin, IsAgentOrAdmin
 from .serializers import AdminUserSerializer, AdminUserUpdateSerializer, InviteUserSerializer, AgencySerializer
 
 
 class UserListView(generics.ListAPIView):
-    """List all users. Filterable by role and searchable by email/name."""
-    permission_classes = [IsAdmin]
+    """List all users. Filterable by role and searchable by email/name.
+    Admin sees all users; agency admin sees users in their agency only."""
+    permission_classes = [IsAdminOrAgencyAdmin]
     serializer_class = AdminUserSerializer
 
     def get_queryset(self):
-        qs = User.objects.all()
+        qs = User.objects.select_related("agency").all()
+        # Agency admin: scope to own agency
+        if self.request.user.role == User.Role.AGENCY_ADMIN and self.request.user.agency_id:
+            qs = qs.filter(agency_id=self.request.user.agency_id)
         # Hide inactive (deleted) users unless explicitly requested
         if self.request.query_params.get("include_inactive") != "true":
             qs = qs.filter(is_active=True)
@@ -82,7 +86,7 @@ class PendingInvitesView(generics.ListAPIView):
         invites = (
             UserInvite.objects
             .filter(accepted_at__isnull=True, cancelled_at__isnull=True)
-            .select_related("invited_by")
+            .select_related("invited_by", "agency")
             .order_by("-created_at")
         )
         data = [
@@ -92,6 +96,7 @@ class PendingInvitesView(generics.ListAPIView):
                 "role": inv.role,
                 "token": str(inv.token),
                 "invited_by": inv.invited_by.full_name if inv.invited_by else None,
+                "agency_name": inv.agency.name if inv.agency else None,
                 "created_at": inv.created_at.isoformat(),
             }
             for inv in invites
@@ -119,9 +124,152 @@ class CancelInviteView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def _resolve_base_url(request):
+    """Derive the frontend base URL from the request Origin/Referer so invite
+    links point to the same environment that sent the request."""
+    from django.conf import settings
+    origin = request.META.get("HTTP_ORIGIN") or ""
+    if not origin:
+        referer = request.META.get("HTTP_REFERER") or ""
+        if referer:
+            from urllib.parse import urlparse
+            parsed = urlparse(referer)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+    return origin or getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
+
+
+def _send_invite_email(invite, sender_name, base_url, first_name=""):
+    """Send (or re-send) the branded invite email for a UserInvite."""
+    from apps.notifications.services import send_email
+
+    invite_url = f"{base_url}/accept-invite?token={invite.token}"
+    greeting_line = f"Hi {first_name}," if first_name else "Hi there,"
+    role_display = invite.role.replace("_", " ").capitalize()
+
+    body = (
+        f"{greeting_line}\n\n"
+        f"{sender_name} has invited you to join Klikk as a {role_display}.\n\n"
+        f"Accept your invitation here:\n{invite_url}\n\n"
+        f"If you weren't expecting this, you can safely ignore this email.\n\n"
+        f"— The Klikk Team"
+    )
+
+    html_body = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0" />
+</head>
+<body style="margin:0;padding:0;background-color:#F0F0F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+  <tr>
+    <td align="center" style="padding:40px 16px 48px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
+        <tr>
+          <td align="center" style="padding-bottom:28px;">
+            <span style="font-size:30px;font-weight:800;color:#2B2D6E;letter-spacing:-0.5px;">Klikk<span style="color:#FF3D7F;">.</span></span>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(43,45,110,0.10);">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="background:#2B2D6E;padding:36px 40px 32px;">
+                  <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em;">You're invited</p>
+                  <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;line-height:1.25;">{greeting_line}</h1>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="padding:32px 40px 0;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
+                    <tr>
+                      <td style="background:#EEF0FA;border-radius:100px;padding:6px 18px;">
+                        <span style="font-size:13px;font-weight:600;color:#2B2D6E;">{role_display}</span>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:0 0 8px;font-size:16px;color:#374151;line-height:1.6;">
+                    <strong style="color:#111827;">{sender_name}</strong> has invited you to join <strong style="color:#2B2D6E;">Klikk</strong> — South Africa's smart property management platform.
+                  </p>
+                  <p style="margin:0 0 32px;font-size:15px;color:#6B7280;line-height:1.6;">
+                    Click the button below to create your account and get started.
+                  </p>
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:32px;">
+                    <tr>
+                      <td style="border-radius:10px;background:#2B2D6E;">
+                        <a href="{invite_url}" target="_blank"
+                           style="display:inline-block;padding:15px 36px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;letter-spacing:0.01em;">
+                          Accept Invitation &rarr;
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin:0 0 8px;font-size:13px;color:#9CA3AF;">Or copy and paste this link into your browser:</p>
+                  <p style="margin:0;font-size:12px;color:#2B2D6E;word-break:break-all;background:#F8F8FC;border:1px solid #E5E5F0;border-radius:8px;padding:12px 14px;">{invite_url}</p>
+                </td>
+              </tr>
+            </table>
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="padding:28px 40px 32px;margin-top:8px;border-top:1px solid #F3F4F6;margin:24px 40px 0;">
+                  <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
+                    This invitation was sent by <strong style="color:#6B7280;">{sender_name}</strong> via Klikk.<br />
+                    If you weren't expecting this, you can safely ignore this email.
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:28px 0 0;">
+            <p style="margin:0;font-size:12px;color:#9CA3AF;">&copy; 2025 Klikk &middot; All rights reserved</p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>"""
+
+    send_email(
+        subject=f"{sender_name} invited you to join Klikk",
+        body=body,
+        to_emails=invite.email,
+        html_body=html_body,
+    )
+
+
+class ResendInviteView(APIView):
+    """Resend the invite email for a pending invite."""
+    permission_classes = [IsAdminOrAgencyAdmin]
+
+    def post(self, request, pk):
+        try:
+            invite = UserInvite.objects.select_related("invited_by").get(
+                pk=pk,
+                accepted_at__isnull=True,
+                cancelled_at__isnull=True,
+            )
+        except UserInvite.DoesNotExist:
+            return Response({"detail": "Invite not found or already resolved."}, status=status.HTTP_404_NOT_FOUND)
+
+        base_url = _resolve_base_url(request)
+        sender_name = request.user.full_name
+        try:
+            _send_invite_email(invite, sender_name, base_url)
+        except Exception:
+            return Response({"detail": "Failed to send email."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        return Response({"detail": "Invite resent."})
+
+
 class InviteUserView(APIView):
-    """Send an invite to a new user (admin only)."""
-    permission_classes = [IsAdmin]
+    """Send an invite to a new user (admin or agency admin)."""
+    permission_classes = [IsAdminOrAgencyAdmin]
 
     def post(self, request):
         serializer = InviteUserSerializer(data=request.data)
@@ -131,6 +279,13 @@ class InviteUserView(APIView):
         role = serializer.validated_data["role"]
         first_name = serializer.validated_data.get("first_name", "")
 
+        # Non-admin users cannot create admin or legacy agent roles
+        if request.user.role != "admin" and role in ("admin", "agent"):
+            return Response(
+                {"detail": "You do not have permission to assign this role."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Only block if an active user holds this email. Soft-deleted users are
         # renamed when the invite is accepted, so they should not block new invites.
         if User.objects.filter(email=email, is_active=True).exists():
@@ -139,142 +294,26 @@ class InviteUserView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # For agent/viewer roles, attach the inviter's agency (or explicit agency_id)
+        agency = None
+        agency_id = serializer.validated_data.get("agency_id") or serializer.validated_data.get("agency")
+        if agency_id:
+            agency = Agency.objects.filter(pk=agency_id).first()
+        elif request.user.agency_id:
+            agency = request.user.agency
+
         invite = UserInvite.objects.create(
             email=email,
             role=role,
+            agency=agency,
             invited_by=request.user,
         )
 
         # Send invite email (best-effort)
         try:
-            from apps.notifications.services import send_email
-
-            from django.conf import settings
-            base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
-            invite_url = f"{base_url}/accept-invite?token={invite.token}"
-
+            base_url = _resolve_base_url(request)
             sender_name = request.user.full_name
-            greeting_line = f"Hi {first_name}," if first_name else "Hi there,"
-            role_display = role.capitalize()
-
-            # Plain-text fallback
-            body = (
-                f"{greeting_line}\n\n"
-                f"{sender_name} has invited you to join Klikk as a {role_display}.\n\n"
-                f"Accept your invitation here:\n{invite_url}\n\n"
-                f"If you weren't expecting this, you can safely ignore this email.\n\n"
-                f"— The Klikk Team"
-            )
-
-            html_body = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
-</head>
-<body style="margin:0;padding:0;background-color:#F0F0F8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-    <tr>
-      <td align="center" style="padding:40px 16px 48px;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:560px;">
-
-          <!-- Wordmark -->
-          <tr>
-            <td align="center" style="padding-bottom:28px;">
-              <span style="font-size:30px;font-weight:800;color:#2B2D6E;letter-spacing:-0.5px;">Klikk<span style="color:#FF3D7F;">.</span></span>
-            </td>
-          </tr>
-
-          <!-- Card -->
-          <tr>
-            <td style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 24px rgba(43,45,110,0.10);">
-
-              <!-- Card header -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                <tr>
-                  <td style="background:#2B2D6E;padding:36px 40px 32px;">
-                    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:rgba(255,255,255,0.5);text-transform:uppercase;letter-spacing:0.1em;">You're invited</p>
-                    <h1 style="margin:0;font-size:28px;font-weight:700;color:#ffffff;line-height:1.25;">{greeting_line}</h1>
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Card body -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                <tr>
-                  <td style="padding:32px 40px 0;">
-
-                    <!-- Role pill -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:24px;">
-                      <tr>
-                        <td style="background:#EEF0FA;border-radius:100px;padding:6px 18px;">
-                          <span style="font-size:13px;font-weight:600;color:#2B2D6E;">{role_display}</span>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <p style="margin:0 0 8px;font-size:16px;color:#374151;line-height:1.6;">
-                      <strong style="color:#111827;">{sender_name}</strong> has invited you to join <strong style="color:#2B2D6E;">Klikk</strong> — South Africa's smart property management platform.
-                    </p>
-                    <p style="margin:0 0 32px;font-size:15px;color:#6B7280;line-height:1.6;">
-                      Click the button below to create your account and get started.
-                    </p>
-
-                    <!-- CTA button -->
-                    <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-bottom:32px;">
-                      <tr>
-                        <td style="border-radius:10px;background:#2B2D6E;">
-                          <a href="{invite_url}" target="_blank"
-                             style="display:inline-block;padding:15px 36px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;letter-spacing:0.01em;">
-                            Accept Invitation &rarr;
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <!-- Fallback link -->
-                    <p style="margin:0 0 8px;font-size:13px;color:#9CA3AF;">Or copy and paste this link into your browser:</p>
-                    <p style="margin:0;font-size:12px;color:#2B2D6E;word-break:break-all;background:#F8F8FC;border:1px solid #E5E5F0;border-radius:8px;padding:12px 14px;">{invite_url}</p>
-
-                  </td>
-                </tr>
-              </table>
-
-              <!-- Card footer -->
-              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
-                <tr>
-                  <td style="padding:28px 40px 32px;margin-top:8px;border-top:1px solid #F3F4F6;margin:24px 40px 0;">
-                    <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.6;">
-                      This invitation was sent by <strong style="color:#6B7280;">{sender_name}</strong> via Klikk.<br />
-                      If you weren't expecting this, you can safely ignore this email.
-                    </p>
-                  </td>
-                </tr>
-              </table>
-
-            </td>
-          </tr>
-
-          <!-- Footer -->
-          <tr>
-            <td align="center" style="padding:28px 0 0;">
-              <p style="margin:0;font-size:12px;color:#9CA3AF;">&copy; 2025 Klikk &middot; All rights reserved</p>
-            </td>
-          </tr>
-
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>"""
-
-            send_email(
-                subject=f"{sender_name} invited you to join Klikk",
-                body=body,
-                to_emails=email,
-                html_body=html_body,
-            )
+            _send_invite_email(invite, sender_name, base_url, first_name=first_name)
         except Exception:
             pass
 
@@ -298,14 +337,20 @@ class AgencySettingsView(APIView):
             return [IsAgentOrAdmin()]
         return [IsAdmin()]
 
+    def _get_agency(self, request):
+        """Return the user's own agency, falling back to get_solo() for admin."""
+        if request.user.agency_id:
+            return request.user.agency
+        return Agency.get_solo()
+
     def get(self, request):
-        agency = Agency.get_solo()
+        agency = self._get_agency(request)
         if not agency:
             return Response({}, status=status.HTTP_200_OK)
         return Response(AgencySerializer(agency).data)
 
     def put(self, request):
-        agency = Agency.get_solo()
+        agency = self._get_agency(request)
         if agency:
             serializer = AgencySerializer(agency, data=request.data, partial=True)
         else:

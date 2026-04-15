@@ -13,7 +13,7 @@
               <label class="label">Email</label>
               <input v-model="email" type="email" class="input" placeholder="you@klikk.co.za" required />
             </div>
-            <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
               <AlertCircle :size="15" />
               {{ error }}
             </div>

@@ -4,7 +4,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.utils import timezone
 from datetime import timedelta
-from rest_framework import status, generics
+from rest_framework import status, generics, parsers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .permissions import IsAgentOrAdmin
@@ -13,8 +13,9 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, OTPCode, Person, PushToken, LoginAttempt, UserInvite, Agency
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, TenantListSerializer
+from django.shortcuts import get_object_or_404
+from .models import User, OTPCode, Person, PersonDocument, PushToken, LoginAttempt, UserInvite, Agency
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
 from .throttles import AuthAnonThrottle, OTPSendThrottle, OTPVerifyThrottle
 
@@ -378,6 +379,8 @@ class AcceptInviteView(APIView):
                 role=invite.role,
             )
             user.set_unusable_password()
+            if invite.agency_id:
+                user.agency = invite.agency
             user.save()
         else:
             # Accept via password
@@ -397,6 +400,9 @@ class AcceptInviteView(APIView):
                 password=password,
                 role=invite.role,
             )
+            if invite.agency_id:
+                user.agency = invite.agency
+                user.save(update_fields=["agency"])
 
         invite.accepted_at = timezone.now()
         invite.save()
@@ -423,10 +429,23 @@ class TenantsListView(generics.ListAPIView):
 
     def get_queryset(self):
         from django.db.models import Q, Count
+        from apps.properties.access import get_accessible_property_ids
+
+        qs = Person.objects.filter(
+            Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False)
+        ).distinct()
+
+        # Scope to tenants on leases within the user's accessible properties
+        user = self.request.user
+        if user.role != 'admin':
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(
+                Q(leases_as_primary__unit__property_id__in=prop_ids)
+                | Q(co_tenancies__lease__unit__property_id__in=prop_ids)
+            ).distinct()
+
         return (
-            Person.objects
-            .filter(Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False))
-            .distinct()
+            qs
             .select_related("linked_user")
             .annotate(
                 active_primary_lease_count=Count(
@@ -460,3 +479,24 @@ class PersonDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = PersonSerializer
     permission_classes = [IsAgentOrAdmin]
     queryset = Person.objects.all()
+
+
+class PersonDocumentListCreateView(generics.ListCreateAPIView):
+    serializer_class = PersonDocumentSerializer
+    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+
+    def get_queryset(self):
+        return PersonDocument.objects.filter(person_id=self.kwargs['person_pk'])
+
+    def perform_create(self, serializer):
+        person = get_object_or_404(Person, pk=self.kwargs['person_pk'])
+        serializer.save(person=person)
+
+
+class PersonDocumentDetailView(generics.DestroyAPIView):
+    serializer_class = PersonDocumentSerializer
+    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+
+    def get_queryset(self):
+        return PersonDocument.objects.filter(person_id=self.kwargs['person_pk'])

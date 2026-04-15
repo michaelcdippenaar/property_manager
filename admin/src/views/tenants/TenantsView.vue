@@ -1,6 +1,10 @@
 <template>
   <div class="space-y-5">
-    <p class="text-sm text-gray-500">Browse and manage tenant profiles, contact details, and lease history.</p>
+    <PageHeader
+      title="Tenants"
+      subtitle="Browse and manage tenant profiles, contact details, and lease history."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Tenants' }]"
+    />
     <div class="card">
       <div class="px-4 pt-4 pb-0 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         <div class="flex gap-0 overflow-x-auto">
@@ -35,7 +39,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in filteredTenants" :key="t.id">
+          <tr v-for="t in filteredTenants" :key="t.id" class="cursor-pointer hover:bg-gray-50" @click="router.push({ name: 'tenant-detail', params: { id: t.id } })">
             <td>
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-full bg-navy flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
@@ -77,9 +81,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
+
+const router = useRouter()
 import { Users, FilePlus2 } from 'lucide-vue-next'
 import SearchInput from '../../components/SearchInput.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import { useToast } from '../../composables/useToast'
 import { initials, formatDate } from '../../utils/formatters'

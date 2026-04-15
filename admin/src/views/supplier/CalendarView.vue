@@ -24,7 +24,7 @@
           </div>
           <div v-for="job in day.jobs" :key="job.id"
             class="mt-0.5 px-1.5 py-0.5 rounded text-micro font-medium truncate cursor-pointer"
-            :class="job.status === 'resolved' || job.status === 'closed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'"
+            :class="job.status === 'resolved' || job.status === 'closed' ? 'bg-success-100 text-success-700' : 'bg-info-100 text-info-700'"
             :title="`${job.title} — ${job.property_name} — R${job.amount}`">
             {{ job.title }}
           </div>
@@ -34,8 +34,8 @@
 
     <!-- Legend -->
     <div class="flex items-center gap-4 text-xs text-gray-500">
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-blue-100"></span> In progress</span>
-      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-green-100"></span> Completed</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-info-100"></span> In progress</span>
+      <span class="flex items-center gap-1"><span class="w-3 h-3 rounded bg-success-100"></span> Completed</span>
     </div>
   </div>
 </template>

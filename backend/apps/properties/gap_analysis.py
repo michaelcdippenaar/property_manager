@@ -25,20 +25,23 @@ SCENARIO_PURCHASE = "purchase"
 
 # Documents required per entity type for a rental mandate.
 # Keys match the classifier's normalised doc types (snake_case).
+# Title deeds are NOT included here — they live on the Property, not the
+# Landlord. A landlord can own multiple properties, each with its own deed,
+# so the "missing title deed" check is per-property and runs separately.
 _REQUIRED_DOCS_BY_ENTITY: dict[str, list[str]] = {
-    "individual": ["sa_id", "proof_of_address", "bank_confirmation", "tax_certificate", "title_deed"],
+    "individual": ["sa_id", "proof_of_address", "bank_confirmation", "tax_certificate"],
     "company": [
         "cor14_3", "cor39", "moi",
-        "bank_confirmation", "proof_of_address", "tax_certificate", "title_deed",
+        "bank_confirmation", "proof_of_address", "tax_certificate",
     ],
-    "cc": ["ck1", "bank_confirmation", "proof_of_address", "tax_certificate", "title_deed"],
+    "cc": ["ck1", "bank_confirmation", "proof_of_address", "tax_certificate"],
     "trust": [
         "trust_deed", "letters_of_authority",
-        "bank_confirmation", "proof_of_address", "tax_certificate", "title_deed",
+        "bank_confirmation", "proof_of_address", "tax_certificate",
     ],
     "partnership": [
         "partnership_agreement", "bank_confirmation",
-        "proof_of_address", "tax_certificate", "title_deed",
+        "proof_of_address", "tax_certificate",
     ],
 }
 
@@ -72,6 +75,9 @@ class MandateReadiness:
     missing_fields: list[str] = field(default_factory=list)
     blocking_issues: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # Per-person ID coverage — lets the chat tell the owner *which* director
+    # or trustee still lacks an identity document (passport / SA ID / DL).
+    persons: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -81,6 +87,7 @@ class MandateReadiness:
             "missing_fields": self.missing_fields,
             "blocking_issues": self.blocking_issues,
             "warnings": self.warnings,
+            "persons": self.persons,
         }
 
 
@@ -137,6 +144,41 @@ _DOC_TYPE_ALIASES: dict[str, str] = {
     "deed_of_trust": "trust_deed",
     "letter_of_authority": "letters_of_authority",
     "loa": "letters_of_authority",
+    # Testamentary trusts — the will (certified or signed) substitutes for
+    # the trust deed as the founding document. J246 is the Master's trust-
+    # registration form, which is supporting evidence that the trust exists.
+    "last_will_and_testament": "trust_deed",
+    "will": "trust_deed",
+    "testament": "trust_deed",
+    "signed_testament": "trust_deed",
+    "certified_will": "trust_deed",
+    "j246": "trust_deed",
+    "j246_trust_registration": "trust_deed",
+    "masters_certificate": "letters_of_authority",
+    "master_certificate": "letters_of_authority",
+    # Related estate documents — useful context for testamentary trusts
+    # but not currently required/blocking.
+    "death_certificate": "death_certificate",
+    "letter_of_executorship": "letter_of_executorship",
+    "letters_of_executorship": "letter_of_executorship",
+    # 2023+ CIPC filings — catalogued but not currently required for mandate
+    "beneficial_ownership_register": "beneficial_ownership_register",
+    "bo_register": "beneficial_ownership_register",
+    "securities_register": "securities_register",
+    "share_register": "securities_register",
+    "disclosure_structure": "disclosure_structure",
+    "ownership_structure": "disclosure_structure",
+    "share_certificate": "share_certificate",
+    "board_resolution": "board_resolution",
+    "shareholders_resolution": "board_resolution",
+    "resolution": "board_resolution",
+    # FICA / estate ancillary
+    "spousal_consent": "spousal_consent",
+    "consent": "spousal_consent",
+    "court_order": "court_order",
+    "founding_affidavit": "founding_affidavit",
+    "accounting_officer_letter": "accounting_officer_letter",
+    "auditors_letter": "accounting_officer_letter",
     # Identity
     "identity_document": "sa_id",
     "id_document": "sa_id",
@@ -246,6 +288,10 @@ def _compute_rental_mandate(landlord) -> MandateReadiness:
 
     # Authority / signatories (entity-type specific)
     readiness.required_signatories = _compute_signatories(data, landlord, readiness)
+
+    # Per-person ID coverage from persons_graph so the chat has ground truth
+    # about which named director/trustee still lacks an identity document.
+    readiness.persons = _compute_persons_summary(data)
 
     # Status derivation
     if readiness.blocking_issues:
@@ -434,6 +480,31 @@ def _compute_signatories(data: dict, landlord, readiness: MandateReadiness) -> l
             "authority_proof": "SA ID",
             "can_sign_alone": True,
             "reason": "Individual owner signs personally.",
+        })
+    return out
+
+
+def _compute_persons_summary(data: dict) -> list[dict[str, Any]]:
+    """Flatten classification_data.persons_graph into a chat-friendly list.
+
+    The chat model uses this to answer "which director still needs an ID" —
+    `has_identity_doc` is the only field it strictly needs, but roles +
+    filenames let it cite what it found without a RAG round-trip.
+    """
+    graph = data.get("persons_graph") or []
+    out: list[dict[str, Any]] = []
+    for p in graph:
+        fica = p.get("fica_documents_found") or []
+        roles = p.get("roles") or []
+        out.append({
+            "full_name": p.get("full_name"),
+            "id_number": p.get("id_number"),
+            "roles": [
+                f"{(r or {}).get('role', '')} of {(r or {}).get('entity', '')}".strip(" of")
+                for r in roles if r
+            ],
+            "has_identity_doc": bool(fica),
+            "identity_documents": fica,
         })
     return out
 

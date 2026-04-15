@@ -45,14 +45,17 @@ const router = createRouter({
     {
       path: '/',
       component: () => import('../components/AppLayout.vue'),
-      meta: { requiresAuth: true, roles: ['agent', 'admin'] },
+      meta: { requiresAuth: true, roles: ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant', 'viewer'] },
       children: [
         { path: '', name: 'dashboard', component: () => import('../views/dashboard/DashboardView.vue'), meta: { title: 'Dashboard' } },
+        { path: 'agency', name: 'agency-dashboard', component: () => import('../views/dashboard/AgencyDashboardView.vue'), meta: { title: 'Agency Dashboard' } },
+        { path: 'agent', name: 'agent-dashboard', component: () => import('../views/dashboard/AgentDashboardView.vue'), meta: { title: 'Agent Dashboard' } },
         { path: 'properties', name: 'properties', component: () => import('../views/properties/PropertiesView.vue'), meta: { title: 'Properties' } },
         { path: 'properties/:id', name: 'property-detail', component: () => import('../views/properties/PropertyDetailView.vue'), meta: { title: 'Property' } },
         { path: 'landlords', name: 'landlords', component: () => import('../views/properties/LandlordsView.vue'), meta: { title: 'Owners' } },
         { path: 'landlords/:id', name: 'landlord-detail', component: () => import('../views/properties/LandlordDetailView.vue'), meta: { title: 'Owner' } },
         { path: 'tenants', name: 'tenants', component: () => import('../views/tenants/TenantsView.vue'), meta: { title: 'Tenants' } },
+        { path: 'tenants/:id', name: 'tenant-detail', component: () => import('../views/tenants/TenantDetailView.vue'), meta: { title: 'Tenant' } },
         { path: 'maintenance', redirect: '/maintenance/issues' },
         {
           path: 'maintenance/issues',
@@ -203,6 +206,11 @@ router.beforeEach(async (to) => {
   const allowedRoles = to.meta.roles as string[] | undefined
   if (allowedRoles && !allowedRoles.includes(auth.user?.role ?? '')) {
     return { path: auth.homeRoute }
+  }
+
+  // Redirect `/` to role-specific dashboard
+  if (to.path === '/' && to.name === 'dashboard' && auth.homeRoute !== '/') {
+    return { path: auth.homeRoute, replace: true }
   }
 })
 

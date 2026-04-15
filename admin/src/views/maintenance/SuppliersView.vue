@@ -1,26 +1,31 @@
 <template>
   <div class="space-y-5">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <p class="text-sm text-gray-500">Manage your approved supplier network and trade specialisations.</p>
-      <div class="flex items-center gap-2 flex-shrink-0">
-        <label class="btn-ghost cursor-pointer text-sm">
-          <Upload :size="14" /> Import Excel
-          <input type="file" accept=".xlsx,.xls" class="hidden" @change="importExcel" />
-        </label>
-        <button class="btn-primary" @click="openCreate">
-          <Plus :size="15" /> Add Supplier
-        </button>
-      </div>
-    </div>
+    <PageHeader
+      title="Suppliers"
+      subtitle="Manage your approved supplier network and trade specialisations."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Maintenance', to: '/maintenance' }, { label: 'Suppliers' }]"
+    >
+      <template #actions>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <label class="btn-ghost cursor-pointer text-sm">
+            <Upload :size="14" /> Import Excel
+            <input type="file" accept=".xlsx,.xls" class="hidden" @change="importExcel" />
+          </label>
+          <button class="btn-primary" @click="openCreate">
+            <Plus :size="15" /> Add Supplier
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <FilterPills v-model="activeFilter" :options="tabOptions" @update:modelValue="loadSuppliers()" />
 
     <!-- Import results banner -->
     <div v-if="importResult" class="card p-4 flex items-center justify-between"
-      :class="importResult.errors?.length ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'">
+      :class="importResult.errors?.length ? 'bg-warning-50 border-warning-100' : 'bg-success-50 border-success-100'">
       <div class="text-sm">
         <span class="font-medium">{{ importResult.created }} supplier(s) imported.</span>
-        <span v-if="importResult.errors?.length" class="text-amber-700 ml-2">
+        <span v-if="importResult.errors?.length" class="text-warning-700 ml-2">
           {{ importResult.errors.length }} error(s): {{ importResult.errors.slice(0, 3).join('; ') }}
         </span>
       </div>
@@ -70,7 +75,7 @@
                 <span
                   v-for="t in s.trades"
                   :key="t.id"
-                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-blue-50 text-blue-700"
+                  class="inline-flex px-1.5 py-0.5 rounded text-micro font-medium bg-info-50 text-info-700"
                 >
                   {{ t.label }}
                 </span>
@@ -263,7 +268,7 @@
             <!-- Trades -->
             <div class="flex flex-wrap gap-1.5">
               <span v-for="t in detail?.trades" :key="t.id"
-                class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">
+                class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-info-50 text-info-700">
                 {{ t.label }}
               </span>
             </div>
@@ -302,7 +307,7 @@
                   </div>
                   <div class="flex items-center gap-1">
                     <a :href="doc.file" target="_blank" class="p-1 text-gray-400 hover:text-navy"><ExternalLink :size="12" /></a>
-                    <button @click="deleteDocument(doc)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
+                    <button @click="deleteDocument(doc)" class="p-1 text-gray-400 hover:text-danger-500"><Trash2 :size="12" /></button>
                   </div>
                 </div>
               </div>
@@ -381,7 +386,7 @@
                     <span class="text-xs text-gray-400 ml-2">{{ lnk.property_city }}</span>
                     <span v-if="lnk.is_preferred" class="badge-blue text-micro ml-2">Preferred</span>
                   </div>
-                  <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-red-500"><Trash2 :size="12" /></button>
+                  <button @click="removePropertyLink(lnk)" class="p-1 text-gray-400 hover:text-danger-500"><Trash2 :size="12" /></button>
                 </div>
               </div>
               <p v-else class="text-xs text-gray-400">No properties linked</p>
@@ -402,7 +407,7 @@
                 <div>
                   <span class="text-gray-400 text-xs">Rating</span>
                   <p class="text-gray-800 flex items-center gap-1">
-                    <Star v-if="detail?.rating" :size="12" class="text-amber-400 fill-amber-400" />
+                    <Star v-if="detail?.rating" :size="12" class="text-warning-500 fill-warning-500" />
                     {{ detail?.rating ?? '—' }}
                   </p>
                 </div>
@@ -411,7 +416,7 @@
 
             <!-- Delete -->
             <div class="border-t border-gray-100 pt-4">
-              <button class="btn-ghost text-red-600 hover:bg-red-50 w-full" @click="deleteSupplier(detail)">
+              <button class="btn-ghost text-danger-600 hover:bg-danger-50 w-full" @click="deleteSupplier(detail)">
                 <Trash2 :size="14" /> Delete Supplier
               </button>
             </div>
@@ -459,6 +464,7 @@ import FilterPills from '../../components/FilterPills.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import { useToast } from '../../composables/useToast'
 
 const toast = useToast()
@@ -699,9 +705,11 @@ async function deleteDocument(doc: any) {
 
 async function attachProperty() {
   if (!detail.value || !selectedPropertyId.value) return
-  await api.post(`/maintenance/suppliers/${detail.value.id}/properties/`, {
+  const { data: newLink } = await api.post(`/maintenance/suppliers/${detail.value.id}/properties/`, {
     property: selectedPropertyId.value,
   })
+  // Optimistically update so the dropdown removes the linked property immediately
+  detailProperties.value = [...detailProperties.value, newLink]
   selectedPropertyId.value = ''
   await openDetail(detail.value)
   await loadSuppliers()

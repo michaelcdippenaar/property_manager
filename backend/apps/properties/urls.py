@@ -10,6 +10,7 @@ from .owner_views import OwnerDashboardView, OwnerPropertiesView
 from .classify_view import LandlordClassifyView, LandlordClassifyRegistrationView
 from .chat_view import LandlordChatView
 from .municipal_bill_view import ParseMunicipalBillView
+from .mandate_parse_view import ParseMandateDocumentView
 from .mandate_views import RentalMandateViewSet
 from .viewing_views import PropertyViewingViewSet
 
@@ -40,5 +41,10 @@ urlpatterns = [
     path("landlords/<int:pk>/classify-registration/", LandlordClassifyRegistrationView.as_view(), name="landlord-classify-registration"),
     path("landlords/<int:pk>/chat/", LandlordChatView.as_view(), name="landlord-chat"),
     path("parse-municipal-bill/", ParseMunicipalBillView.as_view(), name="parse-municipal-bill"),
+    path(
+        "<int:property_id>/mandates/parse-document/",
+        ParseMandateDocumentView.as_view(),
+        name="property-mandate-parse-document",
+    ),
     path("", include(router.urls)),
 ]

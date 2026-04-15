@@ -8,7 +8,7 @@
         <p class="text-gray-500 text-sm mt-1">Admin Portal</p>
       </div>
 
-      <div v-if="registered" class="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm text-center">
+      <div v-if="registered" class="mb-4 p-3 bg-success-50 border border-success-100 rounded-lg text-success-700 text-sm text-center">
         Account created successfully. Sign in to continue.
       </div>
 
@@ -48,7 +48,7 @@
             </div>
           </div>
 
-          <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
             <AlertCircle :size="15" />
             {{ error }}
           </div>

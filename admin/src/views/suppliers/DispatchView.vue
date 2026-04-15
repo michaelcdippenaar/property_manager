@@ -14,9 +14,12 @@
       </div>
     </div>
 
-    <div v-else-if="!dispatches.length" class="text-center text-gray-400 py-16">
-      No active dispatches. Use "Get Quotes" on a maintenance request to start.
-    </div>
+    <EmptyState
+      v-else-if="!dispatches.length"
+      title="No active dispatches"
+      description='Use "Get Quotes" on a maintenance request to start.'
+      :icon="Truck"
+    />
 
     <!-- Dispatch cards -->
     <div v-else class="space-y-4">
@@ -52,7 +55,7 @@
             </thead>
             <tbody class="divide-y divide-gray-100">
               <tr v-for="qr in d.quote_requests" :key="qr.id"
-                :class="qr.status === 'awarded' ? 'bg-green-50' : ''">
+                :class="qr.status === 'awarded' ? 'bg-success-50' : ''">
                 <td class="px-3 py-2">
                   <div class="font-medium text-gray-800">{{ qr.supplier_name }}</div>
                   <div class="text-xs text-gray-400">{{ qr.supplier_city }}</div>
@@ -87,11 +90,11 @@
                   <button
                     v-if="qr.quote && qr.status === 'quoted' && d.status !== 'awarded'"
                     @click="awardQuote(d, qr)"
-                    class="px-2 py-1 text-xs font-medium text-white bg-green-600 rounded hover:bg-green-700"
+                    class="px-2 py-1 text-xs font-medium text-white bg-success-600 rounded hover:bg-success-700"
                   >
                     Award
                   </button>
-                  <span v-if="qr.status === 'awarded'" class="text-xs text-green-700 font-medium">
+                  <span v-if="qr.status === 'awarded'" class="text-xs text-success-700 font-medium">
                     Awarded
                   </span>
                 </td>
@@ -124,7 +127,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '../../api'
-import { RefreshCw } from 'lucide-vue-next'
+import { RefreshCw, Truck } from 'lucide-vue-next'
+import EmptyState from '../../components/EmptyState.vue'
 
 const loading = ref(true)
 const dispatches = ref<any[]>([])

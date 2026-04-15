@@ -25,7 +25,7 @@
             >
               <Building2 :size="24" />
               <span class="text-sm font-semibold">Estate Agency</span>
-              <span class="text-[11px] text-gray-400 leading-tight">I manage properties for clients</span>
+              <span class="text-micro text-gray-400 leading-tight">I manage properties for clients</span>
             </button>
 
             <button
@@ -38,7 +38,7 @@
             >
               <Home :size="24" />
               <span class="text-sm font-semibold">Property Owner</span>
-              <span class="text-[11px] text-gray-400 leading-tight">I manage my own rental properties</span>
+              <span class="text-micro text-gray-400 leading-tight">I manage my own rental properties</span>
             </button>
           </div>
 
@@ -125,7 +125,7 @@
             />
           </div>
 
-          <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
             <AlertCircle :size="15" />
             {{ error }}
           </div>

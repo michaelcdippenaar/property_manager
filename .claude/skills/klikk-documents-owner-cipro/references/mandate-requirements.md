@@ -151,8 +151,10 @@ Use concrete, human-readable sentences. The chat UI surfaces these verbatim to t
 5. Tax + VAT numbers
 
 ### Trust
-1. Trust Deed — establishing document
-2. **Current** Letters of Authority — must list current trustees
+1. **Founding document** — one of:
+   - **Trust Deed** (for *inter vivos* trusts — registered during the founder's lifetime), OR
+   - **Last Will and Testament + Death Certificate** (for *testamentary* trusts — trust created by the deceased's will, comes into existence on death). A J246 Trust Registration form is also acceptable supporting evidence.
+2. **Current** Letters of Authority — must list current trustees. The Master issues identical Letters of Authority regardless of how the trust was created.
 3. Trustee ID for each trustee (FICA requires ALL trustees' IDs, not just signer)
 4. Beneficiary IDs for beneficiaries with ≥25% interest
 5. Bank confirmation letter in trust name

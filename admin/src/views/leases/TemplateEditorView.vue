@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full -m-6 bg-white overflow-hidden">
+  <div class="flex flex-col h-[calc(100vh-4rem)] -m-6 bg-white overflow-hidden">
 
     <!-- ── Header (DocuSeal-style) ──────────────────────────────────────── -->
     <div class="flex items-center h-14 px-4 border-b border-gray-200 bg-white flex-shrink-0 gap-4">
@@ -52,14 +52,14 @@
           </div>
           <div v-if="exportMenuOpen" class="absolute right-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1">
             <button class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" @click="exportPDF(); exportMenuOpen = false">
-              <Download :size="11" class="text-red-500" /> Export as PDF
+              <Download :size="11" class="text-danger-500" /> Export as PDF
             </button>
             <button class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" @click="generatePreview(); exportMenuOpen = false">
-              <Download :size="11" class="text-blue-500" /> Export as DOCX
+              <Download :size="11" class="text-info-500" /> Export as DOCX
             </button>
             <div class="border-t border-gray-100 my-1" />
             <button class="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 flex items-center gap-2" @click="openDuplicateModal(); exportMenuOpen = false">
-              <Copy :size="11" class="text-green-600" /> Save as New Template
+              <Copy :size="11" class="text-success-600" /> Save as New Template
             </button>
           </div>
         </div>
@@ -105,7 +105,7 @@
                 <div class="text-gray-400 mb-0.5" style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Editing Tools</div>
                 <div class="flex flex-wrap gap-1">
                   <span v-for="tool in editingTools" :key="tool"
-                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-warning-50 border border-warning-100 text-warning-700"
                     style="font-size: 9px;">
                     <Wrench :size="8" /> {{ tool }}
                   </span>
@@ -155,12 +155,12 @@
                     class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md"
                     :class="(tool.type === 'skill' || isSkillTool(tool.name))
                       ? 'bg-purple-50 border border-purple-200 text-purple-700'
-                      : 'bg-amber-50 border border-amber-200 text-amber-700'"
+                      : 'bg-warning-50 border border-warning-100 text-warning-700'"
                     style="font-size: 9px; line-height: 1.2;"
                   >
                     <component :is="(tool.type === 'skill' || isSkillTool(tool.name)) ? Zap : Wrench" :size="8" class="flex-shrink-0" />
                     <span class="font-medium">{{ tool.name }}</span>
-                    <span :class="(tool.type === 'skill' || isSkillTool(tool.name)) ? 'text-purple-500' : 'text-amber-500'">{{ tool.detail }}</span>
+                    <span :class="(tool.type === 'skill' || isSkillTool(tool.name)) ? 'text-purple-500' : 'text-warning-500'">{{ tool.detail }}</span>
                   </span>
                 </div>
               </div>
@@ -261,7 +261,7 @@
                 </span>
                 <span class="flex-1 text-left truncate">{{ actor.label }}</span>
                 <button
-                  class="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-red-100 text-gray-400 hover:text-red-500 transition-opacity"
+                  class="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-danger-100 text-gray-400 hover:text-danger-500 transition-opacity"
                   @click.stop="removeActor(ai)"
                   title="Remove"
                 >
@@ -412,16 +412,16 @@
           </div>
 
           <!-- Generated options (shown before saving) -->
-          <div v-if="generatedOptions.length" class="px-2 py-2 space-y-2 border-b border-amber-100 bg-amber-50/40 flex-shrink-0">
-            <div class="text-micro font-semibold text-amber-700 uppercase px-1">Generated — click to save &amp; insert</div>
+          <div v-if="generatedOptions.length" class="px-2 py-2 space-y-2 border-b border-warning-100 bg-warning-50/40 flex-shrink-0">
+            <div class="text-micro font-semibold text-warning-700 uppercase px-1">Generated — click to save &amp; insert</div>
             <div
               v-for="(opt, i) in generatedOptions" :key="i"
-              class="bg-white border border-amber-200 rounded-lg p-2 cursor-pointer hover:border-amber-400 transition-colors"
+              class="bg-white border border-warning-100 rounded-lg p-2 cursor-pointer hover:border-warning-500 transition-colors"
               @click="saveGeneratedClause(opt)"
             >
               <div class="flex items-center justify-between gap-1 mb-1">
                 <span class="text-micro font-semibold text-gray-800 leading-snug">{{ opt.title }}</span>
-                <span class="text-micro bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded flex-shrink-0">{{ opt.category }}</span>
+                <span class="text-micro bg-warning-100 text-warning-700 px-1.5 py-0.5 rounded flex-shrink-0">{{ opt.category }}</span>
               </div>
               <div class="text-micro text-gray-500 line-clamp-2 leading-relaxed" v-html="opt.html" />
             </div>
@@ -460,7 +460,7 @@
                       <Plus :size="11" />
                     </button>
                     <button
-                      class="p-1 rounded text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                      class="p-1 rounded text-gray-300 hover:text-danger-400 opacity-0 group-hover:opacity-100 transition-all"
                       @click="deleteClause(clause.id)"
                       title="Delete"
                     >
@@ -477,13 +477,25 @@
         <div v-if="!rightCollapsed" class="border-t border-gray-200 flex-shrink-0">
           <div class="flex items-center justify-between px-3 py-2">
             <span class="text-micro font-semibold text-gray-500 uppercase tracking-wide">Detected Variables</span>
-            <div class="flex items-center gap-1">
-              <span class="text-micro text-gray-400">Tenants:</span>
-              <select v-model="tenantCount" class="text-micro border border-gray-200 rounded px-0.5 py-0.5 bg-white focus:outline-none">
-                <option :value="1">1</option>
-                <option :value="2">2</option>
-                <option :value="3">3</option>
-              </select>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1">
+                <span class="text-micro text-gray-400">Tenants:</span>
+                <select v-model="tenantCount" class="text-micro border border-gray-200 rounded px-0.5 py-0.5 bg-white focus:outline-none">
+                  <option :value="1">1</option>
+                  <option :value="2">2</option>
+                  <option :value="3">3</option>
+                </select>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="text-micro text-gray-400">Occupants:</span>
+                <select v-model="occupantCount" class="text-micro border border-gray-200 rounded px-0.5 py-0.5 bg-white focus:outline-none">
+                  <option :value="0">0</option>
+                  <option :value="1">1</option>
+                  <option :value="2">2</option>
+                  <option :value="3">3</option>
+                  <option :value="4">4</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="max-h-36 overflow-y-auto px-2 pb-2">
@@ -516,7 +528,7 @@
       </div>
 
       <!-- ── CENTER: Document canvas ──────────────────────────────────────── -->
-      <div class="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 bg-[#e8eaed]">
+      <div class="flex-1 flex flex-col overflow-hidden min-h-0 min-w-0 bg-gray-100">
 
         <!-- Toolbar — hidden for read-only PDF templates -->
         <div v-if="!isPdfTemplate" class="border-b border-gray-300 bg-white flex-shrink-0">
@@ -526,8 +538,8 @@
               Show toolbar ▼
             </button>
             <div class="ml-auto flex items-center gap-2">
-              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-amber-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400" /> Unsaved
+              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-warning-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-warning-500" /> Unsaved
               </span>
               <button class="toolbar-btn" @click="execCmd('undo')" title="Undo"><RotateCcw :size="13" /></button>
               <button class="toolbar-btn" @click="execCmd('redo')" title="Redo"><RotateCw :size="13" /></button>
@@ -587,8 +599,8 @@
               <option value="36">36</option>
             </select>
             <div class="ml-auto flex items-center gap-2">
-              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-amber-600">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400" /> Unsaved
+              <span v-if="isDirty" class="flex items-center gap-1.5 text-micro text-warning-600">
+                <span class="w-1.5 h-1.5 rounded-full bg-warning-500" /> Unsaved
               </span>
               <button class="text-micro text-gray-400 hover:text-navy transition-colors" @click="toolbarCollapsed = true" title="Collapse toolbar">▲</button>
             </div>
@@ -749,7 +761,7 @@
             <!-- Insert merge field -->
             <div class="relative">
               <button
-                class="flex items-center gap-1 px-2 py-1 text-xs text-amber-700 border border-amber-200 bg-amber-50 rounded hover:bg-amber-100 transition-colors font-medium"
+                class="flex items-center gap-1 px-2 py-1 text-xs text-warning-700 border border-warning-100 bg-warning-50 rounded hover:bg-warning-100 transition-colors font-medium"
                 @click="showFieldPicker = !showFieldPicker"
               >
                 <Braces :size="12" /> Insert field
@@ -758,7 +770,7 @@
                 <div class="text-micro font-semibold text-gray-400 uppercase px-1 mb-1">Click to insert</div>
                 <button
                   v-for="f in allFields" :key="f"
-                  class="w-full text-left font-mono text-xs px-2 py-1 hover:bg-amber-50 rounded text-amber-700"
+                  class="w-full text-left font-mono text-xs px-2 py-1 hover:bg-warning-50 rounded text-warning-700"
                   @mousedown.prevent="insertField(f)"
                 >
                   &#123;&#123; {{ f }} &#125;&#125;
@@ -769,7 +781,7 @@
         </div>
 
         <!-- Document page (scrollable) -->
-        <div class="flex-1 overflow-y-auto py-8 px-4 min-h-0 bg-[#e8eaed]" @click="showFieldPicker = false; headingStylesOpen = false">
+        <div class="flex-1 overflow-y-auto py-8 px-4 min-h-0 bg-gray-100" @click="showFieldPicker = false; headingStylesOpen = false">
           <!-- Loading skeleton -->
           <div v-if="loadingPreview" class="max-w-[680px] mx-auto bg-white shadow-md px-14 py-12 min-h-[961px] space-y-3 animate-pulse">
             <div class="h-5 bg-gray-200 rounded w-1/3 mx-auto mb-6" />
@@ -778,7 +790,7 @@
 
           <!-- PDF viewer (read-only) -->
           <div v-if="!loadingPreview && isPdfTemplate && pdfUrl" class="flex flex-col gap-2 h-full">
-            <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 text-xs text-amber-700 flex-shrink-0">
+            <div class="flex items-center gap-2 bg-warning-50 border border-warning-100 rounded-lg px-4 py-2.5 text-xs text-warning-700 flex-shrink-0">
               <span class="font-semibold">PDF template</span> — this document is read-only. To make it editable, convert it to a DOCX and re-upload.
             </div>
             <iframe
@@ -1148,8 +1160,9 @@ const selectedActorIdx = ref<number | null>(null)   // -1 = Me, 0+ = actors[]
 const fieldNotice    = ref('')
 const actionFeedback = ref('')
 
-// ── Tenant count for variable panel ───────────────────────────────────────
-const tenantCount = ref(1)
+// ── Tenant / occupant count for variable panel ────────────────────────────
+const tenantCount   = ref(1)
+const occupantCount = ref(1)
 
 // ── Active actor color (drives field palette UI tinting) ──────────────────
 const selectedColor = computed<string>(() => {
@@ -1249,8 +1262,8 @@ const actorTypes = [
     key: 'tenant' as ActorType,
     label: 'Tenant',
     icon: markRaw(User),
-    iconClass: 'text-blue-500',
-    btnClass: 'border-blue-200 text-blue-600 hover:border-blue-400 hover:bg-blue-50',
+    iconClass: 'text-info-500',
+    btnClass: 'border-info-100 text-info-600 hover:border-info-500 hover:bg-info-50',
   },
   {
     key: 'occupant' as ActorType,
@@ -2479,36 +2492,50 @@ function flashFields(fieldNames: string[]) {
 }
 
 // ── Detected variable group helpers ───────────────────────────────────────
-const ALL_GROUP_KEYS = ['landlord', 'property', 'tenant_1', 'tenant_2', 'tenant_3', 'lease_terms', 'other']
+const ALL_GROUP_KEYS = [
+  'landlord', 'property',
+  'tenant_1', 'tenant_2', 'tenant_3',
+  'occupant_1', 'occupant_2', 'occupant_3', 'occupant_4',
+  'lease_terms', 'other',
+]
 
 const visibleGroupKeys = computed(() => {
   const dv = template.value?.detected_variables
   if (!dv) return []
   return ALL_GROUP_KEYS.filter(key => {
     if (!dv[key] || dv[key].length === 0) return false
-    if (key === 'tenant_2' && tenantCount.value < 2) return false
-    if (key === 'tenant_3' && tenantCount.value < 3) return false
+    if (key === 'tenant_2'   && tenantCount.value < 2)   return false
+    if (key === 'tenant_3'   && tenantCount.value < 3)   return false
+    if (key === 'occupant_1' && occupantCount.value < 1) return false
+    if (key === 'occupant_2' && occupantCount.value < 2) return false
+    if (key === 'occupant_3' && occupantCount.value < 3) return false
+    if (key === 'occupant_4' && occupantCount.value < 4) return false
     return true
   })
 })
 
 function groupDisplayName(key: string): string {
   const map: Record<string, string> = {
-    landlord: 'Landlord', property: 'Property',
-    tenant_1: 'Tenant 1', tenant_2: 'Tenant 2', tenant_3: 'Tenant 3',
+    landlord:   'Landlord',    property:   'Property',
+    tenant_1:   'Tenant 1',   tenant_2:   'Tenant 2',   tenant_3:   'Tenant 3',
+    occupant_1: 'Occupant 1', occupant_2: 'Occupant 2',
+    occupant_3: 'Occupant 3', occupant_4: 'Occupant 4',
     lease_terms: 'Lease Terms', other: 'Other',
   }
   return map[key] ?? key
 }
 
 function groupChipClass(key: string): string {
-  // Solid filled pill colors per group
   const map: Record<string, string> = {
     landlord:    'field-chip--navy',
     property:    'field-chip--emerald',
     tenant_1:    'field-chip--blue',
     tenant_2:    'field-chip--violet',
     tenant_3:    'field-chip--pink',
+    occupant_1:  'field-chip--teal',
+    occupant_2:  'field-chip--teal',
+    occupant_3:  'field-chip--teal',
+    occupant_4:  'field-chip--teal',
     lease_terms: 'field-chip--amber',
     other:       'field-chip--gray',
   }
@@ -3095,6 +3122,7 @@ async function extractFromTemplate() {
 
 /* Colour variants */
 .field-chip--lease   { background: #0d9488; color: #fff; }   /* teal    */
+.field-chip--teal    { background: #0d9488; color: #fff; }   /* teal (occupants) */
 .field-chip--navy    { background: #1e3a5f; color: #fff; }   /* navy    */
 .field-chip--emerald { background: #059669; color: #fff; }   /* emerald */
 .field-chip--blue    { background: #2563eb; color: #fff; }   /* blue    */

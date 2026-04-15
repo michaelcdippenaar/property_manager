@@ -16,8 +16,8 @@
 
       <!-- Cancelled / expired invite -->
       <div v-else-if="inviteCancelled" class="card p-8 text-center space-y-4">
-        <div class="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
-          <ClockAlert :size="26" class="text-amber-500" />
+        <div class="w-14 h-14 rounded-full bg-warning-50 flex items-center justify-center mx-auto">
+          <ClockAlert :size="26" class="text-warning-500" />
         </div>
         <div class="space-y-1">
           <h2 class="text-lg font-semibold text-gray-900">Invitation Expired</h2>
@@ -31,14 +31,14 @@
 
       <!-- Invalid invite -->
       <div v-else-if="inviteError" class="card p-8 text-center space-y-3">
-        <AlertCircle :size="24" class="mx-auto text-red-500" />
-        <p class="text-sm text-red-600">{{ inviteError }}</p>
+        <AlertCircle :size="24" class="mx-auto text-danger-500" />
+        <p class="text-sm text-danger-600">{{ inviteError }}</p>
         <router-link to="/login" class="text-sm text-navy hover:underline">Go to sign in</router-link>
       </div>
 
       <!-- Invite form -->
       <div v-else class="card p-8">
-        <div class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
+        <div class="mb-4 p-3 bg-info-50 border border-info-100 rounded-lg text-info-700 text-sm">
           You've been invited to join Klikk as <strong class="capitalize">{{ invite.role }}</strong>.
         </div>
 
@@ -97,7 +97,7 @@
             <p v-if="fieldErrors.confirmPassword" class="input-error-msg">{{ fieldErrors.confirmPassword }}</p>
           </div>
 
-          <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
             <AlertCircle :size="15" class="flex-shrink-0" />
             <span>{{ error }}</span>
           </div>

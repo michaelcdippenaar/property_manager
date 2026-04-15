@@ -17,7 +17,7 @@
               <label class="label">Confirm password</label>
               <input v-model="confirm" type="password" class="input" placeholder="Repeat password" required />
             </div>
-            <div v-if="error" class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
               <AlertCircle :size="15" />
               {{ error }}
             </div>
@@ -29,7 +29,7 @@
         </template>
         <template v-else>
           <div class="text-center space-y-3">
-            <CheckCircle :size="40" class="mx-auto text-green-600" />
+            <CheckCircle :size="40" class="mx-auto text-success-600" />
             <p class="text-gray-700">Password has been reset.</p>
             <router-link to="/login" class="btn-primary inline-flex justify-center w-full py-2.5">
               Sign in

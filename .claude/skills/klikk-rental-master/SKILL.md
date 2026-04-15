@@ -1,5 +1,5 @@
 ---
-name: klikk-legal-sa-rentals
+name: klikk-rental-master
 description: >
   Comprehensive South African property rental knowledge base. Use this skill whenever the
   user asks about SA rental processes, deposit rules, eviction procedures, PIE Act,

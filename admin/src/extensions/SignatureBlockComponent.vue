@@ -28,7 +28,7 @@
       <!-- My date field: auto-filled with today's date (check BEFORE signed/unsigned) -->
       <span
         v-else-if="isMyField && node.attrs.fieldType === 'date'"
-        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-green-50 text-green-700 text-xs font-semibold align-middle"
+        class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-success-50 text-success-700 text-xs font-semibold align-middle"
       >
         <Calendar :size="11" />
         {{ todayFormatted }}
@@ -37,7 +37,7 @@
       <!-- My field: already signed — show signature image -->
       <span
         v-else-if="isMyField && mySignedData"
-        class="inline-flex items-center rounded border border-green-300 bg-green-50/60 align-baseline"
+        class="inline-flex items-center rounded border border-success-400 bg-success-50/60 align-baseline"
         :class="isInitials ? 'px-0.5 py-0 gap-0 max-h-[18px]' : 'px-1.5 py-0.5 gap-1'"
         :style="isInitials ? 'line-height: 1' : ''"
       >
@@ -47,7 +47,7 @@
           class="object-contain"
           alt="Signed"
         />
-        <svg v-if="!isInitials" class="w-3 h-3 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg v-if="!isInitials" class="w-3 h-3 text-success-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
       </span>
@@ -60,7 +60,7 @@
                border-navy bg-navy/5 hover:bg-navy/10 text-navy font-medium
                transition-all cursor-pointer animate-pulse-subtle"
         :class="isInitials
-          ? 'gap-0.5 px-1.5 py-0 rounded border text-[10px] align-baseline leading-tight'
+          ? 'gap-0.5 px-1.5 py-0 rounded border text-micro align-baseline leading-tight'
           : 'gap-1.5 px-3 py-1.5 rounded-lg border-2 text-xs align-middle'"
       >
         <component :is="iconComponent" :size="isInitials ? 10 : 14" />
@@ -71,9 +71,9 @@
       <span
         v-else-if="otherSignerData"
         class="inline-flex items-center gap-0.5 border border-gray-200 bg-gray-50 text-gray-400"
-        :class="isInitials ? 'px-1 py-0 rounded text-[9px] align-baseline leading-tight' : 'px-2 py-0.5 rounded-lg text-[10px] align-middle'"
+        :class="isInitials ? 'px-1 py-0 rounded text-xs align-baseline leading-tight' : 'px-2 py-0.5 rounded-lg text-micro align-middle'"
       >
-        <svg :class="isInitials ? 'w-2.5 h-2.5' : 'w-3 h-3'" class="text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg :class="isInitials ? 'w-2.5 h-2.5' : 'w-3 h-3'" class="text-success-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
         </svg>
         Signed by {{ otherSignerData.signerName }}
@@ -83,7 +83,7 @@
       <span
         v-else
         class="inline-flex items-center gap-0.5 border border-gray-200 bg-gray-50/50 text-gray-300"
-        :class="isInitials ? 'px-1 py-0 rounded text-[9px] align-baseline leading-tight' : 'px-2 py-0.5 rounded-lg text-[10px] align-middle'"
+        :class="isInitials ? 'px-1 py-0 rounded text-xs align-baseline leading-tight' : 'px-2 py-0.5 rounded-lg text-micro align-middle'"
       >
         <component :is="iconComponent" :size="isInitials ? 8 : 10" />
         Pending: {{ roleName }}
@@ -95,7 +95,7 @@
       <!-- Date / Initials / Signed-At: compact chip -->
       <span
         v-if="['date','initials','signed_at'].includes(node.attrs.fieldType)"
-        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px]
+        class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-micro
                font-medium cursor-grab active:cursor-grabbing select-none align-baseline leading-tight"
         :class="[chipClasses, selected ? 'ring-2 ring-navy/40' : '']"
         contenteditable="false"
@@ -108,7 +108,7 @@
         <button
           v-if="editor.isEditable"
           @click="deleteNode"
-          class="ml-0.5 p-0 hover:text-red-500 transition-colors"
+          class="ml-0.5 p-0 hover:text-danger-500 transition-colors"
           @mousedown.stop
         >
           <X :size="10" />
@@ -137,7 +137,7 @@
           <span class="text-xs font-semibold truncate block" :class="iconClass">
             {{ displayLabel }}
           </span>
-          <span class="text-[9px] text-gray-400 uppercase tracking-wider leading-tight block">
+          <span class="text-xs text-gray-400 uppercase tracking-wider leading-tight block">
             {{ node.attrs.fieldType }} · {{ roleName }}
           </span>
         </span>
@@ -145,7 +145,7 @@
           v-if="editor.isEditable"
           :value="node.attrs.signerRole"
           @change="updateAttributes({ signerRole: ($event.target as HTMLSelectElement).value })"
-          class="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white/80 focus:ring-1 focus:ring-navy/30 flex-shrink-0"
+          class="text-micro border border-gray-200 rounded px-1 py-0.5 bg-white/80 focus:ring-1 focus:ring-navy/30 flex-shrink-0"
           @mousedown.stop
           @dragstart.stop
         >
@@ -159,7 +159,7 @@
         <button
           v-if="editor.isEditable"
           @click="deleteNode"
-          class="p-0.5 rounded hover:bg-red-100 text-gray-300 hover:text-red-500 transition-colors flex-shrink-0"
+          class="p-0.5 rounded hover:bg-danger-100 text-gray-300 hover:text-danger-500 transition-colors flex-shrink-0"
           title="Remove"
           @mousedown.stop
         >
@@ -263,39 +263,39 @@ const roleName = computed(() =>
 const chipClasses = computed(() => {
   const role = props.node.attrs.signerRole
   return {
-    landlord:  'bg-blue-100 text-blue-700 border border-blue-200',
-    tenant_1:  'bg-green-100 text-green-700 border border-green-200',
+    landlord:  'bg-info-100 text-info-700 border border-info-100',
+    tenant_1:  'bg-success-100 text-success-700 border border-success-100',
     tenant_2:  'bg-purple-100 text-purple-700 border border-purple-200',
     tenant_3:  'bg-orange-100 text-orange-700 border border-orange-200',
-    witness:   'bg-amber-100 text-amber-700 border border-amber-200',
+    witness:   'bg-warning-100 text-warning-700 border border-warning-100',
     agent:     'bg-cyan-100 text-cyan-700 border border-cyan-200',
   }[role] ?? 'bg-gray-100 text-gray-600 border border-gray-200'
 })
 
 const blockClasses = computed(() => ({
-  landlord:  'border-blue-300 bg-blue-50/60',
-  tenant_1:  'border-green-300 bg-green-50/60',
+  landlord:  'border-info-100 bg-info-50/60',
+  tenant_1:  'border-success-400 bg-success-50/60',
   tenant_2:  'border-purple-300 bg-purple-50/60',
   tenant_3:  'border-orange-300 bg-orange-50/60',
-  witness:   'border-amber-300 bg-amber-50/60',
+  witness:   'border-warning-100 bg-warning-50/60',
   agent:     'border-cyan-300 bg-cyan-50/60',
 }[props.node.attrs.signerRole] ?? 'border-gray-300 bg-gray-50/60'))
 
 const iconBgClass = computed(() => ({
-  landlord:  'bg-blue-100',
-  tenant_1:  'bg-green-100',
+  landlord:  'bg-info-100',
+  tenant_1:  'bg-success-100',
   tenant_2:  'bg-purple-100',
   tenant_3:  'bg-orange-100',
-  witness:   'bg-amber-100',
+  witness:   'bg-warning-100',
   agent:     'bg-cyan-100',
 }[props.node.attrs.signerRole] ?? 'bg-gray-100'))
 
 const iconClass = computed(() => ({
-  landlord:  'text-blue-600',
-  tenant_1:  'text-green-600',
+  landlord:  'text-info-600',
+  tenant_1:  'text-success-600',
   tenant_2:  'text-purple-600',
   tenant_3:  'text-orange-600',
-  witness:   'text-amber-600',
+  witness:   'text-warning-600',
   agent:     'text-cyan-600',
 }[props.node.attrs.signerRole] ?? 'text-gray-600'))
 

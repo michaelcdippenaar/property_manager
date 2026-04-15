@@ -24,17 +24,43 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     class Role(models.TextChoices):
         TENANT = "tenant", "Tenant"
-        AGENT = "agent", "Agent"
+        AGENT = "agent", "Agent"  # Deprecated — migrate to estate_agent/managing_agent
         ADMIN = "admin", "Admin"
         SUPPLIER = "supplier", "Supplier"
         OWNER = "owner", "Owner"
+        AGENCY_ADMIN = "agency_admin", "Agency Admin"
+        ESTATE_AGENT = "estate_agent", "Estate Agent"
+        MANAGING_AGENT = "managing_agent", "Managing Agent"
+        ACCOUNTANT = "accountant", "Accountant"
+        VIEWER = "viewer", "Viewer"
+
+    class FFCCategory(models.TextChoices):
+        ESTATE = "estate", "Estate Agent"
+        MANAGING = "managing", "Managing Agent"
 
     email = models.EmailField(unique=True)
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
     id_number = models.CharField(max_length=20, blank=True, help_text="SA ID or passport number")
-    role = models.CharField(max_length=10, choices=Role.choices, default=Role.TENANT)
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.TENANT)
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="members",
+        help_text="Agency this user belongs to (agents, agency admin, viewers)",
+    )
+    module_access = models.JSONField(
+        default=list, blank=True,
+        help_text='Module access flags for viewer role, e.g. ["inspections","maintenance","properties"]',
+    )
+    ffc_number = models.CharField(
+        max_length=50, blank=True,
+        help_text="Individual Fidelity Fund Certificate number (PPA requirement)",
+    )
+    ffc_category = models.CharField(
+        max_length=20, choices=FFCCategory.choices, blank=True,
+        help_text="FFC category — distinct from role (regulatory classification)",
+    )
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
@@ -57,6 +83,34 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_full_name(self):
         """AbstractUser-compatible display name (our model uses AbstractBaseUser only)."""
         return self.full_name
+
+    # ── Role convenience properties ──
+
+    @property
+    def has_admin_access(self):
+        """Full admin or agency principal."""
+        return self.role in (self.Role.ADMIN, self.Role.AGENCY_ADMIN)
+
+    @property
+    def is_agent_role(self):
+        """Any agent variant (legacy agent, estate, managing, agency admin)."""
+        return self.role in (
+            self.Role.AGENT, self.Role.ESTATE_AGENT,
+            self.Role.MANAGING_AGENT, self.Role.AGENCY_ADMIN,
+        )
+
+    @property
+    def is_managing(self):
+        """Managing agent or legacy agent (both have ongoing property access)."""
+        return self.role in (self.Role.AGENT, self.Role.MANAGING_AGENT)
+
+    def has_module(self, module):
+        """Check module access — admin/agency_admin get all; viewer checks module_access list."""
+        if self.role in (self.Role.ADMIN, self.Role.AGENCY_ADMIN):
+            return True
+        if self.role == self.Role.VIEWER:
+            return module in (self.module_access or [])
+        return False
 
 
 class Person(models.Model):
@@ -107,6 +161,30 @@ class Person(models.Model):
         return self.full_name
 
 
+class PersonDocument(models.Model):
+    """Supporting documents attached to a Person (ID, proof of address, income, etc).
+    Persists across leases — if the same person re-leases, their docs are already on file."""
+
+    class DocumentType(models.TextChoices):
+        ID_COPY          = 'id_copy',          'ID / Passport Copy'
+        PROOF_OF_ADDRESS = 'proof_of_address', 'Proof of Address'
+        PROOF_OF_INCOME  = 'proof_of_income',  'Proof of Income'
+        FICA             = 'fica',             'FICA / KYC Document'
+        OTHER            = 'other',            'Other'
+
+    person        = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='documents')
+    document_type = models.CharField(max_length=30, choices=DocumentType.choices)
+    file          = models.FileField(upload_to='person_documents/')
+    description   = models.CharField(max_length=200, blank=True)
+    uploaded_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.get_document_type_display()} — {self.person.full_name}"
+
+
 class OTPCode(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp_codes")
     code = models.CharField(max_length=6)
@@ -142,7 +220,12 @@ class PushToken(models.Model):
 
 class UserInvite(models.Model):
     email = models.EmailField()
-    role = models.CharField(max_length=10, choices=User.Role.choices)
+    role = models.CharField(max_length=20, choices=User.Role.choices)
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="invites",
+        help_text="Agency to assign when invite is accepted (for agent/viewer roles)",
+    )
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="invites_sent")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -274,6 +357,7 @@ class Agency(models.Model):
     # ── Branding ──
     logo = models.ImageField(upload_to="agency/", null=True, blank=True)
 
+    is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -288,8 +372,15 @@ class Agency(models.Model):
 
     @classmethod
     def get_solo(cls):
-        """Return the singleton instance, or None if not yet configured."""
-        return cls.objects.first()
+        """Backwards-compat: return the first active agency, or None."""
+        return cls.objects.filter(is_active=True).first()
+
+    @classmethod
+    def for_user(cls, user):
+        """Return the agency this user belongs to, or fall back to get_solo()."""
+        if user and hasattr(user, "agency_id") and user.agency_id:
+            return cls.objects.filter(pk=user.agency_id).first()
+        return cls.get_solo()
 
 
 class LoginAttempt(models.Model):

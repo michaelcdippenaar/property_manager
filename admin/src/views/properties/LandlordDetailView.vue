@@ -2,21 +2,17 @@
   <div class="space-y-0">
 
     <!-- ── Page header ── -->
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <button
-          class="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          aria-label="Back to owners"
-          @click="$router.push('/landlords')"
-        >
-          <ArrowLeft :size="18" />
-        </button>
-        <div>
-          <h2 class="text-lg font-semibold text-gray-900">{{ landlord?.name ?? '…' }}</h2>
-          <p class="text-xs text-gray-500 mt-0.5">{{ landlord?.email || 'No email' }}</p>
-        </div>
-      </div>
-
+    <PageHeader
+      :title="landlord?.name ?? '…'"
+      :subtitle="landlord?.email || 'No email'"
+      :crumbs="[
+        { label: 'Dashboard', to: '/' },
+        { label: 'Owners', to: '/landlords' },
+        { label: landlord?.name ?? '…' },
+      ]"
+      back
+    >
+      <template #actions>
       <!-- Actions dropdown -->
       <div class="relative" ref="menuRef">
         <button
@@ -44,7 +40,8 @@
           </div>
         </Transition>
       </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- ── Tabs ── -->
     <div class="flex items-center gap-1 border-b border-gray-200 mb-6">
@@ -208,22 +205,65 @@
           <p v-else class="text-xs text-gray-400">No properties linked.</p>
         </div>
 
-        <!-- Stats -->
+        <!-- Stats — each tile is clickable -->
         <div class="card p-5 space-y-3">
           <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
             <BarChart3 :size="13" /> Summary
           </div>
           <div class="grid grid-cols-2 gap-3">
-            <div class="text-center py-3 bg-gray-50 rounded-lg">
+            <button
+              type="button"
+              class="text-center py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              @click="$router.push('/properties')"
+              title="View all properties"
+            >
               <div class="text-xl font-bold text-navy">{{ local.properties?.length ?? 0 }}</div>
-              <div class="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Properties</div>
-            </div>
-            <div class="text-center py-3 bg-gray-50 rounded-lg">
+              <div class="text-xs uppercase tracking-wide text-gray-400 font-medium">Properties</div>
+            </button>
+            <button
+              type="button"
+              class="text-center py-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+              @click="setTab('bank')"
+              title="Manage bank accounts"
+            >
               <div class="text-xl font-bold text-navy">{{ local.bank_accounts?.length ?? 0 }}</div>
-              <div class="text-[10px] uppercase tracking-wide text-gray-400 font-medium">Bank Acc.</div>
-            </div>
+              <div class="text-xs uppercase tracking-wide text-gray-400 font-medium">Bank Acc.</div>
+            </button>
           </div>
         </div>
+
+        <!-- Documents Outstanding indicator — click to jump to Documents tab -->
+        <button
+          type="button"
+          class="card p-5 w-full text-left space-y-3 transition-colors"
+          :class="docsOutstandingCount || unallocatedDocs.length
+            ? 'hover:bg-danger-50/50 border-danger-200'
+            : 'hover:bg-gray-50'"
+          @click="setTab('documents')"
+        >
+          <div class="flex items-center justify-between">
+            <div class="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5"
+                 :class="docsOutstandingCount || unallocatedDocs.length ? 'text-danger-600' : 'text-success-600'">
+              <AlertTriangle v-if="docsOutstandingCount || unallocatedDocs.length" :size="13" />
+              <CheckCircle2 v-else :size="13" />
+              Documents
+            </div>
+            <ChevronRight :size="14" class="text-gray-300" />
+          </div>
+          <div v-if="docsOutstandingCount || unallocatedDocs.length" class="grid grid-cols-2 gap-3">
+            <div class="text-center py-2 bg-danger-50/60 rounded-lg">
+              <div class="text-xl font-bold text-danger-600">{{ docsOutstandingCount }}</div>
+              <div class="text-xs uppercase tracking-wide text-gray-500 font-medium">Missing</div>
+            </div>
+            <div class="text-center py-2 bg-gray-50 rounded-lg">
+              <div class="text-xl font-bold" :class="unallocatedDocs.length ? 'text-accent-600' : 'text-gray-400'">
+                {{ unallocatedDocs.length }}
+              </div>
+              <div class="text-xs uppercase tracking-wide text-gray-500 font-medium">Unclassified</div>
+            </div>
+          </div>
+          <p v-else class="text-xs text-gray-500">All required documents on file.</p>
+        </button>
       </div>
     </div>
 
@@ -249,7 +289,7 @@
           <div class="flex items-center gap-2">
             <Landmark :size="15" class="text-gray-400" />
             <span class="font-medium text-sm text-gray-900">{{ ba.bank_name || 'New Account' }}</span>
-            <span v-if="ba.is_default" class="badge-navy text-[10px]">Default</span>
+            <span v-if="ba.is_default" class="badge-navy text-xs">Default</span>
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -288,7 +328,7 @@
               <Loader2 v-if="saving" :size="12" class="animate-spin" />
               {{ ba.id ? 'Update' : 'Save Account' }}
             </button>
-            <button v-if="ba.id" class="text-xs text-red-500 hover:underline" @click="deleteBankAccount(ba)">Remove</button>
+            <button v-if="ba.id" class="text-xs text-danger-500 hover:underline" @click="deleteBankAccount(ba)">Remove</button>
             <button v-else class="text-xs text-gray-400 hover:underline" @click="local.bank_accounts.splice(idx, 1)">Cancel</button>
           </div>
         </div>
@@ -301,7 +341,7 @@
                class="flex items-center gap-1.5 text-xs text-navy hover:underline">
               <FileText :size="13" /> View letter
             </a>
-            <button class="text-xs text-red-500 hover:underline" @click="removeConfirmationLetter(ba)">
+            <button class="text-xs text-danger-500 hover:underline" @click="removeConfirmationLetter(ba)">
               Remove
             </button>
           </div>
@@ -315,99 +355,71 @@
       </div>
     </div>
 
-    <!-- ── Tab: Properties ── -->
-    <div v-else-if="activeTab === 'properties'" class="max-w-3xl space-y-4 pt-6">
-      <div class="flex items-center justify-between">
-        <div class="text-xs font-semibold uppercase tracking-wide text-navy">Linked Properties</div>
-        <div class="flex items-center gap-2">
-          <button class="btn-ghost text-sm flex items-center gap-1.5" @click="showLinkModal = true">
-            <Plus :size="14" /> Link property
-          </button>
-          <button class="btn-ghost text-sm flex items-center gap-1.5" @click="$router.push('/properties')">
-            <Plus :size="14" /> Add new property
-          </button>
-        </div>
-      </div>
+    <!-- ── Tab: Documents (unified) ── -->
+    <div v-else-if="activeTab === 'documents'" class="space-y-5 pt-6">
 
-      <!-- Empty state -->
-      <div v-if="!local.properties?.length" class="card p-8 text-center">
-        <Home :size="32" class="mx-auto text-gray-300 mb-3" />
-        <p class="text-sm text-gray-400">No properties linked to this owner yet.</p>
-        <button class="btn-primary btn-sm mt-3" @click="showLinkModal = true">
-          <Plus :size="14" /> Link a property
+      <!-- Hidden input used by per-row "Upload" buttons on the Classified checklist -->
+      <input
+        ref="targetedFileInput"
+        type="file"
+        class="hidden"
+        accept=".pdf,.jpg,.jpeg,.png,.docx"
+        @change="uploadTargetedDoc"
+      />
+
+      <!-- Sub-tab bar: Classified vs Unclassified -->
+      <div class="flex items-center gap-1 border-b border-gray-200">
+        <button
+          type="button"
+          class="px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5"
+          :class="docsSubTab === 'classified'
+            ? 'border-accent-500 text-navy'
+            : 'border-transparent text-gray-500 hover:text-gray-700'"
+          @click="docsSubTab = 'classified'"
+        >
+          <ShieldCheck :size="14" />
+          Classified
+          <span class="text-micro text-gray-400">({{ ficaDocs.length - unallocatedDocs.length }})</span>
+        </button>
+        <button
+          type="button"
+          class="px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors flex items-center gap-1.5"
+          :class="docsSubTab === 'unclassified'
+            ? 'border-accent-500 text-navy'
+            : 'border-transparent text-gray-500 hover:text-gray-700'"
+          @click="docsSubTab = 'unclassified'"
+        >
+          <FileUp :size="14" />
+          Unclassified
+          <span
+            class="text-micro"
+            :class="unallocatedDocs.length ? 'text-danger-600 font-semibold' : 'text-gray-400'"
+          >({{ unallocatedDocs.length }})</span>
         </button>
       </div>
 
-      <!-- Property rows -->
-      <div
-        v-for="p in local.properties"
-        :key="p.id"
-        class="card p-4 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors"
-        @click="$router.push(`/properties/${p.id}`)"
-      >
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-lg bg-navy/5 flex items-center justify-center">
-            <Home :size="16" class="text-navy" />
-          </div>
-          <div>
-            <div class="font-medium text-sm text-gray-900">{{ p.name }}</div>
-            <div class="text-xs text-gray-400">Property</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            class="text-xs text-red-500 hover:underline"
-            @click.stop="unlinkProperty(p.ownership_id, p.id)"
-          >
-            Unlink
-          </button>
-          <ChevronRight :size="16" class="text-gray-300" />
-        </div>
-      </div>
-
-      <!-- Link property modal -->
-      <BaseModal :open="showLinkModal" title="Link Property" @close="showLinkModal = false; propertySearch = ''">
-        <div class="space-y-3">
-          <div>
-            <label class="label">Search properties</label>
-            <input v-model="propertySearch" class="input" placeholder="Type to filter…" />
-          </div>
-          <div class="max-h-60 overflow-y-auto space-y-1.5 border border-gray-100 rounded-xl p-2">
-            <div v-if="!filteredUnlinkedProperties.length" class="text-xs text-gray-400 text-center py-3">
-              No available properties found.
-            </div>
-            <button
-              v-for="p in filteredUnlinkedProperties"
-              :key="p.id"
-              class="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors text-sm"
-              :class="selectedPropertyId === p.id ? 'bg-navy text-white' : 'hover:bg-gray-50 text-gray-700'"
-              @click="selectedPropertyId = p.id"
-            >
-              <Home :size="14" :class="selectedPropertyId === p.id ? 'text-white' : 'text-gray-400'" />
-              {{ p.name }}
-            </button>
-          </div>
-          <div class="flex justify-end gap-2 pt-1">
-            <button class="btn-ghost text-sm" @click="showLinkModal = false; selectedPropertyId = null; propertySearch = ''">Cancel</button>
-            <button class="btn-primary text-sm" :disabled="!selectedPropertyId || linkingProperty" @click="linkProperty">
-              <Loader2 v-if="linkingProperty" :size="14" class="animate-spin" />
-              Link Property
-            </button>
-          </div>
-        </div>
-      </BaseModal>
-    </div>
-
-    <!-- ── Tab: FICA / CIPC Classification ── -->
-    <div v-else-if="activeTab === 'classification'" class="space-y-5 pt-6">
-
-      <!-- Document upload area -->
-      <div class="card p-5">
+      <!-- ── Sub-tab: Unclassified — upload + raw file list ── -->
+      <div v-if="docsSubTab === 'unclassified'" class="card p-5">
         <div class="flex items-center justify-between mb-3">
           <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
-            <FileUp :size="13" /> Owner Documents
+            <FileUp :size="13" /> Unclassified documents
           </div>
-          <span class="text-xs text-gray-400">{{ ficaDocs.length }} file{{ ficaDocs.length !== 1 ? 's' : '' }} uploaded</span>
+          <div class="flex items-center gap-2">
+            <button
+              v-if="unallocatedDocs.length"
+              type="button"
+              class="btn-ghost btn-xs"
+              :disabled="downloadingUnclassified"
+              @click="downloadAllUnclassified"
+            >
+              <Loader2 v-if="downloadingUnclassified" :size="11" class="animate-spin" />
+              <Download v-else :size="11" />
+              {{ downloadingUnclassified ? 'Downloading…' : 'Download all' }}
+            </button>
+            <span class="text-xs text-gray-400">
+              {{ unallocatedDocs.length }} of {{ ficaDocs.length }} file{{ ficaDocs.length !== 1 ? 's' : '' }}
+            </span>
+          </div>
         </div>
 
         <!-- Drag & drop zone -->
@@ -426,24 +438,28 @@
           <input type="file" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.docx" @change="uploadFicaDocs" />
         </label>
 
-        <!-- Uploaded files list -->
-        <div v-if="ficaDocs.length" class="space-y-1.5">
+        <!-- Unclassified files list — docs the classifier hasn't slotted into a category -->
+        <div v-if="unallocatedDocs.length" class="space-y-1">
           <div
-            v-for="doc in ficaDocs" :key="doc.id"
-            class="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-gray-50 border border-gray-100 group"
+            v-for="doc in unallocatedDocs" :key="doc.id"
+            class="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-gray-50 border border-gray-100 group"
           >
-            <FileText :size="14" class="text-gray-400 flex-shrink-0" />
-            <span class="text-sm text-gray-700 flex-1 truncate">{{ doc.filename }}</span>
-            <a :href="doc.file_url" target="_blank" class="p-1 rounded text-gray-300 hover:text-navy transition-colors" aria-label="View file">
-              <Eye :size="13" />
+            <FileText :size="13" class="text-gray-400 flex-shrink-0" />
+            <span class="text-xs text-gray-700 flex-1 truncate">{{ doc.filename }}</span>
+            <a :href="doc.file_url" target="_blank" class="p-0.5 rounded text-gray-300 hover:text-navy transition-colors" aria-label="View file">
+              <Eye :size="12" />
             </a>
-            <button class="p-1 rounded text-gray-300 hover:text-danger-500 transition-colors" aria-label="Delete file" @click="deleteFicaDoc(doc)">
-              <X :size="13" />
+            <button class="p-0.5 rounded text-gray-300 hover:text-danger-500 transition-colors" aria-label="Delete file" @click="deleteFicaDoc(doc)">
+              <X :size="12" />
             </button>
           </div>
         </div>
+        <p v-else-if="ficaDocs.length" class="text-xs text-gray-400 text-center py-1">All uploads classified — switch to the Classified tab to review.</p>
         <p v-else class="text-xs text-gray-400 text-center py-1">No documents uploaded yet.</p>
       </div>
+
+      <!-- ── Sub-tab: Classified — classification results + category cards ── -->
+      <template v-if="docsSubTab === 'classified'">
 
       <!-- Classifier instructions + JSON upload -->
       <div class="card p-5">
@@ -467,10 +483,6 @@
               <Sparkles v-else :size="13" />
               {{ classifying ? 'Classifying…' : 'Run AI Classifier' }}
             </button>
-            <label class="btn-ghost btn-sm cursor-pointer flex items-center gap-1.5">
-              <Upload :size="13" /> JSON
-              <input type="file" accept=".json" class="hidden" @change="uploadClassification" />
-            </label>
           </div>
         </div>
         <p v-if="classifyError" class="text-xs text-danger-600 mt-2 flex items-center gap-1">
@@ -488,83 +500,108 @@
           <h3 class="text-sm font-semibold text-gray-900">{{ local.classification_data.entity_type }} — {{ local.classification_data.entity_subtype || local.classification_data.entity_type }}</h3>
           <p class="text-xs text-gray-400 mt-0.5">
             Classified {{ local.classification_data.classified_at ? new Date(local.classification_data.classified_at).toLocaleDateString('en-ZA') : 'unknown date' }}
-            <span v-if="local.classification_data.owned_by_trust" class="ml-2 badge-purple text-[10px]">Trust-owned</span>
+            <span v-if="local.classification_data.owned_by_trust" class="ml-2 badge-purple text-xs">Trust-owned</span>
           </p>
         </div>
 
-        <!-- FICA card -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-4">
+        <!-- Category cards: CIPC / Directors / Banking / FICA / Property -->
+        <div
+          v-for="catKey in (['cipc','directors','banking','fica','property'] as const)"
+          :key="catKey"
+          class="card p-4"
+        >
+          <div class="flex items-center justify-between mb-2">
             <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
-              <ShieldCheck :size="13" /> FICA Status
+              <component :is="_DOC_CATEGORY_META[catKey].icon" :size="13" />
+              {{ _DOC_CATEGORY_META[catKey].label }}
             </div>
-            <span :class="statusBadge(local.classification_data.fica?.status)">{{ local.classification_data.fica?.status ?? '—' }}</span>
+            <span class="text-xs text-gray-400">
+              {{ expectedDocs[catKey].filter((e) => isExpectedSatisfied(e, docsGroupedByCategory[catKey])).length }}/{{ expectedDocs[catKey].length }}
+              <span v-if="extrasInCategory(catKey).length" class="ml-1">· +{{ extrasInCategory(catKey).length }}</span>
+            </span>
           </div>
 
-          <!-- Found docs -->
-          <div v-if="local.classification_data.fica?.documents?.length" class="space-y-2 mb-3">
-            <div v-for="doc in local.classification_data.fica.documents" :key="doc.filename"
-                 class="flex items-start gap-2 text-sm text-gray-700">
-              <CheckCircle2 :size="15" class="text-success-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span class="font-medium">{{ doc.type }}</span>
-                <span class="text-gray-400 ml-1">— {{ doc.filename }}</span>
-                <div v-if="doc.extracted?.full_name" class="text-xs text-gray-500">{{ doc.extracted.full_name }}</div>
+          <!-- Expected checklist — label on left, filename chip on right -->
+          <div v-if="expectedDocs[catKey].length" class="space-y-0.5">
+            <template v-for="exp in expectedDocs[catKey]" :key="`${catKey}-${exp.key}-${exp.label}`">
+              <div
+                class="flex items-center gap-2 text-xs py-0.5"
+                :class="isExpectedSatisfied(exp, docsGroupedByCategory[catKey]) ? 'text-gray-700' : 'text-danger-600'"
+              >
+                <CheckCircle2
+                  v-if="isExpectedSatisfied(exp, docsGroupedByCategory[catKey])"
+                  :size="13" class="text-success-600 flex-shrink-0"
+                />
+                <XCircle v-else :size="13" class="flex-shrink-0" />
+                <span class="font-medium flex-1 min-w-0 truncate" :title="exp.label">{{ exp.label }}</span>
+                <a
+                  v-if="isExpectedSatisfied(exp, docsGroupedByCategory[catKey])"
+                  :href="fileUrlForDoc(isExpectedSatisfied(exp, docsGroupedByCategory[catKey]))"
+                  target="_blank"
+                  class="inline-flex items-center gap-1 max-w-[55%] rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-micro text-gray-600 no-underline transition-colors"
+                  :title="isExpectedSatisfied(exp, docsGroupedByCategory[catKey])?.filename"
+                >
+                  <FileText :size="11" class="text-gray-400 flex-shrink-0" />
+                  <span class="truncate">{{ isExpectedSatisfied(exp, docsGroupedByCategory[catKey])?.filename }}</span>
+                </a>
+                <button
+                  v-else
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-md border border-danger-200 bg-danger-50 hover:bg-danger-100 px-2 py-0.5 text-micro text-danger-700 hover:text-danger-800 transition-colors flex-shrink-0"
+                  :disabled="uploadingDocs || classifying"
+                  :title="`Upload ${exp.label}`"
+                  @click="pickFileForExpected(exp)"
+                >
+                  <Upload :size="11" />
+                  <span>{{ uploadingDocs && pendingDocType === exp.key ? 'Uploading…' : 'Upload' }}</span>
+                </button>
               </div>
+            </template>
+          </div>
+
+          <!-- Extras — classified docs in this category beyond the expected list -->
+          <div v-if="extrasInCategory(catKey).length" class="mt-2 pt-2 border-t border-gray-100 space-y-0.5">
+            <div
+              v-for="doc in extrasInCategory(catKey)"
+              :key="`${catKey}-extra-${doc.filename}`"
+              class="flex items-center gap-2 text-xs text-gray-700 py-0.5"
+            >
+              <FileText :size="12" class="text-gray-400 flex-shrink-0" />
+              <span class="font-medium flex-1 min-w-0 truncate">{{ doc.rawType || 'Unclassified' }}</span>
+              <a
+                :href="fileUrlForDoc(doc)"
+                target="_blank"
+                class="inline-flex items-center gap-1 max-w-[55%] rounded-md bg-gray-100 hover:bg-gray-200 px-2 py-0.5 text-micro text-gray-600 no-underline transition-colors"
+                :title="doc.filename"
+              >
+                <FileText :size="11" class="text-gray-400 flex-shrink-0" />
+                <span class="truncate">{{ doc.filename }}</span>
+              </a>
             </div>
           </div>
 
-          <!-- Missing docs -->
-          <div v-if="local.classification_data.fica?.missing?.length" class="space-y-1.5 mb-3">
-            <div v-for="m in local.classification_data.fica.missing" :key="m"
-                 class="flex items-center gap-2 text-sm text-danger-600">
-              <XCircle :size="15" class="flex-shrink-0" />
-              <span>{{ m }}</span>
-            </div>
-          </div>
-
-          <!-- Flags -->
-          <div v-if="local.classification_data.fica?.flags?.length" class="space-y-1.5">
-            <div v-for="f in local.classification_data.fica.flags" :key="f"
-                 class="flex items-start gap-2 text-xs text-warning-600 bg-warning-50 rounded-lg px-3 py-2">
-              <AlertTriangle :size="13" class="flex-shrink-0 mt-0.5" />
-              <span>{{ f }}</span>
-            </div>
-          </div>
+          <p
+            v-if="!expectedDocs[catKey].length && !extrasInCategory(catKey).length"
+            class="text-xs text-gray-400"
+          >
+            Nothing required for this entity type.
+          </p>
         </div>
 
-        <!-- CIPC card -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-4">
-            <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
-              <Building2 :size="13" /> CIPC Status
-            </div>
-            <span :class="statusBadge(local.classification_data.cipc?.status)">{{ local.classification_data.cipc?.status ?? '—' }}</span>
+        <!-- Flags rolled up from both buckets -->
+        <div
+          v-if="(local.classification_data.fica?.flags?.length || local.classification_data.cipc?.flags?.length)"
+          class="card p-5"
+        >
+          <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5 mb-3">
+            <AlertTriangle :size="13" /> Flags &amp; notes
           </div>
-
-          <div v-if="local.classification_data.cipc?.documents?.length" class="space-y-2 mb-3">
-            <div v-for="doc in local.classification_data.cipc.documents" :key="doc.filename"
-                 class="flex items-start gap-2 text-sm text-gray-700">
-              <CheckCircle2 :size="15" class="text-success-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span class="font-medium">{{ doc.type }}</span>
-                <span class="text-gray-400 ml-1">— {{ doc.filename }}</span>
-                <div v-if="doc.extracted?.registration_number" class="text-xs text-gray-500 font-mono">{{ doc.extracted.registration_number }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div v-if="local.classification_data.cipc?.missing?.length" class="space-y-1.5 mb-3">
-            <div v-for="m in local.classification_data.cipc.missing" :key="m"
-                 class="flex items-center gap-2 text-sm text-danger-600">
-              <XCircle :size="15" class="flex-shrink-0" />
-              <span>{{ m }}</span>
-            </div>
-          </div>
-
-          <div v-if="local.classification_data.cipc?.flags?.length" class="space-y-1.5">
-            <div v-for="f in local.classification_data.cipc.flags" :key="f"
-                 class="flex items-start gap-2 text-xs text-warning-600 bg-warning-50 rounded-lg px-3 py-2">
+          <div class="space-y-1.5">
+            <div
+              v-for="f in [...(local.classification_data.fica?.flags || []), ...(local.classification_data.cipc?.flags || [])]"
+              :key="f"
+              class="flex items-start gap-2 text-xs text-warning-700 bg-warning-50 rounded-lg px-3 py-2"
+            >
               <AlertTriangle :size="13" class="flex-shrink-0 mt-0.5" />
               <span>{{ f }}</span>
             </div>
@@ -606,9 +643,9 @@
                   <div class="text-xs font-mono text-gray-400">{{ person.id_number }}</div>
                 </div>
                 <div class="flex items-center gap-1.5 flex-wrap justify-end">
-                  <span v-if="person.joint_flag" class="badge-amber text-[10px]">Joint</span>
-                  <span v-if="person.fica_documents_found?.length" class="badge-green text-[10px]">ID found</span>
-                  <span v-else class="badge-red text-[10px]">ID missing</span>
+                  <span v-if="person.joint_flag" class="badge-amber text-xs">Joint</span>
+                  <span v-if="person.fica_documents_found?.length" class="badge-green text-xs">ID found</span>
+                  <span v-else class="badge-red text-xs">ID missing</span>
                 </div>
               </div>
               <!-- Roles -->
@@ -632,6 +669,7 @@
           </div>
         </div>
       </template>
+      </template>
     </div>
 
     <!-- ── Tab: Onboarding Assistant (AI chat) ── -->
@@ -642,311 +680,6 @@
       />
     </div>
 
-    <!-- ── Tab: Registration Documents ── -->
-    <div v-else-if="activeTab === 'document'" class="max-w-3xl space-y-4 pt-6">
-
-      <!-- Upload area — multiple files -->
-      <div class="card p-5">
-        <div class="flex items-center justify-between mb-3">
-          <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
-            <FileUp :size="13" /> Registration Documents
-          </div>
-          <span class="text-xs text-gray-400">{{ ficaDocs.length }} file{{ ficaDocs.length !== 1 ? 's' : '' }}</span>
-        </div>
-
-        <p class="text-sm text-gray-500 mb-4">
-          Upload CIPC certificates, trust deeds, ID documents, or any registration paperwork for this
-          {{ entityLabel }}.
-        </p>
-
-        <!-- Drag & drop — multi-file -->
-        <label
-          class="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-xl cursor-pointer transition-colors mb-3"
-          :class="uploadingDocs ? 'border-navy/30 bg-navy/5' : 'border-gray-200 hover:border-navy/40 hover:bg-gray-50'"
-        >
-          <div class="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
-            <Upload :size="18" class="text-gray-400" />
-          </div>
-          <div class="text-center">
-            <span class="text-sm font-medium text-gray-700">Drop documents here or click to browse</span>
-            <p class="text-xs text-gray-400 mt-0.5">PDF, JPG, PNG, DOCX — multiple files supported</p>
-          </div>
-          <Loader2 v-if="uploadingDocs" :size="16" class="animate-spin text-navy" />
-          <input type="file" class="hidden" multiple accept=".pdf,.jpg,.jpeg,.png,.docx" @change="uploadFicaDocs" />
-        </label>
-
-        <!-- File list -->
-        <div v-if="ficaDocs.length" class="space-y-1.5">
-          <div
-            v-for="doc in ficaDocs" :key="doc.id"
-            class="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-100 group"
-          >
-            <FileText :size="14" class="text-gray-400 flex-shrink-0" />
-            <span class="text-sm text-gray-700 flex-1 truncate">{{ doc.filename }}</span>
-            <span class="text-[10px] text-gray-400">{{ formatDate(doc.uploaded_at) }}</span>
-            <a :href="doc.file_url" target="_blank" class="p-1 rounded text-gray-300 hover:text-navy transition-colors" title="View">
-              <Eye :size="13" />
-            </a>
-            <a :href="doc.file_url" download class="p-1 rounded text-gray-300 hover:text-navy transition-colors" title="Download">
-              <Download :size="13" />
-            </a>
-            <button class="p-1 rounded text-gray-300 hover:text-danger-500 transition-colors" title="Remove" @click="deleteFicaDoc(doc)">
-              <X :size="13" />
-            </button>
-          </div>
-        </div>
-        <p v-else class="text-xs text-gray-400 text-center py-1">No documents uploaded yet.</p>
-      </div>
-
-      <!-- Expected documents reference -->
-      <div class="card p-5">
-        <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5 mb-3">
-          <FileText :size="13" /> Expected Documents
-        </div>
-        <div class="grid grid-cols-2 gap-4">
-          <!-- FICA column -->
-          <div>
-            <div class="text-xs font-semibold text-gray-600 mb-2">FICA (KYC)</div>
-            <ul class="space-y-1.5 text-xs text-gray-600">
-              <li class="flex items-start gap-1.5">
-                <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                Certified ID copies of all directors / members / trustees
-              </li>
-              <li class="flex items-start gap-1.5">
-                <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                Proof of Address (utility bill, municipal, bank statement — &lt;3 months old)
-              </li>
-              <li class="flex items-start gap-1.5">
-                <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                Bank Confirmation Letter
-              </li>
-              <li class="flex items-start gap-1.5">
-                <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                SARS Tax Clearance Certificate
-              </li>
-              <li class="flex items-start gap-1.5">
-                <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                VAT Registration Certificate (if VAT registered)
-              </li>
-            </ul>
-          </div>
-          <!-- CIPC / Entity column -->
-          <div>
-            <div class="text-xs font-semibold text-gray-600 mb-2">CIPC / Entity Registration</div>
-            <ul class="space-y-1.5 text-xs text-gray-600">
-              <!-- Company / Pty Ltd -->
-              <template v-if="local.landlord_type === 'company'">
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR14.3 — Notice of Incorporation
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR15.1A/B — Memorandum of Incorporation (MOI)
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR21.1 — Registration Certificate
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR39 — Registered Office / Director Register
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR30.1 — Annual Return
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Board Resolution (authorising the transaction)
-                </li>
-              </template>
-              <!-- CC -->
-              <template v-else-if="local.landlord_type === 'cc'">
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CK1 — Founding Statement
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CK2 / CK2A — Amended Founding Statement
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  CoR30.1 — Annual Return
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Member interests schedule (% ownership)
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Members' Resolution (authorising the transaction)
-                </li>
-              </template>
-              <!-- Trust -->
-              <template v-else-if="local.landlord_type === 'trust'">
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Trust Deed / Deed of Trust
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  J101 — Letters of Authority (Master of the High Court)
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  J401 — Appointment of Trustees
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Trustee Resolution (authorising the transaction)
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Beneficial Ownership Register (required since 1 Apr 2023)
-                </li>
-              </template>
-              <!-- Partnership -->
-              <template v-else-if="local.landlord_type === 'partnership'">
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Partnership Agreement (signed by all partners)
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  Letter from senior partner confirming partnership
-                </li>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  IDs of all partners (25%+ profit share)
-                </li>
-              </template>
-              <!-- Individual -->
-              <template v-else>
-                <li class="flex items-start gap-1.5">
-                  <span class="w-1 h-1 rounded-full bg-navy mt-1.5 flex-shrink-0" />
-                  SA Identity Document (Smart ID / Green ID / Passport)
-                </li>
-              </template>
-              <!-- Trust-owned add-on -->
-              <template v-if="local.owned_by_trust && (local.landlord_type === 'company' || local.landlord_type === 'cc')">
-                <li class="flex items-start gap-1.5 text-purple-700 mt-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-purple-500 mt-1 flex-shrink-0" />
-                  <strong>Owning Trust:</strong>
-                </li>
-                <li class="flex items-start gap-1.5 text-purple-700">
-                  <span class="w-1 h-1 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />
-                  Trust Deed (owning trust)
-                </li>
-                <li class="flex items-start gap-1.5 text-purple-700">
-                  <span class="w-1 h-1 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />
-                  J101 — Letters of Authority (owning trust)
-                </li>
-                <li class="flex items-start gap-1.5 text-purple-700">
-                  <span class="w-1 h-1 rounded-full bg-purple-500 mt-1.5 flex-shrink-0" />
-                  Certified IDs of all trustees
-                </li>
-              </template>
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- AI Classify section -->
-      <div class="card p-5">
-        <div class="flex items-center justify-between">
-          <div>
-            <div class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5 mb-1">
-              <Sparkles :size="13" /> AI Classification
-            </div>
-            <p class="text-xs text-gray-500">
-              Reads all uploaded documents with AI — extracts entity type, registration number, directors, and auto-fills the owner record.
-            </p>
-          </div>
-          <button
-            class="btn-primary btn-sm flex items-center gap-1.5 flex-shrink-0 ml-4"
-            :disabled="classifyingReg || !ficaDocs.length"
-            @click="runRegClassifier"
-          >
-            <Loader2 v-if="classifyingReg" :size="13" class="animate-spin" />
-            <Sparkles v-else :size="13" />
-            {{ classifyingReg ? 'Classifying…' : 'Classify Documents' }}
-          </button>
-        </div>
-        <p v-if="classifyRegError" class="text-xs text-danger-600 mt-2 flex items-center gap-1">
-          <AlertTriangle :size="12" /> {{ classifyRegError }}
-        </p>
-
-        <!-- Extracted data summary (after classification) -->
-        <div v-if="regClassification" class="mt-4 border-t border-gray-100 pt-4 space-y-3">
-          <div class="flex items-center gap-2 mb-2">
-            <span class="badge-green text-xs">Classified</span>
-            <span class="text-xs text-gray-400">{{ regClassification.entity_type }} {{ regClassification.entity_subtype ? '— ' + regClassification.entity_subtype : '' }}</span>
-          </div>
-
-          <!-- Extracted fields -->
-          <div v-if="regClassification.extracted_data" class="grid grid-cols-2 gap-3 text-sm">
-            <div v-if="regClassification.extracted_data.company_name">
-              <span class="text-gray-400 text-xs">Company name</span>
-              <div class="text-gray-800 font-medium">{{ regClassification.extracted_data.company_name }}</div>
-            </div>
-            <div v-if="regClassification.extracted_data.registration_number">
-              <span class="text-gray-400 text-xs">Registration no.</span>
-              <div class="text-gray-800 font-mono">{{ regClassification.extracted_data.registration_number }}</div>
-            </div>
-            <div v-if="regClassification.extracted_data.vat_number">
-              <span class="text-gray-400 text-xs">VAT number</span>
-              <div class="text-gray-800 font-mono">{{ regClassification.extracted_data.vat_number }}</div>
-            </div>
-            <div v-if="regClassification.extracted_data.tax_number">
-              <span class="text-gray-400 text-xs">Tax number</span>
-              <div class="text-gray-800 font-mono">{{ regClassification.extracted_data.tax_number }}</div>
-            </div>
-            <div v-if="regClassification.extracted_data.address" class="col-span-2">
-              <span class="text-gray-400 text-xs">Address</span>
-              <div class="text-gray-800">{{ regClassification.extracted_data.address }}</div>
-            </div>
-          </div>
-
-          <!-- Directors / Members -->
-          <div v-if="regClassification.extracted_data?.directors?.length">
-            <div class="text-xs text-gray-400 mb-1.5">Directors / Members</div>
-            <div class="flex flex-wrap gap-1.5">
-              <span v-for="d in regClassification.extracted_data.directors" :key="d.id_number || d.name || d"
-                    class="text-xs px-2 py-0.5 bg-navy/5 text-navy rounded-full">
-                {{ typeof d === 'string' ? d : (d.name || d.full_name) }}
-                <span v-if="d.id_number" class="text-gray-400 ml-1 font-mono">{{ d.id_number }}</span>
-              </span>
-            </div>
-          </div>
-
-          <!-- CIPC docs found/missing -->
-          <div v-if="regClassification.cipc" class="flex items-center gap-3 flex-wrap">
-            <span :class="statusBadge(regClassification.cipc.status)">CIPC: {{ regClassification.cipc.status }}</span>
-            <span v-if="regClassification.cipc.missing?.length" class="text-xs text-danger-600">
-              Missing: {{ regClassification.cipc.missing.join(', ') }}
-            </span>
-          </div>
-
-          <!-- Flags -->
-          <div v-if="regClassification.cipc?.flags?.length" class="space-y-1">
-            <div v-for="f in regClassification.cipc.flags" :key="f"
-                 class="flex items-start gap-2 text-xs text-warning-600 bg-warning-50 rounded-lg px-3 py-2">
-              <AlertTriangle :size="12" class="flex-shrink-0 mt-0.5" />
-              <span>{{ f }}</span>
-            </div>
-          </div>
-
-          <!-- Auto-filled fields -->
-          <div v-if="regPatchedFields.length" class="pt-2 border-t border-gray-100">
-            <p class="text-xs text-success-600 flex items-center gap-1">
-              <CheckCircle2 :size="12" /> Auto-filled: {{ regPatchedFields.join(', ') }}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- Confirm: delete landlord -->
     <ConfirmDialog
@@ -983,6 +716,7 @@ import {
 } from 'lucide-vue-next'
 import api from '../../api'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import { useToast } from '../../composables/useToast'
@@ -1004,11 +738,21 @@ const loading = ref(false)
 const saving = ref(false)
 const menuOpen = ref(false)
 const menuRef = ref<HTMLElement>()
-const VALID_TABS = ['details', 'bank', 'properties', 'document', 'classification', 'assistant'] as const
+const VALID_TABS = ['details', 'bank', 'documents', 'assistant'] as const
+// Back-compat redirect — old tab keys route to the merged "documents" tab,
+// or (for the removed "properties" tab) back to Details.
+const _LEGACY_TAB_REDIRECTS: Record<string, (typeof VALID_TABS)[number]> = {
+  document: 'documents',
+  classification: 'documents',
+  properties: 'details',
+}
 type TabKey = typeof VALID_TABS[number]
-const activeTab = ref<TabKey>(
-  VALID_TABS.includes(route.query.tab as TabKey) ? (route.query.tab as TabKey) : 'details'
-)
+function _resolveTab(raw: unknown): TabKey {
+  const s = String(raw ?? '')
+  if (_LEGACY_TAB_REDIRECTS[s]) return _LEGACY_TAB_REDIRECTS[s]
+  return (VALID_TABS as readonly string[]).includes(s) ? (s as TabKey) : 'details'
+}
+const activeTab = ref<TabKey>(_resolveTab(route.query.tab))
 
 function setTab(key: TabKey) {
   activeTab.value = key
@@ -1016,12 +760,22 @@ function setTab(key: TabKey) {
 }
 
 watch(() => route.query.tab, (t) => {
-  if (VALID_TABS.includes(t as TabKey)) activeTab.value = t as TabKey
+  activeTab.value = _resolveTab(t)
 })
 const ficaDocs = ref<any[]>([])
 const uploadingDocs = ref(false)
 const classifying = ref(false)
 const classifyError = ref('')
+// Sub-tab under Documents: "classified" shows the category cards +
+// classification results; "unclassified" shows the raw upload + list of
+// docs the classifier hasn't slotted yet. Default to whichever side has
+// something to do: if there are unclassified uploads, land there.
+const docsSubTab = ref<'classified' | 'unclassified'>('classified')
+// When the user clicks "Upload" next to a specific expected doc, we record
+// which slot they're filling so the file picker opens in targeted mode and
+// the upload button shows the right spinner.
+const pendingDocType = ref<string | null>(null)
+const targetedFileInput = ref<HTMLInputElement | null>(null)
 
 // Properties tab
 const allProperties = ref<any[]>([])
@@ -1029,13 +783,6 @@ const propertySearch = ref('')
 const linkingProperty = ref(false)
 const showLinkModal = ref(false)
 const selectedPropertyId = ref<number | null>(null)
-
-// CIPC tab classifier (shares document storage with FICA tab — backend has only
-// one `landlord.documents` collection, so both tabs read/write the same list).
-const classifyingReg = ref(false)
-const classifyRegError = ref('')
-const regClassification = ref<any>(null)
-const regPatchedFields = ref<string[]>([])
 
 // Confirm-dialog state
 const confirmDeleteOpen = ref(false)
@@ -1057,11 +804,309 @@ const entityLabel = computed(() => {
 const tabs = [
   { key: 'details', label: 'Details', icon: FileText },
   { key: 'bank', label: 'Bank Accounts', icon: Landmark },
-  { key: 'properties', label: 'Properties', icon: Home },
-  { key: 'document', label: 'CIPC', icon: FileUp },
-  { key: 'classification', label: 'FICA', icon: ShieldCheck },
+  { key: 'documents', label: 'Documents', icon: FileUp },
   { key: 'assistant', label: 'Assistant', icon: Sparkles },
 ]
+
+// ── Document category taxonomy ────────────────────────────────────────
+// Five buckets the user sees on the Documents tab. Each uploaded +
+// classified document gets sorted into one; each category lists the
+// docs *expected* for this entity type plus any extras we found.
+
+type DocCategoryKey = 'cipc' | 'directors' | 'banking' | 'fica' | 'property'
+
+const _DOC_CATEGORY_META: Record<DocCategoryKey, { label: string; icon: any; blurb: string }> = {
+  cipc:      { label: 'CIPC / Entity',  icon: Building2,  blurb: 'Company / trust / CC registration & governance.' },
+  directors: { label: 'Directors & IDs', icon: Users,     blurb: 'Identity documents for every signatory (director, trustee, member).' },
+  banking:   { label: 'Banking',        icon: Landmark,   blurb: 'Bank confirmation letter on bank letterhead.' },
+  fica:      { label: 'FICA / Tax',     icon: ShieldCheck, blurb: 'Proof of address, SARS tax certificate, VAT registration.' },
+  property:  { label: 'Property',       icon: Home,       blurb: 'Title deed or proof of ownership.' },
+}
+
+// Client-side canonicalisation — mirror of backend gap_analysis._norm_type.
+// Classifier types come through as human labels or snake_case; collapse
+// them to the same canonical keys the backend uses.
+const _DOC_TYPE_ALIASES: Record<string, string> = {
+  cor15_1a: 'moi', cor15_1b: 'moi', cor15: 'moi',
+  memorandum_of_incorporation: 'moi', moi_cor15_1a: 'moi',
+  bank_confirmation_letter: 'bank_confirmation',
+  bank_letter: 'bank_confirmation',
+  bank_reference_letter: 'bank_confirmation',
+  municipal_account: 'proof_of_address',
+  municipal_bill: 'proof_of_address',
+  utility_bill: 'proof_of_address',
+  proof_of_residence: 'proof_of_address',
+  bank_statement: 'proof_of_address',
+  rates_bill: 'proof_of_address',
+  sars_tax_certificate: 'tax_certificate',
+  tax_clearance_certificate: 'tax_certificate',
+  sars_notice_of_registration: 'tax_certificate',
+  vat_registration_certificate: 'vat_certificate',
+  vat_registration: 'vat_certificate',
+  deed_of_transfer: 'title_deed',
+  registration_certificate: 'cor14_3', cor_14_3: 'cor14_3',
+  director_notice: 'cor39', cor_39: 'cor39',
+  ck_1: 'ck1', founding_statement: 'ck1',
+  deed_of_trust: 'trust_deed',
+  letter_of_authority: 'letters_of_authority', loa: 'letters_of_authority',
+  identity_document: 'sa_id', id_document: 'sa_id',
+  id_book: 'sa_id', id_card: 'sa_id',
+  smart_id: 'sa_id', green_id: 'sa_id', green_id_book: 'sa_id',
+  driver_licence: 'drivers_licence', drivers_license: 'drivers_licence',
+}
+
+function normDocType(raw: string | undefined | null): string {
+  if (!raw) return ''
+  let s = String(raw).toLowerCase()
+  for (const ch of ['.', '-', ' ', '/', '(', ')', ',']) s = s.split(ch).join('_')
+  while (s.includes('__')) s = s.split('__').join('_')
+  s = s.replace(/^_+|_+$/g, '')
+  return _DOC_TYPE_ALIASES[s] || s
+}
+
+// Category mapping for a canonical doc type. Anything unknown lands in CIPC
+// (safest default — agents are already used to seeing extras there).
+const _CATEGORY_BY_TYPE: Record<string, DocCategoryKey> = {
+  // CIPC / entity
+  cor14_3: 'cipc', moi: 'cipc', cor39: 'cipc', cor21: 'cipc', cor123: 'cipc',
+  cor30_1: 'cipc', cor40: 'cipc',
+  ck1: 'cipc', ck2: 'cipc', ck2a: 'cipc',
+  trust_deed: 'cipc', letters_of_authority: 'cipc',
+  partnership_agreement: 'cipc', beneficial_ownership_register: 'cipc',
+  disclosure_certificate_cipc: 'cipc', share_certificate: 'cipc',
+  securities_register: 'cipc', disclosure_structure: 'cipc',
+  resolution: 'cipc', board_resolution: 'cipc',
+  // Directors / people
+  sa_id: 'directors', passport: 'directors', drivers_licence: 'directors',
+  // Banking
+  bank_confirmation: 'banking',
+  // FICA / tax
+  proof_of_address: 'fica', tax_certificate: 'fica', vat_certificate: 'fica',
+  // Property
+  title_deed: 'property',
+}
+
+function categoryForType(raw: string | undefined | null): DocCategoryKey {
+  return _CATEGORY_BY_TYPE[normDocType(raw)] || 'cipc'
+}
+
+// Identity-doc synonyms — any of these satisfies the "SA ID" requirement.
+const _IDENTITY_SYNONYMS = new Set(['sa_id', 'passport', 'drivers_licence'])
+
+interface ExpectedDoc {
+  key: string
+  label: string
+  satisfiedBy?: string[]
+  // Per-property title deeds are pre-resolved against PropertyDocument
+  // records on the backend; when `preSatisfied` is set, the expected row
+  // skips the classifier-docs lookup and trusts this flag directly.
+  preSatisfied?: boolean
+  propertyId?: number
+}
+
+function expectedDocsByCategory(entityType: string, ownedByTrust: boolean): Record<DocCategoryKey, ExpectedDoc[]> {
+  const cipc: ExpectedDoc[] = []
+  if (entityType === 'company') {
+    cipc.push(
+      { key: 'cor14_3', label: 'CoR14.3 — Notice of Incorporation' },
+      { key: 'moi', label: 'CoR15.1A/B — Memorandum of Incorporation (MOI)' },
+      { key: 'cor39', label: 'CoR39 — Directors' },
+      { key: 'cor21', label: 'CoR21.1 — Registered Office' },
+    )
+  } else if (entityType === 'cc') {
+    cipc.push({ key: 'ck1', label: 'CK1 — Founding Statement' })
+  } else if (entityType === 'trust') {
+    cipc.push(
+      { key: 'trust_deed', label: 'Trust Deed' },
+      { key: 'letters_of_authority', label: 'J101 — Letters of Authority' },
+    )
+  } else if (entityType === 'partnership') {
+    cipc.push({ key: 'partnership_agreement', label: 'Partnership Agreement' })
+  }
+  if (ownedByTrust && (entityType === 'company' || entityType === 'cc')) {
+    cipc.push(
+      { key: 'trust_deed', label: 'Owning-trust: Trust Deed' },
+      { key: 'letters_of_authority', label: 'Owning-trust: Letters of Authority' },
+    )
+  }
+
+  const directors: ExpectedDoc[] = [
+    { key: 'sa_id', label: 'ID for every signatory (SA ID, passport, or driver\'s licence)',
+      satisfiedBy: ['sa_id', 'passport', 'drivers_licence'] },
+  ]
+  const banking: ExpectedDoc[] = [
+    { key: 'bank_confirmation', label: 'Bank Confirmation Letter (on letterhead)' },
+  ]
+  const fica: ExpectedDoc[] = [
+    { key: 'proof_of_address', label: 'Proof of Address (< 3 months old)' },
+    { key: 'tax_certificate', label: 'SARS Tax Certificate / Notice of Registration' },
+    { key: 'vat_certificate', label: 'VAT Registration Certificate (if VAT-registered)' },
+  ]
+  // Title deeds live on the property, not the landlord. The per-property
+  // list is injected by the `expectedDocs` computed so that a landlord
+  // with N properties shows N title-deed rows, one labelled with each
+  // property's name.
+  const property: ExpectedDoc[] = []
+
+  return { cipc, directors, banking, fica, property }
+}
+
+// Each classified doc, normalised and enriched for the category cards.
+interface CategorisedDoc {
+  category: DocCategoryKey
+  rawType: string
+  canonicalType: string
+  filename: string
+  extracted: Record<string, any>
+  bucket: 'fica' | 'cipc'
+}
+
+const categorisedDocs = computed<CategorisedDoc[]>(() => {
+  const cd = (local.value as any)?.classification_data
+  if (!cd) return []
+  // Only count a classified doc as "on file" if the physical upload still
+  // exists in LandlordDocument — the classifier output can reference files
+  // that were later deleted, which would otherwise show as satisfied.
+  const uploadedNames = new Set(ficaDocs.value.map((d: any) => d.filename))
+  const out: CategorisedDoc[] = []
+  for (const bucket of ['fica', 'cipc'] as const) {
+    const docs = (cd[bucket]?.documents || []) as any[]
+    for (const d of docs) {
+      const filename = String(d?.filename || '')
+      if (!filename || !uploadedNames.has(filename)) continue
+      const rawType = String(d?.type || '')
+      const canonical = normDocType(rawType)
+      out.push({
+        category: categoryForType(rawType),
+        rawType,
+        canonicalType: canonical,
+        filename,
+        extracted: (d?.extracted || {}) as any,
+        bucket,
+      })
+    }
+  }
+  return out
+})
+
+const docsGroupedByCategory = computed(() => {
+  const groups: Record<DocCategoryKey, CategorisedDoc[]> = {
+    cipc: [], directors: [], banking: [], fica: [], property: [],
+  }
+  for (const d of categorisedDocs.value) groups[d.category].push(d)
+  return groups
+})
+
+const expectedDocs = computed(() => {
+  const base = expectedDocsByCategory(
+    (local.value?.landlord_type || 'individual') as string,
+    Boolean(local.value?.owned_by_trust),
+  )
+  // Inject one title-deed row per linked property. Each row's satisfaction
+  // is pre-resolved from the backend (has_title_deed) rather than scanned
+  // out of the classifier output — title deeds are PropertyDocuments.
+  const properties: Array<{ id: number; name: string; has_title_deed?: boolean }> =
+    (local.value?.properties || []) as any
+  base.property = properties.map((p) => ({
+    key: `title_deed_${p.id}`,
+    label: `Title Deed — ${p.name}`,
+    propertyId: p.id,
+    preSatisfied: Boolean(p.has_title_deed),
+  }))
+  return base
+})
+
+function isExpectedSatisfied(exp: ExpectedDoc, found: CategorisedDoc[]): CategorisedDoc | null {
+  // Per-property title deeds are pre-resolved via PropertyDocument. A sentinel
+  // match-like object lets the existing "satisfied" UI branch render without
+  // a classifier hit — the filename chip falls back to "On file".
+  if (exp.preSatisfied) {
+    return { category: 'property', rawType: 'title_deed', canonicalType: 'title_deed', filename: 'On file' } as CategorisedDoc
+  }
+  if (exp.propertyId) return null  // unsatisfied title-deed row
+  const keys = new Set(exp.satisfiedBy?.length ? exp.satisfiedBy : [exp.key])
+  // SA ID is satisfied by any identity synonym.
+  if (exp.key === 'sa_id') for (const s of _IDENTITY_SYNONYMS) keys.add(s)
+  const match = found.find((d) => keys.has(d.canonicalType))
+  return match || null
+}
+
+function extrasInCategory(cat: DocCategoryKey): CategorisedDoc[] {
+  const expectedKeys = new Set(expectedDocs.value[cat].flatMap((e) =>
+    e.satisfiedBy?.length ? e.satisfiedBy : [e.key],
+  ))
+  if (cat === 'directors') for (const s of _IDENTITY_SYNONYMS) expectedKeys.add(s)
+  return docsGroupedByCategory.value[cat].filter((d) => !expectedKeys.has(d.canonicalType))
+}
+
+// Files the classifier has already slotted into a category. Used to
+// hide "allocated" uploads from the unallocated-docs list.
+const allocatedFilenames = computed<Set<string>>(() => {
+  const s = new Set<string>()
+  for (const d of categorisedDocs.value) if (d.filename) s.add(d.filename)
+  return s
+})
+
+const unallocatedDocs = computed(() =>
+  ficaDocs.value.filter((d: any) => !allocatedFilenames.value.has(d.filename)),
+)
+
+// Number of required/expected docs still missing across all five categories.
+// Drives the "Documents Outstanding" indicator in the Details sidebar so the
+// user can see at a glance how close this landlord is to mandate-ready.
+const docsOutstandingCount = computed(() => {
+  const cats: DocCategoryKey[] = ['cipc', 'directors', 'banking', 'fica', 'property']
+  let missing = 0
+  for (const cat of cats) {
+    for (const exp of expectedDocs.value[cat] || []) {
+      if (!isExpectedSatisfied(exp, docsGroupedByCategory.value[cat] || [])) missing += 1
+    }
+  }
+  return missing
+})
+
+const downloadingUnclassified = ref(false)
+
+// Download every unclassified doc by fetching each as a blob and triggering an
+// anchor click. Sequential with a small delay so the browser doesn't coalesce
+// or silently drop concurrent downloads.
+async function downloadAllUnclassified(): Promise<void> {
+  if (!unallocatedDocs.value.length || downloadingUnclassified.value) return
+  downloadingUnclassified.value = true
+  try {
+    for (const doc of unallocatedDocs.value) {
+      const url = (doc as any).file_url
+      if (!url) continue
+      try {
+        const res = await fetch(url, { credentials: 'omit' })
+        if (!res.ok) continue
+        const blob = await res.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = (doc as any).filename || 'document'
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        // Let the browser commit the download before starting the next one.
+        await new Promise((r) => setTimeout(r, 250))
+        URL.revokeObjectURL(blobUrl)
+      } catch {
+        // Skip files that fail (CORS, 403, etc.) rather than aborting the batch.
+      }
+    }
+  } finally {
+    downloadingUnclassified.value = false
+  }
+}
+
+// Match a categorised doc back to its LandlordDocument to resolve a file URL
+// for the "click to view" chip in each category row.
+function fileUrlForDoc(doc: CategorisedDoc | null | undefined): string {
+  if (!doc?.filename) return '#'
+  const match = ficaDocs.value.find((d: any) => d.filename === doc.filename)
+  return match?.file_url || '#'
+}
 
 onMounted(() => initLandlord())
 
@@ -1078,11 +1123,8 @@ function initLandlord() {
   landlord.value = null
   local.value = {}
   ficaDocs.value = []
-  regClassification.value = null
-  regPatchedFields.value = []
   classifyError.value = ''
-  classifyRegError.value = ''
-  activeTab.value = VALID_TABS.includes(route.query.tab as TabKey) ? (route.query.tab as TabKey) : 'details'
+  activeTab.value = _resolveTab(route.query.tab)
   loadLandlord()
   loadFicaDocs()
   loadAllProperties()
@@ -1309,6 +1351,50 @@ async function uploadFicaDocs(e: Event) {
   }
 }
 
+function pickFileForExpected(exp: ExpectedDoc): void {
+  pendingDocType.value = exp.key
+  targetedFileInput.value?.click()
+}
+
+async function uploadTargetedDoc(e: Event): Promise<void> {
+  const input = e.target as HTMLInputElement
+  const files = input.files
+  if (!files?.length) {
+    pendingDocType.value = null
+    return
+  }
+  uploadingDocs.value = true
+  try {
+    const form = new FormData()
+    for (const f of files) form.append('files', f)
+    // Hint the classifier about the expected slot — backend may or may not
+    // use it, but sending it is cheap and unambiguous for future per-doc
+    // classification.
+    if (pendingDocType.value) form.append('doc_type_hint', pendingDocType.value)
+    await api.post(`/properties/landlords/${local.value.id}/fica-documents/`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    await loadFicaDocs()
+    toast.success('Document uploaded — re-running classifier')
+    // Auto-run the classifier so the newly-uploaded file gets slotted into
+    // the correct category without the user having to click a second button.
+    try {
+      classifying.value = true
+      await api.post(`/properties/landlords/${local.value.id}/classify/`)
+      await loadLandlord()
+      await loadFicaDocs()
+    } finally {
+      classifying.value = false
+    }
+  } catch (err) {
+    toast.error(extractApiError(err, 'Upload failed'))
+  } finally {
+    uploadingDocs.value = false
+    pendingDocType.value = null
+    input.value = ''
+  }
+}
+
 async function deleteFicaDoc(doc: any) {
   try {
     await api.delete(`/properties/landlords/${local.value.id}/fica-documents/${doc.id}/`)
@@ -1316,23 +1402,6 @@ async function deleteFicaDoc(doc: any) {
     toast.success('Document removed')
   } catch (err) {
     toast.error(extractApiError(err, 'Failed to delete document'))
-  }
-}
-
-async function runRegClassifier() {
-  classifyingReg.value = true
-  classifyRegError.value = ''
-  regClassification.value = null
-  regPatchedFields.value = []
-  try {
-    const { data } = await api.post(`/properties/landlords/${local.value.id}/classify/`)
-    regClassification.value = data.classification
-    regPatchedFields.value = data.patched_fields || []
-    await loadLandlord()
-  } catch (err: any) {
-    classifyRegError.value = err?.response?.data?.detail || 'Classification failed.'
-  } finally {
-    classifyingReg.value = false
   }
 }
 
@@ -1348,23 +1417,6 @@ async function runClassifier() {
     classifyError.value = detail
   } finally {
     classifying.value = false
-  }
-}
-
-async function uploadClassification(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0]
-  if (!file) return
-  try {
-    const text = await file.text()
-    const data = JSON.parse(text)
-    await landlordsStore.update(local.value.id, { classification_data: data } as any)
-    await loadLandlord()
-    activeTab.value = 'classification'
-    toast.success('Classification uploaded')
-  } catch (err) {
-    toast.error(extractApiError(err, 'Failed to parse or upload classification JSON.'))
-  } finally {
-    ;(e.target as HTMLInputElement).value = ''
   }
 }
 

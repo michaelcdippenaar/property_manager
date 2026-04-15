@@ -4,6 +4,17 @@
 
 export type UnitStatus = 'available' | 'occupied' | 'maintenance'
 
+export type InformationCategory =
+  | 'utilities' | 'safety' | 'access' | 'rules' | 'contacts' | 'waste' | 'other'
+
+export interface PropertyInformationItem {
+  id: string
+  label: string
+  body: string
+  category: InformationCategory
+  updated_at?: string | null
+}
+
 export interface ActiveLeaseInfo {
   start_date: string
   end_date: string
@@ -43,6 +54,7 @@ export interface Property {
   postal_code: string
   description: string
   house_rules: string
+  information_items: PropertyInformationItem[]
   agent: number | null
   owner: number | null
   cover_photo: string | null

@@ -54,7 +54,13 @@ from core.anthropic_web_fetch import (
 )
 from apps.maintenance.agent_assist_views import _skills_digest, skills_digest_for_message
 from apps.maintenance.chat_history import persist_chat_history_to_request
-from core.contract_rag import query_agent_qa, query_chat_knowledge, query_contracts, query_maintenance_issues
+from core.contract_rag import (
+    query_agent_qa,
+    query_chat_knowledge,
+    query_contracts,
+    query_maintenance_issues,
+    query_property_information,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1059,16 +1065,18 @@ class TenantConversationMessageCreateView(APIView):
         n_chunks = int(getattr(settings, "RAG_QUERY_CHUNKS", 8))
         prop_id = _property_id_for_user(request.user)
 
-        with ThreadPoolExecutor(max_workers=4) as pool:
+        with ThreadPoolExecutor(max_workers=5) as pool:
             f_contracts = pool.submit(query_contracts, content, n_results=n_chunks, property_id=prop_id)
             f_qa = pool.submit(query_agent_qa, content, n_results=3)
             f_chat_kb = pool.submit(query_chat_knowledge, content, n_results=3)
             f_issues = pool.submit(query_maintenance_issues, content, n_results=3, property_id=prop_id)
+            f_property_info = pool.submit(query_property_information, content, n_results=3, property_id=prop_id)
 
         rag_text = f_contracts.result()
         qa_text = f_qa.result()
         chat_kb_text = f_chat_kb.result()
         issues_text = f_issues.result()
+        property_info_text = f_property_info.result()
 
         context_block = (
             "--- RETRIEVED DOCUMENT EXCERPTS (vector search) ---\n"
@@ -1088,6 +1096,11 @@ class TenantConversationMessageCreateView(APIView):
             context_block += (
                 "\n--- SIMILAR PAST MAINTENANCE ISSUES ---\n"
                 f"{issues_text}\n"
+            )
+        if property_info_text:
+            context_block += (
+                "\n--- PROPERTY NOTES FROM LANDLORD (authoritative — prefer over other sources) ---\n"
+                f"{property_info_text}\n"
             )
 
         skills_text = skills_digest_for_message(content, max_skills=8)

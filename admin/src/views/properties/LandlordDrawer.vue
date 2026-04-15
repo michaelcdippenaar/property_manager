@@ -108,7 +108,7 @@
             <Loader2 v-if="saving" :size="12" class="animate-spin mr-1" />
             Save Changes
           </button>
-          <button type="button" class="btn-ghost text-xs text-red-500 hover:bg-red-50" @click="confirmDelete">Delete</button>
+          <button type="button" class="btn-ghost text-xs text-danger-500 hover:bg-danger-50" @click="confirmDelete">Delete</button>
         </div>
       </form>
 
@@ -175,7 +175,7 @@
                 <Loader2 v-if="saving" :size="12" class="animate-spin mr-1" />
                 {{ ba.id ? 'Update' : 'Save Account' }}
               </button>
-              <button v-if="ba.id" type="button" class="text-xs text-red-500 hover:underline" @click="deleteBankAccount(ba)">Remove</button>
+              <button v-if="ba.id" type="button" class="text-xs text-danger-500 hover:underline" @click="deleteBankAccount(ba)">Remove</button>
               <button v-else type="button" class="text-xs text-gray-400 hover:underline" @click="local.bank_accounts.splice(idx, 1)">Cancel</button>
             </div>
           </div>

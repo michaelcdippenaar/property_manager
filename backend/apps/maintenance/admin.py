@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     AgentQuestion, AgentTokenLog, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceActivity, MaintenanceRequest, MaintenanceSkill,
-    Supplier, SupplierDocument, SupplierProperty, SupplierTrade,
+    Supplier, SupplierDocument, SupplierJobAssignment, SupplierProperty, SupplierTrade,
 )
 
 
@@ -94,3 +94,11 @@ class AgentTokenLogAdmin(admin.ModelAdmin):
     list_filter = ["endpoint", "model"]
     readonly_fields = ["created_at"]
     raw_id_fields = ["user"]
+
+
+@admin.register(SupplierJobAssignment)
+class SupplierJobAssignmentAdmin(admin.ModelAdmin):
+    list_display = ["supplier", "maintenance_request", "status", "property_address", "created_at"]
+    list_filter = ["status"]
+    search_fields = ["supplier__email", "property_address", "scope_of_work"]
+    raw_id_fields = ["supplier", "maintenance_request", "assigned_by"]

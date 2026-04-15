@@ -6,7 +6,7 @@
       <div class="min-w-0">
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5 flex-shrink-0 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
           <h1 class="text-base font-semibold tracking-tight truncate">{{ docTitle || 'Sign Document' }}</h1>
@@ -40,7 +40,7 @@
       <div class="max-w-md text-center">
         <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
           <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
               d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
         </div>
@@ -55,7 +55,7 @@
       <div class="max-w-md text-center">
         <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
           <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 13l4 4L19 7" />
           </svg>
         </div>
         <h2 class="text-xl font-semibold text-gray-900 mb-2">Signed Successfully</h2>
@@ -66,7 +66,7 @@
           <div class="flex items-center gap-3 text-left bg-white rounded-xl border border-gray-200 p-4">
             <div class="w-9 h-9 rounded-full bg-navy/5 flex items-center justify-center flex-shrink-0">
               <svg class="w-4.5 h-4.5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                   d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
               </svg>
             </div>
@@ -89,7 +89,7 @@
           <div class="bg-navy/[0.03] px-6 pt-6 pb-4 border-b border-gray-100">
             <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-navy/10 flex items-center justify-center">
               <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                   d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </div>
@@ -140,7 +140,7 @@
             </button>
           </div>
         </div>
-        <p class="text-center text-[11px] text-gray-400 mt-4">Powered by Tremly</p>
+        <p class="text-center text-micro text-gray-400 mt-4">Powered by Tremly</p>
       </div>
     </div>
 
@@ -152,7 +152,7 @@
         <div class="text-center">
           <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-navy/10 flex items-center justify-center">
             <svg class="w-6 h-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                 d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
@@ -176,31 +176,31 @@
                   <!-- Uploaded: green check -->
                   <svg v-if="uploadedByType[docType.key]?.length" class="w-4.5 h-4.5 text-green-600"
                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 13l4 4L19 7"/>
                   </svg>
                   <!-- Bank statement icon -->
                   <svg v-else-if="docType.key === 'bank_statement'" class="w-4.5 h-4.5 text-navy/60"
                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                       d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
                   </svg>
                   <!-- ID icon -->
                   <svg v-else-if="docType.key === 'id_copy'" class="w-4.5 h-4.5 text-navy/60"
                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                       d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c0 2.21 4 3 4 3"/>
                   </svg>
                   <!-- Proof of address icon -->
                   <svg v-else class="w-4.5 h-4.5 text-navy/60"
                        fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                       d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                   </svg>
                 </div>
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
                     <span class="text-sm font-medium text-gray-900">{{ docType.label }}</span>
-                    <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                    <span class="text-xs font-semibold px-1.5 py-0.5 rounded-full"
                           :class="docType.required ? 'bg-amber-50 text-amber-700' : 'bg-gray-100 text-gray-500'">
                       {{ docType.required ? 'Required' : 'Optional' }}
                     </span>
@@ -212,7 +212,7 @@
                     <div v-for="doc in uploadedByType[docType.key]" :key="doc.id"
                          class="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-2 py-1.5">
                       <svg class="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       <span class="flex-1 truncate font-mono">{{ doc.original_filename }}</span>
@@ -220,7 +220,7 @@
                       <button @click="removeDocument(doc.id)" :disabled="uploadingFor === docType.key"
                               class="text-red-400 hover:text-red-600 flex-shrink-0 transition-colors">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                       </button>
                     </div>
@@ -236,7 +236,7 @@
                          ? 'border-navy/20 text-navy/50 bg-navy/5 cursor-not-allowed'
                          : 'border-navy/30 text-navy hover:bg-navy/5'">
                   <svg v-if="uploadingFor !== docType.key" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                   </svg>
                   <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -291,7 +291,7 @@
            class="bg-blue-50 border-b border-blue-200 px-5 py-2.5 flex items-center justify-between">
         <div class="flex items-center gap-2 text-xs text-blue-700">
           <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
               d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
           </svg>
           <span>Progress restored from your last session ({{ draftSavedAt }}).</span>
@@ -299,7 +299,7 @@
         <button @click="showDraftRestoredBanner = false"
                 class="text-blue-400 hover:text-blue-600 ml-4 flex-shrink-0">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
       </div>
@@ -346,7 +346,7 @@
               title="Save your progress and continue later"
             >
               <svg v-if="!savingDraft" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                   d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
               </svg>
               <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">

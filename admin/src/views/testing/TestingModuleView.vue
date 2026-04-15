@@ -1,31 +1,28 @@
 <template>
   <div class="space-y-6">
 
-    <!-- Back + Header -->
-    <div>
-      <RouterLink to="/testing" class="text-xs text-gray-400 hover:text-navy flex items-center gap-1 mb-3">
-        <ChevronLeft :size="14" /> Back to Dashboard
-      </RouterLink>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-navy/10 flex items-center justify-center">
-            <component :is="moduleIcon" :size="20" class="text-navy" />
-          </div>
-          <div>
-            <h1 class="text-xl font-bold text-navy capitalize" style="font-family: 'Bricolage Grotesque', 'Inter', sans-serif;">
-              {{ moduleName }}
-            </h1>
-            <p class="text-xs text-gray-500">{{ moduleDescription }}</p>
-            <p v-if="lastRun" class="text-xs text-gray-400 mt-0.5">
-              Last run: {{ formatDate(lastRun.run_at) }} —
-              <span :class="lastRun.tests_failed > 0 ? 'text-red-500' : 'text-green-500'">
-                {{ lastRun.tests_passed }}/{{ lastRun.tests_run }} passed
-              </span>
-            </p>
-          </div>
+    <!-- Header -->
+    <PageHeader
+      :title="moduleName"
+      :subtitle="moduleDescription"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Testing', to: '/testing' }, { label: moduleName }]"
+      back
+    >
+      <template #title-adornment>
+        <div class="w-8 h-8 rounded-xl bg-navy/10 flex items-center justify-center">
+          <component :is="moduleIcon" :size="16" class="text-navy" />
         </div>
+      </template>
+      <template #under-title>
+        <p v-if="lastRun" class="text-xs text-gray-400 mt-0.5">
+          Last run: {{ formatDate(lastRun.run_at) }} —
+          <span :class="lastRun.tests_failed > 0 ? 'text-danger-500' : 'text-success-500'">
+            {{ lastRun.tests_passed }}/{{ lastRun.tests_run }} passed
+          </span>
+        </p>
+      </template>
+      <template #actions>
         <div class="flex items-center gap-3">
-          <!-- Loading indicator while collecting test stats -->
           <div v-if="loading" class="flex items-center gap-2 text-xs text-gray-400">
             <svg class="animate-spin h-4 w-4 text-navy/60" viewBox="0 0 24 24" fill="none">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -38,8 +35,8 @@
             {{ running ? 'Running…' : 'Run Tests' }}
           </button>
         </div>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Stats row -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -80,9 +77,9 @@
             <li v-for="name in tests" :key="name"
                 class="px-5 py-2 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
               <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    :class="runProgress.failedNames.includes(name) ? 'bg-red-500' : 'bg-green-500'"></span>
+                    :class="runProgress.failedNames.includes(name) ? 'bg-danger-500' : 'bg-success-500'"></span>
               <span class="flex-1 text-xs font-mono"
-                    :class="runProgress.failedNames.includes(name) ? 'text-red-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
+                    :class="runProgress.failedNames.includes(name) ? 'text-danger-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
             </li>
           </ul>
         </div>
@@ -91,9 +88,9 @@
           <li v-for="name in unitTests" :key="name"
               class="px-5 py-2.5 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
             <span class="w-2 h-2 rounded-full flex-shrink-0"
-                  :class="runProgress.failedNames.includes(name) ? 'bg-red-500' : 'bg-green-500'"></span>
+                  :class="runProgress.failedNames.includes(name) ? 'bg-danger-500' : 'bg-success-500'"></span>
             <span class="flex-1 text-xs font-mono"
-                  :class="runProgress.failedNames.includes(name) ? 'text-red-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
+                  :class="runProgress.failedNames.includes(name) ? 'text-danger-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
           </li>
         </ul>
       </template>
@@ -124,9 +121,9 @@
             <li v-for="name in tests" :key="name"
                 class="px-5 py-2 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
               <span class="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    :class="runProgress.failedNames.includes(name) ? 'bg-red-500' : 'bg-blue-500'"></span>
+                    :class="runProgress.failedNames.includes(name) ? 'bg-danger-500' : 'bg-info-500'"></span>
               <span class="flex-1 text-xs font-mono"
-                    :class="runProgress.failedNames.includes(name) ? 'text-red-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
+                    :class="runProgress.failedNames.includes(name) ? 'text-danger-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
             </li>
           </ul>
         </div>
@@ -134,9 +131,9 @@
           <li v-for="name in integrationTests" :key="name"
               class="px-5 py-2.5 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
             <span class="w-2 h-2 rounded-full flex-shrink-0"
-                  :class="runProgress.failedNames.includes(name) ? 'bg-red-500' : 'bg-blue-500'"></span>
+                  :class="runProgress.failedNames.includes(name) ? 'bg-danger-500' : 'bg-info-500'"></span>
             <span class="flex-1 text-xs font-mono"
-                  :class="runProgress.failedNames.includes(name) ? 'text-red-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
+                  :class="runProgress.failedNames.includes(name) ? 'text-danger-700 font-semibold' : 'text-gray-700'">{{ name }}</span>
           </li>
         </ul>
       </template>
@@ -144,9 +141,9 @@
 
     <!-- E-Signing Tests (shown under Leases since esigning is part of the lease flow) -->
     <template v-if="moduleName === 'leases' && relatedEsigning">
-      <div class="card border-l-4 border-l-indigo-300">
+      <div class="card border-l-4 border-l-info-500/40">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-          <FileSignature :size="16" class="text-indigo-500" />
+          <FileSignature :size="16" class="text-info-600" />
           <h2 class="text-sm font-semibold text-gray-800">E-Signing Tests</h2>
           <span class="text-xs text-gray-400 ml-1">(part of lease flow)</span>
           <span class="badge-gray text-xs ml-auto">
@@ -156,7 +153,7 @@
 
         <!-- Esigning Unit subsections -->
         <div v-if="relatedEsigning.unit?.count">
-          <div class="px-5 py-2 bg-indigo-50/40 flex items-center justify-between">
+          <div class="px-5 py-2 bg-info-50/40 flex items-center justify-between">
             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Unit Tests</span>
             <span class="text-xs text-gray-400">{{ relatedEsigning.unit.count }}</span>
           </div>
@@ -169,7 +166,7 @@
             <ul class="divide-y divide-gray-50 max-h-48 overflow-y-auto">
               <li v-for="name in tests" :key="name"
                   class="px-5 py-2 pl-10 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 flex-shrink-0"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-info-500/60 flex-shrink-0"></span>
                 <span class="flex-1 text-xs text-gray-700 font-mono">{{ name }}</span>
               </li>
             </ul>
@@ -178,7 +175,7 @@
 
         <!-- Esigning Integration subsections -->
         <div v-if="relatedEsigning.integration?.count">
-          <div class="px-5 py-2 bg-indigo-50/40 flex items-center justify-between">
+          <div class="px-5 py-2 bg-info-50/40 flex items-center justify-between">
             <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Integration Tests</span>
             <span class="text-xs text-gray-400">{{ relatedEsigning.integration.count }}</span>
           </div>
@@ -191,7 +188,7 @@
             <ul class="divide-y divide-gray-50 max-h-48 overflow-y-auto">
               <li v-for="name in tests" :key="name"
                   class="px-5 py-2 pl-10 flex items-center gap-3 hover:bg-gray-50/60 transition-colors">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 flex-shrink-0"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-info-500 flex-shrink-0"></span>
                 <span class="flex-1 text-xs text-gray-700 font-mono">{{ name }}</span>
               </li>
             </ul>
@@ -203,16 +200,16 @@
     <!-- Red tests pending -->
     <div v-if="redTests.length" class="card">
       <div class="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
-        <span class="w-2.5 h-2.5 rounded-full bg-red-500"></span>
+        <span class="w-2.5 h-2.5 rounded-full bg-danger-500"></span>
         <h2 class="text-sm font-semibold text-gray-800">Red Tests — Pending Implementation</h2>
         <span class="badge-red text-xs ml-auto">{{ stats.red }}</span>
       </div>
       <ul class="divide-y divide-gray-100">
         <li v-for="name in redTests" :key="name"
             class="px-5 py-2.5 flex items-center gap-3">
-          <span class="w-2 h-2 rounded-full bg-red-400 flex-shrink-0"></span>
+          <span class="w-2 h-2 rounded-full bg-danger-400 flex-shrink-0"></span>
           <span class="flex-1 text-xs text-gray-700 font-mono">{{ name }}</span>
-          <span class="text-xs text-red-500 font-medium">xfail</span>
+          <span class="text-xs text-danger-500 font-medium">xfail</span>
         </li>
       </ul>
     </div>
@@ -277,7 +274,7 @@
             </div>
             <div class="h-2.5 bg-gray-100 rounded-full overflow-hidden">
               <div class="h-full rounded-full transition-all duration-300"
-                   :class="runProgress.failed > 0 ? 'bg-red-400' : 'bg-navy'"
+                   :class="runProgress.failed > 0 ? 'bg-danger-400' : 'bg-navy'"
                    :style="{ width: (runProgress.pct ?? 0) + '%' }"></div>
             </div>
           </div>
@@ -292,18 +289,18 @@
           <!-- Stats -->
           <div class="px-6 pb-5 flex gap-6">
             <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-green-500"></span>
-              <span class="text-sm font-semibold text-green-700">{{ runProgress.passed }}</span>
+              <span class="w-2 h-2 rounded-full bg-success-500"></span>
+              <span class="text-sm font-semibold text-success-700">{{ runProgress.passed }}</span>
               <span class="text-xs text-gray-400">passed</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-red-500"></span>
-              <span class="text-sm font-semibold" :class="runProgress.failed > 0 ? 'text-red-600' : 'text-gray-300'">{{ runProgress.failed }}</span>
+              <span class="w-2 h-2 rounded-full bg-danger-500"></span>
+              <span class="text-sm font-semibold" :class="runProgress.failed > 0 ? 'text-danger-600' : 'text-gray-300'">{{ runProgress.failed }}</span>
               <span class="text-xs text-gray-400">failed</span>
             </div>
             <div class="flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-              <span class="text-sm font-semibold text-amber-600">{{ runProgress.xfailed }}</span>
+              <span class="w-2 h-2 rounded-full bg-warning-500"></span>
+              <span class="text-sm font-semibold text-warning-600">{{ runProgress.xfailed }}</span>
               <span class="text-xs text-gray-400">xfail</span>
             </div>
           </div>
@@ -311,23 +308,23 @@
           <!-- Failure details -->
           <div v-if="runProgress.done && runProgress.failures.length > 0"
                class="px-6 pb-4 max-h-60 overflow-y-auto">
-            <div class="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Failures</div>
+            <div class="text-xs font-semibold text-danger-600 uppercase tracking-wide mb-2">Failures</div>
             <div v-for="(f, i) in runProgress.failures" :key="i"
-                 class="mb-3 last:mb-0 rounded-lg border border-red-200 bg-red-50/50 overflow-hidden">
-              <div class="px-3 py-1.5 bg-red-100/60 text-xs font-mono font-semibold text-red-800 truncate">
+                 class="mb-3 last:mb-0 rounded-lg border border-danger-100 bg-danger-50/50 overflow-hidden">
+              <div class="px-3 py-1.5 bg-danger-100/60 text-xs font-mono font-semibold text-danger-700 truncate">
                 {{ f.test }}
               </div>
-              <pre class="px-3 py-2 text-[10px] leading-relaxed text-red-700 font-mono whitespace-pre-wrap break-words overflow-x-auto">{{ f.error }}</pre>
+              <pre class="px-3 py-2 text-xs leading-relaxed text-danger-700 font-mono whitespace-pre-wrap break-words overflow-x-auto">{{ f.error }}</pre>
             </div>
           </div>
           <!-- Fallback: show failed names if no traceback captured -->
           <div v-else-if="runProgress.done && runProgress.failedNames.length > 0 && runProgress.failures.length === 0"
                class="px-6 pb-4">
-            <div class="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Failed Tests</div>
+            <div class="text-xs font-semibold text-danger-600 uppercase tracking-wide mb-2">Failed Tests</div>
             <ul class="space-y-1">
               <li v-for="name in runProgress.failedNames" :key="name"
-                  class="flex items-center gap-2 text-xs font-mono text-red-700">
-                <span class="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0"></span>
+                  class="flex items-center gap-2 text-xs font-mono text-danger-700">
+                <span class="w-1.5 h-1.5 rounded-full bg-danger-500 flex-shrink-0"></span>
                 {{ name }}
               </li>
             </ul>
@@ -336,8 +333,8 @@
           <!-- Done footer -->
           <div v-if="runProgress.done"
                class="px-6 py-3 border-t border-gray-100 flex items-center justify-between"
-               :class="runProgress.failed > 0 ? 'bg-red-50' : 'bg-green-50'">
-            <span class="text-sm font-medium" :class="runProgress.failed > 0 ? 'text-red-700' : 'text-green-700'">
+               :class="runProgress.failed > 0 ? 'bg-danger-50' : 'bg-success-50'">
+            <span class="text-sm font-medium" :class="runProgress.failed > 0 ? 'text-danger-700' : 'text-success-700'">
               {{ runProgress.failed > 0 ? `${runProgress.failed} test(s) failed` : 'All tests passed' }}
             </span>
             <button class="btn-primary text-xs py-1.5 px-4" @click="closeRunDialog">Done</button>
@@ -364,9 +361,10 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { testingApi } from '../../api/testing'
 import {
-  ChevronLeft, Play, FileSignature,
+  Play, FileSignature,
   Users, Building2, FileText, Wrench, Sparkles, Smartphone, Bell,
 } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const route = useRoute()
 const loading = ref(true)
@@ -408,9 +406,9 @@ const stats = ref({ unit: 0, integration: 0, red: 0, green: 0, total: 0 })
 
 const moduleStats = computed(() => [
   { label: 'Total',       value: stats.value.total,       color: 'text-navy' },
-  { label: 'Unit',        value: stats.value.unit,        color: 'text-blue-600' },
-  { label: 'Integration', value: stats.value.integration, color: 'text-indigo-600' },
-  { label: 'Red (xfail)', value: stats.value.red,         color: stats.value.red > 0 ? 'text-red-500' : 'text-gray-400' },
+  { label: 'Unit',        value: stats.value.unit,        color: 'text-info-600' },
+  { label: 'Integration', value: stats.value.integration, color: 'text-info-700' },
+  { label: 'Red (xfail)', value: stats.value.red,         color: stats.value.red > 0 ? 'text-danger-500' : 'text-gray-400' },
 ])
 
 // ── Helpers ────────────────────────────────────────────────────────

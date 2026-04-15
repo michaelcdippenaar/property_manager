@@ -68,9 +68,12 @@
           </div>
         </button>
 
-        <div v-if="!filteredLeases.length" class="text-center text-gray-400 py-16">
-          No leases for this filter
-        </div>
+        <EmptyState
+          v-if="!filteredLeases.length"
+          title="No leases"
+          description="No leases for this filter."
+          :icon="FileText"
+        />
       </div>
 
       <!-- Right: detail panel -->
@@ -138,7 +141,8 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted } from 'vue'
 import api from '../../api'
-import { Calendar, X } from 'lucide-vue-next'
+import { Calendar, X, FileText } from 'lucide-vue-next'
+import EmptyState from '../../components/EmptyState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import ESigningPanel from './ESigningPanel.vue'
 import { useLeasesStore } from '../../stores/leases'

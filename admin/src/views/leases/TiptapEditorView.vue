@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col h-full -m-6 bg-white overflow-hidden">
+  <div class="flex flex-col h-[calc(100vh-4rem)] -m-6 bg-white overflow-hidden">
 
     <!-- ── Header ──────────────────────────────────────────────────────────── -->
     <div class="flex items-center h-14 px-4 border-b border-gray-200 bg-white flex-shrink-0 gap-4">
@@ -12,9 +12,9 @@
       </div>
 
       <div class="flex items-center gap-2 ml-auto">
-        <span v-if="pageCount > 1" class="text-[10px] text-gray-400">{{ pageCount }} pages</span>
-        <span class="text-[10px] text-gray-300">|</span>
-        <span v-if="wordCount" class="text-[10px] text-gray-400">{{ wordCount }} words</span>
+        <span v-if="pageCount > 1" class="text-xs text-gray-400">{{ pageCount }} pages</span>
+        <span class="text-xs text-gray-300">|</span>
+        <span v-if="wordCount" class="text-xs text-gray-400">{{ wordCount }} words</span>
         <button
           class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
           :class="isDirty
@@ -131,7 +131,7 @@
           </button>
           <template v-if="!chatCollapsed">
             <span class="text-sm font-semibold text-gray-800 whitespace-nowrap">AI Assistant</span>
-            <span v-if="store.template" class="text-[10px] text-gray-400 truncate">{{ store.template.name }}</span>
+            <span v-if="store.template" class="text-xs text-gray-400 truncate">{{ store.template.name }}</span>
           </template>
         </div>
 
@@ -148,7 +148,7 @@
                 <div class="text-gray-400 mb-0.5" style="font-size: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Editing Tools</div>
                 <div class="flex flex-wrap gap-1">
                   <span v-for="tool in editingTools" :key="tool"
-                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700"
+                    class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-warning-50 border border-warning-100 text-warning-700"
                     style="font-size: 9px;">
                     <Wrench :size="8" /> {{ tool }}
                   </span>
@@ -188,11 +188,11 @@
                 <div v-if="msg.tools_used?.length" class="flex flex-wrap gap-1 mt-1 ml-0.5">
                   <span v-for="(tool, ti) in msg.tools_used" :key="ti"
                     class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md"
-                    :class="skillTools.includes(tool.name) ? 'bg-purple-50 border border-purple-200 text-purple-700' : 'bg-amber-50 border border-amber-200 text-amber-700'"
+                    :class="skillTools.includes(tool.name) ? 'bg-purple-50 border border-purple-200 text-purple-700' : 'bg-warning-50 border border-warning-100 text-warning-700'"
                     style="font-size: 9px; line-height: 1.2;">
                     <component :is="skillTools.includes(tool.name) ? Zap : Wrench" :size="8" class="flex-shrink-0" />
                     <span class="font-medium">{{ tool.name }}</span>
-                    <span :class="skillTools.includes(tool.name) ? 'text-purple-500' : 'text-amber-500'">{{ tool.detail }}</span>
+                    <span :class="skillTools.includes(tool.name) ? 'text-purple-500' : 'text-warning-500'">{{ tool.detail }}</span>
                   </span>
                 </div>
               </div>
@@ -254,24 +254,46 @@
         <template v-if="!panelCollapsed">
           <!-- Actor selector -->
           <div class="px-3 py-3 border-b border-gray-100">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-2">Recipient</div>
+            <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Recipient</div>
             <div class="flex flex-wrap gap-1.5">
-              <button
+              <div
                 v-for="(actor, idx) in actors" :key="idx"
-                @click="selectedActorIdx = idx"
-                class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors"
+                class="flex items-center rounded-full text-xs font-medium transition-colors"
                 :class="selectedActorIdx === idx
                   ? 'bg-navy text-white'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
               >
-                {{ actor.label }}
-              </button>
+                <button
+                  @click="selectedActorIdx = idx"
+                  class="px-2.5 py-1"
+                >{{ actor.label }}</button>
+                <button
+                  v-if="actor.removable"
+                  @click.stop="removeActor(idx)"
+                  class="pr-1.5 pl-0.5 opacity-60 hover:opacity-100"
+                  title="Remove"
+                >&times;</button>
+              </div>
+              <!-- Add Tenant (up to 3) -->
+              <button
+                v-if="actors.filter(a => a.prefix.startsWith('tenant_')).length < 3"
+                @click="addTenant"
+                class="px-2.5 py-1 rounded-full text-xs font-medium bg-success-50 text-success-700 border border-success-200 hover:bg-success-100 transition-colors"
+                title="Add tenant"
+              >+ Tenant</button>
+              <!-- Add Occupant (up to 4) -->
+              <button
+                v-if="actors.filter(a => a.prefix.startsWith('occupant_')).length < 4"
+                @click="addOccupant"
+                class="px-2.5 py-1 rounded-full text-xs font-medium bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 transition-colors"
+                title="Add occupant"
+              >+ Occupant</button>
             </div>
           </div>
 
           <!-- Data fields -->
           <div class="px-3 py-3 border-b border-gray-100">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-2">Data Fields</div>
+            <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Data Fields</div>
             <div class="space-y-1">
               <div
                 v-for="f in dataFields" :key="f.key"
@@ -290,7 +312,7 @@
 
           <!-- Signing fields -->
           <div class="px-3 py-3">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-2">Signing Fields</div>
+            <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Signing Fields</div>
             <div class="space-y-1">
               <div
                 v-for="f in signingFields" :key="f.type"
@@ -309,14 +331,14 @@
 
           <!-- Lease fields (quick-insert) -->
           <div class="px-3 py-3 border-t border-gray-100">
-            <div class="text-[10px] uppercase tracking-wider text-gray-400 mb-2">Lease Terms</div>
+            <div class="text-xs uppercase tracking-wider text-gray-400 mb-2">Lease Terms</div>
             <div class="flex flex-wrap gap-1.5">
               <div
                 v-for="f in leaseFields" :key="f"
                 draggable="true"
                 @dragstart="onDragStartLeaseField($event, f)"
                 @click="insertMergeFieldDirect(f)"
-                class="px-2.5 py-1.5 rounded-lg text-[10px] font-medium cursor-grab active:cursor-grabbing bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:shadow-sm transition-all"
+                class="px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-grab active:cursor-grabbing bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 hover:shadow-sm transition-all"
               >
                 {{ f.replace(/_/g, ' ') }}
               </div>
@@ -482,12 +504,39 @@ function insertTable() {
 }
 
 // ── Field insertion ───────────────────────────────────────────────────────
-const actors = [
-  { label: 'Landlord', prefix: 'landlord' },
-  { label: 'Tenant 1', prefix: 'tenant_1' },
-  { label: 'Tenant 2', prefix: 'tenant_2' },
-  { label: 'Agent', prefix: 'agent' },
-]
+type ActorEntry = { label: string; prefix: string; removable?: boolean }
+
+const actors = ref<ActorEntry[]>([
+  { label: 'Landlord',  prefix: 'landlord' },
+  { label: 'Tenant 1',  prefix: 'tenant_1',  removable: true },
+  { label: 'Agent',     prefix: 'agent' },
+])
+
+function addTenant() {
+  const count = actors.value.filter(a => a.prefix.startsWith('tenant_')).length + 1
+  if (count > 3) return
+  actors.value.push({ label: `Tenant ${count}`, prefix: `tenant_${count}`, removable: true })
+  selectedActorIdx.value = actors.value.length - 1
+}
+
+function addOccupant() {
+  const count = actors.value.filter(a => a.prefix.startsWith('occupant_')).length + 1
+  if (count > 4) return
+  actors.value.push({ label: `Occupant ${count}`, prefix: `occupant_${count}`, removable: true })
+  selectedActorIdx.value = actors.value.length - 1
+}
+
+function removeActor(idx: number) {
+  if (!actors.value[idx]?.removable) return
+  actors.value.splice(idx, 1)
+  // Re-number tenants and occupants
+  let tc = 0, oc = 0
+  actors.value.forEach(a => {
+    if (a.prefix.startsWith('tenant_')) { tc++; a.prefix = `tenant_${tc}`; a.label = `Tenant ${tc}` }
+    if (a.prefix.startsWith('occupant_')) { oc++; a.prefix = `occupant_${oc}`; a.label = `Occupant ${oc}` }
+  })
+  if (selectedActorIdx.value >= actors.value.length) selectedActorIdx.value = actors.value.length - 1
+}
 
 const _defaultDataFields = [
   { key: 'name', label: 'Full Name', icon: markRaw(User) },
@@ -513,10 +562,17 @@ const _landlordDataFields = [
   { key: 'bank_account_type',  label: 'Account Type',      icon: markRaw(FileText) },
 ]
 
+const _occupantDataFields = [
+  { key: 'name',         label: 'Full Name',    icon: markRaw(User) },
+  { key: 'id',           label: 'ID Number',    icon: markRaw(Hash) },
+  { key: 'relationship', label: 'Relationship', icon: markRaw(User) },
+]
+
 const dataFields = computed(() => {
-  return actors[selectedActorIdx.value]?.prefix === 'landlord'
-    ? _landlordDataFields
-    : _defaultDataFields
+  const prefix = actors.value[selectedActorIdx.value]?.prefix ?? ''
+  if (prefix === 'landlord') return _landlordDataFields
+  if (prefix.startsWith('occupant_')) return _occupantDataFields
+  return _defaultDataFields
 })
 
 const signingFields = [
@@ -534,28 +590,28 @@ const leaseFields = [
 
 // ── Actor-based field panel colors ───────────────────────────────────────
 const actorFieldClasses = computed(() => {
-  const prefix = actors[selectedActorIdx.value].prefix
+  const prefix = actors.value[selectedActorIdx.value]?.prefix ?? ''
+  if (prefix.startsWith('tenant_'))   return 'bg-success-50 text-success-700 border-success-100 hover:bg-success-100 hover:shadow-sm'
+  if (prefix.startsWith('occupant_')) return 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100 hover:shadow-sm'
   return {
-    landlord:  'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:shadow-sm',
-    tenant_1:  'bg-green-50 text-green-700 border-green-200 hover:bg-green-100 hover:shadow-sm',
-    tenant_2:  'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 hover:shadow-sm',
-    agent:     'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 hover:shadow-sm',
+    landlord: 'bg-info-50 text-info-700 border-info-100 hover:bg-info-100 hover:shadow-sm',
+    agent:    'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100 hover:shadow-sm',
   }[prefix] ?? 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:shadow-sm'
 })
 
 const actorIconClass = computed(() => {
-  const prefix = actors[selectedActorIdx.value].prefix
+  const prefix = actors.value[selectedActorIdx.value]?.prefix ?? ''
+  if (prefix.startsWith('tenant_'))   return 'text-success-500'
+  if (prefix.startsWith('occupant_')) return 'text-teal-500'
   return {
-    landlord:  'text-blue-500',
-    tenant_1:  'text-green-500',
-    tenant_2:  'text-emerald-500',
-    agent:     'text-cyan-500',
+    landlord: 'text-info-500',
+    agent:    'text-cyan-500',
   }[prefix] ?? 'text-gray-400'
 })
 
 // ── Drag from panel into editor ─────────────────────────────────────────
 function onDragStartMergeField(event: DragEvent, fieldSuffix: string) {
-  const actor = actors[selectedActorIdx.value]
+  const actor = actors.value[selectedActorIdx.value]
   const fieldName = `${actor.prefix}_${fieldSuffix}`
   event.dataTransfer?.setData('application/tiptap-merge-field', JSON.stringify({
     fieldName,
@@ -566,7 +622,7 @@ function onDragStartMergeField(event: DragEvent, fieldSuffix: string) {
 }
 
 function onDragStartSigningField(event: DragEvent, type: string) {
-  const actor = actors[selectedActorIdx.value]
+  const actor = actors.value[selectedActorIdx.value]
   const labelType = type === 'signed_at' ? 'Signed At' : type.charAt(0).toUpperCase() + type.slice(1)
   event.dataTransfer?.setData('application/tiptap-signing-field', JSON.stringify({
     fieldType: type,
@@ -586,7 +642,7 @@ function onDragStartLeaseField(event: DragEvent, fieldName: string) {
 
 function insertMergeField(fieldSuffix: string) {
   if (!editor.value) return
-  const actor = actors[selectedActorIdx.value]
+  const actor = actors.value[selectedActorIdx.value]
   const fieldName = `${actor.prefix}_${fieldSuffix}`
   editor.value.chain().focus().insertMergeField({
     fieldName,
@@ -605,7 +661,7 @@ function insertMergeFieldDirect(fieldName: string) {
 
 function insertSigningField(type: 'signature' | 'initials' | 'date' | 'signed_at') {
   if (!editor.value) return
-  const actor = actors[selectedActorIdx.value]
+  const actor = actors.value[selectedActorIdx.value]
   const labelType = type === 'signed_at' ? 'Signed At' : type.charAt(0).toUpperCase() + type.slice(1)
   editor.value.chain().focus().insertSignatureBlock({
     fieldType: type,

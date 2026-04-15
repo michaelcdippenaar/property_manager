@@ -1,0 +1,8 @@
+{
+  "remote.portsAttributes": {
+    "5173": {
+      "label": "Admin Vite (do not auto-forward; use app directly)",
+      "onAutoForward": "ignore"
+    }
+  }
+}

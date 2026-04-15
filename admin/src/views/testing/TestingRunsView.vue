@@ -2,18 +2,18 @@
   <div class="space-y-6">
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-bold text-navy" style="font-family: 'Bricolage Grotesque', 'Inter', sans-serif;">
-          Test Run History
-        </h1>
-        <p class="text-sm text-gray-500 mt-0.5">Pass rate trends and raw output for every run</p>
-      </div>
-      <button class="btn-primary" @click="triggerRun" :disabled="triggering">
-        <Play :size="15" />
-        {{ triggering ? 'Running…' : 'Run All' }}
-      </button>
-    </div>
+    <PageHeader
+      title="Test Run History"
+      subtitle="Pass rate trends and raw output for every run"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Testing', to: '/testing' }, { label: 'Runs' }]"
+    >
+      <template #actions>
+        <button class="btn-primary" @click="triggerRun" :disabled="triggering">
+          <Play :size="15" />
+          {{ triggering ? 'Running…' : 'Run All' }}
+        </button>
+      </template>
+    </PageHeader>
 
     <!-- Trend chart: last 14 runs -->
     <div class="card p-5">
@@ -23,16 +23,16 @@
         <!-- Horizontal guide lines -->
         <div class="absolute inset-0 flex flex-col justify-between pointer-events-none">
           <div class="border-b border-gray-100 w-full relative">
-            <span class="absolute -top-2 -left-1 text-[10px] text-gray-400">100%</span>
+            <span class="absolute -top-2 -left-1 text-micro text-gray-400">100%</span>
           </div>
           <div class="border-b border-gray-100 w-full relative">
-            <span class="absolute -top-2 -left-1 text-[10px] text-gray-400">80%</span>
+            <span class="absolute -top-2 -left-1 text-micro text-gray-400">80%</span>
           </div>
           <div class="border-b border-dashed border-warning-300 w-full relative">
-            <span class="absolute -top-2 -left-1 text-[10px] text-warning-500">50%</span>
+            <span class="absolute -top-2 -left-1 text-micro text-warning-500">50%</span>
           </div>
           <div class="border-b border-gray-50 w-full relative">
-            <span class="absolute -top-2 -left-1 text-[10px] text-gray-400">0%</span>
+            <span class="absolute -top-2 -left-1 text-micro text-gray-400">0%</span>
           </div>
         </div>
         <!-- Bars -->
@@ -40,20 +40,20 @@
           v-for="(run, i) in trendRuns"
           :key="i"
           class="flex-1 rounded-t transition-all duration-300 cursor-pointer relative group"
+          :class="run.pass_rate > 80 ? 'bg-success-500' : run.pass_rate >= 50 ? 'bg-warning-500' : 'bg-danger-500'"
           :style="{
             height: `${run.pass_rate}%`,
-            backgroundColor: run.pass_rate > 80 ? '#22c55e' : run.pass_rate >= 50 ? '#f59e0b' : '#ef4444',
             minHeight: '4px',
           }"
           @click="expandRun(run.id)"
         >
           <!-- Tooltip -->
-          <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+          <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-micro rounded px-1.5 py-0.5 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
             {{ run.pass_rate }}% · {{ run.module }}
           </div>
         </div>
       </div>
-      <div class="flex justify-between text-[10px] text-gray-400 mt-1 px-0.5">
+      <div class="flex justify-between text-micro text-gray-400 mt-1 px-0.5">
         <span>Oldest</span>
         <span>Latest</span>
       </div>
@@ -128,7 +128,7 @@
                 <!-- Expanded raw output -->
                 <tr v-if="expandedRunId === run.id">
                   <td colspan="8" class="p-0">
-                    <div class="bg-gray-900 text-green-400 text-xs font-mono p-4 leading-relaxed max-h-64 overflow-y-auto">
+                    <div class="bg-gray-900 text-success-400 text-xs font-mono p-4 leading-relaxed max-h-64 overflow-y-auto">
                       <pre>{{ run.raw_output || 'No output captured.' }}</pre>
                     </div>
                   </td>
@@ -146,6 +146,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { testingApi } from '../../api/testing'
 import { Play, ChevronDown } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const loading = ref(true)
 const triggering = ref(false)

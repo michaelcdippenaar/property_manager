@@ -11,22 +11,38 @@ from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor
 
 
 def _get_or_create_person(data: dict) -> Person:
-    """Find a matching Person by ID number or name, or create a new one."""
+    """Find a matching Person by ID number, phone, or email — or create a new one."""
     id_number = (data.get("id_number") or "").strip()
     full_name = (data.get("full_name") or "").strip()
+    phone = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+
     if not full_name:
         return None
 
+    # Match on SA ID number (most reliable)
     if id_number:
         person = Person.objects.filter(id_number=id_number).first()
         if person:
             return person
 
+    # Match on phone (unique when set)
+    if phone:
+        person = Person.objects.filter(phone=phone).first()
+        if person:
+            return person
+
+    # Match on email
+    if email:
+        person = Person.objects.filter(email=email).first()
+        if person:
+            return person
+
     return Person.objects.create(
         full_name=full_name,
-        id_number=id_number,
-        phone=(data.get("phone") or "").strip(),
-        email=(data.get("email") or "").strip(),
+        id_number=id_number or "",
+        phone=phone,
+        email=email,
         person_type="individual",
     )
 
@@ -162,4 +178,11 @@ class ImportLeaseView(APIView):
                     covers = Person.objects.filter(full_name__iexact=covers_name).first()
                 LeaseGuarantor.objects.create(lease=lease, person=person, covers_tenant=covers)
 
-        return Response({"id": lease.id, "status": lease.status, "lease_number": lease.lease_number}, status=status.HTTP_201_CREATED)
+        return Response({
+            "id": lease.id,
+            "status": lease.status,
+            "lease_number": lease.lease_number,
+            "primary_tenant_id": primary_person.id,
+            "co_tenant_person_ids": list(lease.co_tenants.values_list("person_id", flat=True)),
+            "guarantor_person_ids": list(lease.guarantors.values_list("person_id", flat=True)),
+        }, status=status.HTTP_201_CREATED)

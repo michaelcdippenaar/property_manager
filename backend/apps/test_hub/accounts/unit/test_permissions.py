@@ -5,11 +5,12 @@ from unittest.mock import Mock
 pytestmark = pytest.mark.unit
 
 
-def _make_request(role, is_authenticated=True):
+def _make_request(role, is_authenticated=True, is_superuser=False):
     """Helper: build a mock request with a user of the given role."""
     user = Mock()
     user.is_authenticated = is_authenticated
     user.role = role
+    user.is_superuser = is_superuser
     request = Mock()
     request.user = user
     return request

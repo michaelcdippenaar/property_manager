@@ -5,6 +5,7 @@ from django.views.static import serve
 from django.http import JsonResponse
 from graphene_django.views import GraphQLView
 from .stats import StatsView
+from apps.properties.dashboard_views import DashboardPortfolioView
 
 
 def health_check(request):
@@ -25,6 +26,7 @@ urlpatterns = [
     path("api/v1/tenant-portal/", include("apps.tenant_portal.urls")),
     path("api/v1/ai/", include("apps.ai.urls")),
     path("api/v1/stats/", StatsView.as_view(), name="stats"),
+    path("api/v1/dashboard/portfolio/", DashboardPortfolioView.as_view(), name="dashboard-portfolio"),
     path("api/v1/test-hub/", include("apps.test_hub.urls")),
     path("api/v1/market-data/", include("apps.market_data.urls")),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),

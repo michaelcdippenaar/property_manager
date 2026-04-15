@@ -46,7 +46,7 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         ).order_by("-created_at")
         if hasattr(user, "role") and user.role == "tenant":
             qs = qs.filter(tenant=user)
-        elif hasattr(user, "role") and user.role == "agent":
+        elif hasattr(user, "role") and user.role != "admin":
             from apps.properties.access import get_accessible_property_ids
             prop_ids = get_accessible_property_ids(user)
             qs = qs.filter(unit__property_id__in=prop_ids)

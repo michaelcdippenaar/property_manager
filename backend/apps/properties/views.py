@@ -19,15 +19,15 @@ from django.db.models import Q
 from .access import get_accessible_property_ids
 from .models import (
     BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
-    Property, PropertyAgentConfig, PropertyDocument, PropertyGroup, PropertyOwnership,
-    PropertyPhoto, PropertyValuation, Unit, UnitInfo,
+    Property, PropertyAgentAssignment, PropertyAgentConfig, PropertyDocument,
+    PropertyGroup, PropertyOwnership, PropertyPhoto, PropertyValuation, Unit, UnitInfo,
 )
 from .serializers import (
     BankAccountSerializer, ComplianceCertificateSerializer, InsurancePolicySerializer,
-    LandlordDocumentSerializer, LandlordSerializer, PropertyAgentConfigSerializer,
-    PropertyDocumentSerializer, PropertyGroupSerializer, PropertyOwnershipSerializer,
-    PropertyPhotoSerializer, PropertySerializer, PropertyValuationSerializer,
-    UnitInfoSerializer, UnitSerializer,
+    LandlordDocumentSerializer, LandlordSerializer, PropertyAgentAssignmentSerializer,
+    PropertyAgentConfigSerializer, PropertyDocumentSerializer, PropertyGroupSerializer,
+    PropertyOwnershipSerializer, PropertyPhotoSerializer, PropertySerializer,
+    PropertyValuationSerializer, UnitInfoSerializer, UnitSerializer,
 )
 
 
@@ -55,11 +55,21 @@ class PropertyViewSet(viewsets.ModelViewSet):
         return qs
 
     @action(
-        detail=True, methods=["get", "post", "delete"], url_path="photos(?:/(?P<photo_id>[0-9]+))?",
-        parser_classes=[parsers.MultiPartParser, parsers.FormParser],
+        detail=True, methods=["get", "post", "delete", "patch"], url_path="photos(?:/(?P<photo_id>[0-9]+))?",
+        parser_classes=[parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser],
     )
     def photos(self, request, pk=None, photo_id=None):
         prop = self.get_object()
+
+        if request.method == "PATCH":
+            # Bulk reorder: [{"id": 1, "position": 0}, {"id": 2, "position": 1}, ...]
+            for item in request.data:
+                PropertyPhoto.objects.filter(pk=item["id"], property=prop).update(position=item["position"])
+            qs = prop.photos.all()
+            unit_id = request.query_params.get("unit")
+            if unit_id:
+                qs = qs.filter(unit_id=unit_id)
+            return Response(PropertyPhotoSerializer(qs, many=True, context={"request": request}).data)
 
         if request.method == "DELETE":
             photo = get_object_or_404(PropertyPhoto, pk=photo_id, property=prop)
@@ -211,9 +221,17 @@ class LandlordViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = Landlord.objects.filter(
-            Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
-        ).distinct().prefetch_related('bank_accounts', 'ownerships__property')
+        # Admin sees all landlords (including orphans with no ownerships).
+        # Non-admin users only see landlords linked to their accessible properties.
+        if self.request.user.role == 'admin':
+            qs = Landlord.objects.filter(
+                Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
+            ).distinct()
+        else:
+            qs = Landlord.objects.filter(
+                ownerships__property_id__in=prop_ids
+            ).distinct()
+        qs = qs.prefetch_related('bank_accounts', 'ownerships__property')
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(email__icontains=search))
@@ -282,6 +300,7 @@ class LandlordViewSet(viewsets.ModelViewSet):
 class BankAccountViewSet(viewsets.ModelViewSet):
     serializer_class = BankAccountSerializer
     permission_classes = [IsAgentOrAdmin]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
         prop_ids = get_accessible_property_ids(self.request.user)
@@ -292,6 +311,31 @@ class BankAccountViewSet(viewsets.ModelViewSet):
         if landlord_id:
             qs = qs.filter(landlord_id=landlord_id)
         return qs
+
+    def get_serializer_context(self):
+        return {**super().get_serializer_context(), 'request': self.request}
+
+    @action(detail=True, methods=['post'], url_path='upload-confirmation',
+            parser_classes=[parsers.MultiPartParser, parsers.FormParser])
+    def upload_confirmation(self, request, pk=None):
+        ba = self.get_object()
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        if ba.confirmation_letter:
+            ba.confirmation_letter.delete(save=False)
+        ba.confirmation_letter = f
+        ba.save(update_fields=['confirmation_letter'])
+        return Response(BankAccountSerializer(ba, context={'request': request}).data)
+
+    @action(detail=True, methods=['delete'], url_path='remove-confirmation')
+    def remove_confirmation(self, request, pk=None):
+        ba = self.get_object()
+        if ba.confirmation_letter:
+            ba.confirmation_letter.delete(save=False)
+        ba.confirmation_letter = None
+        ba.save(update_fields=['confirmation_letter'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class PropertyGroupViewSet(viewsets.ModelViewSet):
@@ -339,3 +383,32 @@ class PropertyValuationViewSet(viewsets.ModelViewSet):
         return PropertyValuation.objects.filter(
             property_id__in=prop_ids
         ).select_related("property").order_by("-valuation_date")
+
+
+class PropertyAgentAssignmentViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for property-agent assignments.
+    Filterable by ?property=ID or ?agent=ID.
+    """
+    serializer_class = PropertyAgentAssignmentSerializer
+    permission_classes = [IsAgentOrAdmin]
+
+    def get_queryset(self):
+        prop_ids = get_accessible_property_ids(self.request.user)
+        qs = PropertyAgentAssignment.objects.filter(
+            property_id__in=prop_ids,
+        ).select_related("property", "agent", "assigned_by").order_by("-created_at")
+
+        prop_filter = self.request.query_params.get("property")
+        if prop_filter:
+            qs = qs.filter(property_id=prop_filter)
+        agent_filter = self.request.query_params.get("agent")
+        if agent_filter:
+            qs = qs.filter(agent_id=agent_filter)
+        status_filter = self.request.query_params.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(assigned_by=self.request.user)

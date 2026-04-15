@@ -1,5 +1,5 @@
 <template>
-  <div class="document-page-wrapper flex-1 overflow-y-auto py-8 px-4 min-h-0 bg-[#e8eaed]">
+  <div class="document-page-wrapper flex-1 overflow-y-auto py-8 px-4 min-h-0 document-canvas-bg">
     <div class="relative max-w-[680px] mx-auto overflow-x-hidden">
       <!-- Header overlay -->
       <div v-if="showHeader" class="doc-header-overlay">
@@ -141,9 +141,9 @@ function computeOverlayPositions() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        border: '2px dashed #1e3a5f',
+        border: '2px dashed var(--party-landlord-base)',
         borderRadius: '6px',
-        color: '#1e3a5f',
+        color: 'var(--party-landlord-base)',
         fontSize: isInitials ? '8pt' : '9pt',
         fontWeight: '600',
         pointerEvents: 'none',
@@ -180,6 +180,10 @@ onBeforeUnmount(destroy)
 </script>
 
 <style scoped>
+/* Canvas background — surfaces `--doc-canvas-bg` as a non-scoped utility
+   so the template markup stays free of hex literals. */
+.document-canvas-bg { background-color: var(--doc-canvas-bg); }
+
 /* Header overlay */
 .doc-header-overlay {
   position: absolute;
@@ -189,13 +193,15 @@ onBeforeUnmount(destroy)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid var(--doc-border);
   background: #fff;
   pointer-events: none;
   z-index: 2;
 }
-.doc-header-left  { font-size: 9px; color: #6b7280; font-family: ui-sans-serif, system-ui; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
-.doc-header-right { font-size: 16px; font-weight: 800; color: #1e3a5f; font-family: Georgia, serif; letter-spacing: -0.5px; }
+/* 9px/8px here are sub-text-micro chrome (document header/footer),
+   not content — sanctioned micro-label exception per design standard. */
+.doc-header-left  { font-size: 9px; color: var(--doc-header-text); font-family: ui-sans-serif, system-ui; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60%; }
+.doc-header-right { font-size: 16px; font-weight: 800; color: var(--doc-header-title); font-family: Georgia, serif; letter-spacing: -0.5px; }
 
 /* Footer bar */
 .doc-footer-bar {
@@ -206,7 +212,7 @@ onBeforeUnmount(destroy)
   display: flex;
   justify-content: space-between;
   font-size: 8px;
-  color: #9ca3af;
+  color: var(--doc-footer-text);
   pointer-events: none;
   z-index: 2;
 }
@@ -224,8 +230,8 @@ onBeforeUnmount(destroy)
 .document-page :deep(ul) { list-style-type: disc;    padding-left: 1.5rem; font-size: 0.875rem; }
 .document-page :deep(ol) { list-style-type: decimal; padding-left: 1.5rem; font-size: 0.875rem; }
 .document-page :deep(table) { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.875rem; }
-.document-page :deep(td), .document-page :deep(th) { border: 1px solid #e5e7eb; padding: 0.375rem 0.5rem; }
-.document-page :deep(th) { background: #f9fafb; font-weight: 600; }
+.document-page :deep(td), .document-page :deep(th) { border: 1px solid var(--doc-border); padding: 0.375rem 0.5rem; }
+.document-page :deep(th) { background: var(--doc-th-bg); font-weight: 600; }
 
 /* Auto page breaks */
 .document-page :deep([data-auto-page-break]) {
@@ -234,7 +240,7 @@ onBeforeUnmount(destroy)
   justify-content: space-between;
   margin: 0 -3.5rem;
   padding: 0 3.5rem 4px;
-  background: linear-gradient(to bottom, #fff 0%, #fff calc(100% - 16px), #e8eaed calc(100% - 16px), #e8eaed 100%);
+  background: linear-gradient(to bottom, #fff 0%, #fff calc(100% - 16px), var(--doc-canvas-bg) calc(100% - 16px), var(--doc-canvas-bg) 100%);
   position: relative;
   user-select: none;
   pointer-events: none;
@@ -258,7 +264,7 @@ onBeforeUnmount(destroy)
 .document-page :deep([data-auto-page-break]) .apb-left,
 .document-page :deep([data-auto-page-break]) .apb-right {
   font-size: 8px;
-  color: #9ca3af;
+  color: var(--doc-footer-text);
   font-family: ui-sans-serif, system-ui, sans-serif;
   position: relative;
   z-index: 1;
@@ -273,42 +279,42 @@ onBeforeUnmount(destroy)
   page-break-after: always;
 }
 
-/* Merge field highlights (preview mode) */
+/* Merge field highlights (preview mode) — uses info/warning tokens */
 .document-page :deep(.pf-filled) {
-  background: #dbeafe55;
-  color: #1e3a5f;
+  background: theme('colors.info.100' / 33%);
+  color: var(--party-landlord-base);
   font-weight: 500;
-  border-bottom: 1px solid #93c5fd;
+  border-bottom: 1px solid theme('colors.info.500');
   padding: 0 2px;
   border-radius: 2px;
 }
 .document-page :deep(.pf-empty) {
-  background: #fef9c3;
-  color: #92400e;
+  background: theme('colors.warning.100');
+  color: theme('colors.warning.700');
   font-size: 0.82em;
   padding: 0 4px;
   border-radius: 3px;
   font-family: ui-monospace, monospace;
-  border: 1px dashed #fcd34d;
+  border: 1px dashed theme('colors.warning.500');
 }
 
-/* Party-colored filled fields */
-.document-page :deep(.pf-filled[data-party="landlord"]) { background: #1e3a5f18; color: #1e3a5f; border-bottom-color: #1e3a5f88; }
-.document-page :deep(.pf-filled[data-party="tenant"]) { background: #3b82f618; color: #2563eb; border-bottom-color: #3b82f688; }
-.document-page :deep(.pf-filled[data-party="occupant"]) { background: #10b98118; color: #059669; border-bottom-color: #10b98188; }
-.document-page :deep(.pf-filled[data-party="witness"]) { background: #8b5cf618; color: #7c3aed; border-bottom-color: #8b5cf688; }
-.document-page :deep(.pf-filled[data-party="property"]) { background: #b4530918; color: #b45309; border-bottom-color: #b4530988; }
-.document-page :deep(.pf-filled[data-party="financial"]) { background: #04785718; color: #047857; border-bottom-color: #04785788; }
-.document-page :deep(.pf-filled[data-party="lease"]) { background: #4f46e518; color: #4f46e5; border-bottom-color: #4f46e588; }
+/* Party-colored filled fields — colors hoisted to :root in main.css */
+.document-page :deep(.pf-filled[data-party="landlord"])  { background: color-mix(in srgb, var(--party-landlord-base) 9%, transparent);  color: var(--party-landlord-base);  border-bottom-color: color-mix(in srgb, var(--party-landlord-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="tenant"])    { background: color-mix(in srgb, var(--party-tenant-base) 9%, transparent);    color: var(--party-tenant-solid);   border-bottom-color: color-mix(in srgb, var(--party-tenant-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="occupant"])  { background: color-mix(in srgb, var(--party-occupant-base) 9%, transparent);  color: var(--party-occupant-solid); border-bottom-color: color-mix(in srgb, var(--party-occupant-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="witness"])   { background: color-mix(in srgb, var(--party-witness-base) 9%, transparent);   color: var(--party-witness-solid);  border-bottom-color: color-mix(in srgb, var(--party-witness-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="property"])  { background: color-mix(in srgb, var(--party-property-base) 9%, transparent);  color: var(--party-property-base);  border-bottom-color: color-mix(in srgb, var(--party-property-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="financial"]) { background: color-mix(in srgb, var(--party-financial-base) 9%, transparent); color: var(--party-financial-base); border-bottom-color: color-mix(in srgb, var(--party-financial-base) 53%, transparent); }
+.document-page :deep(.pf-filled[data-party="lease"])     { background: color-mix(in srgb, var(--party-lease-base) 9%, transparent);     color: var(--party-lease-base);     border-bottom-color: color-mix(in srgb, var(--party-lease-base) 53%, transparent); }
 
 /* Party-colored empty placeholders */
-.document-page :deep(.pf-empty[data-party="landlord"]) { background: #1e3a5f12; color: #1e3a5f; border-color: #1e3a5f55; }
-.document-page :deep(.pf-empty[data-party="tenant"]) { background: #3b82f612; color: #2563eb; border-color: #3b82f655; }
-.document-page :deep(.pf-empty[data-party="occupant"]) { background: #10b98112; color: #059669; border-color: #10b98155; }
-.document-page :deep(.pf-empty[data-party="witness"]) { background: #8b5cf612; color: #7c3aed; border-color: #8b5cf655; }
-.document-page :deep(.pf-empty[data-party="property"]) { background: #b4530912; color: #b45309; border-color: #b4530955; }
-.document-page :deep(.pf-empty[data-party="financial"]) { background: #04785712; color: #047857; border-color: #04785755; }
-.document-page :deep(.pf-empty[data-party="lease"]) { background: #4f46e512; color: #4f46e5; border-color: #4f46e555; }
+.document-page :deep(.pf-empty[data-party="landlord"])  { background: color-mix(in srgb, var(--party-landlord-base) 7%, transparent);  color: var(--party-landlord-base);  border-color: color-mix(in srgb, var(--party-landlord-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="tenant"])    { background: color-mix(in srgb, var(--party-tenant-base) 7%, transparent);    color: var(--party-tenant-solid);   border-color: color-mix(in srgb, var(--party-tenant-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="occupant"])  { background: color-mix(in srgb, var(--party-occupant-base) 7%, transparent);  color: var(--party-occupant-solid); border-color: color-mix(in srgb, var(--party-occupant-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="witness"])   { background: color-mix(in srgb, var(--party-witness-base) 7%, transparent);   color: var(--party-witness-solid);  border-color: color-mix(in srgb, var(--party-witness-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="property"])  { background: color-mix(in srgb, var(--party-property-base) 7%, transparent);  color: var(--party-property-base);  border-color: color-mix(in srgb, var(--party-property-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="financial"]) { background: color-mix(in srgb, var(--party-financial-base) 7%, transparent); color: var(--party-financial-base); border-color: color-mix(in srgb, var(--party-financial-base) 33%, transparent); }
+.document-page :deep(.pf-empty[data-party="lease"])     { background: color-mix(in srgb, var(--party-lease-base) 7%, transparent);     color: var(--party-lease-base);     border-color: color-mix(in srgb, var(--party-lease-base) 33%, transparent); }
 
 /* Inline field chips (editor mode) */
 .document-page :deep(span[data-merge-field]),
@@ -330,32 +336,18 @@ onBeforeUnmount(destroy)
   border-radius: 4px;
   margin: 0 1px;
   white-space: nowrap;
-  background: #2B2D6E18;
-  color: #2B2D6E;
-  border: 1px solid #2B2D6E44;
+  background: var(--doc-chip-navy-bg);
+  color: var(--doc-chip-navy-text);
+  border: 1px solid var(--doc-chip-navy-border);
   cursor: grab;
 }
 
 /* Party-colored merge field chips */
-.document-page :deep(span[data-party="landlord"])::before {
-  background: #1e3a5f18; color: #1e3a5f; border-color: #1e3a5f44;
-}
-.document-page :deep(span[data-party="tenant"])::before {
-  background: #3b82f618; color: #3b82f6; border-color: #3b82f644;
-}
-.document-page :deep(span[data-party="occupant"])::before {
-  background: #10b98118; color: #10b981; border-color: #10b98144;
-}
-.document-page :deep(span[data-party="witness"])::before {
-  background: #8b5cf618; color: #8b5cf6; border-color: #8b5cf644;
-}
-.document-page :deep(span[data-party="property"])::before {
-  background: #b4530918; color: #b45309; border-color: #b4530944;
-}
-.document-page :deep(span[data-party="financial"])::before {
-  background: #04785718; color: #047857; border-color: #04785744;
-}
-.document-page :deep(span[data-party="lease"])::before {
-  background: #4f46e518; color: #4f46e5; border-color: #4f46e544;
-}
+.document-page :deep(span[data-party="landlord"])::before  { background: color-mix(in srgb, var(--party-landlord-base) 9%, transparent);  color: var(--party-landlord-base);  border-color: color-mix(in srgb, var(--party-landlord-base) 27%, transparent); }
+.document-page :deep(span[data-party="tenant"])::before    { background: color-mix(in srgb, var(--party-tenant-base) 9%, transparent);    color: var(--party-tenant-base);    border-color: color-mix(in srgb, var(--party-tenant-base) 27%, transparent); }
+.document-page :deep(span[data-party="occupant"])::before  { background: color-mix(in srgb, var(--party-occupant-base) 9%, transparent);  color: var(--party-occupant-base);  border-color: color-mix(in srgb, var(--party-occupant-base) 27%, transparent); }
+.document-page :deep(span[data-party="witness"])::before   { background: color-mix(in srgb, var(--party-witness-base) 9%, transparent);   color: var(--party-witness-base);   border-color: color-mix(in srgb, var(--party-witness-base) 27%, transparent); }
+.document-page :deep(span[data-party="property"])::before  { background: color-mix(in srgb, var(--party-property-base) 9%, transparent);  color: var(--party-property-base);  border-color: color-mix(in srgb, var(--party-property-base) 27%, transparent); }
+.document-page :deep(span[data-party="financial"])::before { background: color-mix(in srgb, var(--party-financial-base) 9%, transparent); color: var(--party-financial-base); border-color: color-mix(in srgb, var(--party-financial-base) 27%, transparent); }
+.document-page :deep(span[data-party="lease"])::before     { background: color-mix(in srgb, var(--party-lease-base) 9%, transparent);     color: var(--party-lease-base);     border-color: color-mix(in srgb, var(--party-lease-base) 27%, transparent); }
 </style>

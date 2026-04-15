@@ -23,9 +23,9 @@
       v-if="health"
       class="rounded-lg px-4 py-3 flex items-center gap-3 text-sm font-medium"
       :class="{
-        'bg-green-50 text-green-800 border border-green-200': health.overall === 'healthy',
-        'bg-amber-50 text-amber-800 border border-amber-200': health.overall === 'degraded',
-        'bg-red-50 text-red-800 border border-red-200': health.overall === 'unhealthy',
+        'bg-success-50 text-success-700 border border-success-100': health.overall === 'healthy',
+        'bg-warning-50 text-warning-700 border border-warning-100': health.overall === 'degraded',
+        'bg-danger-50 text-danger-700 border border-danger-100': health.overall === 'unhealthy',
       }"
     >
       <component
@@ -50,16 +50,16 @@
         </div>
       </div>
 
-      <div class="card p-4 cursor-pointer hover:ring-2 hover:ring-navy/20 transition" @click="activeTab = 'tools'">
+      <button type="button" class="card p-4 text-left cursor-pointer hover:ring-2 hover:ring-navy/20 focus-visible:ring-2 focus-visible:ring-navy/40 transition" @click="activeTab = 'tools'">
         <div class="text-xs text-gray-500 uppercase tracking-wide">MCP Tools</div>
         <div class="text-2xl font-bold text-navy mt-1">{{ registry?.totals?.mcp_tools || dashboard?.mcp?.tool_count || 0 }}</div>
         <div class="text-xs text-gray-400 mt-1">
           {{ registry?.totals?.mcp_resources || dashboard?.mcp?.resource_count || 0 }} resources &middot;
           {{ dashboard?.mcp?.server_exists ? 'Server OK' : 'Not found' }}
         </div>
-      </div>
+      </button>
 
-      <div class="card p-4 cursor-pointer hover:ring-2 hover:ring-navy/20 transition" @click="activeTab = 'skills'">
+      <button type="button" class="card p-4 text-left cursor-pointer hover:ring-2 hover:ring-navy/20 focus-visible:ring-2 focus-visible:ring-navy/40 transition" @click="activeTab = 'skills'">
         <div class="text-xs text-gray-500 uppercase tracking-wide">Skills</div>
         <div class="text-2xl font-bold text-navy mt-1">
           {{ (registry?.totals?.claude_skills || 0) + (registry?.totals?.maintenance_skills || dashboard?.skills?.total_active || 0) }}
@@ -68,7 +68,7 @@
           {{ registry?.totals?.claude_skills || 0 }} claude &middot;
           {{ registry?.totals?.maintenance_skills || dashboard?.skills?.total_active || 0 }} maintenance
         </div>
-      </div>
+      </button>
 
       <div class="card p-4">
         <div class="text-xs text-gray-500 uppercase tracking-wide">API Calls (7d)</div>
@@ -105,7 +105,7 @@
           <span class="font-semibold text-sm">Vectorised Data</span>
           <span
             class="ml-auto text-xs px-2 py-0.5 rounded-full"
-            :class="dashboard?.rag?.status === 'healthy' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'"
+            :class="dashboard?.rag?.status === 'healthy' ? 'bg-success-100 text-success-700' : 'bg-warning-100 text-warning-700'"
           >
             {{ dashboard?.rag?.status || 'loading' }}
           </span>
@@ -153,7 +153,7 @@
               </div>
               <span
                 class="text-xs px-2 py-0.5 rounded-full"
-                :class="agent.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'"
+                :class="agent.status === 'active' ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'"
               >
                 {{ agent.status }}
               </span>
@@ -161,7 +161,7 @@
             <div class="flex gap-1.5 mt-1.5 flex-wrap">
               <span
                 v-for="f in agent.features" :key="f"
-                class="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded"
+                class="text-xs bg-navy/5 text-navy px-1.5 py-0.5 rounded"
               >{{ f }}</span>
             </div>
             <div class="text-xs text-gray-400 mt-1">
@@ -205,7 +205,7 @@
                 <div class="text-xs font-mono text-gray-400">avg {{ formatTokens(ep.avg_input) }}</div>
                 <div
                   v-if="(ep.peak_input || 0) > 50000"
-                  class="text-[10px] text-red-600 font-medium mt-0.5"
+                  class="text-xs text-danger-600 font-medium mt-0.5"
                 >
                   !! Max {{ formatTokens(ep.peak_input) }} — oversized context
                 </div>
@@ -215,12 +215,12 @@
 
           <div
             v-if="dashboard?.token_usage?.oversized_context_alerts?.length"
-            class="bg-red-50 border border-red-200 rounded-lg p-3 mt-3"
+            class="bg-danger-50 border border-danger-100 rounded-lg p-3 mt-3"
           >
-            <div class="text-xs font-medium text-red-700 flex items-center gap-1">
+            <div class="text-xs font-medium text-danger-700 flex items-center gap-1">
               <AlertTriangle :size="13" /> Oversized Context Detected
             </div>
-            <div class="text-xs text-red-600 mt-1">
+            <div class="text-xs text-danger-600 mt-1">
               {{ dashboard.token_usage.oversized_context_alerts.length }} endpoint(s) sending &gt;50k input tokens.
               Review RAG chunk counts and transcript windowing.
             </div>
@@ -237,7 +237,7 @@
         <div class="p-4 space-y-2 text-sm">
           <div v-for="(val, key) in dashboard?.system" :key="key" class="flex justify-between">
             <span class="text-gray-500">{{ formatKey(key) }}</span>
-            <span :class="typeof val === 'boolean' ? (val ? 'text-green-600' : 'text-gray-400') : 'text-gray-700'">
+            <span :class="typeof val === 'boolean' ? (val ? 'text-success-600' : 'text-gray-400') : 'text-gray-700'">
               {{ typeof val === 'boolean' ? (val ? 'Yes' : 'No') : val }}
             </span>
           </div>
@@ -257,7 +257,7 @@
         <div class="p-4 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           <div v-for="(info, key) in registry.endpoint_usage" :key="key" class="text-center p-3 bg-gray-50 rounded-lg">
             <div class="text-lg font-bold text-navy">{{ info.calls_30d }}</div>
-            <div class="text-[10px] text-gray-500 mt-0.5">{{ info.label }}</div>
+            <div class="text-xs text-gray-500 mt-0.5">{{ info.label }}</div>
           </div>
         </div>
       </div>
@@ -289,19 +289,19 @@
             <div
               v-for="tool in displayedTools" :key="tool.id"
               @click="selectedTool = tool"
-              class="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-indigo-50 hover:ring-1 hover:ring-indigo-200 transition group"
+              class="p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-navy/5 hover:ring-1 hover:ring-navy/20 transition group"
             >
               <div class="flex items-start justify-between">
                 <span class="text-sm font-medium text-gray-800 group-hover:text-navy">{{ tool.name }}</span>
-                <span class="text-[10px] bg-white text-gray-400 px-1.5 py-0.5 rounded border border-gray-100">{{ tool.category }}</span>
+                <span class="text-xs bg-white text-gray-400 px-1.5 py-0.5 rounded border border-gray-100">{{ tool.category }}</span>
               </div>
               <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ tool.description }}</p>
               <div class="flex gap-1 mt-2" v-if="tool.parameters?.length">
                 <span
                   v-for="p in tool.parameters.slice(0, 3)" :key="p"
-                  class="text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded"
+                  class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded"
                 >{{ p }}</span>
-                <span v-if="tool.parameters.length > 3" class="text-[10px] text-gray-400">+{{ tool.parameters.length - 3 }}</span>
+                <span v-if="tool.parameters.length > 3" class="text-xs text-gray-400">+{{ tool.parameters.length - 3 }}</span>
               </div>
             </div>
           </div>
@@ -319,7 +319,7 @@
             v-for="res in registry?.mcp_resources" :key="res.uri"
             class="flex items-center gap-3 p-2 bg-gray-50 rounded"
           >
-            <code class="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{{ res.uri }}</code>
+            <code class="text-xs text-navy bg-navy/5 px-2 py-0.5 rounded">{{ res.uri }}</code>
             <span class="text-xs text-gray-500">{{ res.description }}</span>
           </div>
         </div>
@@ -339,15 +339,15 @@
           <div
             v-for="skill in registry?.claude_skills" :key="skill.id"
             @click="selectedSkill = skill"
-            class="px-4 py-3 cursor-pointer hover:bg-indigo-50 transition group"
+            class="px-4 py-3 cursor-pointer hover:bg-navy/5 transition group"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-gray-800 group-hover:text-navy">{{ skill.title }}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full"
+                <span class="text-xs px-1.5 py-0.5 rounded-full"
                   :class="{
-                    'bg-blue-100 text-blue-700': skill.category === 'lease',
-                    'bg-red-100 text-red-700': skill.category === 'security',
+                    'bg-info-100 text-info-700': skill.category === 'lease',
+                    'bg-danger-100 text-danger-700': skill.category === 'security',
                     'bg-purple-100 text-purple-700': skill.category === 'esigning',
                     'bg-gray-100 text-gray-600': skill.category === 'general',
                   }"
@@ -356,7 +356,7 @@
               <ChevronRight :size="14" class="text-gray-300 group-hover:text-navy" />
             </div>
             <p class="text-xs text-gray-500 mt-1 line-clamp-2">{{ skill.description }}</p>
-            <div class="flex gap-2 mt-1.5 text-[10px] text-gray-400">
+            <div class="flex gap-2 mt-1.5 text-xs text-gray-400">
               <span v-if="skill.steps">{{ skill.steps }} steps</span>
               <span v-if="skill.references?.length">{{ skill.references.length }} reference{{ skill.references.length > 1 ? 's' : '' }}</span>
               <span class="font-mono">{{ skill.path }}</span>
@@ -391,17 +391,17 @@
           <div
             v-for="skill in filteredMaintenanceSkills" :key="skill.id"
             @click="selectedMaintSkill = skill"
-            class="px-4 py-3 cursor-pointer hover:bg-indigo-50 transition group"
+            class="px-4 py-3 cursor-pointer hover:bg-navy/5 transition group"
           >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <span class="text-sm font-medium text-gray-800 group-hover:text-navy">{{ skill.name }}</span>
-                <span class="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full capitalize">{{ skill.trade }}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded-full"
+                <span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full capitalize">{{ skill.trade }}</span>
+                <span class="text-xs px-1.5 py-0.5 rounded-full"
                   :class="{
-                    'bg-green-100 text-green-700': skill.difficulty === 'easy',
-                    'bg-amber-100 text-amber-700': skill.difficulty === 'medium',
-                    'bg-red-100 text-red-700': skill.difficulty === 'hard',
+                    'bg-success-100 text-success-700': skill.difficulty === 'easy',
+                    'bg-warning-100 text-warning-700': skill.difficulty === 'medium',
+                    'bg-danger-100 text-danger-700': skill.difficulty === 'hard',
                   }"
                 >{{ skill.difficulty }}</span>
               </div>
@@ -411,9 +411,9 @@
             <div class="flex gap-1 mt-1.5 flex-wrap" v-if="skill.symptom_phrases?.length">
               <span
                 v-for="phrase in skill.symptom_phrases.slice(0, 4)" :key="phrase"
-                class="text-[10px] bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded"
+                class="text-xs bg-warning-50 text-warning-700 px-1.5 py-0.5 rounded"
               >{{ phrase }}</span>
-              <span v-if="skill.symptom_phrases.length > 4" class="text-[10px] text-gray-400">+{{ skill.symptom_phrases.length - 4 }}</span>
+              <span v-if="skill.symptom_phrases.length > 4" class="text-xs text-gray-400">+{{ skill.symptom_phrases.length - 4 }}</span>
             </div>
           </div>
         </div>
@@ -457,9 +457,9 @@
               :is="check.status === 'pass' ? CheckCircle2 : check.status === 'warn' ? AlertTriangle : XCircle"
               :size="15"
               :class="{
-                'text-green-500': check.status === 'pass',
-                'text-amber-500': check.status === 'warn',
-                'text-red-500': check.status === 'fail',
+                'text-success-500': check.status === 'pass',
+                'text-warning-500': check.status === 'warn',
+                'text-danger-500': check.status === 'fail',
               }"
             />
             <span class="text-sm text-gray-700">{{ check.name }}</span>
@@ -478,22 +478,22 @@
           <span class="font-semibold text-sm">Progressive Test — Level {{ testResult.level }}</span>
           <span
             class="ml-auto text-sm font-bold"
-            :class="testResult.score >= 80 ? 'text-green-600' : testResult.score >= 50 ? 'text-amber-600' : 'text-red-600'"
+            :class="testResult.score >= 80 ? 'text-success-600' : testResult.score >= 50 ? 'text-warning-600' : 'text-danger-600'"
           >
             {{ testResult.score }}%
           </span>
         </div>
         <div class="p-4">
           <div v-if="testResult.comparison" class="mb-4 p-3 rounded-lg text-sm"
-            :class="testResult.comparison.improvement >= 0 ? 'bg-green-50' : 'bg-red-50'"
+            :class="testResult.comparison.improvement >= 0 ? 'bg-success-50' : 'bg-danger-50'"
           >
-            <span v-if="testResult.comparison.improvement > 0" class="text-green-700 font-medium">
+            <span v-if="testResult.comparison.improvement > 0" class="text-success-700 font-medium">
               +{{ testResult.comparison.improvement }}% improvement
             </span>
             <span v-else-if="testResult.comparison.improvement === 0" class="text-gray-600">
               No change from previous run
             </span>
-            <span v-else class="text-red-700 font-medium">
+            <span v-else class="text-danger-700 font-medium">
               {{ testResult.comparison.improvement }}% regression
             </span>
             <span class="text-xs text-gray-500 ml-2">
@@ -504,7 +504,7 @@
           <div class="space-y-1.5">
             <div v-for="test in testResult.tests" :key="test.name" class="flex items-center gap-2 text-sm">
               <component :is="test.passed ? CheckCircle2 : XCircle" :size="14"
-                :class="test.passed ? 'text-green-500' : 'text-red-500'"
+                :class="test.passed ? 'text-success-500' : 'text-danger-500'"
               />
               <span class="text-gray-700">{{ test.name }}</span>
               <span v-if="test.detail" class="text-xs text-gray-400 ml-auto">{{ test.detail }}</span>
@@ -534,13 +534,13 @@
                 <td class="text-xs">{{ formatDate(run.timestamp) }}</td>
                 <td>{{ run.level }}</td>
                 <td>
-                  <span :class="run.score >= 80 ? 'text-green-600' : run.score >= 50 ? 'text-amber-600' : 'text-red-600'" class="font-bold">
+                  <span :class="run.score >= 80 ? 'text-success-600' : run.score >= 50 ? 'text-warning-600' : 'text-danger-600'" class="font-bold">
                     {{ run.score }}%
                   </span>
                 </td>
                 <td class="text-xs text-gray-500">{{ run.tests?.length || '?' }} tests</td>
                 <td>
-                  <span v-if="run.comparison" :class="run.comparison.improvement >= 0 ? 'text-green-600' : 'text-red-600'" class="text-xs font-medium">
+                  <span v-if="run.comparison" :class="run.comparison.improvement >= 0 ? 'text-success-600' : 'text-danger-600'" class="text-xs font-medium">
                     {{ run.comparison.improvement >= 0 ? '+' : '' }}{{ run.comparison.improvement }}%
                   </span>
                   <span v-else class="text-xs text-gray-400">—</span>
@@ -564,12 +564,12 @@
             @click="selectedLog = selectedLog?.id === log.id ? null : log"
           >
             <div class="flex items-center gap-3 text-sm">
-              <span class="font-mono text-xs px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700">{{ log.endpoint }}</span>
+              <span class="font-mono text-xs px-1.5 py-0.5 rounded bg-navy/5 text-navy">{{ log.endpoint }}</span>
               <span class="text-gray-500">{{ log.model }}</span>
               <span class="ml-auto flex items-center gap-3 text-xs text-gray-400">
                 <span>{{ formatTokens(log.input_tokens) }} in</span>
                 <span>{{ formatTokens(log.output_tokens) }} out</span>
-                <span :class="log.latency_ms > 5000 ? 'text-red-500 font-medium' : log.latency_ms > 3000 ? 'text-amber-500' : 'text-green-600'">
+                <span :class="log.latency_ms > 5000 ? 'text-danger-500 font-medium' : log.latency_ms > 3000 ? 'text-warning-500' : 'text-success-600'">
                   {{ (log.latency_ms / 1000).toFixed(1) }}s
                 </span>
                 <span>{{ formatDate(log.created_at) }}</span>
@@ -628,7 +628,7 @@
           <button
             v-if="chatMessages.length > 0"
             @click="chatMessages = []; chatSessionId = null"
-            class="ml-auto text-xs text-gray-400 hover:text-red-500 transition"
+            class="ml-auto text-xs text-gray-400 hover:text-danger-500 transition"
           >Clear</button>
         </div>
         <div ref="chatContainer" class="p-4 space-y-3 max-h-[400px] overflow-y-auto bg-gray-50/50">
@@ -644,9 +644,9 @@
             <!-- Ticket confirmation prompt -->
             <div
               v-if="msg.type === 'confirm'"
-              class="max-w-[85%] bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 text-sm space-y-2 rounded-bl-sm"
+              class="max-w-[85%] bg-warning-50 border border-warning-100 rounded-lg px-3 py-2.5 text-sm space-y-2 rounded-bl-sm"
             >
-              <div class="flex items-center gap-1.5 text-amber-700 font-semibold text-xs uppercase tracking-wide">
+              <div class="flex items-center gap-1.5 text-warning-700 font-semibold text-xs uppercase tracking-wide">
                 <AlertTriangle :size="12" />
                 Maintenance identified
               </div>
@@ -662,15 +662,15 @@
                 >No, skip</button>
               </div>
               <div v-else class="text-xs text-gray-500 italic flex items-center gap-1.5">
-                <CheckCircle2 v-if="msg.resolvedText?.startsWith('Ticket')" :size="12" class="text-green-500" />
+                <CheckCircle2 v-if="msg.resolvedText?.startsWith('Ticket')" :size="12" class="text-success-500" />
                 {{ msg.resolvedText }}
               </div>
             </div>
             <div
               v-else-if="msg.type === 'skills'"
-              class="max-w-[90%] bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2.5 text-sm space-y-2 rounded-bl-sm"
+              class="max-w-[90%] bg-navy/5 border border-navy/10 rounded-lg px-3 py-2.5 text-sm space-y-2 rounded-bl-sm"
             >
-              <div class="flex items-center gap-1.5 text-indigo-700 font-semibold text-xs uppercase tracking-wide">
+              <div class="flex items-center gap-1.5 text-navy font-semibold text-xs uppercase tracking-wide">
                 <BookOpen :size="12" />
                 Skills used in chat
               </div>
@@ -678,7 +678,7 @@
               <div v-if="msg.skillsUsed?.preview?.length" class="space-y-1">
                 <div
                   v-for="(skillLine, idx) in msg.skillsUsed.preview" :key="`${idx}-${skillLine}`"
-                  class="text-xs text-gray-700 bg-white/80 border border-indigo-100 rounded px-2 py-1 font-mono break-words"
+                  class="text-xs text-gray-700 bg-white/80 border border-navy/10 rounded px-2 py-1 font-mono break-words"
                 >{{ skillLine }}</div>
               </div>
             </div>
@@ -745,7 +745,7 @@
           <div class="text-xs text-gray-400">Total Messages</div>
         </div>
         <div class="card p-4 text-center">
-          <div class="text-2xl font-bold text-indigo-600">{{ chatLogData.summary.ai_messages }}</div>
+          <div class="text-2xl font-bold text-navy">{{ chatLogData.summary.ai_messages }}</div>
           <div class="text-xs text-gray-400">AI Messages</div>
         </div>
         <div class="card p-4 text-center">
@@ -765,22 +765,22 @@
           <div
             v-for="entry in chatLogData?.entries" :key="entry.id"
             class="px-4 py-3"
-            :class="entry.is_ai ? 'bg-indigo-50/40' : ''"
+            :class="entry.is_ai ? 'bg-navy/5' : ''"
           >
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs font-medium" :class="entry.is_ai ? 'text-indigo-600' : 'text-gray-700'">
+              <span class="text-xs font-medium" :class="entry.is_ai ? 'text-navy' : 'text-gray-700'">
                 {{ entry.author }}
               </span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded-full"
-                :class="entry.is_ai ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-100 text-gray-500'"
+              <span class="text-xs px-1.5 py-0.5 rounded-full"
+                :class="entry.is_ai ? 'bg-navy/10 text-navy' : 'bg-gray-100 text-gray-500'"
               >{{ entry.role }}</span>
-              <span class="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">{{ entry.activity_type }}</span>
-              <span class="ml-auto text-[10px] text-gray-400">
+              <span class="text-xs bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded">{{ entry.activity_type }}</span>
+              <span class="ml-auto text-xs text-gray-400">
                 #{{ entry.request_id }} &middot; {{ formatDate(entry.created_at) }}
               </span>
             </div>
             <p class="text-sm text-gray-700 line-clamp-3">{{ entry.message }}</p>
-            <div class="text-[10px] text-gray-400 mt-0.5">{{ entry.request_title }}</div>
+            <div class="text-xs text-gray-400 mt-0.5">{{ entry.request_title }}</div>
           </div>
           <div v-if="!chatLogData?.entries?.length" class="p-8 text-center text-gray-400 text-sm">
             No chat activity in this period
@@ -790,137 +790,122 @@
     </div>
 
     <!-- ═══ TOOL DETAIL MODAL ═══ -->
-    <div v-if="selectedTool" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @click.self="selectedTool = null">
-      <div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 class="font-semibold text-gray-900">{{ selectedTool.name }}</h3>
-            <span class="text-xs text-gray-400">MCP Tool</span>
-          </div>
-          <button @click="selectedTool = null" class="p-1 rounded-lg hover:bg-gray-100">
-            <X :size="18" class="text-gray-400" />
-          </button>
+    <BaseModal :open="!!selectedTool" size="lg" @close="selectedTool = null">
+      <template #header>
+        <div>
+          <h3 class="font-semibold text-gray-900">{{ selectedTool?.name }}</h3>
+          <span class="text-xs text-gray-400">MCP Tool</span>
         </div>
-        <div class="p-5 space-y-4">
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Category</div>
-            <span class="text-sm px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full">{{ selectedTool.category }}</span>
-          </div>
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
-            <p class="text-sm text-gray-700">{{ selectedTool.description }}</p>
-          </div>
-          <div v-if="selectedTool.parameters?.length">
-            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Parameters</div>
-            <div class="space-y-1">
-              <div v-for="p in selectedTool.parameters" :key="p" class="flex items-center gap-2">
-                <code class="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{{ p }}</code>
-              </div>
+      </template>
+      <div v-if="selectedTool" class="space-y-4">
+        <div>
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Category</div>
+          <span class="text-sm px-2.5 py-1 bg-navy/5 text-navy rounded-full">{{ selectedTool.category }}</span>
+        </div>
+        <div>
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
+          <p class="text-sm text-gray-700">{{ selectedTool.description }}</p>
+        </div>
+        <div v-if="selectedTool.parameters?.length">
+          <div class="text-xs font-medium text-gray-500 uppercase mb-2">Parameters</div>
+          <div class="space-y-1">
+            <div v-for="p in selectedTool.parameters" :key="p" class="flex items-center gap-2">
+              <code class="text-xs bg-gray-100 px-2 py-0.5 rounded font-mono">{{ p }}</code>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </BaseModal>
 
     <!-- ═══ CLAUDE SKILL DETAIL MODAL ═══ -->
-    <div v-if="selectedSkill" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @click.self="selectedSkill = null">
-      <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
-          <div>
-            <h3 class="font-semibold text-gray-900">{{ selectedSkill.title }}</h3>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="text-xs px-2 py-0.5 rounded-full"
-                :class="{
-                  'bg-blue-100 text-blue-700': selectedSkill.category === 'lease',
-                  'bg-red-100 text-red-700': selectedSkill.category === 'security',
-                  'bg-purple-100 text-purple-700': selectedSkill.category === 'esigning',
-                  'bg-gray-100 text-gray-600': selectedSkill.category === 'general',
-                }"
-              >{{ selectedSkill.category }}</span>
-              <span class="text-xs text-gray-400">Claude Code Skill</span>
-            </div>
+    <BaseModal :open="!!selectedSkill" size="xl" @close="selectedSkill = null">
+      <template #header>
+        <div v-if="selectedSkill">
+          <h3 class="font-semibold text-gray-900">{{ selectedSkill.title }}</h3>
+          <div class="flex items-center gap-2 mt-0.5">
+            <span class="text-xs px-2 py-0.5 rounded-full"
+              :class="{
+                'bg-info-100 text-info-700': selectedSkill.category === 'lease',
+                'bg-danger-100 text-danger-700': selectedSkill.category === 'security',
+                'bg-purple-100 text-purple-700': selectedSkill.category === 'esigning',
+                'bg-gray-100 text-gray-600': selectedSkill.category === 'general',
+              }"
+            >{{ selectedSkill.category }}</span>
+            <span class="text-xs text-gray-400">Claude Code Skill</span>
           </div>
-          <button @click="selectedSkill = null" class="p-1 rounded-lg hover:bg-gray-100">
-            <X :size="18" class="text-gray-400" />
-          </button>
         </div>
-        <div class="p-5 space-y-4">
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
-            <p class="text-sm text-gray-700">{{ selectedSkill.description }}</p>
+      </template>
+      <div v-if="selectedSkill" class="space-y-4">
+        <div>
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
+          <p class="text-sm text-gray-700">{{ selectedSkill.description }}</p>
+        </div>
+        <div class="flex gap-4 text-sm">
+          <div v-if="selectedSkill.steps">
+            <span class="text-gray-500">Steps:</span>
+            <span class="font-medium ml-1">{{ selectedSkill.steps }}</span>
           </div>
-          <div class="flex gap-4 text-sm">
-            <div v-if="selectedSkill.steps">
-              <span class="text-gray-500">Steps:</span>
-              <span class="font-medium ml-1">{{ selectedSkill.steps }}</span>
-            </div>
-            <div v-if="selectedSkill.references?.length">
-              <span class="text-gray-500">References:</span>
-              <span class="font-medium ml-1">{{ selectedSkill.references.join(', ') }}</span>
-            </div>
+          <div v-if="selectedSkill.references?.length">
+            <span class="text-gray-500">References:</span>
+            <span class="font-medium ml-1">{{ selectedSkill.references.join(', ') }}</span>
           </div>
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Source Path</div>
-            <code class="text-xs bg-gray-100 px-2 py-1 rounded block">{{ selectedSkill.path }}</code>
-          </div>
-          <div v-if="selectedSkill.body">
-            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Skill Definition</div>
-            <pre class="text-xs bg-gray-50 border border-gray-100 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto font-mono leading-relaxed text-gray-700">{{ selectedSkill.body }}</pre>
-          </div>
+        </div>
+        <div>
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Source Path</div>
+          <code class="text-xs bg-gray-100 px-2 py-1 rounded block">{{ selectedSkill.path }}</code>
+        </div>
+        <div v-if="selectedSkill.body">
+          <div class="text-xs font-medium text-gray-500 uppercase mb-2">Skill Definition</div>
+          <pre class="text-xs bg-gray-50 border border-gray-100 rounded-lg p-4 overflow-x-auto whitespace-pre-wrap max-h-96 overflow-y-auto font-mono leading-relaxed text-gray-700">{{ selectedSkill.body }}</pre>
         </div>
       </div>
-    </div>
+    </BaseModal>
 
     <!-- ═══ MAINTENANCE SKILL DETAIL MODAL ═══ -->
-    <div v-if="selectedMaintSkill" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @click.self="selectedMaintSkill = null">
-      <div class="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] overflow-y-auto">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <div>
-            <h3 class="font-semibold text-gray-900">{{ selectedMaintSkill.name }}</h3>
-            <div class="flex items-center gap-2 mt-0.5">
-              <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{{ selectedMaintSkill.trade }}</span>
-              <span class="text-xs px-2 py-0.5 rounded-full"
-                :class="{
-                  'bg-green-100 text-green-700': selectedMaintSkill.difficulty === 'easy',
-                  'bg-amber-100 text-amber-700': selectedMaintSkill.difficulty === 'medium',
-                  'bg-red-100 text-red-700': selectedMaintSkill.difficulty === 'hard',
-                }"
-              >{{ selectedMaintSkill.difficulty }}</span>
-            </div>
+    <BaseModal :open="!!selectedMaintSkill" size="lg" @close="selectedMaintSkill = null">
+      <template #header>
+        <div v-if="selectedMaintSkill">
+          <h3 class="font-semibold text-gray-900">{{ selectedMaintSkill.name }}</h3>
+          <div class="flex items-center gap-2 mt-0.5">
+            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full capitalize">{{ selectedMaintSkill.trade }}</span>
+            <span class="text-xs px-2 py-0.5 rounded-full"
+              :class="{
+                'bg-success-100 text-success-700': selectedMaintSkill.difficulty === 'easy',
+                'bg-warning-100 text-warning-700': selectedMaintSkill.difficulty === 'medium',
+                'bg-danger-100 text-danger-700': selectedMaintSkill.difficulty === 'hard',
+              }"
+            >{{ selectedMaintSkill.difficulty }}</span>
           </div>
-          <button @click="selectedMaintSkill = null" class="p-1 rounded-lg hover:bg-gray-100">
-            <X :size="18" class="text-gray-400" />
-          </button>
         </div>
-        <div class="p-5 space-y-4">
-          <div>
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
-            <p class="text-sm text-gray-700">{{ selectedMaintSkill.description }}</p>
+      </template>
+      <div v-if="selectedMaintSkill" class="space-y-4">
+        <div>
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Description</div>
+          <p class="text-sm text-gray-700">{{ selectedMaintSkill.description }}</p>
+        </div>
+        <div v-if="selectedMaintSkill.symptom_phrases?.length">
+          <div class="text-xs font-medium text-gray-500 uppercase mb-2">Symptom Phrases</div>
+          <div class="flex flex-wrap gap-1.5">
+            <span v-for="p in selectedMaintSkill.symptom_phrases" :key="p"
+              class="text-xs bg-warning-50 text-warning-700 px-2 py-0.5 rounded-full"
+            >{{ p }}</span>
           </div>
-          <div v-if="selectedMaintSkill.symptom_phrases?.length">
-            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Symptom Phrases</div>
-            <div class="flex flex-wrap gap-1.5">
-              <span v-for="p in selectedMaintSkill.symptom_phrases" :key="p"
-                class="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full"
-              >{{ p }}</span>
-            </div>
-          </div>
-          <div v-if="selectedMaintSkill.steps?.length">
-            <div class="text-xs font-medium text-gray-500 uppercase mb-2">Resolution Steps</div>
-            <ol class="space-y-1.5 text-sm text-gray-700">
-              <li v-for="(step, i) in selectedMaintSkill.steps" :key="i" class="flex gap-2">
-                <span class="text-xs font-bold text-navy mt-0.5">{{ i + 1 }}.</span>
-                <span>{{ step }}</span>
-              </li>
-            </ol>
-          </div>
-          <div v-if="selectedMaintSkill.notes">
-            <div class="text-xs font-medium text-gray-500 uppercase mb-1">Notes</div>
-            <p class="text-sm text-gray-600">{{ selectedMaintSkill.notes }}</p>
-          </div>
+        </div>
+        <div v-if="selectedMaintSkill.steps?.length">
+          <div class="text-xs font-medium text-gray-500 uppercase mb-2">Resolution Steps</div>
+          <ol class="space-y-1.5 text-sm text-gray-700">
+            <li v-for="(step, i) in selectedMaintSkill.steps" :key="i" class="flex gap-2">
+              <span class="text-xs font-bold text-navy mt-0.5">{{ i + 1 }}.</span>
+              <span>{{ step }}</span>
+            </li>
+          </ol>
+        </div>
+        <div v-if="selectedMaintSkill.notes">
+          <div class="text-xs font-medium text-gray-500 uppercase mb-1">Notes</div>
+          <p class="text-sm text-gray-600">{{ selectedMaintSkill.notes }}</p>
         </div>
       </div>
-    </div>
+    </BaseModal>
 
     <!-- Loading overlay -->
     <div v-if="loading" class="flex justify-center py-12">
@@ -933,6 +918,7 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
+import BaseModal from '../../components/BaseModal.vue'
 import {
   Database, Bot, Plug, Coins, BookOpen, Settings, HeartPulse, FlaskConical,
   CheckCircle2, AlertTriangle, XCircle, History, ChevronRight, X, Sparkles, Wrench,

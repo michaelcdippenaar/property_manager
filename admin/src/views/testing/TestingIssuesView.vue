@@ -2,30 +2,29 @@
   <div class="space-y-6">
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-xl font-bold text-navy" style="font-family: 'Bricolage Grotesque', 'Inter', sans-serif;">
-          Issue Tracker
-        </h1>
-        <p class="text-sm text-gray-500 mt-0.5">Track failing-test issues across all modules</p>
-      </div>
-      <!-- New Issue hint -->
-      <div class="relative group">
-        <button class="btn-ghost gap-2">
-          <Plus :size="15" />
-          New Issue
-        </button>
-        <div class="absolute right-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 hidden group-hover:block z-10 text-left">
-          <p class="text-xs font-semibold text-gray-700 mb-2">Bug workflow</p>
-          <ol class="text-xs text-gray-500 space-y-1.5 list-decimal list-inside">
-            <li>Write a failing test that reproduces the issue</li>
-            <li>Create <code class="bg-gray-100 px-1 rounded">backend/tests/issues/&lt;module&gt;/BUG-xxx.md</code></li>
-            <li>Include: title, steps, expected, actual, test file path</li>
-            <li>The portal picks it up on next poll</li>
-          </ol>
+    <PageHeader
+      title="Issue Tracker"
+      subtitle="Track failing-test issues across all modules"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Testing', to: '/testing' }, { label: 'Issues' }]"
+    >
+      <template #actions>
+        <div class="relative group">
+          <button class="btn-ghost gap-2">
+            <Plus :size="15" />
+            New Issue
+          </button>
+          <div class="absolute right-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 hidden group-hover:block z-10 text-left">
+            <p class="text-xs font-semibold text-gray-700 mb-2">Bug workflow</p>
+            <ol class="text-xs text-gray-500 space-y-1.5 list-decimal list-inside">
+              <li>Write a failing test that reproduces the issue</li>
+              <li>Create <code class="bg-gray-100 px-1 rounded">backend/tests/issues/&lt;module&gt;/BUG-xxx.md</code></li>
+              <li>Include: title, steps, expected, actual, test file path</li>
+              <li>The portal picks it up on next poll</li>
+            </ol>
+          </div>
         </div>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <!-- Filters -->
     <div class="flex flex-wrap gap-3 items-center">
@@ -127,6 +126,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { testingApi } from '../../api/testing'
 import { Plus, CheckCircle } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const loading = ref(true)
 const filterModule = ref('all')

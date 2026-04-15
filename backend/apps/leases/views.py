@@ -1,3 +1,5 @@
+from datetime import timedelta
+from django.db import transaction
 from django.db.models import Q
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -18,7 +20,7 @@ from .events import generate_lease_events, generate_onboarding_steps
 class LeaseViewSet(viewsets.ModelViewSet):
     serializer_class = LeaseSerializer
     permission_classes = [IsAuthenticated]
-    filterset_fields = ["status", "unit"]
+    filterset_fields = ["status", "unit", "primary_tenant"]
 
     def perform_destroy(self, instance):
         for doc in instance.documents.all():
@@ -41,11 +43,10 @@ class LeaseViewSet(viewsets.ModelViewSet):
             return qs.filter(pk__in=get_tenant_leases(user).values_list("pk", flat=True))
         if user.role == User.Role.ADMIN:
             return qs
-        if user.role == User.Role.AGENT:
-            from apps.properties.access import get_accessible_property_ids
-            prop_ids = get_accessible_property_ids(user)
-            return qs.filter(unit__property_id__in=prop_ids)
-        return qs.none()
+        # All staff roles: scope to accessible properties
+        from apps.properties.access import get_accessible_property_ids
+        prop_ids = get_accessible_property_ids(user)
+        return qs.filter(unit__property_id__in=prop_ids)
 
     # ------------------------------------------------------------------ #
     # Documents
@@ -208,6 +209,64 @@ class LeaseViewSet(viewsets.ModelViewSet):
         else:
             serializer.save()
         return Response(serializer.data)
+
+    # ------------------------------------------------------------------ #
+    # Renewal — create a pending successor lease that follows this one.
+    # Copies property/unit/rent/deposit/terms; does NOT copy tenants.
+    # ------------------------------------------------------------------ #
+
+    @action(detail=True, methods=["post"], url_path="renewal")
+    def renewal(self, request, pk=None):
+        source = self.get_object()
+
+        existing_successor = source.successor_lease.first()
+        if existing_successor:
+            serializer = LeaseSerializer(existing_successor, context={"request": request})
+            return Response(
+                {"detail": "Renewal already exists.", "lease": serializer.data},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if not source.end_date:
+            return Response(
+                {"error": "Source lease has no end_date — cannot schedule a renewal."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        overrides = request.data if isinstance(request.data, dict) else {}
+
+        default_start = source.end_date + timedelta(days=1)
+        # 12-month default span, end_date is exclusive of the start_date anniversary — use -1 day.
+        default_end = default_start.replace(year=default_start.year + 1) - timedelta(days=1)
+
+        def _pick(key, fallback):
+            v = overrides.get(key)
+            return v if v not in (None, "") else fallback
+
+        with transaction.atomic():
+            new_lease = Lease.objects.create(
+                unit=source.unit,
+                previous_lease=source,
+                status=Lease.Status.PENDING,
+                start_date=_pick("start_date", default_start),
+                end_date=_pick("end_date", default_end),
+                monthly_rent=_pick("monthly_rent", source.monthly_rent),
+                deposit=_pick("deposit", source.deposit),
+                max_occupants=_pick("max_occupants", source.max_occupants),
+                water_included=_pick("water_included", source.water_included),
+                water_limit_litres=_pick("water_limit_litres", source.water_limit_litres),
+                electricity_prepaid=_pick("electricity_prepaid", source.electricity_prepaid),
+                notice_period_days=_pick("notice_period_days", source.notice_period_days),
+                early_termination_penalty_months=_pick(
+                    "early_termination_penalty_months",
+                    source.early_termination_penalty_months,
+                ),
+                rent_due_day=_pick("rent_due_day", source.rent_due_day),
+                payment_reference=_pick("payment_reference", source.payment_reference),
+            )
+
+        serializer = LeaseSerializer(new_lease, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="generate-events")
     def generate_events(self, request, pk=None):

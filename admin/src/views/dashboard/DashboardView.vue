@@ -1,118 +1,174 @@
 <template>
-  <div class="space-y-6 max-w-[1400px] mx-auto">
+  <div class="space-y-5">
 
-    <!-- ── Zone B: Workflow Pipeline ── -->
-    <div class="card p-5 overflow-hidden">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-navy/10 flex items-center justify-center">
-            <FileSignature :size="15" class="text-navy" />
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-gray-900">Rental workflow</h2>
-            <p class="text-xs text-gray-400 mt-0.5">{{ completedSteps }} of 5 steps complete</p>
+    <!-- ── Page header ── -->
+    <PageHeader
+      v-if="!showWelcome"
+      title="Dashboard"
+      :subtitle="`Portfolio overview${portfolio.length ? ` · ${portfolio.length} ${portfolio.length === 1 ? 'property' : 'properties'}` : ''}`"
+    />
+
+    <!-- ── Welcome banner (new agency, 0 properties) ── -->
+    <div
+      v-if="showWelcome"
+      class="card p-6 bg-gradient-to-br from-navy/5 to-transparent border-navy/10"
+    >
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900">Welcome to Klikk, {{ agencyName }}</h2>
+          <p class="text-sm text-gray-500 mt-1">Let's get your agency set up. Complete these steps to unlock the full dashboard.</p>
+          <div class="flex flex-wrap gap-2.5 mt-4">
+            <!-- Primary + ghost variants migrated from hand-rolled inline utilities to design-system btn classes.
+                 Note: the secondary CTAs previously used a tonal navy variant (text-navy bg-navy/5).
+                 `.btn-ghost` renders white/gray instead — accepted as the design-system canonical ghost style. -->
+            <RouterLink to="/admin/agency" class="btn-primary btn-sm">
+              <Settings :size="16" /> Complete agency profile
+            </RouterLink>
+            <RouterLink to="/admin/users" class="btn-ghost btn-sm">
+              <UserPlus :size="16" /> Invite your team
+            </RouterLink>
+            <RouterLink to="/properties" class="btn-ghost btn-sm">
+              <Building2 :size="16" /> Add first property
+            </RouterLink>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="w-24 h-2 rounded-full bg-gray-100 overflow-hidden">
-            <div class="h-full rounded-full bg-navy transition-all duration-700" :style="`width: ${overallProgress}%`" />
-          </div>
-          <span class="text-xs font-semibold tabular-nums" :class="overallProgress >= 100 ? 'text-success-600' : 'text-navy'">{{ overallProgress }}%</span>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 relative">
-        <!-- Connector line behind cards -->
-        <div class="absolute top-1/2 left-0 right-0 -translate-y-1/2 h-px bg-gray-200 z-0 hidden sm:block" aria-hidden="true"></div>
-
-        <RouterLink
-          v-for="(step, idx) in pipelineSteps"
-          :key="step.label"
-          :to="step.to"
-          class="pipeline-card relative z-10 p-4 flex flex-col items-center gap-2.5 text-center rounded-xl transition-all hover:-translate-y-0.5"
-          :class="step.percent >= 100
-            ? 'bg-success-50/60 ring-1 ring-success-200 hover:ring-success-300'
-            : step.percent > 0
-              ? 'bg-navy/[0.03] ring-1 ring-navy/10 hover:ring-navy/25'
-              : 'bg-gray-50 ring-1 ring-gray-200 hover:ring-gray-300'"
-          :style="{ animationDelay: `${idx * 80}ms` }"
-        >
-          <!-- Step number -->
-          <div
-            class="absolute -top-2.5 -left-1.5 w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center leading-none shadow-sm"
-            :class="step.percent >= 100
-              ? 'bg-success-500 text-white'
-              : step.percent > 0
-                ? 'bg-navy text-white'
-                : 'bg-white border border-gray-200 text-gray-400'"
-          >
-            <CheckCircle2 v-if="step.percent >= 100" :size="12" />
-            <span v-else>{{ idx + 1 }}</span>
-          </div>
-
-          <!-- Icon -->
-          <div
-            class="w-11 h-11 rounded-xl flex items-center justify-center transition-colors"
-            :class="step.percent >= 100 ? 'bg-success-100' : step.percent > 0 ? 'bg-navy/10' : 'bg-gray-100'"
-          >
-            <component
-              :is="step.icon"
-              :size="20"
-              :class="step.percent >= 100 ? 'text-success-600' : step.percent > 0 ? 'text-navy' : 'text-gray-400'"
-            />
-          </div>
-
-          <!-- Label + percent -->
-          <div>
-            <span class="text-sm font-semibold text-gray-900 leading-tight block">{{ step.label }}</span>
-            <span class="text-sm tabular-nums mt-1 block font-bold" :class="step.percent >= 100 ? 'text-success-600' : step.percent > 0 ? 'text-navy' : 'text-gray-300'">
-              {{ step.percent >= 100 ? 'Done' : `${step.percent}%` }}
-            </span>
-          </div>
-
-          <!-- Progress bar -->
-          <div class="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden" role="progressbar" :aria-valuenow="step.percent" aria-valuemin="0" aria-valuemax="100">
-            <div
-              class="h-full rounded-full transition-all duration-1000 ease-out"
-              :class="[
-                step.percent >= 100 ? 'bg-success-500' : step.percent > 0 ? 'bg-navy' : 'bg-gray-200',
-                step.percent > 0 && step.percent < 100 ? 'pipeline-shimmer' : ''
-              ]"
-              :style="{ width: `${animReady ? step.percent : 0}%` }"
-            />
-          </div>
-        </RouterLink>
+        <button @click="dismissWelcome" aria-label="Dismiss welcome banner" class="text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0 mt-1">
+          <X :size="16" />
+        </button>
       </div>
     </div>
 
-    <!-- ── Zone C: Portfolio Pulse ── -->
-
-    <!-- Stat cards -->
-    <div class="grid grid-cols-2 gap-4">
+    <!-- ── Metrics strip ── -->
+    <div class="card flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-gray-100 overflow-hidden">
       <RouterLink
         v-for="stat in stats"
         :key="stat.label"
         :to="stat.href"
-        class="card group p-5 block hover:shadow-md hover:-translate-y-0.5 transition-all"
+        class="group flex-1 flex items-center gap-3 px-4 py-3 hover:bg-gray-50/70 transition-colors"
       >
-        <div v-if="loading" class="space-y-2 animate-pulse">
-          <div class="h-3 bg-gray-100 rounded w-2/3"></div>
-          <div class="h-8 bg-gray-100 rounded w-1/2"></div>
+        <div v-if="loading" class="flex-1 space-y-1.5 animate-pulse">
+          <div class="h-2.5 bg-gray-100 rounded w-16"></div>
+          <div class="h-5 bg-gray-100 rounded w-10"></div>
         </div>
         <template v-else>
-          <div class="flex items-center justify-between mb-3">
-            <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">{{ stat.label }}</span>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" :class="stat.bg">
-              <component :is="stat.icon" :size="16" :class="stat.iconColor" />
+          <div
+            class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
+            :class="stat.bg"
+          >
+            <component :is="stat.icon" :size="16" :class="stat.iconColor" />
+          </div>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-baseline gap-1.5">
+              <span
+                class="text-xl font-bold tabular-nums leading-none"
+                :class="stat.value > 0 ? 'text-gray-900' : 'text-gray-300'"
+              >{{ stat.value }}</span>
+              <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">{{ stat.label }}</span>
+            </div>
+            <div class="text-xs text-gray-400 mt-0.5 truncate">{{ stat.sub }}</div>
+            <div
+              v-if="stat.meter !== undefined"
+              class="mt-1 h-[3px] w-full max-w-[80px] bg-gray-100 rounded-full overflow-hidden"
+            >
+              <div
+                class="h-full rounded-full transition-all duration-500"
+                :class="stat.meter >= 90 ? 'bg-success-600' : stat.meter >= 50 ? 'bg-navy' : 'bg-warning-500'"
+                :style="{ width: stat.meter + '%' }"
+              />
             </div>
           </div>
-          <div class="text-3xl font-bold tracking-tight tabular-nums" :class="stat.value > 0 ? 'text-gray-900' : 'text-gray-300'">{{ stat.value }}</div>
-          <div class="text-xs text-gray-400 mt-1.5">{{ stat.sub }}</div>
         </template>
       </RouterLink>
     </div>
 
-    <!-- Maintenance + Occupancy -->
+    <!-- ── Property Lifecycle ── -->
+    <div v-if="portfolio.length || propertiesStore.portfolioLoading" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="section-header">Property lifecycle</h2>
+        <span v-if="portfolio.length" class="text-xs text-gray-400">{{ portfolio.length }} propert{{ portfolio.length === 1 ? 'y' : 'ies' }}</span>
+      </div>
+      <div v-if="propertiesStore.portfolioLoading && !portfolio.length" class="card p-5 text-sm text-gray-500">Loading lifecycle…</div>
+      <div v-else class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <PropertyLifecycleCard
+          v-for="entry in portfolio"
+          :key="entry.property_id"
+          :entry="entry"
+          @prepare-next="openNextLeaseDrawer"
+        />
+      </div>
+    </div>
+
+    <!-- ── Needs Attention ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+      <!-- Pending Signatures -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="section-header">Pending signatures</h2>
+          <RouterLink v-if="pendingSigning.length" to="/leases/overview" class="text-xs text-navy hover:underline">
+            View all →
+          </RouterLink>
+        </div>
+        <div v-if="loading" class="space-y-3 animate-pulse">
+          <div v-for="i in 3" :key="i" class="flex items-center gap-3 py-2">
+            <div class="w-7 h-7 bg-gray-100 rounded-lg flex-shrink-0"></div>
+            <div class="flex-1 space-y-1.5">
+              <div class="h-3 bg-gray-100 rounded w-3/4"></div>
+              <div class="h-2.5 bg-gray-100 rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+        <template v-else>
+          <div v-if="pendingSigning.length" class="divide-y divide-gray-100">
+            <div
+              v-for="sub in pendingSigning"
+              :key="sub.id"
+              class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+            >
+              <div class="w-7 h-7 rounded-lg bg-warning-50 flex items-center justify-center flex-shrink-0">
+                <PenLine :size="13" class="text-warning-600" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">
+                  {{ sub.lease?.unit_label ?? sub.document_title ?? 'Lease document' }}
+                </p>
+                <p class="text-xs text-gray-400">{{ sub.signers?.length ?? 0 }} signer{{ (sub.signers?.length ?? 0) !== 1 ? 's' : '' }} awaiting</p>
+              </div>
+              <span class="badge-amber flex-shrink-0">Awaiting sign</span>
+            </div>
+          </div>
+          <div v-else class="flex flex-col items-center justify-center py-6 text-center">
+            <div class="w-10 h-10 rounded-xl bg-success-50 flex items-center justify-center mb-2">
+              <CheckCircle2 :size="18" class="text-success-600" />
+            </div>
+            <p class="text-sm font-medium text-gray-700">All clear</p>
+            <p class="text-xs text-gray-400 mt-0.5">No pending signatures</p>
+          </div>
+        </template>
+      </div>
+
+      <!-- Maintenance -->
+      <MaintenanceWidget :portfolio="portfolio" :loading="loading || propertiesStore.portfolioLoading" />
+    </div>
+
+    <!-- Agency profile nudge -->
+    <div
+      v-if="agencyProfileIncomplete"
+      class="card p-4 flex items-center gap-3 bg-warning-50/50 border-warning-200"
+    >
+      <div class="w-9 h-9 rounded-xl bg-warning-100 flex items-center justify-center flex-shrink-0">
+        <ShieldAlert :size="16" class="text-warning-600" />
+      </div>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-gray-900">Complete your agency profile</p>
+        <p class="text-xs text-gray-500 mt-0.5">Add your FFC number, trust account, and contact details for compliant documents.</p>
+      </div>
+      <RouterLink to="/admin/agency" class="text-xs font-semibold text-warning-700 hover:text-warning-800 whitespace-nowrap">
+        Complete profile &rarr;
+      </RouterLink>
+    </div>
+
+    <!-- ── Bottom: Timeline + Occupancy ── -->
     <div class="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
       <!-- Lease timeline -->
@@ -121,21 +177,26 @@
         :loading="loading || propertiesStore.loading"
       />
 
-      <!-- Occupancy -->
+      <!-- Occupancy donut -->
       <div class="card p-5 lg:col-span-2">
-        <h2 class="text-sm font-bold text-gray-900 mb-5">Unit occupancy</h2>
+        <h2 class="section-header mb-5">Unit occupancy</h2>
         <div v-if="loading" class="flex items-center justify-center py-8 animate-pulse">
           <div class="w-36 h-36 rounded-full bg-gray-100"></div>
+        </div>
+        <div v-else-if="(statsData.total_units ?? 0) === 0" class="flex flex-col items-center justify-center py-8 text-center">
+          <svg width="120" height="120" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="54" fill="none" :stroke="TOKEN_TRACK" stroke-width="14" />
+          </svg>
+          <p class="text-xs text-gray-400 mt-2">No units added yet</p>
+          <RouterLink to="/properties" class="mt-2 text-xs text-navy hover:underline">Add a property →</RouterLink>
         </div>
         <div v-else class="flex items-center gap-6">
           <!-- Donut chart -->
           <div class="relative flex-shrink-0">
             <svg width="140" height="140" viewBox="0 0 140 140" class="transform -rotate-90">
-              <!-- Background ring -->
-              <circle cx="70" cy="70" r="54" fill="none" stroke="#f1f5f9" stroke-width="14" />
-              <!-- Segments -->
+              <circle cx="70" cy="70" r="54" fill="none" :stroke="TOKEN_TRACK" stroke-width="14" />
               <circle
-                v-for="(seg, i) in donutSegments"
+                v-for="seg in donutSegments"
                 :key="seg.label"
                 cx="70" cy="70" r="54"
                 fill="none"
@@ -147,13 +208,11 @@
                 class="transition-all duration-700"
               />
             </svg>
-            <!-- Center label -->
             <div class="absolute inset-0 flex flex-col items-center justify-center">
               <span class="text-2xl font-bold text-gray-900 tabular-nums">{{ statsData.total_units || 0 }}</span>
               <span class="text-xs text-gray-400">units</span>
             </div>
           </div>
-
           <!-- Legend -->
           <div class="flex-1 space-y-3">
             <div v-for="item in occupancy" :key="item.label" class="flex items-center justify-between">
@@ -168,7 +227,6 @@
             </div>
           </div>
         </div>
-
         <RouterLink
           to="/properties"
           class="mt-5 flex items-center gap-1.5 text-xs text-navy hover:underline"
@@ -178,31 +236,61 @@
       </div>
     </div>
 
+    <!-- Next lease drawer -->
+    <NextLeaseDrawer
+      v-if="nextLeaseSourceId !== null"
+      :source-lease-id="nextLeaseSourceId"
+      @close="nextLeaseSourceId = null"
+      @saved="onRenewalSaved"
+    />
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
+import { useAuthStore } from '../../stores/auth'
 import { usePropertiesStore } from '../../stores/properties'
 import PropertyTimelineWidget from './PropertyTimelineWidget.vue'
+import PropertyLifecycleCard from '../../components/PropertyLifecycleCard.vue'
+import MaintenanceWidget from '../../components/MaintenanceWidget.vue'
+import NextLeaseDrawer from '../../components/NextLeaseDrawer.vue'
+import PageHeader from '../../components/PageHeader.vue'
 import {
-  Building2, Users, Wrench, FileText,
-  UserCheck, FileSignature, CheckCircle2, PenLine,
+  Building2, Users, Wrench,
+  PenLine, CheckCircle2,
+  Settings, UserPlus, X, ShieldAlert,
 } from 'lucide-vue-next'
 
-const router = useRouter()
 const toast = useToast()
+const auth = useAuthStore()
 const propertiesStore = usePropertiesStore()
 
 const loading = ref(true)
 const animReady = ref(false)
+const welcomeDismissed = ref(sessionStorage.getItem('klikk_welcome_dismissed') === '1')
+
+const agencyName = computed(() => auth.agency?.name || auth.user?.full_name || 'your agency')
+const showWelcome = computed(() =>
+  !loading.value
+  && !welcomeDismissed.value
+  && (statsData.value.total_properties ?? 0) === 0
+)
+function dismissWelcome() {
+  welcomeDismissed.value = true
+  sessionStorage.setItem('klikk_welcome_dismissed', '1')
+}
+
+const agencyProfileIncomplete = computed(() => {
+  const a = auth.agency
+  if (!a || a.account_type !== 'agency') return false
+  return !a.eaab_ffc_number || !a.trust_account_number || !a.contact_number
+})
+
 const statsData = ref<Record<string, number>>({})
 const pendingSigning = ref<any[]>([])
-
-// Pipeline counts
 const landlordCount = ref(0)
 const templateCount = ref(0)
 const signingCompleted = ref(0)
@@ -220,97 +308,84 @@ async function loadData() {
       api.get('/esigning/submissions/?page_size=1'),
     ])
 
-    // Properties store fetch runs in parallel (has its own loading state)
     propertiesStore.fetchAll()
+    propertiesStore.fetchPortfolio({ force: true }).catch(() => { /* non-fatal */ })
 
     if (s.status === 'fulfilled') statsData.value = s.value.data
     if (signing.status === 'fulfilled') pendingSigning.value = (signing.value.data.results ?? signing.value.data).slice(0, 3)
 
-    // Pipeline counts
     if (landlords.status === 'fulfilled') landlordCount.value = landlords.value.data.count ?? (landlords.value.data.results ?? landlords.value.data).length ?? 0
     if (templates.status === 'fulfilled') templateCount.value = templates.value.data.count ?? (templates.value.data.results ?? templates.value.data).length ?? 0
     if (signingAll.status === 'fulfilled') {
       signingTotal.value = signingAll.value.data.count ?? 0
-      const pendingCount = pendingSigning.value.length
-      signingCompleted.value = Math.max(0, signingTotal.value - pendingCount)
+      signingCompleted.value = Math.max(0, signingTotal.value - pendingSigning.value.length)
     }
   } catch {
     toast.error('Failed to load dashboard data')
   } finally {
     loading.value = false
-    // Trigger progress bar animation after render
     nextTick(() => { requestAnimationFrame(() => { animReady.value = true }) })
   }
 }
 
 onMounted(loadData)
 
-// ── Zone B: Pipeline steps ────────────────────────────────────────────────────
-const pipelineSteps = computed(() => {
-  const totalUnits = statsData.value.total_units || 0
-  const activeLeases = statsData.value.active_leases ?? 0
+// ── Property lifecycle ──────────────────────────────────────────────────────
+const portfolio = computed(() => propertiesStore.portfolio)
+const nextLeaseSourceId = ref<number | null>(null)
 
-  // Landlord: partial credit if properties exist (implies owner context), full if landlord entities created
-  const hasProperties = (statsData.value.total_properties ?? 0) > 0
-  let landlordPct = 0
-  if (landlordCount.value > 0) landlordPct = 100
-  else if (hasProperties) landlordPct = 30  // properties exist but no formal landlord entity yet
+function openNextLeaseDrawer(leaseId: number) {
+  nextLeaseSourceId.value = leaseId
+}
 
-  return [
-    {
-      label: 'Owner',
-      icon: UserCheck,
-      to: '/landlords',
-      percent: landlordPct,
-    },
-    {
-      label: 'Property',
-      icon: Building2,
-      to: '/properties',
-      percent: hasProperties
-        ? (totalUnits > 0 ? 100 : 50)
-        : 0,
-    },
-    {
-      label: 'Template',
-      icon: FileSignature,
-      to: '/leases/templates',
-      percent: templateCount.value > 0 ? 100 : 0,
-    },
-    {
-      label: 'Lease',
-      icon: FileText,
-      to: '/leases',
-      percent: totalUnits > 0
-        ? Math.min(100, Math.round((activeLeases / totalUnits) * 100))
-        : 0,
-    },
-    {
-      label: 'Sign',
-      icon: PenLine,
-      to: '/leases/overview',
-      percent: signingTotal.value > 0
-        ? Math.min(100, Math.round((signingCompleted.value / signingTotal.value) * 100))
-        : (activeLeases > 0 ? 0 : 0),
-    },
-  ]
+async function onRenewalSaved(_newLeaseId: number) {
+  nextLeaseSourceId.value = null
+  toast.success('Next lease drafted as pending.')
+  await propertiesStore.fetchPortfolio({ force: true })
+}
+
+// ── Hero Metrics ─────────────────────────────────────────────────────────────
+const occupancyPct = computed(() => {
+  const total = statsData.value.total_units ?? 0
+  const occ = statsData.value.occupied_units ?? 0
+  return total > 0 ? Math.round((occ / total) * 100) : 0
 })
 
-// Pipeline summary
-const completedSteps = computed(() => pipelineSteps.value.filter(s => s.percent >= 100).length)
-const overallProgress = computed(() => Math.round(pipelineSteps.value.reduce((sum, s) => sum + Math.min(100, s.percent), 0) / 5))
-
-// ── Zone C: Stats ─────────────────────────────────────────────────────────────
-const stats = computed(() => [
+const stats = computed<Array<{
+  label: string; value: number; sub: string;
+  icon: any; bg: string; iconColor: string; href: string;
+  meter?: number;
+}>>(() => [
   {
-    label: 'Active tenants', value: statsData.value.active_tenants ?? 0, sub: 'currently leasing',
+    label: 'Properties',
+    value: statsData.value.total_properties ?? 0,
+    sub: `${occupancyPct.value}% occupancy · ${statsData.value.occupied_units ?? 0}/${statsData.value.total_units ?? 0} units`,
+    meter: occupancyPct.value,
+    icon: Building2, bg: 'bg-navy/10', iconColor: 'text-navy', href: '/properties',
+  },
+  {
+    label: 'Active tenants',
+    value: statsData.value.active_tenants ?? 0,
+    sub: 'currently leasing',
     icon: Users, bg: 'bg-success-50', iconColor: 'text-success-600', href: '/tenants',
   },
   {
-    label: 'Open requests', value: statsData.value.open_maintenance ?? 0, sub: 'need attention',
+    label: 'Open requests',
+    value: statsData.value.open_maintenance ?? 0,
+    sub: 'need attention',
     icon: Wrench, bg: 'bg-warning-50', iconColor: 'text-warning-500', href: '/maintenance/issues',
   },
 ])
+
+// ── Occupancy ─────────────────────────────────────────────────────────────────
+// SVG stroke colors — must stay in sync with tailwind tokens (navy, success-500, warning-500)
+// referenced by the paired `barColor` class, plus the unfilled donut track color. Hex required
+// because <circle :stroke> cannot consume a Tailwind class. Keep in sync with tailwind.config.js
+// if tokens change.
+const TOKEN_NAVY = '#2B2D6E'        // navy
+const TOKEN_SUCCESS_500 = '#14b8a6' // success-500
+const TOKEN_WARNING_500 = '#f59e0b' // warning-500
+const TOKEN_TRACK = '#f1f5f9'       // gray-100-ish, donut unfilled track
 
 const occupancy = computed(() => {
   const total = statsData.value.total_units || 1
@@ -318,16 +393,15 @@ const occupancy = computed(() => {
   const available = statsData.value.available_units ?? 0
   const maintenance = Math.max(0, total - occupied - available)
   return [
-    { label: 'Occupied',    count: occupied,    percent: Math.round((occupied / total) * 100),    barColor: 'bg-navy',        hex: '#2B2D6E' },
-    { label: 'Available',   count: available,   percent: Math.round((available / total) * 100),   barColor: 'bg-success-500', hex: '#14b8a6' },
-    { label: 'Maintenance', count: maintenance, percent: Math.round((maintenance / total) * 100), barColor: 'bg-warning-400', hex: '#fbbf24' },
+    { label: 'Occupied',    count: occupied,    percent: Math.round((occupied / total) * 100),    barColor: 'bg-navy',        hex: TOKEN_NAVY },
+    { label: 'Available',   count: available,   percent: Math.round((available / total) * 100),   barColor: 'bg-success-500', hex: TOKEN_SUCCESS_500 },
+    { label: 'Maintenance', count: maintenance, percent: Math.round((maintenance / total) * 100), barColor: 'bg-warning-500', hex: TOKEN_WARNING_500 },
   ]
 })
 
-// Donut chart segments
 const donutSegments = computed(() => {
-  const circumference = 2 * Math.PI * 54 // ~339.29
-  const gap = 4 // gap between segments in px
+  const circumference = 2 * Math.PI * 54
+  const gap = 4
   let offset = 0
   return occupancy.value
     .filter(item => item.percent > 0)
@@ -338,38 +412,4 @@ const donutSegments = computed(() => {
       return seg
     })
 })
-
 </script>
-
-<style scoped>
-/* Staggered card entrance */
-.pipeline-card {
-  animation: pipelineFadeUp 0.4s cubic-bezier(0.2, 0, 0, 1) both;
-}
-@keyframes pipelineFadeUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-/* Shimmer on in-progress bars */
-.pipeline-shimmer {
-  position: relative;
-  overflow: hidden;
-}
-.pipeline-shimmer::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.35) 50%,
-    transparent 100%
-  );
-  animation: shimmer 2s ease-in-out infinite;
-}
-@keyframes shimmer {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
-}
-</style>

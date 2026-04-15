@@ -53,23 +53,23 @@
               v-for="l in listings"
               :key="l.id"
               class="cursor-pointer hover:bg-gray-50 transition-colors"
-              :class="selectedId === l.id ? 'bg-indigo-50 hover:bg-indigo-50' : ''"
+              :class="selectedId === l.id ? 'bg-navy/5 hover:bg-navy/5' : ''"
               @click="selectedId = l.id"
             >
               <td class="max-w-[200px]">
                 <div class="font-medium text-gray-900 truncate text-xs">{{ l.title || l.raw_address || '—' }}</div>
-                <div class="text-[11px] text-gray-400 truncate">{{ l.suburb || l.area?.replace(/_/g, ' ') }}</div>
+                <div class="text-micro text-gray-400 truncate">{{ l.suburb || l.area?.replace(/_/g, ' ') }}</div>
               </td>
               <td class="text-gray-600 text-sm">{{ l.bedrooms ?? '—' }}</td>
               <td class="text-right text-sm font-medium text-gray-900 whitespace-nowrap">{{ formatPrice(l) }}</td>
               <td>
                 <div class="flex flex-col gap-0.5">
-                  <span v-if="l.ai_property_type" class="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium w-fit">{{ l.ai_property_type }}</span>
-                  <span v-if="l.ai_condition" :class="conditionClass(l.ai_condition)" class="text-[10px] px-1.5 py-0.5 rounded-full font-medium w-fit">{{ l.ai_condition }}</span>
+                  <span v-if="l.ai_property_type" class="text-xs px-1.5 py-0.5 rounded-full bg-navy/5 text-navy font-medium w-fit">{{ l.ai_property_type }}</span>
+                  <span v-if="l.ai_condition" :class="conditionClass(l.ai_condition)" class="text-xs px-1.5 py-0.5 rounded-full font-medium w-fit">{{ l.ai_condition }}</span>
                 </div>
               </td>
               <td>
-                <span class="text-[11px] text-gray-500">{{ sourceShort(l.source) }}</span>
+                <span class="text-micro text-gray-500">{{ sourceShort(l.source) }}</span>
               </td>
             </tr>
           </tbody>
@@ -170,9 +170,9 @@ function formatPrice(l: any): string {
 }
 
 function conditionClass(c: string): string {
-  if (c === 'well-maintained') return 'bg-emerald-50 text-emerald-700'
-  if (c === 'average')         return 'bg-amber-50 text-amber-700'
-  if (c === 'poor')            return 'bg-red-50 text-red-700'
+  if (c === 'well-maintained') return 'bg-success-50 text-success-700'
+  if (c === 'average')         return 'bg-warning-50 text-warning-700'
+  if (c === 'poor')            return 'bg-danger-50 text-danger-700'
   return 'bg-gray-50 text-gray-500'
 }
 

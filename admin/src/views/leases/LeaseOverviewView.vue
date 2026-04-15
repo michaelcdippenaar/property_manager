@@ -1,6 +1,24 @@
 <template>
   <div class="space-y-6">
-    <p class="text-sm text-gray-500">Lease portfolio at a glance.</p>
+    <PageHeader
+      title="Lease Overview"
+      subtitle="Lease portfolio at a glance."
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Leases', to: '/leases' }, { label: 'Overview' }]"
+    >
+      <template #actions>
+        <div class="flex items-center gap-2">
+          <button class="btn-primary" @click="router.push('/leases/build')">
+            <Plus :size="15" /> New Lease
+          </button>
+          <button class="btn-ghost" @click="router.push('/leases/templates')">
+            <FileSignature :size="15" /> Templates
+          </button>
+          <button class="btn-ghost" @click="router.push('/leases/status')">
+            <Activity :size="15" /> Signing Status
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <!-- Stat cards -->
     <div v-if="loading" class="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -26,19 +44,6 @@
       </RouterLink>
     </div>
 
-    <!-- Quick actions -->
-    <div class="flex items-center gap-3">
-      <button class="btn-primary" @click="router.push('/leases/build')">
-        <Plus :size="15" /> New Lease
-      </button>
-      <button class="btn-ghost" @click="router.push('/leases/templates')">
-        <FileSignature :size="15" /> Templates
-      </button>
-      <button class="btn-ghost" @click="router.push('/leases/status')">
-        <Activity :size="15" /> Signing Status
-      </button>
-    </div>
-
     <!-- Expiring soon -->
     <div v-if="expiringSoon.length" class="card overflow-hidden">
       <div class="px-5 py-3 border-b border-gray-100">
@@ -57,7 +62,7 @@
             <div class="text-xs text-gray-400">{{ lease.unit_label }}</div>
           </div>
           <div class="text-right">
-            <div class="text-sm font-semibold text-amber-600">
+            <div class="text-sm font-semibold text-warning-600">
               {{ daysUntil(lease.end_date) }} days left
             </div>
             <div class="text-xs text-gray-400">Ends {{ formatDate(lease.end_date) }}</div>
@@ -72,6 +77,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
+import PageHeader from '../../components/PageHeader.vue'
 import { FileText, FolderOpen, PenTool, Calendar, Plus, FileSignature, Activity } from 'lucide-vue-next'
 import { useLeasesStore } from '../../stores/leases'
 

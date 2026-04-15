@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, Person, Agency
+from .models import User, Person, Agency, PersonDocument
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -52,14 +52,19 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=f"deleted_{uuid.uuid4().hex[:8]}_{email}"
         )
 
-        user = User.objects.create_user(**validated_data, role=User.Role.ADMIN)
+        # Assign role based on account type
+        role = User.Role.AGENCY_ADMIN if account_type == Agency.AccountType.AGENCY else User.Role.OWNER
 
-        # Create an Agency for this new user
+        user = User.objects.create_user(**validated_data, role=role)
+
+        # Create an Agency and link it to the user
         if account_type == Agency.AccountType.AGENCY:
             name = agency_name.strip()
         else:
             name = f"{validated_data.get('first_name', '')} {validated_data.get('last_name', '')}".strip() or user.email
-        Agency.objects.create(account_type=account_type, name=name)
+        agency = Agency.objects.create(account_type=account_type, name=name)
+        user.agency = agency
+        user.save(update_fields=["agency"])
 
         return user
 
@@ -91,7 +96,22 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "email", "role", "date_joined"]
 
 
+class PersonDocumentSerializer(serializers.ModelSerializer):
+    file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PersonDocument
+        fields = ['id', 'document_type', 'file', 'file_url', 'description', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+    def get_file_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.file.url) if obj.file and request else None
+
+
 class PersonSerializer(serializers.ModelSerializer):
+    documents = PersonDocumentSerializer(many=True, read_only=True)
+
     class Meta:
         model = Person
         fields = [
@@ -99,6 +119,7 @@ class PersonSerializer(serializers.ModelSerializer):
             "address", "employer", "occupation", "monthly_income", "date_of_birth",
             "emergency_contact_name", "emergency_contact_phone",
             "company_reg", "vat_number", "linked_user", "created_at",
+            "documents",
         ]
         read_only_fields = ["id", "created_at"]
 
@@ -131,25 +152,41 @@ class TenantListSerializer(serializers.ModelSerializer):
 
 class AdminUserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    agency_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "full_name",
             "phone", "role", "is_active", "date_joined", "last_login",
+            "agency", "agency_name", "module_access", "ffc_number", "ffc_category",
         ]
         read_only_fields = ["id", "email", "date_joined", "last_login"]
+
+    def get_agency_name(self, obj):
+        return obj.agency.name if obj.agency else None
 
 
 class AdminUserUpdateSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=User.Role.choices, required=False)
     is_active = serializers.BooleanField(required=False)
+    agency = serializers.PrimaryKeyRelatedField(
+        queryset=Agency.objects.all(), required=False, allow_null=True,
+    )
+    module_access = serializers.ListField(
+        child=serializers.CharField(), required=False, default=list,
+    )
+    ffc_number = serializers.CharField(required=False, allow_blank=True)
+    ffc_category = serializers.ChoiceField(
+        choices=User.FFCCategory.choices, required=False, allow_blank=True,
+    )
 
 
 class InviteUserSerializer(serializers.Serializer):
     email = serializers.EmailField()
     role = serializers.ChoiceField(choices=User.Role.choices)
     first_name = serializers.CharField(required=False, allow_blank=True, default="")
+    agency_id = serializers.IntegerField(required=False, allow_null=True)
 
 
 class AgencySerializer(serializers.ModelSerializer):

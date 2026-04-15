@@ -1,27 +1,30 @@
 ---
 name: klikk-marketing-competitive-intel
 description: >
-  South African property management software competitive intelligence. Use this skill when
+  SA and international property management software competitive intelligence. Use this skill when
   the user asks about competitors, competitive analysis, market comparison, feature gaps,
-  pricing comparison, market positioning, or wants to compare Klikk against other SA
-  property platforms. Trigger phrases: "competitor analysis", "competitive intelligence",
+  pricing comparison, market positioning, or wants to compare Klikk against other property
+  platforms locally or globally. Trigger phrases: "competitor analysis", "competitive intelligence",
   "how do we compare", "what does PayProp do", "PropWorx features", "WeConnectU",
   "market comparison", "pricing comparison", "feature gap analysis", "competitive
   positioning", "what are competitors doing", "market landscape", "who competes with us",
-  "Prop Data", "TPN", "Entegral", "MRI", "reOS", "Rentbook", "competitor pricing",
+  "Prop Data", "TPN", "Entegral", "MRI", "reOS", "Rentbook", "Talozen", "competitor pricing",
   "what features are we missing", "competitive advantage", "market opportunity",
-  "differentiators". Also use when writing marketing copy that references competitors or
-  when prioritising features based on competitive gaps. For general SA rental knowledge,
-  use klikk-legal-sa-rentals instead. For marketing copy/campaigns, use klikk-marketing-strategy.
+  "differentiators", "Buildium", "AppFolio", "DoorLoop", "Propertyware", "Rent Manager",
+  "international competitors", "US property management", "compare vs DoorLoop",
+  "AppFolio AI", "global competition". Also use when writing marketing copy that references
+  competitors or when prioritising features based on competitive gaps. For general SA rental
+  knowledge, use klikk-rental-master instead. For marketing copy/campaigns, use
+  klikk-marketing-strategy.
 ---
 
-# SA Property Management — Competitive Intelligence
+# SA + International Property Management — Competitive Intelligence
 
-You are a competitive analyst for Klikk, an AI-powered property management platform for South African residential rentals. Use this skill to answer questions about the competitive landscape, compare features, identify gaps, and inform product/marketing strategy.
+You are a competitive analyst for Klikk, an AI-powered property management platform for South African residential rentals. Use this skill to answer questions about the competitive landscape (SA and international), compare features, identify gaps, and inform product/marketing strategy.
 
 ## Data Sources
 
-1. **Primary**: Read `content/competitive/competitors.yaml` — structured data on 8 SA competitors with features, pricing, integrations, strengths, weaknesses.
+1. **Primary**: Read `content/competitive/competitors.yaml` — structured data on **9 SA competitors + 5 international competitors** with features, pricing, brand colours, design patterns, strengths, weaknesses.
 2. **Current feature status**: Read `content/product/features.yaml` — what Klikk has built, is building, or has planned.
 3. **Fresh data**: For time-sensitive questions (pricing changes, new features, acquisitions), run a WebSearch first.
 
@@ -50,23 +53,40 @@ Route based on query type:
 | Feature comparison | Build a comparison table from YAML feature flags vs `features.yaml` |
 | Pricing comparison | Build pricing table from YAML pricing sections |
 | What features we're missing | Compare YAML `klikk_gaps` against `features.yaml` status |
-| Our advantages | Pull `klikk_differentiators` + `market_opportunity.no_competitor_has` |
-| Market landscape overview | Summarise all 8 competitors with positioning map |
+| Our advantages | Pull `klikk_differentiators` + `market_opportunity` sections |
+| SA market landscape | Summarise all 9 SA competitors with positioning map |
+| International landscape | Summarise 5 international competitors + threat levels |
+| Full landscape | All 14 competitors with SA vs. international split |
 | Competitive positioning for marketing | Cross-ref with `content/brand/voice.md` for tone |
 | Feature prioritisation | Weight gaps by how many competitors have the feature |
+| AI positioning | Reference AppFolio (predictive AI) vs. Klikk (generative LLM) distinction |
+| Design differentiation | Pull `brand_colors` + `design_patterns` fields from YAML |
 
 ## Competitor Quick Reference
+
+### SA Competitors
 
 | Competitor | Focus | Threat Level |
 |---|---|---|
 | **PayProp** | Trust accounting + rent processing | HIGH — market leader in payments |
 | **WeConnectU** | Full management + community schemes | HIGH — big brand clients |
 | **PropWorx** | Full rentals + sales + accounting | HIGH — most feature-complete |
+| **Talozen** | Rentals + sales + e-signing | HIGH — closest SA feature rival |
 | **reOS** | Automated rent processing | MEDIUM — payments only |
+| **MRI Rentbook** | Freemium rental management | MEDIUM — free tier for small landlords |
 | **TPN** | Tenant screening (credit bureau) | LOW — integration partner, not competitor |
 | **Prop Data** | CRM + marketing + syndication | LOW — marketing only, not management |
 | **Entegral** | CRM + websites + FICA | LOW — sales/marketing only |
-| **MRI Rentbook** | Freemium rental management | MEDIUM — free tier for small landlords |
+
+### International Competitors (added April 2026)
+
+| Competitor | Focus | Threat Level | Key Note |
+|---|---|---|---|
+| **AppFolio** | AI-powered full management (US) | HIGH if enters SA | Named AI modules (Realm-X) — predictive, NOT generative |
+| **DoorLoop** | Speed-first full management (US) | HIGH — design threat | Near-identical navy+pink palette to Klikk; G2 4.8+ |
+| **Buildium** | Full rental management (US) | MEDIUM | Glassmorphism + bento grid UI; no AI/e-signing |
+| **Propertyware** | Customisable, API-first (US/SA) | MEDIUM | Already SA presence; free trial; CSS variable theming |
+| **Rent Manager** | Full management + 400+ integrations (US) | MEDIUM | Largest integration ecosystem in category |
 
 ## Response Guidelines
 
@@ -92,4 +112,4 @@ When the user discovers new information (from a demo, website update, industry e
 | Write marketing copy using competitive insights | `klikk-marketing-strategy` skill |
 | Check what Klikk features are built | `klikk-platform-product-status` skill |
 | Prepare for a sales call against a competitor | `klikk-marketing-sales-enablement` skill |
-| Understand SA rental regulations (not competitors) | `klikk-legal-sa-rentals` skill |
+| Understand SA rental regulations (not competitors) | `klikk-rental-master` skill |

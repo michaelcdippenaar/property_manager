@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,7 +6,18 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  body { font-family: 'Inter', system-ui, sans-serif; background: #F5F5F8; color: #111; font-size: 15px; }
+
+  /* Lucide icons: slightly heavier stroke for better legibility at small sizes */
+  .lucide { stroke-width: 1.75; }
+
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background-color: #F5F5F8;
+    background-image: radial-gradient(#2B2D6E0D 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: #111;
+    font-size: 15px;
+  }
 
   /* Global keyboard focus ring — visible only when navigating via keyboard */
   :focus-visible {
@@ -21,6 +32,45 @@
     --ease-enter: cubic-bezier(0, 0, 0, 1);
     --duration-short: 150ms;
     --duration-medium: 200ms;
+
+    /* Brand-tinted elevation scale (navy at low opacity) */
+    --shadow-soft:     0 1px 2px rgba(15,17,57,0.04), 0 2px 6px rgba(15,17,57,0.04);
+    --shadow-lifted:   0 4px 12px rgba(15,17,57,0.06), 0 12px 24px rgba(15,17,57,0.04);
+    --shadow-floating: 0 12px 32px rgba(15,17,57,0.08), 0 24px 48px rgba(43,45,110,0.08);
+
+    /* ── Legal document party colors (DocumentPage.vue pf-filled/pf-empty) ──
+       Distinct per-role highlight colors for merge-field placeholders in
+       lease documents. Kept at the token layer because they are role-semantic
+       (landlord/tenant/etc.), not brand chrome. */
+    --party-landlord-base:   #1e3a5f;
+    --party-tenant-base:     #3b82f6;
+    --party-tenant-solid:    #2563eb;
+    --party-occupant-base:   #10b981;
+    --party-occupant-solid:  #059669;
+    --party-witness-base:    #8b5cf6;
+    --party-witness-solid:   #7c3aed;
+    --party-property-base:   #b45309;
+    --party-financial-base:  #047857;
+    --party-lease-base:      #4f46e5;
+
+    /* Legal document chrome (header/footer/page-break tones) */
+    --doc-header-text:    #6b7280;
+    --doc-header-title:   #1e3a5f;
+    --doc-footer-text:    #9ca3af;
+    --doc-border:         #e5e7eb;
+    --doc-th-bg:          #f9fafb;
+    --doc-canvas-bg:      #e8eaed;
+    --doc-chip-navy-bg:   #2B2D6E18;
+    --doc-chip-navy-text: #2B2D6E;
+    --doc-chip-navy-border: #2B2D6E44;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -50,6 +100,17 @@
   .btn-danger    { @apply btn bg-danger-50 text-danger-600 border border-danger-100 hover:bg-danger-100; }
   .btn-success   { @apply btn bg-success-600 text-white hover:bg-success-700; }
   .btn-accent    { @apply btn bg-accent text-white hover:bg-accent-dark; }
+
+  /* Accent-pink hover ring on buttons (layout-shift free).
+     Scoped off .btn-danger to avoid pink-on-red clash.
+     Listed explicitly because Tailwind @apply hoists .btn into each variant,
+     so a bare `.btn:hover` rule only lands on `.btn-primary`. */
+  .btn-primary:hover:not(:disabled),
+  .btn-ghost:hover:not(:disabled),
+  .btn-success:hover:not(:disabled),
+  .btn-accent:hover:not(:disabled) {
+    box-shadow: 0 0 0 2px rgba(255, 61, 127, 0.35);
+  }
 
   /* Button sizes */
   .btn-sm { @apply px-3 py-1.5 text-xs gap-1.5; }
@@ -81,12 +142,14 @@
 
   /* ── Cards ── */
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-xl border border-gray-200;
+    box-shadow: var(--shadow-soft);
     transition: box-shadow var(--duration-medium) var(--ease-standard),
                 border-color var(--duration-medium) var(--ease-standard);
   }
   .card-interactive:hover {
-    @apply border-gray-300 shadow-md;
+    @apply border-gray-300;
+    box-shadow: var(--shadow-lifted);
   }
 
   /* ── Badges ── */
@@ -99,6 +162,12 @@
   .badge-blue   { @apply badge bg-info-50 text-info-700; }
   .badge-purple { @apply badge bg-purple-50 text-purple-700; }
   .badge-gray   { @apply badge bg-gray-100 text-gray-600; }
+
+  /* Jewel-tone variants (deeper, richer than pastels — use for premium surfaces) */
+  .badge-emerald    { @apply badge bg-emerald-50 text-emerald-800 border border-emerald-100; }
+  .badge-amber-deep { @apply badge bg-amber-50 text-amber-900 border border-amber-100; }
+  .badge-rose       { @apply badge bg-rose-50 text-rose-800 border border-rose-100; }
+  .badge-indigo     { @apply badge bg-indigo-50 text-indigo-800 border border-indigo-100; }
 
   /* ── Pills (filter toggles) ── */
   .pill {

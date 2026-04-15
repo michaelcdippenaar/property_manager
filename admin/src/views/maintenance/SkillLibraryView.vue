@@ -11,7 +11,7 @@
         <span v-if="skillsLoading" class="text-xs text-gray-400">Loading…</span>
         <span v-else class="text-xs text-gray-500">{{ skills.length }} active</span>
       </div>
-      <div v-if="skillsError" class="text-sm text-red-600">{{ skillsError }}</div>
+      <div v-if="skillsError" class="text-sm text-danger-600">{{ skillsError }}</div>
       <ul v-else class="max-h-48 overflow-y-auto text-sm text-gray-700 space-y-1 border border-gray-100 rounded-lg p-2">
         <li v-for="s in skills.slice(0, 200)" :key="s.id" class="truncate">
           <span class="text-gray-400 font-mono text-xs">{{ s.trade }}</span>
@@ -30,7 +30,7 @@
             <span v-if="ragStatus.agent_qa_chunks"> · Q&amp;A: <strong>{{ ragStatus.agent_qa_chunks }}</strong></span>
             <span v-if="ragStatus.chat_knowledge_chunks"> · Learned: <strong>{{ ragStatus.chat_knowledge_chunks }}</strong></span>
             <span v-if="ragStatus.embedding_model" class="ml-1 text-gray-400">({{ ragStatus.embedding_model.split('/').pop() }})</span>
-            <span v-if="ragStatus.web_fetch_enabled" class="ml-2 text-indigo-600">· web fetch on</span>
+            <span v-if="ragStatus.web_fetch_enabled" class="ml-2 text-navy">· web fetch on</span>
           </span>
           <button
             v-if="chatHistory.length > 0"
@@ -59,11 +59,11 @@
           :class="[
             'text-sm rounded-lg p-2',
             msg.role === 'user'
-              ? 'bg-indigo-50 text-indigo-900 ml-8'
+              ? 'bg-navy/10 text-navy ml-8'
               : 'bg-white text-gray-800 mr-8 border border-gray-200'
           ]"
         >
-          <div class="text-xs font-semibold mb-1" :class="msg.role === 'user' ? 'text-indigo-600' : 'text-gray-500'">
+          <div class="text-xs font-semibold mb-1" :class="msg.role === 'user' ? 'text-navy' : 'text-gray-500'">
             {{ msg.role === 'user' ? 'You' : 'Agent' }}
           </div>
           <div class="whitespace-pre-wrap">{{ msg.content }}</div>
@@ -92,7 +92,7 @@
         <span v-if="agentMeta.rag_chunks_returned">({{ agentMeta.rag_chunks_returned }} excerpts)</span>
         <span v-if="agentMeta.qa_populated" class="ml-2">· Staff Q&amp;A: yes</span>
       </div>
-      <div v-if="agentError" class="text-sm text-red-600">{{ agentError }}</div>
+      <div v-if="agentError" class="text-sm text-danger-600">{{ agentError }}</div>
     </div>
   </div>
 </template>

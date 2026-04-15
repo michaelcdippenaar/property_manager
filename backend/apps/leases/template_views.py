@@ -57,6 +57,119 @@ except ImportError:
     DocxTemplate = None
 
 
+_PDF_TO_TEMPLATE_SYSTEM = (
+    "You are an expert at converting South African lease agreement PDFs into reusable HTML templates. "
+    "Read the PDF and reproduce its full content as clean HTML, replacing all tenant-specific, "
+    "property-specific, and financial values with merge fields. "
+    "Output the HTML first, then a line containing exactly '---FIELDS---', "
+    "then a JSON array of all merge field names used. No markdown fences, no other commentary."
+)
+
+_PDF_TO_TEMPLATE_PROMPT = """Convert this lease PDF into a reusable HTML template.
+
+OUTPUT FORMAT (follow exactly):
+<full HTML content here>
+---FIELDS---
+["field_name_1", "field_name_2", ...]
+
+RULES:
+1. Reproduce the complete document structure (headings, numbered clauses, tables, annexures).
+2. Do NOT include <html>, <head>, <body>, or <style> wrapper tags. Start directly with content tags.
+3. Replace every specific value with a merge field using this HTML pattern:
+   <span data-merge-field="field_name">{{field_name}}</span>
+4. Use these standard field names (add others as needed):
+   - landlord_name, landlord_reg_number, landlord_address, landlord_email
+   - agent_name, agent_reg_number, agent_address, agent_email
+   - infraco_name, infraco_reg_number, infraco_address, infraco_email
+   - tenant_name, tenant_id_number, tenant_address, tenant_email, tenant_phone
+   - co_tenant_name, co_tenant_id_number, co_tenant_address, co_tenant_email, co_tenant_phone
+   - guarantor_name, guarantor_id_number, guarantor_address, guarantor_email, guarantor_phone
+   - property_address, property_suburb, property_city, property_province, property_postal_code
+   - unit_number, unit_type, building_name
+   - lease_start_date, lease_end_date, key_return_date
+   - monthly_rent, deposit_amount, deposit_multiplier, payment_frequency
+   - escalation_percent, late_payment_interest_rate, notice_period_days
+   - annual_discount_percent, half_yearly_discount_percent
+   - parking_fee, parking_bays
+   - bank_name, bank_branch, bank_account_number, bank_reference
+   - infraco_bank_name, infraco_bank_branch, infraco_bank_account, infraco_bank_reference
+   - landlord_signature_1, tenant_signature_1, co_tenant_signature_1
+   - landlord_initials_1, tenant_initials_1, co_tenant_initials_1
+5. For signature/initials blocks use:
+   <div data-type="signature-block" data-field-type="signature" data-signer-role="landlord" data-field-name="landlord_signature_1" style="width:200px;height:60px;display:inline-block;border-bottom:1px solid #000;margin:8px 0;">{{landlord_signature_1}}</div>
+6. Preserve all clause numbering, headings, and table structures using <h1>-<h4>, <table>, <tr>, <td>.
+7. Keep all static boilerplate text exactly as written (definitions, legal clauses, etc.).
+8. Replace all filled-in tenant-specific handwritten or typed values with merge fields.
+9. After the HTML, output exactly one line: ---FIELDS---
+10. On the next line, output a JSON array of all merge field names used (deduplicated, no extras).
+
+The lease is attached as a PDF. Read all pages including all tables and annexures."""
+
+_FIELDS_SEPARATOR = "---FIELDS---"
+
+
+def _pdf_to_template_html(pdf_bytes: bytes, api_key: str):
+    """Convert a PDF lease to TipTap-compatible HTML with merge fields via Claude.
+
+    Returns (html: str, fields: list[str]) on success, raises RuntimeError on failure.
+    Uses a text separator format to avoid JSON-encoding a large HTML string.
+    """
+    import anthropic
+    import base64
+
+    client = anthropic.Anthropic(api_key=api_key)
+    b64_pdf = base64.standard_b64encode(pdf_bytes).decode("ascii")
+    # Use streaming — required by SDK for max_tokens > threshold (~10 min limit)
+    raw_parts = []
+    with client.messages.stream(
+        model="claude-sonnet-4-20250514",
+        max_tokens=32000,
+        system=_PDF_TO_TEMPLATE_SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "base64",
+                        "media_type": "application/pdf",
+                        "data": b64_pdf,
+                    },
+                },
+                {"type": "text", "text": _PDF_TO_TEMPLATE_PROMPT},
+            ],
+        }],
+    ) as stream:
+        for text in stream.text_stream:
+            raw_parts.append(text)
+    raw = "".join(raw_parts).strip()
+
+    # Split on the separator line
+    if _FIELDS_SEPARATOR in raw:
+        html_part, fields_part = raw.split(_FIELDS_SEPARATOR, 1)
+        html = html_part.strip()
+        fields_part = fields_part.strip()
+        # Strip any accidental markdown fences around the fields JSON
+        fields_part = re.sub(r"^```[a-z]*\n?", "", fields_part)
+        fields_part = re.sub(r"\n?```$", "", fields_part.strip())
+        try:
+            fields = json.loads(fields_part)
+            if not isinstance(fields, list):
+                fields = []
+        except json.JSONDecodeError:
+            # Fall back to regex extraction of field names from HTML
+            fields = list(dict.fromkeys(re.findall(r'data-merge-field="([^"]+)"', html)))
+    else:
+        # No separator — treat entire response as HTML and extract fields from it
+        html = re.sub(r"^```[a-z]*\n?", "", raw)
+        html = re.sub(r"\n?```$", "", html.strip())
+        fields = list(dict.fromkeys(re.findall(r'data-merge-field="([^"]+)"', html)))
+
+    if not html:
+        raise RuntimeError("Claude returned empty HTML.")
+    return html, fields
+
+
 class LeaseTemplateListView(generics.ListCreateAPIView):
     """
     GET  /api/v1/leases/templates/ — list active lease templates.
@@ -121,6 +234,9 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
         if not is_docx and not is_pdf:
             return Response({"error": "Only .docx or .pdf files are accepted."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Read PDF bytes before the ORM save (Django may advance the file pointer during storage write)
+        pdf_bytes = uploaded_file.read() if is_pdf else None
+
         tmpl = LeaseTemplate.objects.create(
             name=name,
             version=request.data.get("version") or "1.0",
@@ -128,7 +244,7 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
             docx_file=uploaded_file,
         )
 
-        # Discover merge fields — only possible for DOCX templates
+        # Discover merge fields for DOCX; convert PDF content to template HTML via Claude
         if is_docx and DocxTemplate is not None:
             try:
                 doc = DocxTemplate(tmpl.docx_file.path)
@@ -137,6 +253,36 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
                 tmpl.save(update_fields=["fields_schema"])
             except Exception:
                 pass  # field discovery is best-effort
+
+        elif is_pdf and pdf_bytes:
+            import logging
+            import threading
+            _log = logging.getLogger(__name__)
+            api_key = _get_anthropic_api_key()
+            if not api_key:
+                _log.warning("PDF template conversion skipped: ANTHROPIC_API_KEY not set")
+            else:
+                tmpl_id = tmpl.id
+
+                def _convert_in_background():
+                    """Run Claude PDF→HTML conversion in a daemon thread so the HTTP response returns immediately."""
+                    try:
+                        html, fields = _pdf_to_template_html(pdf_bytes, api_key)
+                        from .models import LeaseTemplate as _LT
+                        _LT.objects.filter(pk=tmpl_id).update(
+                            content_html=json.dumps({
+                                "v": 1,
+                                "html": html,
+                                "fields": [{"name": f, "type": "text"} for f in fields],
+                            }),
+                            fields_schema=fields,
+                        )
+                        _log.info("PDF template %s converted: %d chars, %d fields", tmpl_id, len(html), len(fields))
+                    except Exception as exc:
+                        _log.warning("PDF template %s conversion failed: %s", tmpl_id, exc, exc_info=True)
+
+                t = threading.Thread(target=_convert_in_background, daemon=True)
+                t.start()
 
         serializer = LeaseTemplateSerializer(tmpl, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -340,7 +486,11 @@ class LeaseTemplatePreviewView(APIView):
 import json as _json
 
 def _detect_fields_from_html(html: str) -> list:
-    return list(dict.fromkeys(re.findall(r'data-merge-field="([^"]+)"', html)))
+    # Span-wrapped fields: <span data-merge-field="field_name">
+    span_fields = re.findall(r'data-merge-field="([^"]+)"', html)
+    # Brace-style fields written by the AI or typed: {{ field_name }}
+    brace_fields = re.findall(r'\{\{\s*([\w]+)\s*\}\}', html)
+    return list(dict.fromkeys(span_fields + brace_fields))
 
 
 # ── Compact JSON ↔ HTML conversion (RAG-friendly representation) ──────────
@@ -1344,13 +1494,46 @@ class LeaseTemplateAIChatView(APIView):
         # On subsequent messages it already contains the document context.
         api_history = request.data.get("api_history") or []
 
+        from apps.leases.merge_fields import build_merge_fields_prompt_block, CANONICAL_FIELD_NAMES
+
         current_html = _extract_html(tmpl.content_html)
         detected = _detect_fields_from_html(current_html)
-        fields_info = ", ".join(detected) if detected else ", ".join(tmpl.fields_schema) if tmpl.fields_schema else "none yet"
+        detected_valid   = [f for f in detected if f in CANONICAL_FIELD_NAMES]
+        detected_invalid = [f for f in detected if f not in CANONICAL_FIELD_NAMES]
+        used_info = ", ".join(detected_valid) if detected_valid else "none yet"
+        fields_block = build_merge_fields_prompt_block()
+
+        invalid_warning = ""
+        if detected_invalid:
+            invalid_warning = (
+                "\n⚠️  INVALID fields currently in the document (these are NOT in the Available list "
+                "— replace them with the correct canonical names): "
+                + ", ".join(detected_invalid) + "\n"
+            )
 
         system = (
             f"You are an expert South African residential lease template advisor.\n"
-            f"Template: \"{tmpl.name}\" | Merge fields: {fields_info}\n\n"
+            f"Template: \"{tmpl.name}\"\n\n"
+            f"{fields_block}\n\n"
+            f"Canonical fields used in this document: {used_info}"
+            f"{invalid_warning}\n"
+            "## CRITICAL FIELD RULES\n"
+            "- ONLY use merge field names from the 'Available Merge Fields' list above. "
+            "NEVER invent, pluralise, rename, or extend field names.\n"
+            "- Common mistakes to AVOID: `landlord_full_name` (use `landlord_name`), "
+            "`tenant_full_name` (use `tenant_name`), `monthly_rental` (use `monthly_rent`), "
+            "`property_suburb`/`property_postal_code` (not available — use `property_address` "
+            "or `city`/`province`), `authorised_occupants` (use `occupant_1_name`, `occupant_2_name`, etc.), "
+            "`landlord_address` (use `landlord_physical_address`), `landlord_contact_number` "
+            "(use `landlord_contact` or `landlord_phone`), `bank_name`/`account_number` "
+            "(use `landlord_bank_name`/`landlord_bank_account_no`), `payment_due_day`/`escalation_percentage`/"
+            "`late_payment_penalty` (not available — write these as literal numbers agreed with the landlord), "
+            "`lease_start_date` (use `lease_start`), `lease_end_date` (use `lease_end`).\n"
+            "- If a concept you want to express has no canonical field, write it as LITERAL TEXT "
+            "(e.g. 'Signed at ___________' with a blank) — never invent a new {{ field_name }}.\n"
+            "- If the user asks 'what fields are available?', list fields from the Available Merge Fields "
+            "block above verbatim — do NOT read them from the document.\n\n"
+            "Write fields as {{ field_name }} in text.\n\n"
             "## Document Format\n"
             "The document is provided as numbered plain-text lines:\n"
             "  [0] h1 heading text\n"
@@ -1419,7 +1602,7 @@ class LeaseTemplateAIChatView(APIView):
             api_key = _get_anthropic_api_key()
             if not api_key:
                 return Response({"error": "ANTHROPIC_API_KEY is not configured on the server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            client = anthropic.Anthropic(api_key=api_key)
+            client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
             response = client.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=16000,
@@ -1427,172 +1610,183 @@ class LeaseTemplateAIChatView(APIView):
                 tools=_TEMPLATE_TOOLS,
                 messages=api_messages,
             )
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Handle max_tokens truncation gracefully
-        if getattr(response, 'stop_reason', None) == 'max_tokens':
-            return Response({
+            # Handle max_tokens truncation gracefully
+            if getattr(response, 'stop_reason', None) == 'max_tokens':
+                return Response({
                 "reply": "The document is too large to process in one go. Try asking for a specific section only, or use 'renumber sections' and 'add table of contents' as separate requests.",
                 "document_update": None,
             })
 
-        reply_parts = []
-        document_update = None
-        field_highlight = None
-        tools_used = []
+            reply_parts = []
+            document_update = None
+            field_highlight = None
+            tools_used = []
 
-        for block in response.content:
-            if block.type == "text" and block.text.strip():
-                reply_parts.append(block.text.strip())
+            for block in response.content:
+                if block.type == "text" and block.text.strip():
+                    reply_parts.append(block.text.strip())
 
-            elif block.type == "tool_use":
-                name = block.name
-                inp  = block.input
+                elif block.type == "tool_use":
+                    name = block.name
+                    inp  = block.input
 
-                if name == "edit_lines":
-                    from_i    = int(inp.get("from_index", 0))
-                    to_i      = int(inp.get("to_index", from_i))
-                    new_lines = inp.get("new_lines", [])
-                    summary   = inp.get("summary", "Document updated.")
-                    # Assign sequential indices to new_lines starting at from_i
-                    indexed = [{'i': from_i + j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
-                               for j, ln in enumerate(new_lines)]
-                    new_html = merge_lines_into_html(current_html, indexed)
-                    # For additions/deletions that change line count, rebuild from scratch
-                    if len(new_lines) != (to_i - from_i + 1):
-                        orig_lines  = html_to_plain_lines(current_html)
-                        before      = [l for l in orig_lines if l['i'] < from_i]
-                        after_lines = [l for l in orig_lines if l['i'] > to_i]
-                        # Re-index after block
-                        delta = len(new_lines) - (to_i - from_i + 1)
-                        for l in after_lines:
-                            l['i'] += delta
-                        rebuilt = before + indexed + after_lines
-                        new_html = _rebuild_html_from_lines(current_html, rebuilt)
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": summary}
-                    current_html = new_html
-                    tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(summary)
-
-                elif name == "update_all":
-                    lines   = inp.get("lines", [])
-                    summary = inp.get("summary", "Document updated.")
-                    indexed = [{'i': j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
-                               for j, ln in enumerate(lines)]
-                    new_html = _rebuild_html_from_lines(current_html, indexed)
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": summary}
-                    current_html = new_html
-                    tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(summary)
-
-                elif name == "add_comment":
-                    new_html = _insert_comment_html(
-                        current_html,
-                        inp.get("comment", ""),
-                        inp.get("position", "end"),
-                        inp.get("after_heading", ""),
-                    )
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": f"Comment added."}
-                    current_html = new_html
-                    tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(document_update["summary"])
-
-                elif name == "insert_toc":
-                    toc = _build_toc_html(current_html, inp.get("title", "TABLE OF CONTENTS"))
-                    if toc:
-                        new_html = toc + current_html
+                    if name == "edit_lines":
+                        from_i    = int(inp.get("from_index", 0))
+                        to_i      = int(inp.get("to_index", from_i))
+                        new_lines = inp.get("new_lines", [])
+                        summary   = inp.get("summary", "Document updated.")
+                        # Assign sequential indices to new_lines starting at from_i
+                        indexed = [{'i': from_i + j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
+                                   for j, ln in enumerate(new_lines)]
+                        new_html = merge_lines_into_html(current_html, indexed)
+                        # For additions/deletions that change line count, rebuild from scratch
+                        if len(new_lines) != (to_i - from_i + 1):
+                            orig_lines  = html_to_plain_lines(current_html)
+                            before      = [l for l in orig_lines if l['i'] < from_i]
+                            after_lines = [l for l in orig_lines if l['i'] > to_i]
+                            # Re-index after block
+                            delta = len(new_lines) - (to_i - from_i + 1)
+                            for l in after_lines:
+                                l['i'] += delta
+                            rebuilt = before + indexed + after_lines
+                            new_html = _rebuild_html_from_lines(current_html, rebuilt)
                         tmpl.content_html = new_html
                         tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": "Table of contents inserted."}
+                        document_update = {"html": new_html, "summary": summary}
                         current_html = new_html
-                    tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(document_update["summary"] if document_update else "No headings found.")
+                        tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(summary)
 
-                elif name == "renumber_sections":
-                    levels = inp.get("levels", "h2_h3_h4")
-                    style = inp.get("style", "number_dot")
-                    renum_p = inp.get("renumber_paragraphs", True)
-                    new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": f"Headings renumbered ({levels})."}
-                    current_html = new_html
-                    tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(f"All headings renumbered with multi-level numbering ({levels}).")
+                    elif name == "update_all":
+                        lines   = inp.get("lines", [])
+                        summary = inp.get("summary", "Document updated.")
+                        indexed = [{'i': j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
+                                   for j, ln in enumerate(lines)]
+                        new_html = _rebuild_html_from_lines(current_html, indexed)
+                        tmpl.content_html = new_html
+                        tmpl.save(update_fields=["content_html"])
+                        document_update = {"html": new_html, "summary": summary}
+                        current_html = new_html
+                        tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(summary)
 
-                elif name == "apply_formatting":
-                    from_i   = int(inp.get("from_index", 0))
-                    to_i     = int(inp.get("to_index", from_i))
-                    fmt      = inp.get("style") or {}
-                    summary  = inp.get("summary", "Formatting applied.")
-                    new_html = _apply_formatting_to_html(current_html, from_i, to_i, fmt)
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": summary}
-                    current_html = new_html
-                    tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(summary)
+                    elif name == "add_comment":
+                        new_html = _insert_comment_html(
+                            current_html,
+                            inp.get("comment", ""),
+                            inp.get("position", "end"),
+                            inp.get("after_heading", ""),
+                        )
+                        tmpl.content_html = new_html
+                        tmpl.save(update_fields=["content_html"])
+                        document_update = {"html": new_html, "summary": f"Comment added."}
+                        current_html = new_html
+                        tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(document_update["summary"])
 
-                elif name == "highlight_fields":
-                    field_highlight = {
-                        "field_names": inp.get("field_names", []),
-                        "message":     inp.get("message", ""),
-                    }
-                    tools_used.append({"name": "highlight_fields", "detail": ", ".join(inp.get("field_names", [])[:3]), "type": "tool"})
-                    if not reply_parts:
-                        reply_parts.append(inp.get("message", "Fields highlighted."))
+                    elif name == "insert_toc":
+                        toc = _build_toc_html(current_html, inp.get("title", "TABLE OF CONTENTS"))
+                        if toc:
+                            new_html = toc + current_html
+                            tmpl.content_html = new_html
+                            tmpl.save(update_fields=["content_html"])
+                            document_update = {"html": new_html, "summary": "Table of contents inserted."}
+                            current_html = new_html
+                        tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(document_update["summary"] if document_update else "No headings found.")
 
-                elif name == "check_rha_compliance":
-                    report = _check_rha_compliance(current_html)
-                    tools_used.append({
-                        "name": "check_rha_compliance",
-                        "detail": f"{report['pass_count']}/{report['total_checks']} passed",
-                        "type": "skill",
-                    })
-                    reply_parts.append(report["summary"])
+                    elif name == "renumber_sections":
+                        levels = inp.get("levels", "h2_h3_h4")
+                        style = inp.get("style", "number_dot")
+                        renum_p = inp.get("renumber_paragraphs", True)
+                        new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
+                        tmpl.content_html = new_html
+                        tmpl.save(update_fields=["content_html"])
+                        document_update = {"html": new_html, "summary": f"Headings renumbered ({levels})."}
+                        current_html = new_html
+                        tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(f"All headings renumbered with multi-level numbering ({levels}).")
 
-                elif name == "format_sa_standard":
-                    add_missing = inp.get("add_missing_sections", True)
-                    preserve_custom = inp.get("preserve_custom_sections", True)
-                    new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
-                    tmpl.content_html = new_html
-                    tmpl.save(update_fields=["content_html"])
-                    document_update = {"html": new_html, "summary": "Template restructured to standard SA lease format."}
-                    current_html = new_html
-                    tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
-                    if not reply_parts:
-                        reply_parts.append("Template restructured to standard SA lease format.")
+                    elif name == "apply_formatting":
+                        from_i   = int(inp.get("from_index", 0))
+                        to_i     = int(inp.get("to_index", from_i))
+                        fmt      = inp.get("style") or {}
+                        summary  = inp.get("summary", "Formatting applied.")
+                        new_html = _apply_formatting_to_html(current_html, from_i, to_i, fmt)
+                        tmpl.content_html = new_html
+                        tmpl.save(update_fields=["content_html"])
+                        document_update = {"html": new_html, "summary": summary}
+                        current_html = new_html
+                        tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(summary)
 
-        reply = " ".join(reply_parts) or "Done."
+                    elif name == "highlight_fields":
+                        field_highlight = {
+                            "field_names": inp.get("field_names", []),
+                            "message":     inp.get("message", ""),
+                        }
+                        tools_used.append({"name": "highlight_fields", "detail": ", ".join(inp.get("field_names", [])[:3]), "type": "tool"})
+                        if not reply_parts:
+                            reply_parts.append(inp.get("message", "Fields highlighted."))
 
-        # Build updated api_history for the frontend to store.
-        # We store only text turns (no tool payloads) — enough for Claude to
-        # maintain conversational context without ballooning token cost.
-        updated_history = api_messages + [{"role": "assistant", "content": reply}]
+                    elif name == "check_rha_compliance":
+                        report = _check_rha_compliance(current_html)
+                        tools_used.append({
+                            "name": "check_rha_compliance",
+                            "detail": f"{report['pass_count']}/{report['total_checks']} passed",
+                            "type": "skill",
+                        })
+                        reply_parts.append(report["summary"])
 
-        result: dict = {"reply": reply, "api_history": updated_history}
-        if document_update:
-            result["document_update"] = document_update
-        if field_highlight:
-            result["field_highlight"] = field_highlight
-        if tools_used:
-            result["tools_used"] = tools_used
-        return Response(result)
+                    elif name == "format_sa_standard":
+                        add_missing = inp.get("add_missing_sections", True)
+                        preserve_custom = inp.get("preserve_custom_sections", True)
+                        new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
+                        tmpl.content_html = new_html
+                        tmpl.save(update_fields=["content_html"])
+                        document_update = {"html": new_html, "summary": "Template restructured to standard SA lease format."}
+                        current_html = new_html
+                        tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
+                        if not reply_parts:
+                            reply_parts.append("Template restructured to standard SA lease format.")
+
+            reply = " ".join(reply_parts) or "Done."
+
+            # Build updated api_history for the frontend to store.
+            # If the document was modified, reset history with fresh doc context so
+            # the next turn doesn't work from stale "(empty document)" state.
+            if document_update:
+                fresh_lines = html_to_plain_lines(current_html) if current_html else []
+                fresh_doc   = plain_lines_to_text(fresh_lines) if fresh_lines else "(empty document)"
+                updated_history = [
+                    {"role": "user",      "content": f"Full document — {len(fresh_lines)} lines:\n\n{fresh_doc}"},
+                    {"role": "assistant", "content": "Understood. I have the updated document. How can I help?"},
+                    {"role": "user",      "content": user_message},
+                    {"role": "assistant", "content": reply},
+                ]
+            else:
+                updated_history = api_messages + [{"role": "assistant", "content": reply}]
+
+            result: dict = {"reply": reply, "api_history": updated_history}
+            if document_update:
+                result["document_update"] = document_update
+            if field_highlight:
+                result["field_highlight"] = field_highlight
+            if tools_used:
+                result["tools_used"] = tools_used
+            return Response(result)
+
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ExportTemplatePDFView(APIView):

@@ -1,12 +1,13 @@
 <template>
-  <div class="space-y-6">
-    <div>
-      <h2 class="text-xl font-bold text-gray-900">Profile</h2>
-      <p class="text-sm text-gray-500 mt-0.5">Manage your account details</p>
-    </div>
+  <div class="space-y-5">
+    <PageHeader
+      title="Profile"
+      subtitle="Manage your account details"
+      :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Profile' }]"
+    />
 
     <!-- Profile Info -->
-    <div class="card p-6 space-y-4 max-w-lg">
+    <div class="card p-5 space-y-4 max-w-lg">
       <h3 class="font-semibold text-gray-900">Personal Information</h3>
       <div class="grid grid-cols-2 gap-3">
         <div>
@@ -32,7 +33,7 @@
           {{ auth.user?.role }}
         </span>
       </div>
-      <div v-if="profileMsg" :class="profileMsgError ? 'text-red-600' : 'text-green-600'" class="text-sm">
+      <div v-if="profileMsg" :class="profileMsgError ? 'text-danger-600' : 'text-success-600'" class="text-sm">
         {{ profileMsg }}
       </div>
       <button @click="saveProfile" class="btn-primary" :disabled="savingProfile">
@@ -42,7 +43,7 @@
     </div>
 
     <!-- Change Password -->
-    <div class="card p-6 space-y-4 max-w-lg">
+    <div class="card p-5 space-y-4 max-w-lg">
       <h3 class="font-semibold text-gray-900">Change Password</h3>
       <div v-if="hasPassword">
         <label class="label">Current password</label>
@@ -56,7 +57,7 @@
         <label class="label">Confirm new password</label>
         <input v-model="pwConfirm" type="password" class="input" />
       </div>
-      <div v-if="pwMsg" :class="pwMsgError ? 'text-red-600' : 'text-green-600'" class="text-sm">
+      <div v-if="pwMsg" :class="pwMsgError ? 'text-danger-600' : 'text-success-600'" class="text-sm">
         {{ pwMsg }}
       </div>
       <button @click="changePassword" class="btn-primary" :disabled="changingPw">
@@ -72,6 +73,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 import { Loader2 } from 'lucide-vue-next'
+import PageHeader from '../../components/PageHeader.vue'
 
 const auth = useAuthStore()
 

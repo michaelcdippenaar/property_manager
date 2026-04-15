@@ -19,6 +19,7 @@ COLLECTION_NAME = "contracts"
 AGENT_QA_COLLECTION = "agent_qa"
 CHAT_KNOWLEDGE_COLLECTION = "chat_knowledge"
 MAINTENANCE_ISSUES_COLLECTION = "maintenance_issues"
+PROPERTY_INFORMATION_COLLECTION = "property_information"
 TEST_CONTEXT_COLLECTION = "test_context"
 # Market data collections
 MARKET_LISTINGS_COLLECTION = "market_listings"
@@ -106,6 +107,16 @@ def get_maintenance_issues_collection():
     return client.get_or_create_collection(
         name=MAINTENANCE_ISSUES_COLLECTION,
         metadata={"description": "Maintenance issues for RAG similarity search"},
+        embedding_function=get_embedding_function(),
+    )
+
+
+def get_property_information_collection():
+    """Collection for landlord-authored property notes (WiFi, bin day, alarm, etc.)."""
+    client = get_chroma_client()
+    return client.get_or_create_collection(
+        name=PROPERTY_INFORMATION_COLLECTION,
+        metadata={"description": "Landlord-authored property information for tenant chat RAG"},
         embedding_function=get_embedding_function(),
     )
 
@@ -690,6 +701,120 @@ def query_maintenance_issues(
         pri = meta.get("priority", "?") if isinstance(meta, dict) else "?"
         rid = meta.get("request_id", "?") if isinstance(meta, dict) else "?"
         parts.append(f"--- past issue #{rid} [{cat}/{pri}] ---\n{doc}")
+    return "\n\n".join(parts)
+
+
+def _property_information_doc_id(property_id: int, item_id: str) -> str:
+    return hashlib.sha256(f"pi|{property_id}|{item_id}".encode()).hexdigest()
+
+
+def ingest_property_information(property_id: int, items: list[dict]) -> bool:
+    """Upsert landlord-authored property notes into the property_information collection.
+
+    One document per item. Safe to call repeatedly — same item_id → same doc id → upsert.
+    """
+    if not items:
+        return True
+    try:
+        col = get_property_information_collection()
+        ids: list[str] = []
+        docs: list[str] = []
+        metas: list[dict] = []
+        for item in items:
+            item_id = (item.get("id") or "").strip()
+            label = (item.get("label") or "").strip()
+            if not item_id or not label:
+                continue
+            body = (item.get("body") or "").strip()
+            category = (item.get("category") or "other").strip().lower() or "other"
+            doc = f"{label}\nCategory: {category}\n{body}" if body else f"{label}\nCategory: {category}"
+            ids.append(_property_information_doc_id(property_id, item_id))
+            docs.append(doc)
+            metas.append({
+                "property_id": property_id,
+                "item_id": item_id,
+                "label": label,
+                "category": category,
+            })
+        if not ids:
+            return True
+        col.upsert(ids=ids, documents=docs, metadatas=metas)
+        return True
+    except Exception as e:
+        logger.error("Failed to ingest property information for property %s: %s", property_id, e)
+        return False
+
+
+def delete_property_information(property_id: int, item_ids_to_keep: set[str] | None = None) -> None:
+    """Remove docs for this property whose item_id is not in keep set.
+
+    If keep is None or empty, delete ALL docs for the property.
+    """
+    try:
+        col = get_property_information_collection()
+        if not item_ids_to_keep:
+            col.delete(where={"property_id": property_id})
+            return
+        existing = col.get(where={"property_id": property_id})
+        stale_ids: list[str] = []
+        for did, meta in zip(existing.get("ids", []) or [], existing.get("metadatas", []) or []):
+            if not isinstance(meta, dict):
+                continue
+            if meta.get("item_id") not in item_ids_to_keep:
+                stale_ids.append(did)
+        if stale_ids:
+            col.delete(ids=stale_ids)
+    except Exception as e:
+        logger.warning("Failed to prune property information for property %s: %s", property_id, e)
+
+
+def query_property_information(
+    query: str,
+    n_results: int = 5,
+    property_id: int | None = None,
+) -> str:
+    """Semantic search over landlord-authored property notes.
+
+    Returns formatted 'PROPERTY NOTE (category): label — body' chunks for use
+    in the tenant maintenance chat RAG context.
+    """
+    if not (query or "").strip():
+        return ""
+    try:
+        col = get_property_information_collection()
+        n = col.count()
+        if n == 0:
+            return ""
+    except Exception:
+        return ""
+    where_clauses: dict = {}
+    if property_id is not None:
+        where_clauses["property_id"] = property_id
+    try:
+        kwargs: dict = {
+            "query_texts": [query.strip()],
+            "n_results": min(n_results, max(1, n)),
+        }
+        if where_clauses:
+            kwargs["where"] = where_clauses
+        res = col.query(**kwargs)
+    except Exception:
+        if where_clauses:
+            logger.warning(
+                "Scoped property_information query failed (where=%s), returning empty",
+                where_clauses,
+            )
+        return ""
+    docs = (res.get("documents") or [[]])[0]
+    metas = (res.get("metadatas") or [[]])[0]
+    parts: list[str] = []
+    for i, doc in enumerate(docs):
+        if not doc:
+            continue
+        meta = metas[i] if i < len(metas) else {}
+        label = meta.get("label", "Note") if isinstance(meta, dict) else "Note"
+        cat = meta.get("category", "other") if isinstance(meta, dict) else "other"
+        parts.append(f"--- PROPERTY NOTE ({cat}): {label} ---\n{doc}")
     return "\n\n".join(parts)
 
 

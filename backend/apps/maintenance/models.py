@@ -439,3 +439,46 @@ class AgentTokenLog(models.Model):
         except Exception as e:
             import logging
             logging.getLogger(__name__).warning("Failed to log token usage: %s", e)
+
+
+class SupplierJobAssignment(models.Model):
+    """
+    Scopes a supplier's access to a specific maintenance job.
+    Address and tenant contact are copied at assignment time (POPIA data minimisation).
+    The supplier sees this snapshot, not live access to Property/Tenant models.
+    """
+
+    class Status(models.TextChoices):
+        ASSIGNED = "assigned", "Assigned"
+        IN_PROGRESS = "in_progress", "In Progress"
+        COMPLETED = "completed", "Completed"
+
+    supplier = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, related_name="job_assignments",
+    )
+    maintenance_request = models.ForeignKey(
+        MaintenanceRequest, on_delete=models.CASCADE, related_name="supplier_assignments",
+    )
+    property_address = models.CharField(
+        max_length=500,
+        help_text="Copied at assignment time — POPIA data minimisation",
+    )
+    tenant_contact_name = models.CharField(max_length=200, blank=True)
+    tenant_contact_phone = models.CharField(max_length=20, blank=True)
+    scope_of_work = models.TextField()
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.ASSIGNED,
+    )
+    assigned_by = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, null=True, related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["supplier", "status"]),
+        ]
+
+    def __str__(self):
+        return f"Job #{self.maintenance_request_id} → {self.supplier} ({self.status})"

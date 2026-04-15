@@ -22,12 +22,12 @@
           </div>
           <div class="flex items-center gap-1.5 flex-shrink-0">
             <span
-              class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
-              :class="listing.listing_type === 'rent' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'"
+              class="text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wide"
+              :class="listing.listing_type === 'rent' ? 'bg-info-100 text-info-700' : 'bg-warning-100 text-warning-700'"
             >
               {{ listing.listing_type }}
             </span>
-            <span v-if="listing.is_duplicate" class="text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-medium">
+            <span v-if="listing.is_duplicate" class="text-xs px-2 py-0.5 rounded-full bg-warning-50 text-warning-700 font-medium">
               dup
             </span>
           </div>
@@ -35,7 +35,7 @@
 
         <!-- AI badges row -->
         <div v-if="listing.ai_property_type" class="flex flex-wrap gap-1.5 mt-2.5">
-          <span class="ai-badge bg-indigo-50 text-indigo-700">{{ listing.ai_property_type }}</span>
+          <span class="ai-badge bg-navy/5 text-navy">{{ listing.ai_property_type }}</span>
           <span v-if="listing.ai_condition" :class="aiConditionClass(listing.ai_condition)" class="ai-badge">{{ listing.ai_condition }}</span>
           <span v-if="listing.ai_style" class="ai-badge bg-purple-50 text-purple-700">{{ listing.ai_style }}</span>
           <span v-if="listing.ai_classification_confidence != null" class="ai-badge bg-gray-50 text-gray-500">
@@ -128,7 +128,7 @@
               <div class="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   class="h-full rounded-full transition-all"
-                  :class="listing.ai_classification_confidence >= 0.75 ? 'bg-emerald-500' : listing.ai_classification_confidence >= 0.5 ? 'bg-amber-400' : 'bg-red-400'"
+                  :class="listing.ai_classification_confidence >= 0.75 ? 'bg-success-500' : listing.ai_classification_confidence >= 0.5 ? 'bg-warning-500' : 'bg-danger-400'"
                   :style="`width:${Math.round(listing.ai_classification_confidence * 100)}%`"
                 />
               </div>
@@ -274,7 +274,7 @@
                       <span v-else-if="p.drive_minutes">· {{ p.drive_minutes }}min drive</span>
                     </div>
                   </div>
-                  <div v-if="p.rating" class="text-xs text-amber-500 font-medium">★ {{ p.rating }}</div>
+                  <div v-if="p.rating" class="text-xs text-warning-500 font-medium">★ {{ p.rating }}</div>
                 </div>
               </div>
             </div>
@@ -420,9 +420,9 @@ const timelineEvents = computed(() => {
   if (!l) return []
   const evs: any[] = []
   if (l.first_seen_at) evs.push({ label: 'First scraped', date: l.first_seen_at, icon: Eye, color: 'bg-navy', detail: `via ${sourceLabel(l.source)}` })
-  if (l.listed_at && l.listed_at !== l.first_seen_at) evs.push({ label: 'Listed', date: l.listed_at, icon: Calendar, color: 'bg-blue-500' })
-  if (l.price_changed_at) evs.push({ label: 'Price changed', date: l.price_changed_at, icon: Banknote, color: 'bg-amber-500', detail: `Previous: ${fmtPrice(l.previous_price)}` })
-  if (l.enriched_at) evs.push({ label: 'Enriched', date: l.enriched_at, icon: MapPin, color: 'bg-emerald-500' })
+  if (l.listed_at && l.listed_at !== l.first_seen_at) evs.push({ label: 'Listed', date: l.listed_at, icon: Calendar, color: 'bg-info-500' })
+  if (l.price_changed_at) evs.push({ label: 'Price changed', date: l.price_changed_at, icon: Banknote, color: 'bg-warning-500', detail: `Previous: ${fmtPrice(l.previous_price)}` })
+  if (l.enriched_at) evs.push({ label: 'Enriched', date: l.enriched_at, icon: MapPin, color: 'bg-success-500' })
   if (l.ai_classified_at) evs.push({ label: 'AI classified', date: l.ai_classified_at, icon: Sparkles, color: 'bg-purple-500', detail: `${l.ai_property_type} / ${l.ai_condition} / ${l.ai_style}` })
   if (l.last_seen_at) evs.push({ label: 'Last seen', date: l.last_seen_at, icon: RefreshCw, color: 'bg-gray-400' })
   return evs.filter(e => e.date).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -454,9 +454,9 @@ function fmtFull(iso: string | null) {
   return new Date(iso).toLocaleString('en-ZA', { dateStyle: 'medium', timeStyle: 'short' })
 }
 function aiConditionClass(c: string) {
-  if (c === 'well-maintained') return 'bg-emerald-50 text-emerald-700'
-  if (c === 'average') return 'bg-amber-50 text-amber-700'
-  if (c === 'poor') return 'bg-red-50 text-red-700'
+  if (c === 'well-maintained') return 'bg-success-50 text-success-700'
+  if (c === 'average') return 'bg-warning-50 text-warning-700'
+  if (c === 'poor') return 'bg-danger-50 text-danger-700'
   return 'bg-gray-50 text-gray-500'
 }
 function categoryIcon(cat: string) {
@@ -474,7 +474,7 @@ function categoryIcon(cat: string) {
 
 <style scoped>
 .section-label { @apply text-xs font-semibold uppercase tracking-wide text-navy mb-2; }
-.label         { @apply text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5; }
+.label         { @apply text-micro font-medium text-gray-400 uppercase tracking-wide mb-0.5; }
 .detail-value  { @apply text-sm text-gray-900; }
 .ai-badge      { @apply text-xs font-medium px-2 py-0.5 rounded-full; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s; }
