@@ -20,6 +20,10 @@
 }
 
 # Marketing site (public — no Basic Auth; optional noindex headers only)
+klikk.co.za {
+  redir https://www.klikk.co.za{uri} permanent
+}
+
 www.klikk.co.za {
   import no_index_headers
   reverse_proxy website_web:80
@@ -28,6 +32,13 @@ www.klikk.co.za {
 # Admin SPA (public login)
 app.klikk.co.za {
   import no_index_headers
+  
+  # Proxy media requests to backend
+  handle /media/* {
+    reverse_proxy backend:8000
+  }
+  
+  # SPA routes
   reverse_proxy admin_web:80
 }
 
@@ -35,12 +46,20 @@ app.klikk.co.za {
 # /mcp/ → volt_mcp:8765 (owner MCP server, bearer-token auth)
 # everything else → backend:8000 (Django REST API)
 backend.klikk.co.za {
+  # Volt Owner MCP — streamable HTTP endpoint
   handle /mcp/* {
-    reverse_proxy volt_mcp:8765
+    reverse_proxy volt_mcp:8765 {
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+
+      # Streamable HTTP uses long-lived connections — disable buffering
+      flush_interval -1
+    }
   }
-  handle {
-    reverse_proxy backend:8000
-  }
+  
+  # Main Django API proxy
+  reverse_proxy backend:8000
 }
 
 # Agent mobile web (Quasar SPA)

@@ -17,8 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Hand ownership to the non-root user
-RUN chown -R appuser:appgroup /app
+# Ensure the logs directory exists and is writable by the non-root user
+RUN mkdir -p /app/logs && chown -R appuser:appgroup /app
 
 USER appuser
 

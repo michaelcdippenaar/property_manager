@@ -1,0 +1,44 @@
+# Ignore files that don't need to be in the Docker build context
+
+# Logs — large files, should not be in image
+logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments — the biggest offender (5.6 GB!)
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Test / coverage artifacts
+.pytest_cache/
+htmlcov/
+.coverage
+*.cover
+
+# Editor / OS metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# Docs / markdown (not needed at runtime)
+*.md
+
+# Media uploads — these live on a volume, not in the image
+media/
+
+# Static files — collected at runtime or served by whitenoise from source
+staticfiles/

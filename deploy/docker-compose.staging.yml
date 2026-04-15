@@ -50,6 +50,8 @@ services:
       db:
         condition: service_healthy
     networks: [internal, edge]
+    volumes:
+      - ./media:/app/media    # Persist uploaded files (photos, documents, etc.)
     deploy:
       resources:
         limits:
@@ -106,7 +108,7 @@ services:
           cpus: "0.5"
           memory: 64M
 
-  # ── Volt Owner MCP server ────────────────────────────────────────────────
+  # ── Volt Owner MCP HTTP Server ───────────────────────────────────────────
   volt_mcp:
     build:
       context: ../backend
