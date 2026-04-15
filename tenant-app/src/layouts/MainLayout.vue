@@ -26,7 +26,7 @@
 
         <!-- Tenant avatar placeholder -->
         <q-avatar v-if="!route.meta.showBackBtn" size="32px" color="white" text-color="primary">
-          <span class="text-weight-bold" style="font-size:11px">KT</span>
+          <span class="text-weight-bold logo-initials">KT</span>
         </q-avatar>
       </q-toolbar>
     </q-header>
@@ -133,5 +133,11 @@ watch(
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0.01em;
+}
+
+// Header avatar initials — tight 11px label.
+.logo-initials {
+  font-size: 11px;
+  line-height: 1;
 }
 </style>

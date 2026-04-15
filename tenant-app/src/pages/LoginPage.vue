@@ -58,7 +58,7 @@
 
         <p v-if="error" class="error-msg">{{ error }}</p>
 
-        <button class="btn-primary" :disabled="loading" @click="handleEmailLogin">
+        <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleEmailLogin">
           <q-spinner-dots v-if="loading" color="white" size="20px" />
           <span v-else>Sign In</span>
         </button>
@@ -83,7 +83,7 @@
 
           <p v-if="error" class="error-msg">{{ error }}</p>
 
-          <button class="btn-primary" :disabled="loading" @click="handleRequestOtp">
+          <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleRequestOtp">
             <q-spinner-dots v-if="loading" color="white" size="20px" />
             <span v-else>Send OTP</span>
           </button>
@@ -109,7 +109,7 @@
           <p class="otp-info">Code sent to {{ phone }}</p>
           <p v-if="error" class="error-msg">{{ error }}</p>
 
-          <button class="btn-primary" :disabled="loading" @click="handleVerifyOtp">
+          <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleVerifyOtp">
             <q-spinner-dots v-if="loading" color="white" size="20px" />
             <span v-else>Verify & Sign In</span>
           </button>
@@ -353,6 +353,7 @@ $navy: $primary;
   margin: 0 0 12px;
 }
 
+// Mirrors admin .btn-primary — navy bg, accent-pink hover ring, rounded-lg.
 .btn-primary {
   width: 100%;
   padding: 16px;
@@ -361,15 +362,22 @@ $navy: $primary;
   font-size: 16px;
   font-weight: 600;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--klikk-radius-btn);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s;
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
   letter-spacing: 0.01em;
 
-  &:active { opacity: 0.85; transform: scale(0.99); }
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: var(--klikk-navy-dark);
+    box-shadow: var(--klikk-ring-accent);
+    outline: none;
+  }
+
+  &:active { opacity: 0.85; transform: scale(0.98); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 

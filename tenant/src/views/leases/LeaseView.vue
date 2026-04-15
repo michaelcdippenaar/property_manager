@@ -254,19 +254,25 @@ const daysRemaining = computed(() => {
   return diff > 0 ? diff : null
 })
 
-const statusIconBg = computed(() => ({
-  active:     'bg-green-50',
-  pending:    'bg-yellow-50',
-  expired:    'bg-gray-100',
-  terminated: 'bg-red-50',
-}[lease.value?.status] ?? 'bg-gray-100'))
+const statusIconBg = computed(() => {
+  const map: Record<string, string> = {
+    active:     'bg-green-50',
+    pending:    'bg-yellow-50',
+    expired:    'bg-gray-100',
+    terminated: 'bg-red-50',
+  }
+  return map[lease.value?.status ?? ''] ?? 'bg-gray-100'
+})
 
-const statusIconColor = computed(() => ({
-  active:     'text-green-600',
-  pending:    'text-yellow-600',
-  expired:    'text-gray-400',
-  terminated: 'text-red-500',
-}[lease.value?.status] ?? 'text-gray-400'))
+const statusIconColor = computed(() => {
+  const map: Record<string, string> = {
+    active:     'text-green-600',
+    pending:    'text-yellow-600',
+    expired:    'text-gray-400',
+    terminated: 'text-red-500',
+  }
+  return map[lease.value?.status ?? ''] ?? 'text-gray-400'
+})
 
 // ── Calendar ───────────────────────────────────────────────────────────
 const today     = new Date()

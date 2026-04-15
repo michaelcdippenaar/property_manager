@@ -10,7 +10,7 @@
         <q-item>
           <q-item-section avatar>
             <q-avatar color="primary" text-color="white" :size="AVATAR_PROFILE">
-              <span class="text-weight-bold" style="font-size:18px">
+              <span class="text-weight-bold avatar-initials">
                 {{ userInitials }}
               </span>
             </q-avatar>
@@ -171,4 +171,8 @@ function confirmLogout() {
 </script>
 
 <style scoped lang="scss">
+.avatar-initials {
+  font-size: 18px;
+  line-height: 1;
+}
 </style>

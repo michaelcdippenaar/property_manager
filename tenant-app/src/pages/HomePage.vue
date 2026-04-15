@@ -29,7 +29,8 @@
       <!-- Active repairs -->
       <div class="q-mb-md">
         <div class="row items-center justify-between q-mb-xs q-px-xs">
-          <div class="section-header">Active Repairs</div>
+          <!-- Admin-aligned section header (navy, uppercase, tracking-wide) -->
+          <div class="klikk-section-header">Active Repairs</div>
           <q-btn flat dense no-caps color="primary" label="View all" size="sm" @click="$router.push('/repairs')" />
         </div>
 
@@ -47,8 +48,8 @@
           </div>
         </q-card>
 
-        <!-- Issue list -->
-        <q-card v-else flat>
+        <!-- Issue list — uses admin-aligned .section-card (white, border, soft shadow) -->
+        <q-card v-else flat class="section-card">
           <q-list separator>
             <q-item
               v-for="issue in activeIssues"

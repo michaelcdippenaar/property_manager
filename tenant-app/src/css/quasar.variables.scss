@@ -1,13 +1,15 @@
 // ─── Klikk Brand Tokens ──────────────────────────────────────────────────────
+// Aligned with admin/tailwind.config.js — single source of truth for colour.
 $primary:   #2B2D6E;   // Klikk Navy
-$secondary: #0D9488;   // Klikk Accent / Teal (was #FF3D7F pink)
-$accent:    #0D9488;
+$secondary: #FF3D7F;   // Klikk Pink (brand secondary; matches admin accent)
+$accent:    #FF3D7F;   // Klikk Accent (pink)
 $dark:      #1A1B44;
 $dark-page: #121330;
 
 $surface:   #F5F5F8;   // App background / scaffold
 
-$positive:  #21BA45;
-$negative:  #DB2828;
-$info:      #31CCEC;
-$warning:   #F2C037;
+// Semantic colours mirror admin tokens (teal success, amber warning, red danger, blue info)
+$positive:  #14b8a6;   // success-500 (teal)
+$negative:  #dc2626;   // danger-600
+$info:      #0ea5e9;   // sky-500
+$warning:   #f59e0b;   // warning-500 (amber)

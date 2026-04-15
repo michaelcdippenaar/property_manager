@@ -46,7 +46,7 @@
 
       <!-- Sign in button -->
       <button
-        class="btn-primary"
+        class="btn-primary klikk-btn-primary"
         :disabled="loading"
         @click="handleLogin"
       >
@@ -246,7 +246,7 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   padding: 0 8px;
 }
 
-/* ── Primary button ── */
+/* ── Primary button — mirrors admin .btn-primary ── */
 .btn-primary {
   width: 100%;
   padding: 16px;
@@ -255,15 +255,22 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   font-size: 16px;
   font-weight: 600;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--klikk-radius-btn);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.15s;
+  transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s;
   letter-spacing: 0.01em;
 
-  &:active { opacity: 0.85; transform: scale(0.99); }
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: var(--klikk-navy-dark);
+    box-shadow: var(--klikk-ring-accent);
+    outline: none;
+  }
+
+  &:active { opacity: 0.85; transform: scale(0.98); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 

@@ -29,7 +29,7 @@ rental_lifecycle:
 
   - step: 3
     title: Screen
-    description: "Credit, criminal, ID and reference checks"
+    description: "AI scores applicants on credit, criminal, ID, employment, and rental history"
     feature_ref: tenant_screening
 
   - step: 4

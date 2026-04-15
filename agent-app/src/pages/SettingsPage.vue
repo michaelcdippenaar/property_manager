@@ -10,7 +10,7 @@
         <q-item>
           <q-item-section avatar>
             <q-avatar color="primary" text-color="white" size="48px">
-              <span class="text-weight-bold" style="font-size:18px">
+              <span class="text-weight-bold avatar-initials">
                 {{ userInitials }}
               </span>
             </q-avatar>
@@ -168,7 +168,14 @@ function confirmLogout() {
 <style scoped lang="scss">
 .settings-card {
   border-radius: var(--klikk-radius-card);
-  border: 1px solid var(--klikk-border);
+  border: 1px solid var(--klikk-card-border);
+  background: var(--klikk-card-bg);
+  box-shadow: var(--klikk-shadow-soft);
   overflow: hidden;
+}
+
+.avatar-initials {
+  font-size: 18px;
+  line-height: 1;
 }
 </style>

@@ -1,191 +1,227 @@
 ---
 /**
- * Ecosystem — "One Platform, Four Apps" section
+ * Ecosystem — "One Platform, Five Apps"
  *
- * Dark background section showcasing the 4 Klikk apps.
- * Each card has a unique color-coded icon (Lucide SVG).
- * Static content — doesn't read from YAML.
+ * Clean 5-up grid of app cards. Each card: small rounded gradient
+ * app-icon, name (Klikk. [Suffix]), short descriptor, platform row.
  */
 
 const apps = [
   {
-    name: 'Klikk Admin',
-    desc: 'Command centre for your portfolio. AI leases, maintenance dispatch, supplier matching, e-signing — all in one dashboard.',
-    platform: 'Web App',
-    iconClass: 'admin',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#FF3D7F" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>`,
+    suffix: 'Admin',
+    tag: 'Command centre',
+    desc: 'AI leases, maintenance dispatch, supplier matching, and e-signing — every tool an agent needs, one dashboard.',
+    from: '#FF3D7F',
+    to: '#E6185E',
+    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"/>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"/>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"/>
+    </svg>`,
   },
   {
-    name: 'Klikk Tenant',
-    desc: 'Report issues with photos, chat in real-time, view lease details, and sign documents — all from their phone.',
-    platform: 'iOS & Android',
-    iconClass: 'tenant',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>`,
+    suffix: 'Agent',
+    tag: 'On the road',
+    desc: 'Book viewings, manage prospects, and track your rental pipeline anywhere. Your full property book in your pocket.',
+    from: '#8b5cf6',
+    to: '#6d28d9',
+    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="8" r="3.5"/>
+      <path d="M3 20c0-3.3 2.7-6 6-6h2"/>
+      <circle cx="17" cy="16" r="2.8"/>
+      <path d="M19 18l2.5 2.5"/>
+    </svg>`,
   },
   {
-    name: 'Klikk Owner',
-    desc: 'Real-time portfolio visibility. Occupancy rates, income tracking, maintenance status, and lease pipeline at a glance.',
-    platform: 'Web Portal',
-    iconClass: 'owner',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+    suffix: 'Tenant',
+    tag: 'Property-aware AI',
+    desc: 'AI chat trained on your property — lease terms, house rules, maintenance history. Instant answers, 24/7.',
+    from: '#10b981',
+    to: '#047857',
+    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <circle cx="12" cy="11" r="1" fill="white" stroke="none"/>
+      <circle cx="8" cy="11" r="1" fill="white" stroke="none"/>
+      <circle cx="16" cy="11" r="1" fill="white" stroke="none"/>
+    </svg>`,
   },
   {
-    name: 'Klikk Supplier',
-    desc: 'Receive jobs, submit quotes, manage your calendar. No login required for quoting — just click the link.',
-    platform: 'Web Portal',
-    iconClass: 'supplier',
-    icon: `<svg viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>`,
+    suffix: 'Owner',
+    tag: 'Portfolio at a glance',
+    desc: 'Real-time visibility. Occupancy, income, maintenance, and lease pipeline — read-only and beautiful.',
+    from: '#3b82f6',
+    to: '#1d4ed8',
+    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 12l9-8 9 8"/>
+      <path d="M5 10v11h14V10"/>
+      <path d="M10 21v-6h4v6"/>
+    </svg>`,
+  },
+  {
+    suffix: 'Supplier',
+    tag: 'Job in, quote out',
+    desc: 'Receive jobs, submit quotes, and manage your calendar. No login needed for quoting — just click the link.',
+    from: '#f59e0b',
+    to: '#b45309',
+    icon: `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+    </svg>`,
   },
 ];
+
+const platforms = ['iOS', 'Android', 'Web'];
 ---
 
-<section class="section-dark" id="apps">
-  <div class="section-inner">
-    <div class="section-label reveal">One Platform, Four Apps</div>
-    <div class="section-title reveal reveal-delay-1">Every person gets<br>their own experience.</div>
-    <div class="section-desc reveal reveal-delay-2">Purpose-built apps for agents, tenants, owners, and suppliers. Connected in real-time. One source of truth.</div>
+<section class="apps-section" id="apps">
+  <div class="apps-inner">
+    <div class="apps-header">
+      <div class="section-label reveal">One Platform, Five Apps</div>
+      <h2 class="section-title reveal reveal-delay-1">Every person gets<br>their own experience.</h2>
+      <p class="section-desc reveal reveal-delay-2">Purpose-built apps for agents, tenants, owners, and suppliers — with a shared command centre behind them. iOS, Android, and web.</p>
+    </div>
 
-    <div class="eco-grid">
+    <div class="apps-grid">
       {apps.map((app, i) => (
-        <div class={`eco-card reveal eco-${app.iconClass}`} style={`--i: ${i}`}>
-          <div class={`eco-icon ${app.iconClass}`}>
+        <article class="app-tile reveal" style={`--i: ${i}`}>
+          <div class="tile-icon" style={`background: linear-gradient(135deg, ${app.from} 0%, ${app.to} 100%); box-shadow: 0 8px 20px -6px ${app.from}66;`}>
             <Fragment set:html={app.icon} />
           </div>
-          <div class="eco-text">
-            <h3>{app.name}</h3>
-            <p>{app.desc}</p>
-            <div class="platform">&#9679; {app.platform}</div>
+          <div class="tile-tag">{app.tag}</div>
+          <h3 class="tile-title">Klikk<span class="dot">.</span> {app.suffix}</h3>
+          <p class="tile-desc">{app.desc}</p>
+          <div class="tile-platforms">
+            {platforms.map(p => <span>{p}</span>)}
           </div>
-        </div>
+        </article>
       ))}
     </div>
   </div>
 </section>
 
 <style>
-  .section-dark {
+  .apps-section {
     background: #faf9f7;
-    color: var(--color-navy);
-    max-width: 100%;
+    padding: 110px 0 130px;
     position: relative;
     overflow: hidden;
   }
-  .section-inner {
-    max-width: 1280px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 2;
-    padding: 120px 48px;
-  }
-  .section-dark .section-label { color: var(--color-accent); }
-  .section-dark .section-title { color: var(--color-navy); }
-  .section-dark .section-desc { color: #6b7280; }
-
-  .eco-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 20px;
-    align-items: stretch;
-  }
-  /* Bento: Admin featured left (tall), others right */
-  .eco-admin { grid-column: 1; grid-row: 1 / 3; }
-  .eco-tenant { grid-column: 2; grid-row: 1; }
-  .eco-owner  { grid-column: 3; grid-row: 1; }
-  .eco-supplier { grid-column: 2 / 4; grid-row: 2; }
-
-  .eco-card {
-    background: white;
-    border: 1px solid #e5e7eb;
-    border-radius: 20px;
-    padding: 32px 28px;
-    transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .eco-card::after {
+  .apps-section::before {
     content: '';
     position: absolute;
     inset: 0;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(255,61,127,0.04) 0%, transparent 40%),
+      radial-gradient(circle at 85% 80%, rgba(43,45,110,0.05) 0%, transparent 45%);
+    pointer-events: none;
+  }
+  .apps-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 40px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .apps-header { text-align: left; margin-bottom: 64px; max-width: 640px; }
+  .apps-header .section-label { color: var(--color-accent); }
+  .apps-header .section-title { color: var(--color-navy); }
+  .apps-header .section-desc { color: #6b7280; margin: 0; }
+
+  .apps-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+  }
+
+  .app-tile {
+    background: white;
+    border: 1px solid #ececea;
     border-radius: 20px;
-    opacity: 0;
-    transition: opacity 0.35s;
-    box-shadow: inset 0 0 0 1.5px rgba(43,45,110,0.2);
+    padding: 28px 24px 24px;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.35s;
   }
-  .eco-card:hover { box-shadow: 0 12px 40px rgba(43,45,110,0.1); transform: translateY(-3px); }
-  .eco-card:hover::after { opacity: 1; }
+  .app-tile.reveal { transition-delay: calc(var(--i, 0) * 70ms); }
+  .app-tile:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -16px rgba(43,45,110,0.14);
+    border-color: #e3e2e0;
+  }
 
-  .eco-card.reveal {
-    transition-delay: calc(var(--i, 0) * 80ms);
-  }
-
-  /* Admin card gets a subtle background gradient */
-  .eco-admin {
-    background: linear-gradient(160deg, #ffffff 60%, rgba(43,45,110,0.03) 100%);
-  }
-  /* Supplier card: horizontal layout */
-  .eco-supplier {
-    flex-direction: row;
-    align-items: center;
-    gap: 28px;
-  }
-  .eco-supplier .eco-icon { margin-bottom: 0; flex-shrink: 0; }
-  .eco-supplier .eco-text { flex: 1; }
-  .eco-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
+  .tile-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .eco-icon :global(svg) { width: 24px; height: 24px; stroke-width: 1.75; }
-  .eco-icon.admin { background: rgba(255,61,127,0.1); color: var(--color-accent); }
-  .eco-icon.tenant { background: rgba(16,185,129,0.1); color: #10b981; }
-  .eco-icon.owner { background: rgba(59,130,246,0.1); color: #3b82f6; }
-  .eco-icon.supplier { background: rgba(245,158,11,0.1); color: #f59e0b; }
-  .eco-text { display: flex; flex-direction: column; flex: 1; }
-  .eco-card h3 {
+  .app-tile:hover .tile-icon { transform: scale(1.08) rotate(-3deg); }
+
+  .tile-tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 8px;
+  }
+  .tile-title {
     font-family: var(--font-display);
     font-size: 20px;
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.4px;
     color: var(--color-navy);
-    margin-bottom: 8px;
-    letter-spacing: -0.3px;
+    margin: 0 0 10px;
+    line-height: 1.15;
   }
-  .eco-admin h3 { font-size: 24px; }
-  .eco-card p {
-    font-size: 14px;
-    line-height: 1.6;
-    color: #6b7280;
+  .dot { color: var(--color-accent); }
+  .tile-desc {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #5a5f6e;
+    margin: 0 0 20px;
     flex: 1;
   }
-  .platform {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    font-weight: 600;
+
+  .tile-platforms {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    padding-top: 16px;
+    border-top: 1px solid #f0efed;
+  }
+  .tile-platforms span {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #6b7280;
+    background: #f5f4f2;
+    padding: 4px 9px;
+    border-radius: 999px;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #9ca3af;
-    margin-top: 16px;
   }
 
-  @media (max-width: 1024px) {
-    .eco-grid { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto auto; }
-    .eco-admin { grid-column: 1 / 3; grid-row: 1; }
-    .eco-tenant { grid-column: 1; grid-row: 2; }
-    .eco-owner  { grid-column: 2; grid-row: 2; }
-    .eco-supplier { grid-column: 1 / 3; grid-row: 3; }
+  @media (max-width: 1100px) {
+    .apps-grid { grid-template-columns: repeat(3, 1fr); }
   }
-  @media (max-width: 640px) {
-    .section-inner { padding: 80px 20px; }
-    .eco-grid { grid-template-columns: 1fr; grid-template-rows: unset; }
-    .eco-admin, .eco-tenant, .eco-owner, .eco-supplier { grid-column: 1; grid-row: auto; }
-    .eco-supplier { flex-direction: column; }
+  @media (max-width: 720px) {
+    .apps-section { padding: 72px 0 86px; }
+    .apps-inner { padding: 0 20px; }
+    .apps-header { margin-bottom: 40px; }
+    .apps-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .app-tile { padding: 22px 18px 18px; }
+    .tile-icon { width: 44px; height: 44px; border-radius: 12px; }
+    .tile-title { font-size: 17px; }
+    .tile-desc { font-size: 12.5px; }
+  }
+  @media (max-width: 440px) {
+    .apps-grid { grid-template-columns: 1fr; }
   }
 </style>

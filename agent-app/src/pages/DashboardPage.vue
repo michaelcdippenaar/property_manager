@@ -34,8 +34,8 @@
         </div>
       </div>
 
-      <!-- Upcoming viewings -->
-      <div class="text-subtitle2 text-weight-semibold text-grey-8 q-mb-sm">
+      <!-- Upcoming viewings — admin-aligned section header -->
+      <div class="klikk-section-header">
         Upcoming Viewings
       </div>
 
@@ -165,10 +165,12 @@ onMounted(() => void loadData())
 </script>
 
 <style scoped lang="scss">
+// Admin-aligned — uses shared token variables.
 .stat-card {
-  border-radius: 12px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  background: white;
+  border-radius: var(--klikk-radius-card);
+  border: 1px solid var(--klikk-card-border);
+  background: var(--klikk-card-bg);
+  box-shadow: var(--klikk-shadow-soft);
 }
 
 .empty-card {

@@ -153,7 +153,7 @@ features:
     tagline: "Sign from any device, no account needed"
     description: >
       No DocuSign subscription needed. Tenants sign from any device via a
-      secure link. Track completion in real-time with WebSocket updates.
+      256-bit TLS-encrypted link. Track completion in real-time with WebSocket updates.
     icon: pen-tool
     show_on_homepage: true
     homepage_section: features
@@ -227,7 +227,7 @@ features:
     lifecycle_step: 9
 
   realtime_chat:
-    name: "Real-Time Tenant Chat"
+    name: "AI Tenant Chat"
     slug: realtime-chat
     status: BUILT
     shipped_date: 2026-02-15
@@ -237,11 +237,13 @@ features:
     backend_app: maintenance
     key_files:
       - backend/apps/maintenance/consumers.py
-    headline: "Real-Time Tenant Chat"
-    tagline: "WebSocket-powered messaging"
+    headline: "AI Tenant Chat"
+    tagline: "Property-aware AI, always on"
     description: >
-      WebSocket-powered messaging between tenants, agents, and suppliers.
-      Photo attachments, typing indicators, and full audit trail.
+      Full AI-powered chat with access to a knowledge base scoped to the
+      tenant's property — lease terms, house rules, appliance manuals, and
+      maintenance history. Tenants get instant, accurate answers without
+      calling the agent. WebSocket-powered, with photo attachments and full audit trail.
     icon: message-square
     show_on_homepage: true
     homepage_section: features
@@ -824,6 +826,34 @@ features:
       manage viewings, capture prospect details, and track your
       pipeline — all from your phone.
     icon: smartphone
+    show_on_homepage: true
+    homepage_section: features
+    lifecycle_step: null
+
+  # ── MCP Server ────────────────────────────────────────────
+
+  klikk_mcp:
+    name: "Klikk MCP Server"
+    slug: klikk-mcp
+    status: BUILT
+    shipped_date: 2026-04-15
+    product: shared
+    release: v1
+    category: integrations
+    backend_app: null
+    key_files:
+      - services/tremly-mcp/server.mjs
+      - services/tremly-mcp/lib/tools/leases.mjs
+      - services/tremly-mcp/lib/tools/esigning.mjs
+      - services/tremly-mcp/lib/tools/documents.mjs
+    headline: "Klikk MCP Server"
+    tagline: "Manage your portfolio directly from Claude"
+    description: >
+      Connect Claude, Claude CoWork, or any MCP-compatible AI model directly
+      to your Klikk portfolio. Draft leases, chase maintenance tickets, pull
+      occupancy stats, and trigger e-signing — all from a conversation.
+      No app switching. Just ask.
+    icon: plug
     show_on_homepage: true
     homepage_section: features
     lifecycle_step: null

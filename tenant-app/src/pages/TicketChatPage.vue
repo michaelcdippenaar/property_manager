@@ -100,7 +100,7 @@
                   {{ activity.created_by_name || 'Staff' }}
                   <q-badge v-if="activity.created_by_role" dense :label="activity.created_by_role" color="grey-4" class="q-ml-xs text-capitalize" />
                 </div>
-                <div class="chat-bubble-other" style="background: #f0f4ff">{{ activity.message }}</div>
+                <div class="chat-bubble-other chat-bubble-other--staff">{{ activity.message }}</div>
                 <img v-if="activity.file" :src="fileUrl(activity.file)" class="chat-image q-mt-xs" @click="previewImage(activity.file)" />
                 <div class="text-caption text-grey-4 q-ml-sm q-mt-xs">{{ formatTime(activity.created_at) }}</div>
               </div>
@@ -454,5 +454,11 @@ watch(() => activities.value.length, () => scrollToBottom())
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+// Staff / admin bubble — subtle navy-tinted background.
+// Uses info token surface rather than a raw hex literal.
+.chat-bubble-other--staff {
+  background: var(--klikk-info-50);
 }
 </style>
