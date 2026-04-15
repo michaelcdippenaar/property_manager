@@ -687,7 +687,132 @@ make -f deploy/Makefile restart STACK=staging SERVICE=backend
 
 ---
 
-## 14. Security Notes
+## 14. Volt MCP Server
+
+The Vault Owner MCP server (`volt_mcp`) runs as a separate Docker service alongside
+the Django backend. It exposes `https://backend.klikk.co.za/mcp/` — the endpoint
+used by claude.ai custom connectors and Claude Code to read/write the owner's vault.
+
+### Services added
+
+| Service | Image | Command | Port | Networks |
+|---|---|---|---|---|
+| `volt_mcp` | same as `backend` | `python manage.py volt_mcp_http` | `8765` (internal) | `internal + edge` |
+
+Caddy routes `/mcp/*` → `volt_mcp:8765`. All other `backend.klikk.co.za` traffic
+goes to `backend:8000` as before.
+
+### First-time deploy (after pulling the volt code for the first time)
+
+```bash
+ssh mc@192.168.1.235
+cd ~/apps/property_manager
+
+# 1. Pull
+git pull origin main
+
+# 2. Build + start (volt_mcp uses the same backend image — one build covers both)
+docker compose -f deploy/docker-compose.staging.yml build backend
+docker compose -f deploy/docker-compose.staging.yml up -d
+
+# 3. Run the new migration
+docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py migrate
+
+# 4. Generate the owner API key
+docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py shell
+```
+
+In the Django shell:
+```python
+from django.contrib.auth import get_user_model
+from apps.the_volt.owners.models import VaultOwner, VaultOwnerAPIKey
+
+user = get_user_model().objects.filter(is_superuser=True).first()
+print("Generating key for:", user.email)
+vault = VaultOwner.get_or_create_for_user(user)
+key, raw = VaultOwnerAPIKey.create_for_owner(vault, label="claude.ai connector — staging")
+print("\nSAVE THIS — shown once:")
+print(raw)
+```
+
+**Save the printed key in Bitwarden → "Klikk → Staging secrets" → "Volt MCP API key".**
+
+```bash
+# 5. Smoke test through Caddy TLS
+KEY="volt_owner_PASTE_KEY_HERE"
+curl -sN -X POST https://backend.klikk.co.za/mcp/ \
+  -H "Authorization: Bearer $KEY" \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}'
+# Expected: event: message  data: {"jsonrpc":"2.0","id":1,"result":{"tools":[...11 tools...]}}
+```
+
+### Connect claude.ai connector (permanent URL)
+
+1. claude.ai → **Settings** → **Connectors** → **Add custom connector**
+2. **URL:** `https://backend.klikk.co.za/mcp/`
+3. **Authentication:** Bearer token
+4. **Token:** `volt_owner_…` from Step 4
+5. Save → **Connect**
+
+This URL never changes. No tunnel needed.
+
+### Standard redeploy (after Python code changes to vault)
+
+```bash
+# Rebuild only the backend image (volt_mcp shares it)
+docker compose -f deploy/docker-compose.staging.yml build backend
+docker compose -f deploy/docker-compose.staging.yml up -d backend volt_mcp
+
+# Run migrations if any migration files changed
+docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py migrate
+```
+
+### Logs
+
+```bash
+# Volt MCP logs
+docker compose -f deploy/docker-compose.staging.yml logs -f volt_mcp
+
+# Django admin — every mutation
+# https://backend.klikk.co.za/admin/the_volt/vaultwriteaudit/
+
+# Django admin — manage API keys
+# https://backend.klikk.co.za/admin/the_volt/vaultownerapikey/
+```
+
+### Rotating the API key
+
+```bash
+docker compose -f deploy/docker-compose.staging.yml exec backend python manage.py shell
+```
+```python
+from apps.the_volt.owners.models import VaultOwner, VaultOwnerAPIKey
+from django.contrib.auth import get_user_model
+
+user = get_user_model().objects.filter(is_superuser=True).first()
+vault = VaultOwner.get_or_create_for_user(user)
+key, raw = VaultOwnerAPIKey.create_for_owner(vault, label="claude.ai connector — staging (rotated)")
+print(raw)   # update Bitwarden + claude.ai connector
+
+# Revoke the old key:
+# VaultOwnerAPIKey.objects.filter(label="old label").first().revoke()
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `502` on `backend.klikk.co.za/mcp/` | `volt_mcp` container not running — `docker compose up -d volt_mcp` |
+| `Missing Authorization header` | Bearer token not in connector settings — re-add it in claude.ai |
+| `Invalid or revoked API key` | Rotate the key (see above) |
+| `No tools available` in claude.ai | Disconnect + Reconnect the connector in claude.ai settings |
+| `volt_mcp` keeps restarting | Check logs: `docker compose logs volt_mcp` — usually a DB connection or settings error |
+
+---
+
+## 15. Security Notes
 
 | Topic | Detail |
 |-------|--------|

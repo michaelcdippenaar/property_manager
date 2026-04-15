@@ -106,6 +106,29 @@ services:
           cpus: "0.5"
           memory: 64M
 
+  # ── Volt Owner MCP server ────────────────────────────────────────────────
+  volt_mcp:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: python manage.py volt_mcp_http --host 0.0.0.0 --port 8765
+    env_file:
+      - ../backend/.env.staging
+      - ../backend/.env.secrets
+    environment:
+      DB_HOST: db
+      DJANGO_SETTINGS_MODULE: config.settings.staging
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [internal, edge]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
   # ── PDF generation (Gotenberg) ───────────────────────────────────────────
   gotenberg:
     image: gotenberg/gotenberg:8.14

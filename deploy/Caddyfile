@@ -31,9 +31,16 @@ app.klikk.co.za {
   reverse_proxy admin_web:80
 }
 
-# Django API
+# Django API + Volt MCP
+# /mcp/ → volt_mcp:8765 (owner MCP server, bearer-token auth)
+# everything else → backend:8000 (Django REST API)
 backend.klikk.co.za {
-  reverse_proxy backend:8000
+  handle /mcp/* {
+    reverse_proxy volt_mcp:8765
+  }
+  handle {
+    reverse_proxy backend:8000
+  }
 }
 
 # Agent mobile web (Quasar SPA)
