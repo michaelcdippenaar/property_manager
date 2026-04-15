@@ -51,6 +51,7 @@ LOCAL_APPS = [
     "apps.notifications",
     "apps.test_hub",
     "apps.market_data",
+    "apps.the_volt",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -204,6 +205,10 @@ RAG_QUERY_CHUNKS = config("RAG_QUERY_CHUNKS", default=8, cast=int)
 RAG_EMBEDDING_MODEL = config(
     "RAG_EMBEDDING_MODEL", default="nomic-ai/nomic-embed-text-v1.5"
 )
+
+# The Volt — personal data sovereignty vault RAG collections
+VOLT_DOCUMENTS_COLLECTION = "volt_documents"
+VOLT_ENTITIES_COLLECTION = "volt_entities"
 
 # Tenant AI chat attachments (multipart uploads)
 TENANT_AI_MAX_IMAGE_BYTES = config(

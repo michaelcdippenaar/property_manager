@@ -1,85 +1,351 @@
 # ═══════════════════════════════════════════════════════════════
-# KLIKK PRICING — Per-unit tiered model (ZAR, excl VAT)
+# KLIKK PRICING — Per-organisation model (ZAR, excl VAT)
+# Updated: 2026-04-15
+# Tiers: Free (BYOK AI) → Pro R2,500 → Agency R4,000 → Enterprise
 # ═══════════════════════════════════════════════════════════════
 
 currency: ZAR
+billing_model: per_organisation
 annual_discount_percent: 15
 
+# Properties = physical properties managed
+# Units = individual lettable units (a complex = 1 property, many units)
+# Limit triggers on whichever is reached first.
+
 tiers:
-  starter:
-    name: "Starter"
-    units: "1-5"
+  free:
+    name: "Free"
+    subtitle: "Your AI. Your data. No limits on intelligence."
     price_monthly: 0
     price_label: "Free forever"
     highlight: false
+    audience: owners_only
+    properties: 5
+    units: null                        # No unit cap on free (5 properties only)
+    users_included: 1
+    extra_users: false
+    llm_key: bring_your_own            # User supplies their own Claude/OpenAI API key
+    data_sharing: none                 # Klikk does NOT share or use free tier data
+    api_access: false
+    mcp_access: false
     features:
-      - "Full platform access"
-      - "5 AI lease generations per month"
-      - "1 user"
-      - "Email support"
-      - "Tenant mobile app"
-    limits:
-      max_units: 5
-      max_users: 1
-      ai_leases_monthly: 5
-
-  professional:
-    name: "Professional"
-    units: "6-25"
-    price_monthly: 49
-    price_label: "R49/unit/month"
-    highlight: true
-    features:
-      - "Everything in Starter"
-      - "Unlimited AI lease generation"
-      - "5 users"
-      - "Native e-signing"
-      - "Supplier portal"
+      - "5 properties"
+      - "2 AI-generated contracts"
+      - "Full AI suite (bring your own LLM key)"
+      - "AI maintenance reporting"
       - "Owner portal"
-      - "Priority email support"
+      - "1 user"
+      - "No data shared with any third party"
+    optional_addons: [tenant_screening, marketplace]
+    marketplace_credits:
+      description: "Marketplace profits returned as cash or platform credits toward paid add-ons"
     limits:
-      max_units: 25
-      max_users: 5
-      ai_leases_monthly: null
+      max_properties: 5
+      max_units: null
+      max_users: 1
+      ai_contracts_yearly: 2
+      contracts_yearly: null
+      maintenance: ai_reporting        # AI-powered maintenance reporting (not just form)
+      portals: [owner]
+      api: false
+      mcp: false
 
-  agency:
-    name: "Agency"
-    units: "26-100"
-    price_monthly: 39
-    price_label: "R39/unit/month"
-    highlight: false
+  pro:
+    name: "Pro"
+    subtitle: "Growing portfolios. Full platform."
+    price_monthly: 2500
+    price_label: "R2,500/month"
+    highlight: true
+    audience: all
+    properties: 50
+    units: 100                         # 50 properties OR 100 units — whichever first
+    users_included: 1
+    extra_users: true
+    llm_key: klikk_managed             # Klikk provides LLM access
+    data_sharing: none
+    api_access: true
+    mcp_access: true
     features:
-      - "Everything in Professional"
-      - "Unlimited users"
-      - "API access"
-      - "Custom branding"
-      - "Dedicated onboarding"
-      - "Phone support"
+      - "Up to 50 properties or 100 units"
+      - "1 user included — add more by role"
+      - "Unlimited AI lease generation"
+      - "Unlimited contracts"
+      - "AI maintenance workflow"
+      - "Native e-signing (ECTA s13)"
+      - "Tenant mobile app"
+      - "Owner & tenant portals"
+      - "Supplier portal"
+      - "AI tenant chat (RAG)"
+      - "Document parsing AI"
+      - "REST API + MCP server"
+      - "Priority support"
     limits:
+      max_properties: 50
       max_units: 100
       max_users: null
-      ai_leases_monthly: null
+      ai_contracts_yearly: null
+      contracts_yearly: null
+      maintenance: full
+      api: true
+      mcp: true
 
   enterprise:
     name: "Enterprise"
-    units: "100+"
-    price_monthly: null
-    price_label: "Custom"
+    subtitle: "100+ properties. Your brand. Your infrastructure."
+    price_monthly: 4000
+    price_label: "R4,000/month base"
+    price_per_property: 50
+    price_per_property_label: "+ R50/property/month above 100"
     highlight: false
+    audience: all
+    properties: "100+"
+    units: "200+"
+    users_included: 1
+    extra_users: true
+    llm_key: klikk_managed
+    data_sharing: none
+    api_access: true
+    mcp_access: true
+    hosting:
+      - off_premises
+      - on_premises
+    white_label:
+      client_facing: true
+      internal: true
     features:
-      - "Everything in Agency"
-      - "Custom integrations"
-      - "SLA guarantee"
+      - "Everything in Pro"
+      - "100+ properties — R50/property above 100"
+      - "Role-based user add-ons (same rates)"
+      - "White-label: client-facing portals & tenant app"
+      - "White-label: internal admin dashboard"
+      - "On-premises or cloud hosting"
+      - "POPIA-compliant dedicated data storage"
       - "Dedicated account manager"
-      - "On-site onboarding"
+      - "SLA guarantee"
+      - "REST API + MCP server access"
+      - "On-site onboarding & training"
     limits:
+      max_properties: null
       max_units: null
       max_users: null
-      ai_leases_monthly: null
+      ai_contracts_yearly: null
+      contracts_yearly: null
+      maintenance: full
+      api: true
+      mcp: true
+    add_ons:
+      popia_storage:
+        label: "POPIA-compliant dedicated data storage"
+        description: "Dedicated isolated environment, SA jurisdiction, full audit trail."
+        price_label: "Quoted separately"
+      on_premises_setup:
+        label: "On-premises deployment & setup"
+        description: "Infrastructure audit, deployment, configuration, staff training."
+        price_label: "Quoted separately"
+
+  custom:
+    name: "Custom"
+    subtitle: "Full custom solution. Built around your business."
+    price_monthly: null
+    price_label: "POA"
+    price_note: "Priced on application. Scoped per engagement."
+    highlight: false
+    audience: all
+    properties: "Unlimited"
+    units: "Unlimited"
+    users_included: 1
+    extra_users: true
+    llm_key: klikk_managed
+    data_sharing: none
+    api_access: true
+    mcp_access: true
+    hosting:
+      - off_premises
+      - on_premises
+    white_label:
+      client_facing: true
+      internal: true
+    custom_pillars:
+      - slug: system_integration
+        label: "Custom System Integration"
+        description: "Connect Klikk to any existing system in your stack — ERP, CRM, accounting, payments, or legacy platforms. Built to spec, maintained by Klikk."
+      - slug: business_intelligence
+        label: "Business Intelligence"
+        description: "Purpose-built BI layer on your property data — occupancy rates, rent roll analytics, maintenance cost trends, arrears forecasting, and custom KPI dashboards."
+      - slug: etl
+        label: "ETL Integration"
+        description: "Extract, transform, and load data between Klikk and your data warehouse (BigQuery, Snowflake, Redshift, SQL Server). Scheduled pipelines, schema mapping, and data validation included."
+    features:
+      - "Everything in Enterprise"
+      - "Unlimited properties and units"
+      - "Custom system integrations (ERP, CRM, legacy)"
+      - "Business Intelligence layer + custom dashboards"
+      - "ETL pipelines to your data warehouse"
+      - "Dedicated development team"
+      - "Custom SLA and uptime guarantee"
+      - "Named technical account manager"
+      - "Quarterly business reviews"
+      - "Full source code escrow available"
+    limits:
+      max_properties: null
+      max_units: null
+      max_users: null
+      ai_contracts_yearly: null
+      contracts_yearly: null
+      maintenance: full
+      api: true
+      mcp: true
+
+user_roles:
+  # Role-based add-ons for Pro, Agency, Enterprise (per user per month, excl VAT)
+  - role: viewer
+    label: "Viewer"
+    description: "Read-only access to portfolio data and reports"
+    price_monthly: 50
+    price_label: "R50/user/month"
+  - role: agent
+    label: "Agent"
+    description: "Full access — leases, tenants, applications, inspections"
+    price_monthly: 90
+    price_label: "R90/user/month"
+  - role: admin
+    label: "Admin"
+    description: "Full platform access including billing, settings, and all modules"
+    price_monthly: 150
+    price_label: "R150/user/month"
+
+platform_addons:
+  # Available on Pro, Agency, Enterprise — and optionally on Free
+  - slug: tenant_screening
+    label: "Tenant Screening"
+    icon: "search-user"
+    description: "Full TPN credit bureau checks — rental payment history, ITC score, ID verification, and fraud flags. Run checks directly from the tenant application flow."
+    available_on: [free, pro, agency, enterprise]
+    free_tier_available: true
+    price_label: "Per check"
+    price_note: "Charged per screening report. TPN bureau rates apply."
+    features:
+      - "TPN credit bureau integration"
+      - "Rental payment history (5-year)"
+      - "ITC credit score"
+      - "ID number verification"
+      - "Fraud and adverse flag alerts"
+      - "Inline with tenant application workflow"
+
+  - slug: trust_account
+    label: "Trust Account + Wallet"
+    icon: "bank"
+    description: "PPRA-compliant trust account with a built-in organisation wallet. The wallet is required for all financial flows — rent collection, disbursements, invoicing, and accounting write-back. Activate once; everything financial runs through it."
+    available_on: [pro, agency, enterprise]
+    free_tier_available: false
+    price_label: "% of rent processed"
+    price_note: "Transaction fee on processed rent. No monthly subscription. Wallet included with Trust Account activation."
+    wallet:
+      description: "Organisation-level wallet — holds collected rent, pending disbursements, and marketplace earnings. Required for invoicing and accounting integrations."
+      features:
+        - "Holds rent receipts, disbursements, and marketplace earnings"
+        - "Real-time balance and transaction ledger"
+        - "Instant internal transfers between owner, supplier, and commission splits"
+    invoicing:
+      description: "Generate and send invoices directly from the wallet balance."
+      features:
+        - "Automated rent invoices to tenants"
+        - "Maintenance job invoices to owners"
+        - "Commission invoices for letting agents"
+        - "PDF invoice generation (Gotenberg)"
+        - "Invoice status tracking (sent, viewed, paid)"
+    accounting_writeback:
+      description: "Write transactions back to your accounting system in real time."
+      integrations:
+        - name: Xero
+          status: planned
+        - name: Sage Business Cloud
+          status: planned
+        - name: QuickBooks
+          status: planned
+        - name: Pastel (Sage 50)
+          status: planned
+      features:
+        - "Auto-post rent receipts, disbursements, and commissions"
+        - "Chart of accounts mapping per organisation"
+        - "Reconciliation report export (CSV + PDF)"
+        - "VAT-aware transaction categorisation"
+    features:
+      - "Dedicated PPRA-compliant trust account"
+      - "Organisation wallet (required for all financial flows)"
+      - "Automated rent collection (debit order + EFT)"
+      - "Same-day landlord disbursements"
+      - "Supplier and commission payments"
+      - "Automated reconciliation"
+      - "Owner statements and disbursement reports"
+      - "Invoicing (rent, maintenance, commission)"
+      - "Accounting write-back (Xero, Sage, QuickBooks, Pastel)"
+
+  - slug: marketplace
+    label: "Marketplace"
+    icon: "store"
+    description: "Revenue-generating marketplace for tenants — sell prepaid electricity, fibre internet packages, water, and other household services directly in the tenant app."
+    available_on: [free, pro, agency, enterprise]
+    free_tier_available: true
+    price_label: "Revenue share"
+    price_note: "Commission on transactions processed. No setup fee. Profits returned as cash or platform credits."
+    marketplace_credits:
+      description: "All marketplace profits are returned to you as cash or can be applied as credits toward paid add-ons and plan upgrades."
+    features:
+      - "Prepaid electricity vending (Eskom + municipal tokens)"
+      - "Fibre and LTE internet packages"
+      - "Water and utilities"
+      - "Third-party service providers (expandable)"
+      - "In-app purchase flow (tenant mobile app)"
+      - "Revenue share with property manager / owner"
+      - "Profits paid out as cash or platform credits"
+    integrators:
+      electricity: [Citiq Prepaid, Prepaid24, National Prepaid Meters, STS-compliant vending]
+      internet: [Vumatel (via ISP reseller), Openserve, MetroFibre, Frogfoot, Liquid]
+      insurance: [Naked Insurance, Pineapple Insurance, OUTsurance]
+      water: [Citiq Prepaid, PayCity, Metro Prepaid]
+      payments: [Ozow, PayFast, Peach Payments, Netcash]
+
+  - slug: advertising
+    label: "Advertising"
+    icon: "megaphone"
+    description: "Service providers and brands pay to advertise to tenants inside the Klikk tenant app, owner portal, and notification channels. Property managers earn a share of ad revenue generated on their portfolio."
+    available_on: [pro, agency, enterprise]
+    free_tier_available: false
+    price_label: "Per campaign"
+    price_note: "Advertisers pay per campaign. Property managers earn revenue share on impressions served to their tenants."
+    ad_formats:
+      - format: sponsored_listing
+        label: "Sponsored Marketplace Listing"
+        description: "Featured placement at the top of marketplace category pages"
+      - format: in_app_banner
+        label: "In-App Banner"
+        description: "Banner ads in tenant app home screen and service pages"
+      - format: push_notification
+        label: "Sponsored Push Notification"
+        description: "Targeted push notification to tenants in opted-in portfolios"
+      - format: owner_portal_banner
+        label: "Owner Portal Banner"
+        description: "Display advertising inside the owner portal dashboard"
+      - format: email_newsletter
+        label: "Tenant Email Sponsorship"
+        description: "Sponsored placement in Klikk tenant digest emails"
+    target_segments:
+      - "By property type (sectional title, freehold, complex)"
+      - "By suburb / geographic radius"
+      - "By lease status (new tenants, renewing tenants)"
+      - "By income band (inferred from rental value)"
+    features:
+      - "Self-serve campaign builder for advertisers"
+      - "Geo-targeting by suburb and property type"
+      - "Impression and click analytics dashboard"
+      - "Property manager revenue share per campaign"
+      - "Opt-in / opt-out controls per portfolio"
+      - "POPIA-compliant audience targeting (no PII exposed)"
 
 all_plans_include:
   - "SSL encryption"
   - "SA-hosted data"
   - "POPIA compliant"
   - "Automatic backups"
-  - "Mobile tenant app"
+  - "Tenant mobile app"

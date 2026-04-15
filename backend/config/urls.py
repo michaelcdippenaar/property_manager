@@ -29,5 +29,6 @@ urlpatterns = [
     path("api/v1/dashboard/portfolio/", DashboardPortfolioView.as_view(), name="dashboard-portfolio"),
     path("api/v1/test-hub/", include("apps.test_hub.urls")),
     path("api/v1/market-data/", include("apps.market_data.urls")),
+    path("api/v1/the-volt/", include("apps.the_volt.urls")),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
