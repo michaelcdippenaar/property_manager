@@ -1,19 +1,25 @@
 # Pricing Page Copy
 
 ## Headline
-One flat price. Everything included.
+One price per organisation. Everything included.
 
 ## Subheadline
-Start free. No credit card. Upgrade when your portfolio grows.
+Start free with your own AI key. Upgrade when your portfolio grows.
 
 ## Free Tier Tagline
-Built for owners managing their own properties — no agency required.
+Built for owners managing their own properties — bring your own LLM key, keep full control of your data.
 
 ## Pro Tier Tagline
-The full Klikk platform. One organisation, one price.
+The full Klikk platform. One organisation, one price — up to 50 properties or 100 units.
+
+## Enterprise Tier Tagline
+100+ properties. Your brand. Your infrastructure.
+
+## Custom Tier Tagline
+Full custom solution. Built around your business. Priced on application.
 
 ## User Add-Ons Callout
-**Pro plan includes 1 user.** Need a team? Add users by role — letting agents, maintenance managers, or read-only viewers. Charged per role, not per seat.
+**Every plan includes 1 user.** Need a team? Add users by role — Viewer (R50), Agent (R90), Admin (R150). Charged per role, not per seat.
 
 ## FAQ
 
