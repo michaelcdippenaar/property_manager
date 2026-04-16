@@ -271,20 +271,21 @@ class ParseLeaseDocumentView(APIView):
         if len(pdf_bytes) > 32 * 1024 * 1024:
             return Response({"error": "PDF is too large (max 32 MB)."}, status=400)
 
-        # Read key directly from .env file (bypass os.environ which Claude Code clears)
-        _env_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", ".env")
-        )
-        api_key = ""
-        try:
-            with open(_env_path) as _f:
-                for _line in _f:
-                    _line = _line.strip()
-                    if _line.startswith("ANTHROPIC_API_KEY="):
-                        api_key = _line.split("=", 1)[1].strip().strip('"').strip("'")
-                        break
-        except FileNotFoundError:
-            pass
+        # Read key: prefer os.environ (Docker), fall back to .env file (local dev)
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
+        if not api_key:
+            _env_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+            )
+            try:
+                with open(_env_path) as _f:
+                    for _line in _f:
+                        _line = _line.strip()
+                        if _line.startswith("ANTHROPIC_API_KEY="):
+                            api_key = _line.split("=", 1)[1].strip().strip('"').strip("'")
+                            break
+            except FileNotFoundError:
+                pass
         if not api_key:
             return Response({"error": "ANTHROPIC_API_KEY is not configured on the server."}, status=500)
 

@@ -21,26 +21,21 @@
 
     <!-- Active lease -->
     <div v-if="lease" class="space-y-3">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Active lease</div>
-          <div class="text-sm font-semibold text-gray-900 truncate">
-            {{ tenantDisplay }}
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span
+              v-for="(name, i) in tenantNames"
+              :key="i"
+              class="text-sm font-medium text-gray-900 whitespace-nowrap"
+              :title="name"
+            >{{ shortName(name) }}<span v-if="i < tenantNames.length - 1" class="text-gray-300">,</span></span>
           </div>
-          <div class="text-sm text-gray-500 mt-0.5">
-            {{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}
-            <span class="text-gray-300 mx-1">·</span>
-            R{{ formatRand(lease.monthly_rent) }}/mo
-            <span v-if="lease.lease_number" class="text-gray-300 mx-1">·</span>
-            <span v-if="lease.lease_number" class="font-mono text-gray-400">{{ lease.lease_number }}</span>
-          </div>
+          <span class="badge-green flex-shrink-0">Active</span>
         </div>
         <div class="text-right flex-shrink-0">
           <div class="text-xs font-semibold uppercase tracking-wider" :class="noticeBandTextClass">
             {{ noticeLabel }}
-          </div>
-          <div class="text-micro text-gray-400 mt-0.5">
-            Notice by {{ fmtDate(noticeDateIso) }}
           </div>
         </div>
       </div>
@@ -135,11 +130,20 @@ function formatRand(v: string | number | null | undefined): string {
   return n.toLocaleString('en-ZA', { maximumFractionDigits: 0 })
 }
 
-const tenantDisplay = computed(() => {
+function shortName(full: string): string {
+  if (!full) return '?'
+  const parts = full.trim().split(/\s+/)
+  if (parts.length <= 1) return full
+  const surname = parts[parts.length - 1]
+  const initial = parts[0].charAt(0).toUpperCase()
+  return `${initial} ${surname}`
+}
+
+const tenantNames = computed(() => {
   const l = lease.value
-  if (!l) return ''
-  if (l.all_tenant_names && l.all_tenant_names.length) return l.all_tenant_names.join(', ')
-  return l.tenant_name || 'Unassigned'
+  if (!l) return []
+  if (l.all_tenant_names && l.all_tenant_names.length) return l.all_tenant_names
+  return l.tenant_name ? [l.tenant_name] : []
 })
 
 const noticeDateIso = computed(() => lease.value?.notice_window_date || null)

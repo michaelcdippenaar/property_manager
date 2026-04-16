@@ -3,13 +3,21 @@ from .models import (
     BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
     Property, PropertyAgentAssignment, PropertyAgentConfig, PropertyDocument,
     PropertyGroup, PropertyOwnership, PropertyPhoto, PropertyValuation,
-    PropertyViewing, Unit, UnitInfo,
+    PropertyViewing, Room, Unit, UnitInfo,
 )
+
+
+class RoomSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Room
+        fields = "__all__"
+        read_only_fields = ["id"]
 
 
 class UnitSerializer(serializers.ModelSerializer):
     active_lease_info = serializers.SerializerMethodField()
     open_maintenance_count = serializers.SerializerMethodField()
+    rooms = RoomSerializer(many=True, read_only=True)
 
     class Meta:
         model = Unit

@@ -20,14 +20,14 @@ from .access import get_accessible_property_ids
 from .models import (
     BankAccount, ComplianceCertificate, InsurancePolicy, Landlord, LandlordDocument,
     Property, PropertyAgentAssignment, PropertyAgentConfig, PropertyDocument,
-    PropertyGroup, PropertyOwnership, PropertyPhoto, PropertyValuation, Unit, UnitInfo,
+    PropertyGroup, PropertyOwnership, PropertyPhoto, PropertyValuation, Room, Unit, UnitInfo,
 )
 from .serializers import (
     BankAccountSerializer, ComplianceCertificateSerializer, InsurancePolicySerializer,
     LandlordDocumentSerializer, LandlordSerializer, PropertyAgentAssignmentSerializer,
     PropertyAgentConfigSerializer, PropertyDocumentSerializer, PropertyGroupSerializer,
     PropertyOwnershipSerializer, PropertyPhotoSerializer, PropertySerializer,
-    PropertyValuationSerializer, UnitInfoSerializer, UnitSerializer,
+    PropertyValuationSerializer, RoomSerializer, UnitInfoSerializer, UnitSerializer,
 )
 
 
@@ -165,6 +165,16 @@ class UnitViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         prop_ids = get_accessible_property_ids(self.request.user)
         return Unit.objects.filter(property_id__in=prop_ids).select_related("property")
+
+
+class RoomViewSet(viewsets.ModelViewSet):
+    serializer_class = RoomSerializer
+    permission_classes = [IsAgentOrAdmin]
+    filterset_fields = ["unit"]
+
+    def get_queryset(self):
+        prop_ids = get_accessible_property_ids(self.request.user)
+        return Room.objects.filter(unit__property_id__in=prop_ids).select_related("unit")
 
 
 class UnitInfoViewSet(viewsets.ModelViewSet):

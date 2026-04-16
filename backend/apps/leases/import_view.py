@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from django.db import transaction
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -81,16 +81,29 @@ class ImportLeaseView(APIView):
                         aid = None
                     if aid:
                         managing_agent = User.objects.filter(pk=aid, role=User.Role.AGENT).first()
-            prop = Property.objects.create(
-                name=prop_data["name"],
-                property_type=prop_data.get("property_type", "house"),
-                address=prop_data.get("address", ""),
-                city=prop_data.get("city", ""),
-                province=prop_data.get("province", ""),
-                postal_code=prop_data.get("postal_code", ""),
-                description=prop_data.get("description", ""),
-                agent=managing_agent,
-            )
+            # Re-use existing property — match by ERF number first, then address
+            prop = None
+            erf = (prop_data.get("erf_number") or "").strip()
+            if erf:
+                from apps.properties.models import PropertyDetail
+                detail = PropertyDetail.objects.filter(erf_number__iexact=erf).select_related("property").first()
+                if detail:
+                    prop = detail.property
+            if not prop:
+                addr = (prop_data.get("address") or "").strip()
+                if addr:
+                    prop = Property.objects.filter(address__iexact=addr).first()
+            if not prop:
+                prop = Property.objects.create(
+                    name=prop_data["name"],
+                    property_type=prop_data.get("property_type", "house"),
+                    address=prop_data.get("address", ""),
+                    city=prop_data.get("city", ""),
+                    province=prop_data.get("province", ""),
+                    postal_code=prop_data.get("postal_code", ""),
+                    description=prop_data.get("description", ""),
+                    agent=managing_agent,
+                )
 
         # ── Unit ────────────────────────────────────────────────────────────
         unit_id = d.get("unit_id")
@@ -125,6 +138,16 @@ class ImportLeaseView(APIView):
             return Response({"error": "start_date is required."}, status=400)
         if not end_date:
             return Response({"error": "end_date is required."}, status=400)
+
+        # Validate dates are real calendar dates (e.g. reject 2025-11-31)
+        for label, val in [("start_date", start_date), ("end_date", end_date)]:
+            try:
+                datetime.strptime(val, "%Y-%m-%d")
+            except ValueError:
+                return Response(
+                    {"error": f"{label} '{val}' is not a valid date. Please correct it."},
+                    status=400,
+                )
 
         # ── Lease ────────────────────────────────────────────────────────────
         lease_fields = {

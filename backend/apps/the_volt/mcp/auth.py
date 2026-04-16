@@ -54,14 +54,23 @@ def _resolve_raw_key(raw: str) -> VoltMcpContext:
 
 
 def _try_http_header_auth() -> VoltMcpContext | None:
-    """Read the Authorization header from the current HTTP request, if any.
+    """Read the API key from the HTTP request — header, query param, or env fallback.
+
+    Resolution order:
+    1. Authorization: Bearer <key>  (header)
+    2. x-api-key / x-volt-api-key / api-key  (header)
+    3. ?token=<key>  (query parameter — for clients like Claude Desktop that
+       cannot send custom headers)
+    4. VOLT_OWNER_API_KEY env var  (server-side default — useful when the
+       MCP server serves a single owner behind a reverse proxy)
 
     Returns None if we're not in an HTTP request context (e.g. stdio mode).
-    Raises McpAuthError if the header is present but invalid.
+    Raises McpAuthError if credentials are found but invalid.
     """
     try:
-        from fastmcp.server.dependencies import get_http_headers
-        headers = get_http_headers()
+        from fastmcp.server.dependencies import get_http_request
+        request = get_http_request()
+        headers = dict(request.headers)
     except Exception:
         return None
 
@@ -89,14 +98,29 @@ def _try_http_header_auth() -> VoltMcpContext | None:
                 logger.debug("Volt MCP: found key in header '%s'", alt)
                 break
 
+    # Fallback: ?token= query parameter (Claude Desktop via mcp-remote)
+    if not raw:
+        try:
+            raw = request.query_params.get("token", "").strip() or None
+            if raw:
+                logger.debug("Volt MCP: found key in ?token query param")
+        except Exception:
+            pass
+
+    # Fallback: VOLT_OWNER_API_KEY env var (single-owner server-side default)
+    if not raw:
+        raw = os.environ.get(_ENV_VAR, "").strip() or None
+        if raw:
+            logger.debug("Volt MCP: using server-side VOLT_OWNER_API_KEY env var")
+
     if not raw:
         logger.warning(
-            "Volt MCP: HTTP request with no recognisable auth header. Keys seen: %s",
+            "Volt MCP: HTTP request with no recognisable credentials. Headers: %s",
             safe_keys,
         )
         raise McpAuthError(
-            "Missing Authorization header. Send 'Authorization: Bearer volt_owner_…' "
-            f"(headers seen: {safe_keys})"
+            "Missing credentials. Send 'Authorization: Bearer volt_owner_…' header, "
+            "?token=volt_owner_… query param, or set VOLT_OWNER_API_KEY env var."
         )
 
     return _resolve_raw_key(raw)

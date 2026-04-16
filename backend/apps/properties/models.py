@@ -56,9 +56,40 @@ class Unit(models.Model):
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.AVAILABLE)
     floor = models.PositiveSmallIntegerField(null=True, blank=True)
     ad_description = models.TextField(blank=True, help_text="Advertising copy used in rental listings")
+    amenities = models.JSONField(default=list, blank=True, help_text="List of amenity strings, e.g. ['Pool', 'Garden', 'Braai area']")
 
     def __str__(self):
         return f"{self.property.name} — Unit {self.unit_number}"
+
+
+class Room(models.Model):
+    class RoomType(models.TextChoices):
+        BEDROOM = "bedroom", "Bedroom"
+        BATHROOM = "bathroom", "Bathroom"
+        KITCHEN = "kitchen", "Kitchen"
+        LIVING_ROOM = "living_room", "Living Room"
+        DINING_ROOM = "dining_room", "Dining Room"
+        STUDY = "study", "Study"
+        GARAGE = "garage", "Garage"
+        STOREROOM = "storeroom", "Storeroom"
+        LAUNDRY = "laundry", "Laundry"
+        BALCONY = "balcony", "Balcony"
+        PATIO = "patio", "Patio"
+        OTHER = "other", "Other"
+
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="rooms")
+    room_type = models.CharField(max_length=20, choices=RoomType.choices)
+    name = models.CharField(max_length=100, blank=True, help_text="e.g. Main bedroom, En-suite")
+    size_m2 = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    notes = models.TextField(blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "room_type"]
+
+    def __str__(self):
+        label = self.name or self.get_room_type_display()
+        return f"{label} ({self.size_m2} m\u00b2)" if self.size_m2 else label
 
 
 class UnitInfo(models.Model):
@@ -404,7 +435,7 @@ class PropertyDetail(models.Model):
     )
 
     # Deeds / legal
-    erf_number        = models.CharField(max_length=30, blank=True, help_text="e.g. ERF 3587")
+    erf_number        = models.CharField(max_length=30, blank=True, unique=True, null=True, help_text="e.g. ERF 3587")
     title_deed_number = models.CharField(max_length=50, blank=True)
     municipality      = models.CharField(max_length=100, blank=True, help_text="e.g. Stellenbosch Municipality")
     suburb            = models.CharField(max_length=100, blank=True)

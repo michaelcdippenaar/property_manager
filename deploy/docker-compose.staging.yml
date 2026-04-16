@@ -121,6 +121,7 @@ services:
     environment:
       DB_HOST: db
       DJANGO_SETTINGS_MODULE: config.settings.staging
+      VOLT_OWNER_API_KEY: volt_owner_FslvHrwNvOjNU4RfCshcUUx0le6zRenxnu9CWJbPepM
     depends_on:
       db:
         condition: service_healthy

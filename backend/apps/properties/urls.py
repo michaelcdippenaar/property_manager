@@ -4,7 +4,7 @@ from .views import (
     BankAccountViewSet, ComplianceCertificateViewSet, InsurancePolicyViewSet,
     LandlordViewSet, PropertyAgentAssignmentViewSet, PropertyAgentConfigViewSet,
     PropertyGroupViewSet, PropertyOwnershipViewSet, PropertyValuationViewSet,
-    PropertyViewSet, UnitInfoViewSet, UnitViewSet,
+    PropertyViewSet, RoomViewSet, UnitInfoViewSet, UnitViewSet,
 )
 from .owner_views import OwnerDashboardView, OwnerPropertiesView
 from .classify_view import LandlordClassifyView, LandlordClassifyRegistrationView
@@ -19,6 +19,7 @@ router.register("landlords", LandlordViewSet, basename="landlord")
 router.register("bank-accounts", BankAccountViewSet, basename="bank-account")
 router.register("groups", PropertyGroupViewSet, basename="property-group")
 router.register("units", UnitViewSet, basename="unit")
+router.register("rooms", RoomViewSet, basename="room")
 router.register("unit-info", UnitInfoViewSet, basename="unit-info")
 router.register("ownerships", PropertyOwnershipViewSet, basename="ownership")
 router.register("agent-config", PropertyAgentConfigViewSet, basename="agent-config")

@@ -131,13 +131,13 @@
         <div
           class="relative ml-auto flex-shrink-0"
           data-user-menu
-          @mouseenter="openDropdown = 'user'"
-          @mouseleave="openDropdown = null"
-          @click.stop="openDropdown = openDropdown === 'user' ? null : 'user'"
         >
           <button
             class="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
             aria-label="User menu"
+            :aria-haspopup="true"
+            :aria-expanded="openDropdown === 'user'"
+            @click.stop="openDropdown = openDropdown === 'user' ? null : 'user'"
           >
             <div class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
               {{ initials }}
@@ -375,7 +375,10 @@ const openDropdown = ref<string | null>(null)
 const mobileMenuOpen = ref(false)
 const mobileExpanded = ref<string | null>(null)
 
-watch(() => route.path, () => { mobileMenuOpen.value = false })
+watch(() => route.path, () => {
+  mobileMenuOpen.value = false
+  openDropdown.value = null
+})
 
 // ── Primary nav (always visible in header) ────────────────────────────────────
 interface NavItem {

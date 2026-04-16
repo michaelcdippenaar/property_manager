@@ -255,18 +255,26 @@
                       </div>
                       <ChevronDown :size="15" class="text-gray-400 transition-transform duration-200" :class="expandedLeaseIds.includes(lease.id) ? 'rotate-180' : ''" />
                     </div>
-                    <div class="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div class="text-xs text-gray-400 mb-0.5">Tenant</div>
-                        <div class="font-medium text-gray-900">{{ lease.tenant_name || '—' }}</div>
+                    <div class="flex items-center gap-4 text-sm">
+                      <div class="min-w-0 flex-1">
+                        <div class="text-xs text-gray-400 mb-1">Tenants</div>
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                          <span
+                            v-for="(name, i) in (lease.all_tenant_names?.length ? lease.all_tenant_names : [lease.tenant_name].filter(Boolean))"
+                            :key="i"
+                            class="text-sm font-medium text-gray-900 whitespace-nowrap"
+                            :title="name"
+                          >{{ shortName(name) }}<span v-if="i < (lease.all_tenant_names?.length || 1) - 1" class="text-gray-300">,</span></span>
+                          <span v-if="!lease.tenant_name && !lease.all_tenant_names?.length" class="text-gray-400">—</span>
+                        </div>
                       </div>
-                      <div>
+                      <div class="min-w-0">
                         <div class="text-xs text-gray-400 mb-0.5">Period</div>
-                        <div class="text-gray-700">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
+                        <div class="text-gray-700 whitespace-nowrap">{{ fmtDate(lease.start_date) }} → {{ fmtDate(lease.end_date) }}</div>
                       </div>
-                      <div>
+                      <div class="min-w-0 text-right">
                         <div class="text-xs text-gray-400 mb-0.5">Monthly rent</div>
-                        <div class="font-medium text-gray-900">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
+                        <div class="font-medium text-gray-900 whitespace-nowrap">R{{ Number(lease.monthly_rent).toLocaleString('en-ZA') }}</div>
                       </div>
                     </div>
                   </div>
@@ -383,7 +391,111 @@
       </div>
 
       <!-- ── Information tab ── -->
-      <div v-else-if="activeSection === 'information' && property" class="pt-6">
+      <div v-else-if="activeSection === 'information' && property" class="space-y-4 pt-6">
+
+        <!-- Property details (editable) -->
+        <div class="card overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Building2 :size="14" class="text-navy" />
+              <span class="text-xs font-semibold uppercase tracking-wide text-navy">Property Details</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span v-if="propDetailsSaved" class="text-xs text-success-600 inline-flex items-center gap-1">
+                <CheckCircle :size="14" /> Saved
+              </span>
+              <button
+                v-if="propDetailsDirty"
+                class="btn-primary btn-sm"
+                :disabled="savingPropDetails"
+                @click="savePropDetails"
+              >
+                <Loader2 v-if="savingPropDetails" :size="14" class="animate-spin" />
+                Save
+              </button>
+            </div>
+          </div>
+          <div class="px-5 py-4 space-y-4">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Property name</label>
+                <input v-model="propDetailsForm.name" type="text" class="input text-sm" placeholder="e.g. Sunset Villa" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Type</label>
+                <select v-model="propDetailsForm.property_type" class="input text-sm">
+                  <option value="apartment">Apartment</option>
+                  <option value="house">House</option>
+                  <option value="townhouse">Townhouse</option>
+                  <option value="commercial">Commercial</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Address</label>
+              <input v-model="propDetailsForm.address" type="text" class="input text-sm" placeholder="Street address" />
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">City</label>
+                <input v-model="propDetailsForm.city" type="text" class="input text-sm" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Province</label>
+                <input v-model="propDetailsForm.province" type="text" class="input text-sm" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Postal code</label>
+                <input v-model="propDetailsForm.postal_code" type="text" class="input text-sm" />
+              </div>
+            </div>
+            <div>
+              <label class="text-xs text-gray-400 mb-1 block">Description</label>
+              <textarea v-model="propDetailsForm.description" rows="2" class="input text-sm resize-y" placeholder="Optional property description" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Unit specs (editable) -->
+        <div v-if="activeUnitData" class="card overflow-hidden">
+          <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <Home :size="14" class="text-navy" />
+              <span class="text-xs font-semibold uppercase tracking-wide text-navy">Unit Specs</span>
+            </div>
+            <button
+              v-if="unitSpecsDirty"
+              class="btn-primary btn-sm"
+              :disabled="savingUnitSpecs"
+              @click="saveUnitSpecs"
+            >
+              <Loader2 v-if="savingUnitSpecs" :size="14" class="animate-spin" />
+              Save
+            </button>
+            <span v-else-if="unitSpecsSaved" class="text-xs text-success-600">Saved</span>
+          </div>
+          <div class="px-5 py-4">
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Bedrooms</label>
+                <input v-model.number="unitSpecsForm.bedrooms" type="number" min="0" max="20" class="input text-sm py-1.5" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Bathrooms</label>
+                <input v-model.number="unitSpecsForm.bathrooms" type="number" min="0" max="20" step="0.5" class="input text-sm py-1.5" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">Toilets</label>
+                <input v-model.number="unitSpecsForm.toilets" type="number" min="0" max="20" class="input text-sm py-1.5" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-400 mb-1 block">House size (m²)</label>
+                <input v-model.number="unitSpecsForm.floor_size_m2" type="number" min="0" step="0.5" class="input text-sm py-1.5" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <PropertyInformationEditor :property="property" @saved="handleInformationSaved" />
       </div>
 
@@ -535,6 +647,14 @@
                     </div>
                     <p v-else class="text-xs text-gray-400">No documents attached</p>
                   </div>
+
+                  <!-- Delete lease -->
+                  <button
+                    class="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs text-danger-600 hover:bg-danger-50 rounded-lg border border-danger-200 transition-colors"
+                    @click.stop="leaseToDelete = lease; deleteLeaseModal = true"
+                  >
+                    <Trash2 :size="13" /> Delete lease
+                  </button>
                 </div>
               </div>
             </div>
@@ -594,6 +714,14 @@
                     <span class="truncate">{{ doc.description || doc.document_type?.replace('_', ' ') }}</span>
                     <Download :size="11" class="text-gray-300 group-hover:text-navy ml-auto flex-shrink-0" />
                   </a>
+                </div>
+                <div class="mt-3 pt-3 border-t border-gray-100">
+                  <button
+                    class="flex items-center gap-1.5 px-3 py-2 text-xs text-danger-600 hover:bg-danger-50 rounded-lg border border-danger-200 transition-colors"
+                    @click.stop="leaseToDelete = lease; deleteLeaseModal = true"
+                  >
+                    <Trash2 :size="13" /> Delete lease
+                  </button>
                 </div>
               </div>
             </div>
@@ -1114,37 +1242,6 @@
       <div v-else-if="activeSection === 'advertising'" class="space-y-4">
         <p class="text-sm text-gray-500">Unit listing details, photos, and advertising description.</p>
 
-        <!-- Unit specs grid -->
-        <div v-if="activeUnitData" class="card p-5">
-          <div class="text-xs font-semibold uppercase tracking-wide text-navy mb-3">Unit Specs</div>
-          <div class="grid grid-cols-3 sm:grid-cols-6 gap-4 text-sm">
-            <div>
-              <div class="text-xs text-gray-400">Bedrooms</div>
-              <div class="font-semibold text-gray-900">{{ activeUnitData.bedrooms }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400">Bathrooms</div>
-              <div class="font-semibold text-gray-900">{{ activeUnitData.bathrooms }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400">Toilets</div>
-              <div class="font-semibold text-gray-900">{{ activeUnitData.toilets ?? 1 }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400">Floor size</div>
-              <div class="font-semibold text-gray-900">{{ activeUnitData.floor_size_m2 ? `${activeUnitData.floor_size_m2} m²` : '—' }}</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400">Base rent</div>
-              <div class="font-semibold text-gray-900">R{{ Number(activeUnitData.rent_amount).toLocaleString('en-ZA', { maximumFractionDigits: 0 }) }}/mo</div>
-            </div>
-            <div>
-              <div class="text-xs text-gray-400">Floor</div>
-              <div class="font-semibold text-gray-900">{{ activeUnitData.floor ?? 'G' }}</div>
-            </div>
-          </div>
-        </div>
-
         <!-- Listing description (unit-level if a unit is selected, otherwise property-level) -->
         <div class="card p-5 space-y-3">
           <div class="text-xs font-semibold uppercase tracking-wide text-navy">Listing Description</div>
@@ -1351,6 +1448,20 @@
         <button class="btn-danger" :disabled="voiding" @click="confirmVoid">
           <Loader2 v-if="voiding" :size="14" class="animate-spin" />
           Void lease
+        </button>
+      </template>
+    </BaseModal>
+
+    <BaseModal :open="deleteLeaseModal" title="Delete lease?" @close="deleteLeaseModal = false">
+      <p class="text-sm text-gray-600">
+        This will permanently delete <strong>{{ leaseToDelete?.lease_number || `Lease #${leaseToDelete?.id}` }}</strong>
+        and all associated tenants, documents, and records. This cannot be undone.
+      </p>
+      <template #footer>
+        <button class="btn-ghost" @click="deleteLeaseModal = false">Cancel</button>
+        <button class="btn-danger" :disabled="deletingLease" @click="confirmDeleteLease">
+          <Loader2 v-if="deletingLease" :size="14" class="animate-spin" />
+          Delete lease
         </button>
       </template>
     </BaseModal>
@@ -1719,7 +1830,6 @@ const sectionTabs = computed(() => {
     { key: 'overview', label: 'Overview', icon: Home },
     { key: 'information', label: 'Information', icon: Info },
     { key: 'leases',   label: 'Leases',   icon: FileSignature },
-    { key: 'tenants',  label: 'Tenants',  icon: Users },
   ]
   if (auth.isAgency) {
     tabs.push({ key: 'agency', label: 'Agency', icon: UserCog })
@@ -1736,6 +1846,69 @@ const sectionTabs = computed(() => {
 const adDescription = ref('')
 const adSaved       = ref(false)
 let adSavedTimer: ReturnType<typeof setTimeout>
+
+// ── Property details editing ──
+const propDetailsForm = ref({
+  name: '',
+  property_type: '',
+  address: '',
+  city: '',
+  province: '',
+  postal_code: '',
+  description: '',
+})
+const propDetailsSnapshot = ref('')
+const savingPropDetails = ref(false)
+const propDetailsSaved = ref(false)
+let propDetailsSavedTimer: ReturnType<typeof setTimeout>
+const propDetailsDirty = computed(() => JSON.stringify(propDetailsForm.value) !== propDetailsSnapshot.value)
+
+function syncPropDetailsForm() {
+  const p = property.value
+  if (!p) return
+  propDetailsForm.value = {
+    name: p.name ?? '',
+    property_type: p.property_type ?? '',
+    address: p.address ?? '',
+    city: p.city ?? '',
+    province: p.province ?? '',
+    postal_code: p.postal_code ?? '',
+    description: p.description ?? '',
+  }
+  propDetailsSnapshot.value = JSON.stringify(propDetailsForm.value)
+}
+
+watch(property, syncPropDetailsForm, { immediate: true })
+
+async function savePropDetails() {
+  if (!property.value || !propDetailsDirty.value) return
+  savingPropDetails.value = true
+  try {
+    await propertiesStore.update(property.value.id, propDetailsForm.value)
+    propDetailsSnapshot.value = JSON.stringify(propDetailsForm.value)
+    propDetailsSaved.value = true
+    clearTimeout(propDetailsSavedTimer)
+    propDetailsSavedTimer = setTimeout(() => { propDetailsSaved.value = false }, 2500)
+    toast.success('Property details saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save property details'))
+  } finally {
+    savingPropDetails.value = false
+  }
+}
+
+// ── Unit specs editing ── (state only — watch + save defined after activeUnitData computed)
+const unitSpecsForm = ref({
+  bedrooms: 1,
+  bathrooms: 1,
+  toilets: 1,
+  floor_size_m2: null as number | null,
+})
+const unitSpecsSnapshot = ref('')
+const savingUnitSpecs = ref(false)
+const unitSpecsSaved = ref(false)
+let unitSpecsSavedTimer: ReturnType<typeof setTimeout>
+const unitSpecsDirty = computed(() => JSON.stringify(unitSpecsForm.value) !== unitSpecsSnapshot.value)
 
 // ── Documentation state ──
 const propertyDocs  = ref<any[]>([])
@@ -1789,6 +1962,9 @@ const itemForm = ref({
 
 const voidModal   = ref(false)
 const voiding     = ref(false)
+const deleteLeaseModal = ref(false)
+const deletingLease    = ref(false)
+const leaseToDelete    = ref<any>(null)
 const renewModal  = ref(false)
 const renewing    = ref(false)
 const renewMode   = ref<'12months' | 'custom'>('12months')
@@ -1800,6 +1976,38 @@ const renewNotes  = ref('')
 const activeUnitData = computed(() =>
   property.value?.units?.find((u: any) => u.id === activeUnit.value) ?? null
 )
+
+// ── Unit specs sync + save (must be after activeUnitData) ──
+function syncUnitSpecsForm() {
+  const u = activeUnitData.value
+  if (!u) return
+  unitSpecsForm.value = {
+    bedrooms: u.bedrooms ?? 1,
+    bathrooms: Number(u.bathrooms) || 1,
+    toilets: u.toilets ?? 1,
+    floor_size_m2: u.floor_size_m2 ? Number(u.floor_size_m2) : null,
+  }
+  unitSpecsSnapshot.value = JSON.stringify(unitSpecsForm.value)
+}
+
+watch(activeUnitData, syncUnitSpecsForm, { immediate: true })
+
+async function saveUnitSpecs() {
+  if (!activeUnit.value || !unitSpecsDirty.value) return
+  savingUnitSpecs.value = true
+  try {
+    await propertiesStore.updateUnit(activeUnit.value, unitSpecsForm.value)
+    unitSpecsSnapshot.value = JSON.stringify(unitSpecsForm.value)
+    unitSpecsSaved.value = true
+    clearTimeout(unitSpecsSavedTimer)
+    unitSpecsSavedTimer = setTimeout(() => { unitSpecsSaved.value = false }, 2500)
+    toast.success('Unit specs saved')
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to save unit specs'))
+  } finally {
+    savingUnitSpecs.value = false
+  }
+}
 
 const daysToExpiry = computed(() => {
   if (!activeLease.value?.end_date) return 0
@@ -2713,11 +2921,42 @@ async function confirmVoid() {
   }
 }
 
+async function confirmDeleteLease() {
+  if (!leaseToDelete.value) return
+  deletingLease.value = true
+  try {
+    await leasesStore.remove(leaseToDelete.value.id)
+    // Remove from local lists
+    const deletedId = leaseToDelete.value.id
+    if (activeLease.value?.id === deletedId) activeLease.value = null
+    currentLeases.value = currentLeases.value.filter((l: any) => l.id !== deletedId)
+    previousLeases.value = previousLeases.value.filter((l: any) => l.id !== deletedId)
+    deleteLeaseModal.value = false
+    leaseToDelete.value = null
+    toast.success('Lease deleted')
+    // Re-fetch leases for this unit
+    if (activeUnit.value) {
+      loadUnitLeases(activeUnit.value)
+    }
+  } catch (err) {
+    toast.error(extractApiError(err, 'Failed to delete lease'))
+  } finally {
+    deletingLease.value = false
+  }
+}
+
 
 // ── Helpers ──
 function initials(name: string): string {
   if (!name) return '?'
   return name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2)
+}
+
+function shortName(full: string): string {
+  if (!full) return '?'
+  const parts = full.trim().split(/\s+/)
+  if (parts.length <= 1) return full
+  return `${parts[0].charAt(0).toUpperCase()} ${parts[parts.length - 1]}`
 }
 
 function fmtDate(iso: string | null): string {

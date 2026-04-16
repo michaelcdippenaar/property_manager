@@ -13,7 +13,7 @@ export default {
         info: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
       },
       fontSize: {
         micro: ['11px', { lineHeight: '16px', fontWeight: '500' }],
