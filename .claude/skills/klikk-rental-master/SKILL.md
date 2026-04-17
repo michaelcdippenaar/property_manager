@@ -45,7 +45,7 @@ Based on the user's question, read the **most relevant** reference file(s). Do n
 
 | User is asking about... | Read this reference |
 |---|---|
-| Rental process, lifecycle, how renting works, steps to rent out a property | [01-rental-workflow.md](references/01-rental-workflow.md) |
+| Rental process, lifecycle, how renting works, steps to rent out a property, viewings, notice period, turnaround, onboarding | [01-rental-workflow.md](references/01-rental-workflow.md) |
 | Who does what — landlord, tenant, agent, managing agent, tribunal, SARS, municipality | [02-parties-and-roles.md](references/02-parties-and-roles.md) |
 | Documents, FICA, inspection reports, receipts, notices, paperwork, compliance certificates | [03-documents-and-records.md](references/03-documents-and-records.md) |
 | Legislation, Acts, RHA, CPA, PIE, POPIA, Sectional Titles Act, CSOS Act, Property Practitioners Act | [04-legislation-overview.md](references/04-legislation-overview.md) |

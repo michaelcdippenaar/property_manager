@@ -71,6 +71,7 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `klikk-property-stellenbosch-intel` | Scrape, enrich, classify, deduplicate and map Winelands properties |
 | `klikk-property-municipal-bills` | Extract property data from SA municipal bills (tool_use pattern) |
 | `klikk-documents-owner-cipro` | Classify SA owner/landlord docs (FICA/CIPRO/CIPC), extract fields, persons graph, mandate readiness |
+| `klikk-vault31-ingestion` | Vault document ingestion pipeline: manifest → enrich → upload (JSONL batches, OCR extraction, counterparty entities) |
 
 ## Conventions
 

@@ -6,7 +6,7 @@ description: Platform-correct iOS (HIG) and Android (Material Design 3) UX/UI en
 # Mobile UX/UI — iOS HIG + Android Material Design 3
 
 **Stack:** Quasar Framework v2 + Vue 3 + Capacitor (`agent-app`, `tenant-app`)
-**Brand:** Primary `#2B2D6E` (navy) · Secondary `#0D9488` (teal)
+**Brand:** Primary `#2B2D6E` (navy) · Accent `#FF3D7F` (pink)
 **Platform detection:** `agent-app/src/composables/usePlatform.ts`
 
 ---

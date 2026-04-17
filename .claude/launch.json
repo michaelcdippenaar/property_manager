@@ -108,6 +108,22 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["index.mjs"],
       "port": 0
+    },
+    {
+      "name": "Dashboard Prototype",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/docs/prototypes",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["-e", "const http=require('http'),fs=require('fs'),path=require('path');const port=process.env.PORT||8005;http.createServer((req,res)=>{const f=path.join(__dirname,req.url==='/'?'agent-dashboard.html':req.url);fs.readFile(f,(e,d)=>{if(e){res.writeHead(404);res.end('Not found')}else{res.writeHead(200,{'Content-Type':'text/html'});res.end(d)}})}).listen(port,()=>console.log(`Dashboard prototype on ${port}`))"],
+      "port": 8005,
+      "autoPort": true
+    },
+    {
+      "name": "Prototypes Index",
+      "cwd": "/Users/mcdippenaar/PycharmProjects/tremly_property_manager/docs/prototypes",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["_index-server.js"],
+      "port": 8006,
+      "autoPort": true
     }
   ]
 }

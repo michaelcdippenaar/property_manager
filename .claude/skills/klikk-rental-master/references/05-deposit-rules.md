@@ -28,32 +28,31 @@ Everything about rental security deposits in South Africa: caps, accounts, inspe
 
 ## Deposit Lifecycle Flowchart
 
+Mapped to the 15-stage circular rental lifecycle (see `01-rental-workflow.md`).
+
 ```
-1. RECEIPT
-   Tenant pays deposit (max 2× rent)
+STAGE 7: DEPOSIT PAYMENT (during previous tenant's notice period)
+   Tenant pays deposit (max 2× rent) + first month's rent
         │
-2. INVESTMENT
-   Landlord places in interest-bearing account (within 3-7 days)
+   LODGING (within 3-7 days of receipt)
+   Landlord places in interest-bearing account
    Provides receipt to tenant with bank details
+   ⚠️ Interest accrues from DATE OF LODGING, not lease start date
         │
-3. DURING TENANCY
-   Interest accrues for tenant's benefit
-   Tenant may request proof of interest at any time
-        │
-4. INGOING INSPECTION (mandatory)
+STAGE 10: MOVE-IN INSPECTION (morning of lease start)
    Joint inspection → signed report → baseline established
         │
-5. TENANCY PERIOD
+STAGES 12-13: ACTIVE TENANCY (12 months)
    Deposit held securely; not available for rent offset
+   Interest continues accruing for tenant's benefit
+   Tenant may request proof of interest at any time
         │
-6. OUTGOING INSPECTION
+STAGE 8: MOVE-OUT INSPECTION (afternoon of last day)
    Joint inspection → comparison to ingoing report
    Determine: fair wear and tear vs tenant damage
         │
-7. REFUND CALCULATION
-   Deposit + interest − lawful deductions = refund amount
-        │
-8. REFUND PAYMENT
+STAGE 15: DEPOSIT REFUND
+   Deposit + ALL accrued interest − lawful deductions = refund amount
    Timeline depends on scenario (see below)
 ```
 

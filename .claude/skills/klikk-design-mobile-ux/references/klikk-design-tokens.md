@@ -45,14 +45,15 @@ Use in `<style lang="scss">` scoped blocks:
 
 ```scss
 $primary:   #2B2D6E;   // Klikk Navy
-$secondary: #0D9488;   // Klikk Teal (accent)
-$accent:    #0D9488;
+$secondary: #FF3D7F;   // Klikk Pink Accent
+$accent:    #FF3D7F;   // Klikk Pink Accent
 $dark:      #1A1B44;
 $surface:   #F5F5F8;   // Page background
 $positive:  #21BA45;
 $negative:  #DB2828;
 $info:      #31CCEC;
 $warning:   #F2C037;
+// Note: teal #0D9488 is the success-600 shade (use $positive-like success states), not the brand accent
 ```
 
 - In `<style lang="scss">`: use `$primary`, `rgba($primary, 0.12)`, etc.

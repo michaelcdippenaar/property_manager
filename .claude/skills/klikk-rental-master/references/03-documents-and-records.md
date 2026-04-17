@@ -6,26 +6,33 @@ Every document in the rental lifecycle: what it is, when it's needed, who prepar
 
 ## Document Register
 
-| # | Document | When | Prepared by | Legal basis | Retention |
-|---|----------|------|-------------|-------------|-----------|
-| 1 | Mandate agreement | Before marketing | Agent + landlord | PPA 22/2019 | Duration of mandate + 5 years |
-| 2 | FICA documents | Screening stage | Tenant provides; agent/landlord verifies | FICA 38/2001 s21 | 5 years after relationship ends |
-| 3 | Tenant application form | Screening stage | Agent/landlord | Best practice | Duration of tenancy + 3 years |
-| 4 | POPIA consent form | Screening stage | Agent/landlord | POPIA s11 | Duration of tenancy + 3 years |
-| 5 | Credit check report | Screening stage | Credit bureau (TransUnion/Experian/XDS) | With tenant consent | Duration of tenancy |
-| 6 | Lease agreement | Before occupation | Landlord/agent/attorney | RHA s5(2) | Duration of tenancy + 3 years (prescription) |
-| 7 | House rules annexure | Attached to lease | Landlord/body corporate | RHA s5(5) — mandatory | With lease |
-| 8 | Ingoing inspection report | Before occupation | Joint — landlord + tenant | RHA s5(3) | Duration of tenancy + 3 years |
-| 9 | Inventory list | Before occupation (furnished) | Joint — landlord + tenant | Best practice | Duration of tenancy + 3 years |
-| 10 | Deposit receipt | At deposit payment | Landlord/agent | RHA s5(3)(f) | Duration of tenancy + 3 years |
-| 11 | Rent receipts | Monthly (on request) | Landlord/agent | RHA s5A | 5 years (tax records) |
-| 12 | Maintenance request records | Ongoing | Tenant initiates; landlord/agent records | Best practice | Duration of tenancy + 3 years |
-| 13 | CPA s14 renewal notice | 40–80 business days before expiry | Landlord/agent | CPA s14 | 3 years |
-| 14 | Written termination notice | Per notice period | Initiating party | RHA s5(3)(c) | 3 years after termination |
-| 15 | Breach notice | Upon breach | Aggrieved party | CPA / common law | 3 years after termination |
-| 16 | Outgoing inspection report | Within 3–7 days of vacating | Joint — landlord + tenant | RHA deposit provisions | 3 years after termination |
-| 17 | Deposit refund statement | Within 7/14/21 days | Landlord/agent | RHA s5(3)(h) | 3 years after refund |
-| 18 | Compliance certificates | Before occupation / on request | Qualified inspectors | Various regulations | Duration of validity |
+Mapped to the 15-stage circular lifecycle (see `01-rental-workflow.md`). Stages 1–7 happen during the previous tenant's notice period. Stages 8–11 are the overnight turnaround. Stages 12–14 are active tenancy. Stage 15 is closeout.
+
+| # | Document | Lifecycle Stage | Prepared by | Legal basis | Retention |
+|---|----------|----------------|-------------|-------------|-----------|
+| 1 | Written termination notice | Stage 1: Notice Given | Initiating party | RHA s5(3)(c), CPA s14 | 3 years after termination |
+| 2 | Mandate agreement | Stage 2: Marketing & Listing | Agent + landlord | PPA 22/2019 | Duration of mandate + 5 years |
+| 3 | Compliance certificates | Stage 2: Marketing & Listing | Qualified inspectors | Various regulations | Duration of validity |
+| 4 | Viewing schedule / prospect log | Stage 3: Viewings | Agent | Best practice / POPIA | Duration of tenancy + 3 years |
+| 5 | FICA documents | Stage 4: Tenant Screening | Tenant provides; agent/landlord verifies | FICA 38/2001 s21 | 5 years after relationship ends |
+| 6 | Tenant application form | Stage 4: Tenant Screening | Agent/landlord | Best practice | Duration of tenancy + 3 years |
+| 7 | POPIA consent form | Stage 4: Tenant Screening | Agent/landlord | POPIA s11 | Duration of tenancy + 3 years |
+| 8 | Credit check report | Stage 4: Tenant Screening | Credit bureau (TransUnion/Experian/XDS) | With tenant consent | Duration of tenancy |
+| 9 | Lease agreement | Stage 5: Lease Execution | Landlord/agent/attorney | RHA s5(2) | Duration of tenancy + 3 years (prescription) |
+| 10 | House rules annexure | Stage 5: Lease Execution | Landlord/body corporate | RHA s5(5) — mandatory | With lease |
+| 11 | Billing schedule / debit order mandate | Stage 6: Recurring Invoice Setup | Agent/landlord | Lease terms | Duration of tenancy + 3 years |
+| 12 | Deposit receipt | Stage 7: Deposit Payment | Landlord/agent | RHA s5(3)(f) | Duration of tenancy + 3 years |
+| 13 | Outgoing inspection report | Stage 8: Move-Out Inspection | Joint — landlord + outgoing tenant | RHA deposit provisions | 3 years after termination |
+| 14 | Snag list / contractor invoices | Stage 9: Repairs & Cleaning | Landlord/agent | Best practice | 3 years after termination |
+| 15 | Ingoing inspection report | Stage 10: Move-In Inspection | Joint — landlord + new tenant | RHA s5(3) | Duration of tenancy + 3 years |
+| 16 | Inventory list (furnished) | Stage 10: Move-In Inspection | Joint — landlord + new tenant | Best practice | Duration of tenancy + 3 years |
+| 17 | Key register / welcome pack | Stage 11: Onboarding | Agent/landlord | Best practice | Duration of tenancy |
+| 18 | Utilities transfer forms | Stage 11: Onboarding | Agent/landlord + tenant | Municipal requirements | Duration of tenancy |
+| 19 | Rent receipts | Stage 12: Rent Collection | Landlord/agent | RHA s5A | 5 years (tax records) |
+| 20 | Maintenance request records | Stage 13: Maintenance | Tenant initiates; landlord/agent records | Best practice | Duration of tenancy + 3 years |
+| 21 | CPA s14 renewal notice | Stage 14: Notice (cycle) | Landlord/agent | CPA s14 | 3 years |
+| 22 | Breach notice | Any stage (upon breach) | Aggrieved party | CPA / common law | 3 years after termination |
+| 23 | Deposit refund statement | Stage 15: Deposit Refund | Landlord/agent | RHA s5(3)(h) | 3 years after refund |
 
 ---
 
