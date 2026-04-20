@@ -1,0 +1,618 @@
+---
+/**
+ * Contact page — Talk to us
+ *
+ * Editorial restraint per the homepage audit:
+ *   - Left-aligned hero, no gradient decoration
+ *   - Specific claims (response SLA, office hours)
+ *   - Visible contact details (email, phone, office) before the form
+ *   - Form opens the user's mail client on submit (mailto:) —
+ *     no backend dependency, can be upgraded to a real endpoint
+ *     by setting PUBLIC_CONTACT_ENDPOINT
+ */
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+const contactEmail = import.meta.env.PUBLIC_CONTACT_EMAIL ?? 'mc@klikk.co.za';
+// Defaults to the Django endpoint. Override with PUBLIC_CONTACT_ENDPOINT="" to force mailto fallback,
+// or point at a different host (e.g. https://api.klikk.co.za/api/v1/contact/) in production.
+const contactEndpoint = import.meta.env.PUBLIC_CONTACT_ENDPOINT ?? '/api/v1/contact/';
+---
+
+<BaseLayout
+  title="Contact — Klikk Property Management"
+  description="Talk to the Klikk team about rental property management, AI leases, and POPIA-compliant trust accounting. Responses within one business day."
+>
+  <div class="contact-page">
+
+    <!-- Hero -->
+    <section class="contact-hero reveal">
+      <div class="section-label">Contact</div>
+      <h1>Talk to us.</h1>
+      <p>Whether you're a landlord with three units or an agency with three hundred, we'd like to hear from you. Responses within one business day, every business day.</p>
+    </section>
+
+    <!-- Contact channels -->
+    <section class="channels reveal reveal-delay-1">
+      <a href={`mailto:${contactEmail}`} class="channel">
+        <div class="channel-label">Email</div>
+        <div class="channel-value">{contactEmail}</div>
+        <div class="channel-meta">Replies within one business day</div>
+      </a>
+      <div class="channel channel-static">
+        <div class="channel-label">Office</div>
+        <div class="channel-value">Stellenbosch, Western Cape</div>
+        <div class="channel-meta">By appointment only</div>
+      </div>
+    </section>
+
+    <!-- Form + trust sidebar -->
+    <section class="form-section reveal reveal-delay-2">
+      <div class="form-col">
+        <h2>Send us a message</h2>
+        <p class="form-intro">Tell us what you're working on. We read every message.</p>
+
+        <form id="contact-form" class="contact-form" data-endpoint={contactEndpoint} data-fallback-email={contactEmail}>
+          {/* Honeypot — hidden from humans, bots fill it and get silently dropped server-side */}
+          <div class="hp-field" aria-hidden="true">
+            <label for="contact-website">Website</label>
+            <input type="text" id="contact-website" name="website" tabindex="-1" autocomplete="off" />
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="contact-name">Name</label>
+              <input type="text" id="contact-name" name="name" required autocomplete="name" />
+            </div>
+            <div class="field">
+              <label for="contact-email">Email</label>
+              <input type="email" id="contact-email" name="email" required autocomplete="email" />
+            </div>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="contact-org">Organisation <span class="optional">(optional)</span></label>
+              <input type="text" id="contact-org" name="organisation" autocomplete="organization" />
+            </div>
+            <div class="field">
+              <label for="contact-role">I am a…</label>
+              <select id="contact-role" name="role">
+                <option value="landlord">Private landlord</option>
+                <option value="agency">Rental agency</option>
+                <option value="owner">Body corporate / owner</option>
+                <option value="tenant">Tenant</option>
+                <option value="supplier">Supplier / contractor</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="contact-message">Message</label>
+            <textarea id="contact-message" name="message" rows="6" required placeholder="Portfolio size, what you're looking for, anything we should know…"></textarea>
+          </div>
+
+          <div class="field field-consent">
+            <label class="consent-label">
+              <input type="checkbox" id="contact-consent" name="consent" required />
+              <span>I consent to Klikk processing my information to respond to this enquiry, per the <a href="/privacy">Privacy Notice</a> and POPIA s11(1)(a).</span>
+            </label>
+          </div>
+
+          <button type="submit" class="submit-btn">
+            Send message
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+
+          <div class="form-status" id="form-status" role="status" aria-live="polite"></div>
+        </form>
+      </div>
+
+      <aside class="trust-col">
+        <div class="trust-card">
+          <div class="trust-label">What to expect</div>
+          <ul class="trust-list">
+            <li>
+              <span class="trust-num">01</span>
+              <div>
+                <strong>We read it</strong>
+                <p>A real person — not a ticket queue — reads your message and picks it up.</p>
+              </div>
+            </li>
+            <li>
+              <span class="trust-num">02</span>
+              <div>
+                <strong>We reply within one business day</strong>
+                <p>Usually same-day during Western Cape office hours (08h00–17h00 SAST).</p>
+              </div>
+            </li>
+            <li>
+              <span class="trust-num">03</span>
+              <div>
+                <strong>We book time if it helps</strong>
+                <p>For portfolios above 50 units or agency onboarding, we'll propose a 20-minute call.</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="compliance-note">
+          <div class="compliance-title">POPIA compliance</div>
+          <p>Information submitted via this form is processed only to respond to your enquiry, retained no longer than necessary, and never shared with third parties. You may request access or deletion at any time. <a href="/privacy">Privacy Notice</a> · <a href="/paia">PAIA Manual</a>.</p>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Registered entity footer block -->
+    <section class="registered reveal reveal-delay-3">
+      <div class="registered-inner">
+        <div class="registered-label">Registered entity</div>
+        <div class="registered-grid">
+          <div>
+            <div class="reg-row-label">Trading as</div>
+            <div class="reg-row-value">Klikk</div>
+          </div>
+          <div>
+            <div class="reg-row-label">Information Officer</div>
+            <div class="reg-row-value">Registered with the Information Regulator, SA</div>
+          </div>
+          <div>
+            <div class="reg-row-label">Hosting</div>
+            <div class="reg-row-value">AWS af-south-1 (Cape Town)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</BaseLayout>
+
+<script>
+  // Progressive enhancement: submit form via fetch if PUBLIC_CONTACT_ENDPOINT is set,
+  // otherwise open the user's mail client with a prefilled message.
+  const form = document.getElementById('contact-form') as HTMLFormElement | null;
+  const status = document.getElementById('form-status');
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!status) return;
+
+      const data = new FormData(form);
+      const endpoint = form.dataset.endpoint;
+      const fallbackEmail = form.dataset.fallbackEmail || 'hello@klikk.co.za';
+
+      const name = String(data.get('name') || '');
+      const email = String(data.get('email') || '');
+      const org = String(data.get('organisation') || '');
+      const role = String(data.get('role') || '');
+      const message = String(data.get('message') || '');
+      const consent = Boolean(data.get('consent'));
+      const website = String(data.get('website') || ''); // honeypot
+
+      // If a real endpoint is configured, POST JSON there.
+      if (endpoint && endpoint.length > 0) {
+        status.textContent = 'Sending…';
+        status.className = 'form-status is-pending';
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, organisation: org, role, message, consent, website }),
+          });
+          if (!res.ok) {
+            let serverMsg = '';
+            try {
+              const json = await res.json();
+              serverMsg = String(json?.error || '');
+            } catch { /* non-JSON response */ }
+            throw new Error(serverMsg || `HTTP ${res.status}`);
+          }
+          status.textContent = 'Thanks — we\'ll reply within one business day.';
+          status.className = 'form-status is-success';
+          form.reset();
+        } catch (err) {
+          const msg = err instanceof Error && err.message ? err.message : '';
+          status.textContent = msg
+            ? msg + ' (Or email us directly at ' + fallbackEmail + '.)'
+            : 'Something went wrong. Please email us directly at ' + fallbackEmail + '.';
+          status.className = 'form-status is-error';
+        }
+        return;
+      }
+
+      // No endpoint — open the user's mail client with the message prefilled.
+      const subject = `[Klikk] Enquiry from ${name}${org ? ` (${org})` : ''}`;
+      const body = [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        `Organisation: ${org || '—'}`,
+        `Role: ${role}`,
+        '',
+        'Message:',
+        message,
+      ].join('\n');
+      const mailto = `mailto:${fallbackEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+      status.textContent = 'Opening your email client…';
+      status.className = 'form-status is-pending';
+      window.location.href = mailto;
+
+      // Reset status after a moment so the user can resubmit if needed.
+      setTimeout(() => {
+        if (status) {
+          status.textContent = 'If your mail client didn\'t open, email us directly at ' + fallbackEmail + '.';
+          status.className = 'form-status is-info';
+        }
+      }, 1500);
+    });
+  }
+</script>
+
+<style>
+  .contact-page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 120px 40px 100px;
+  }
+
+  /* ── Hero ── */
+  .contact-hero {
+    margin-bottom: 56px;
+    max-width: 680px;
+  }
+  .contact-hero h1 {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: 800;
+    color: var(--color-navy);
+    letter-spacing: -2px;
+    line-height: 1.05;
+    margin: 12px 0 18px;
+  }
+  .contact-hero p {
+    font-size: 17px;
+    line-height: 1.65;
+    color: #6b7280;
+  }
+
+  /* ── Channels ── */
+  .channels {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 72px;
+    max-width: 640px;
+  }
+  .channel {
+    display: block;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 22px 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+  }
+  .channel:hover {
+    border-color: var(--color-navy);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(43,45,110,0.06);
+  }
+  .channel-static { cursor: default; }
+  .channel-static:hover {
+    border-color: #e5e7eb;
+    transform: none;
+    box-shadow: none;
+  }
+  .channel-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #9ca3af;
+    margin-bottom: 8px;
+  }
+  .channel-value {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-navy);
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+    margin-bottom: 4px;
+    word-break: break-word;
+  }
+  .channel-meta {
+    font-size: 12.5px;
+    color: #9ca3af;
+  }
+
+  /* ── Form section ── */
+  .form-section {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 48px;
+    margin-bottom: 72px;
+    align-items: start;
+  }
+  .form-col h2 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--color-navy);
+    letter-spacing: -0.8px;
+    margin: 0 0 8px;
+  }
+  .form-intro {
+    font-size: 14.5px;
+    color: #6b7280;
+    line-height: 1.6;
+    margin: 0 0 28px;
+  }
+
+  /* Honeypot — visually hidden, still in the DOM */
+  .hp-field {
+    position: absolute;
+    left: -10000px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  /* Form fields */
+  .contact-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .field label {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #374151;
+    letter-spacing: 0.01em;
+  }
+  .optional {
+    color: #9ca3af;
+    font-weight: 500;
+  }
+  .field input[type="text"],
+  .field input[type="email"],
+  .field select,
+  .field textarea {
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 11px 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: white;
+    color: #111827;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  .field input:focus,
+  .field select:focus,
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--color-navy);
+    box-shadow: 0 0 0 3px rgba(43,45,110,0.08);
+  }
+  .field textarea {
+    resize: vertical;
+    min-height: 140px;
+    line-height: 1.5;
+  }
+  .field select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 38px;
+  }
+
+  /* Consent checkbox */
+  .field-consent { gap: 0; }
+  .consent-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 12.5px;
+    color: #6b7280;
+    line-height: 1.55;
+    font-weight: 400;
+    cursor: pointer;
+  }
+  .consent-label input[type="checkbox"] {
+    margin-top: 3px;
+    width: 15px;
+    height: 15px;
+    accent-color: var(--color-navy);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  .consent-label a {
+    color: var(--color-navy);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Submit */
+  .submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    align-self: flex-start;
+    background: var(--color-navy);
+    color: white;
+    padding: 13px 26px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+    margin-top: 4px;
+    box-shadow: 0 1px 2px rgba(17,24,39,0.06);
+  }
+  .submit-btn:hover {
+    background: var(--color-navy-deep, #1a1b4b);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(17,24,39,0.12);
+  }
+
+  /* Form status */
+  .form-status {
+    font-size: 13px;
+    line-height: 1.5;
+    margin-top: 4px;
+    min-height: 1.5em;
+  }
+  .form-status.is-pending { color: #6b7280; }
+  .form-status.is-success { color: #047857; }
+  .form-status.is-error { color: #b91c1c; }
+  .form-status.is-info { color: #6b7280; }
+
+  /* ── Trust sidebar ── */
+  .trust-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    position: sticky;
+    top: 96px;
+  }
+  .trust-card {
+    background: #fafaff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .trust-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-navy);
+    margin-bottom: 14px;
+  }
+  .trust-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .trust-list li {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .trust-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-accent);
+    background: rgba(214,51,108,0.08);
+    padding: 3px 7px;
+    border-radius: 5px;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    margin-top: 1px;
+  }
+  .trust-list strong {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    display: block;
+    margin-bottom: 3px;
+    letter-spacing: -0.2px;
+  }
+  .trust-list p {
+    font-size: 13px;
+    color: #6b7280;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .compliance-note {
+    font-size: 12px;
+    color: #9ca3af;
+    line-height: 1.55;
+    padding: 16px 18px;
+    border: 1px dashed #e5e7eb;
+    border-radius: 10px;
+  }
+  .compliance-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #6b7280;
+    margin-bottom: 6px;
+  }
+  .compliance-note a {
+    color: var(--color-navy);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ── Registered entity strip ── */
+  .registered {
+    border-top: 1px solid #f0f0f5;
+    padding-top: 40px;
+  }
+  .registered-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #9ca3af;
+    margin-bottom: 14px;
+  }
+  .registered-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+  .reg-row-label {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-bottom: 3px;
+  }
+  .reg-row-value {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1024px) {
+    .form-section { grid-template-columns: 1fr; gap: 36px; }
+    .trust-col { position: static; }
+  }
+  @media (max-width: 720px) {
+    .channels { grid-template-columns: 1fr; }
+    .registered-grid { grid-template-columns: 1fr; gap: 14px; }
+  }
+  @media (max-width: 640px) {
+    .contact-page { padding: 100px 20px 60px; }
+    .contact-hero h1 { font-size: 36px; letter-spacing: -1.2px; }
+    .field-row { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>

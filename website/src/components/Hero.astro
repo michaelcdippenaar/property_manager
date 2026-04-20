@@ -18,7 +18,7 @@ const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.kli
         Built for South African rental law
       </div>
       <h1 class="fade-up fade-up-1">Property management,<br><em>intelligently</em> South African.</h1>
-      <p class="fade-up fade-up-2">AI-powered leases, intelligent supplier matching, native e-signing, and a tenant app &mdash; built from the ground up for the Rental Housing Act.</p>
+      <p class="fade-up fade-up-2">AI-drafted leases, native e-signing, and a tenant app &mdash; built, hosted, and audited in South Africa.</p>
       <div class="hero-actions fade-up fade-up-3">
         <a href={registerUrl} target="_blank" class="hero-btn-primary">
           Start Free &mdash; Up to 5 Units
@@ -53,13 +53,6 @@ const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.kli
         </div>
         <div class="mockup-body">
           <img src="/klikk-dashboard.png" alt="Klikk dashboard" class="mockup-screenshot" />
-        </div>
-      </div>
-      <!-- Floating phone — Agent App screenshot -->
-      <div class="phone-mockup">
-        <div class="phone-notch"></div>
-        <div class="phone-screen">
-          <img src="/klikk-agent-app.png" alt="Klikk Agent App" class="phone-screenshot" />
         </div>
       </div>
     </div>
@@ -171,13 +164,13 @@ const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.kli
     transition: all 0.25s;
     border: none;
     cursor: pointer;
-    box-shadow: 0 4px 20px rgba(255,61,127,0.3);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
     white-space: nowrap;
   }
   .hero-btn-primary:hover {
     background: var(--color-accent-dark);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(255,61,127,0.38);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
   }
   .hero-btn-ghost {
     display: inline-flex;
@@ -428,42 +421,6 @@ const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.kli
     background: linear-gradient(180deg, var(--color-accent-light) 0%, var(--color-accent) 100%);
   }
 
-  /* ── Floating Phone ── */
-  .phone-mockup {
-    position: absolute;
-    bottom: -24px;
-    right: -36px;
-    width: 168px;
-    background: #1a1a2e;
-    border-radius: 28px;
-    padding: 10px;
-    box-shadow: 0 24px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08);
-    animation: float 6s ease-in-out infinite;
-    z-index: 5;
-  }
-  @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(-1deg); }
-    50% { transform: translateY(-10px) rotate(-1deg); }
-  }
-  .phone-notch {
-    width: 40px; height: 6px;
-    border-radius: 3px;
-    background: #2d2d44;
-    margin: 0 auto 8px;
-  }
-  .phone-screen {
-    background: white;
-    border-radius: 20px;
-    overflow: hidden;
-  }
-  .phone-screenshot {
-    width: 100%;
-    display: block;
-    border-radius: 20px;
-    object-fit: cover;
-    object-position: top;
-  }
-
   /* ── Responsive ── */
   @media (max-width: 1100px) {
     .hero-inner {
@@ -471,7 +428,6 @@ const registerUrl = import.meta.env.PUBLIC_REGISTER_URL ?? 'https://register.kli
       max-width: 680px;
     }
     h1 { font-size: 48px; }
-    .phone-mockup { display: none; }
     .hero-visual { order: -1; }
   }
   @media (max-width: 640px) {

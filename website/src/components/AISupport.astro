@@ -1,0 +1,505 @@
+---
+/**
+ * AISupport — "The ticket is the chat"
+ *
+ * AI-first support story: tenant + Klikk AI + agent + supplier
+ * live in the same thread. Split layout:
+ *   - Left:  phone mockup showing a live multi-party ticket thread
+ *   - Right: section heading + 4-item checklist
+ *
+ * Pure presentational — no content-hub dependency.
+ * Fonts: Bricolage Grotesque (display) + DM Sans (body) — global tokens.
+ */
+
+const benefits = [
+  {
+    title: 'AI + RAG knowledge base',
+    body: 'Your lease, your building manual, SA rental law — all indexed. Klikk AI answers before it bothers you.',
+  },
+  {
+    title: 'Multi-party threads',
+    body: 'Tenant, AI, agent and supplier in the same chat. Everyone sees the truth. No he-said-she-said.',
+  },
+  {
+    title: 'Status is visible',
+    body: 'Red, amber and green dots match the Calendar. Your tenant never calls to "check in" — they just open the app.',
+  },
+  {
+    title: 'Ratings stay private',
+    body: 'Tenants rate the supplier, not you. You see the aggregate — contractors compete for your work.',
+  },
+];
+---
+
+<section class="aisupport-section" id="ai-support">
+  <div class="aisupport-inner">
+    <div class="aisupport-grid">
+
+      <!-- ═══ PHONE MOCKUP ═══ -->
+      <div class="phone-stage reveal">
+        <div class="phone-glow" aria-hidden="true"></div>
+
+        <div class="phone">
+          <div class="phone-screen">
+            <div class="ph-notch" aria-hidden="true"></div>
+
+            <!-- Chat header -->
+            <div class="ph-header">
+              <div class="ph-eyebrow">Klikk AI · thread</div>
+              <div class="ph-title">Geyser leak · Emergency</div>
+              <div class="ph-meta">
+                <span class="ph-dot" aria-hidden="true"></span>
+                4 in thread · plumber en-route
+              </div>
+            </div>
+
+            <!-- Thread body -->
+            <div class="ph-body">
+
+              <!-- AI message -->
+              <div class="msg msg-ai">
+                <div class="msg-av msg-av-ai" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.34 6.34l2.83 2.83M14.83 14.83l2.83 2.83M6.34 17.66l2.83-2.83M14.83 9.17l2.83-2.83"/></svg>
+                </div>
+                <div class="msg-body">
+                  <div class="msg-who">Klikk AI</div>
+                  Classified as <strong>emergency · plumbing</strong>. Sarah approved, John from Cape Plumbing dispatched — ETA 14:22.
+                </div>
+              </div>
+
+              <!-- Status card -->
+              <div class="sys-card">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                <span><strong>Ticket approved</strong> · plumber assigned · 3 photos</span>
+              </div>
+
+              <!-- Agent message -->
+              <div class="msg msg-agent">
+                <div class="msg-av msg-av-agent" aria-hidden="true">S</div>
+                <div class="msg-body">
+                  <div class="msg-who msg-who-agent">Sarah · Agent</div>
+                  Dispatching John now. Keep geyser off until he gets there.
+                </div>
+              </div>
+
+              <!-- Participant stack -->
+              <div class="participants">
+                <div class="p-av p-av-ai" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.34 6.34l2.83 2.83M14.83 14.83l2.83 2.83M6.34 17.66l2.83-2.83M14.83 9.17l2.83-2.83"/></svg>
+                </div>
+                <div class="p-av" aria-hidden="true">M</div>
+                <div class="p-av p-av-agent" aria-hidden="true">S</div>
+                <div class="p-av p-av-supplier" aria-hidden="true">J</div>
+              </div>
+              <div class="p-count">4 in this thread</div>
+            </div>
+
+            <!-- Tab bar -->
+            <div class="ph-tabs">
+              <div class="ph-tab">
+                <svg class="ph-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-5h-2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>
+                Home
+              </div>
+              <div class="ph-tab ph-tab-active">
+                <div class="ph-tab-cushion" aria-hidden="true"></div>
+                <div class="ph-tab-wrap">
+                  <svg class="ph-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 1 1 5.3 5.3L9 22.6a1.4 1.4 0 0 1-2-2L17.7 9.8a4 4 0 0 1-3-3.5Z"/></svg>
+                </div>
+                Problems
+              </div>
+              <div class="ph-tab">
+                <svg class="ph-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                Calendar
+              </div>
+              <div class="ph-tab">
+                <svg class="ph-tab-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+                Chat
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ COPY + LIST ═══ -->
+      <div class="aisupport-body">
+        <div class="section-label reveal">AI-first support</div>
+        <h2 class="section-title reveal reveal-delay-1">
+          The ticket <span class="accent">is</span> the chat.
+        </h2>
+        <p class="section-desc reveal reveal-delay-2">
+          No ticket forms. No support email that dies in a shared inbox. Your tenant describes the problem, Klikk AI triages, the ticket is created, and your agent and supplier drop into the same thread as participants. Live ETA, photos, approvals — all in one place.
+        </p>
+
+        <ul class="benefit-list">
+          {benefits.map((b, i) => (
+            <li class="benefit reveal" style={`--i: ${i}`}>
+              <div class="benefit-check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div class="benefit-body">
+                <strong>{b.title}</strong>
+                <span>{b.body}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<style>
+  /* ═══ LAYOUT ═══ */
+  .aisupport-section {
+    background: var(--color-surface-warm);
+    position: relative;
+    overflow: hidden;
+  }
+  .aisupport-section::before {
+    content: '';
+    position: absolute;
+    top: -200px; left: -200px;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,61,127,0.06) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .aisupport-inner {
+    max-width: 1260px;
+    margin: 0 auto;
+    padding: 100px 40px;
+    position: relative;
+  }
+  .aisupport-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 72px;
+    align-items: center;
+  }
+
+  /* ═══ PHONE MOCKUP ═══ */
+  .phone-stage {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 620px;
+  }
+  .phone-glow {
+    position: absolute;
+    width: 460px; height: 460px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(43,45,110,0.16) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .phone {
+    width: 300px;
+    height: 600px;
+    background: var(--color-navy);
+    border-radius: 42px;
+    padding: 10px;
+    box-shadow:
+      0 30px 80px rgba(26,27,75,0.3),
+      0 10px 24px rgba(255,61,127,0.12);
+    position: relative;
+    z-index: 1;
+  }
+  .phone-screen {
+    width: 100%; height: 100%;
+    background: white;
+    border-radius: 33px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+  }
+  .ph-notch {
+    position: absolute;
+    top: 10px; left: 50%;
+    transform: translateX(-50%);
+    width: 96px; height: 22px;
+    background: var(--color-navy);
+    border-radius: 12px;
+    z-index: 10;
+  }
+
+  /* ═══ CHAT HEADER ═══ */
+  .ph-header {
+    padding: 44px 18px 14px;
+    background: linear-gradient(135deg, #ede9fe 0%, #fff4f8 100%);
+    border-bottom: 1px solid rgba(43,45,110,0.08);
+  }
+  .ph-eyebrow {
+    font-family: var(--font-body);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+  }
+  .ph-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--color-navy);
+    letter-spacing: -0.2px;
+    margin-top: 3px;
+  }
+  .ph-meta {
+    font-size: 11px;
+    color: var(--color-navy-light);
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .ph-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #dc2626;
+    box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
+  }
+
+  /* ═══ THREAD BODY ═══ */
+  .ph-body {
+    flex: 1;
+    padding: 14px 12px;
+    background: #fafafa;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* message bubbles */
+  .msg {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .msg-av {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .msg-av-ai {
+    background: linear-gradient(135deg, #a78bfa 0%, var(--color-accent) 100%);
+  }
+  .msg-av-ai svg {
+    width: 14px; height: 14px;
+  }
+  .msg-av-agent {
+    background: linear-gradient(135deg, #5a5d90 0%, var(--color-navy) 100%);
+  }
+  .msg-body {
+    flex: 1;
+    background: white;
+    border: 1px solid rgba(43,45,110,0.08);
+    border-radius: 12px;
+    padding: 9px 11px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: #374151;
+  }
+  .msg-body strong { color: var(--color-navy); font-weight: 600; }
+  .msg-who {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+    margin-bottom: 3px;
+  }
+  .msg-who-agent { color: var(--color-navy); }
+
+  /* system card (status) */
+  .sys-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #ecfdf5;
+    color: #059669;
+    border-radius: 10px;
+    padding: 7px 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .sys-card svg {
+    width: 13px; height: 13px;
+    flex-shrink: 0;
+  }
+
+  /* participant stack */
+  .participants {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    padding: 6px 0 0;
+    margin-top: 4px;
+  }
+  .p-av {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    border: 2px solid #fafafa;
+    margin-left: -6px;
+    background: linear-gradient(135deg, #374151 0%, var(--color-navy) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .p-av:first-child { margin-left: 0; }
+  .p-av-ai {
+    background: linear-gradient(135deg, #a78bfa 0%, var(--color-accent) 100%);
+  }
+  .p-av-ai svg { width: 10px; height: 10px; stroke: white; }
+  .p-av-agent {
+    background: linear-gradient(135deg, #5a5d90 0%, var(--color-navy) 100%);
+  }
+  .p-av-supplier {
+    background: linear-gradient(135deg, #647296 0%, #3c4668 100%);
+  }
+  .p-count {
+    text-align: center;
+    font-size: 9px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+
+  /* ═══ TAB BAR ═══ */
+  .ph-tabs {
+    height: 56px;
+    background: white;
+    border-top: 1px solid rgba(43,45,110,0.08);
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    padding: 0 8px 8px;
+  }
+  .ph-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    font-size: 9.5px;
+    font-weight: 500;
+    color: #9ca3af;
+    position: relative;
+  }
+  .ph-tab-ico { width: 18px; height: 18px; }
+  .ph-tab-active { color: var(--color-navy); font-weight: 600; }
+  .ph-tab-active .ph-tab-wrap {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--color-navy);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-10px);
+    margin-bottom: -8px;
+    box-shadow: 0 6px 14px rgba(43,45,110,0.35);
+    position: relative;
+    z-index: 2;
+  }
+  .ph-tab-active .ph-tab-wrap .ph-tab-ico { stroke: white; }
+  .ph-tab-cushion {
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%);
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,61,127,0.18) 30%, transparent 70%);
+    z-index: 1;
+  }
+
+  /* ═══ RIGHT COLUMN COPY ═══ */
+  .aisupport-body .section-title {
+    color: var(--color-navy);
+  }
+  .aisupport-body .section-title .accent {
+    color: var(--color-accent);
+    font-style: italic;
+  }
+
+  /* ═══ BENEFIT LIST ═══ */
+  .benefit-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .benefit {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 22px;
+    background: white;
+    border: 1px solid rgba(43,45,110,0.08);
+    border-radius: 14px;
+    transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .benefit.reveal {
+    transition-delay: calc(0.3s + var(--i, 0) * 80ms);
+  }
+  .benefit:hover {
+    transform: translateX(4px);
+    border-color: rgba(255,61,127,0.25);
+    box-shadow: 0 8px 24px rgba(43,45,110,0.08);
+  }
+  .benefit-check {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: rgba(16,185,129,0.12);
+    color: var(--color-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .benefit-check svg {
+    width: 16px; height: 16px;
+  }
+  .benefit-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .benefit-body strong {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--color-navy);
+    letter-spacing: -0.2px;
+    line-height: 1.3;
+  }
+  .benefit-body span {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #6b7280;
+  }
+
+  /* ═══ RESPONSIVE ═══ */
+  @media (max-width: 1024px) {
+    .aisupport-grid {
+      grid-template-columns: 1fr;
+      gap: 56px;
+    }
+    .phone-stage { min-height: 560px; }
+  }
+  @media (max-width: 640px) {
+    .aisupport-inner { padding: 72px 24px; }
+    .phone { width: 280px; height: 560px; }
+    .benefit { padding: 16px 18px; }
+  }
+</style>
