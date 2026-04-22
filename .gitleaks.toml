@@ -1,0 +1,50 @@
+# Gitleaks configuration for Klikk Rentals
+# Docs: https://github.com/gitleaks/gitleaks/tree/master/config
+#
+# Run a scan: gitleaks detect --source . --verbose
+# Full history: gitleaks detect --source . --log-opts="--all"
+
+title = "Klikk Rentals gitleaks config"
+
+[extend]
+# Use gitleaks default ruleset as the base
+useDefault = true
+
+[allowlist]
+description = "Allowlist: example/placeholder values and public identifiers"
+regexes = [
+  # Placeholder values in .env.example and .env.secrets.example
+  '''your-50-char-secret-key-here''',
+  '''your-strong-db-password''',
+  '''your-anthropic-api-key''',
+  '''your-gmail-app-password''',
+  '''your-secret-key-here''',
+  '''ci-test-secret-key-not-used-in-production''',
+
+  # klikk_pass is only the CI test database password (GitHub Actions postgres service)
+  # and is harmless — it guards a throwaway container, not production data
+  '''POSTGRES_PASSWORD: klikk_pass''',
+  '''klikk_pass@localhost''',
+  '''klikk_user:klikk_pass''',
+
+  # Google OAuth Client IDs are public identifiers (not secrets); they appear
+  # in browser JS anyway. The server-side client secret stays in .env.secrets.
+  '''463351671420-7hh3aln6nc6s5vi6ds9huka21cphp9h1\.apps\.googleusercontent\.com''',
+
+  # Volt MCP example strings in code docs / templates (not real keys)
+  '''volt_owner_xxx''',
+  '''volt_owner_\.\.\."""''',
+  '''volt_owner_…''',
+]
+
+paths = [
+  # Lock-files are auto-generated and may contain hashes that look like secrets
+  "package-lock.json",
+  "yarn.lock",
+  "Pipfile.lock",
+  # Capacitor built assets are transpiled bundles — false positives expected
+  "agent-app/src-capacitor/",
+  "tenant-app/src-capacitor/",
+  # Rotation runbook references known-rotated values for audit trail
+  "docs/ops/secret-rotation-2026-04.md",
+]

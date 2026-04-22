@@ -5,10 +5,17 @@
 .env
 .env.local
 .env.secrets
+*.secrets
 *.pem
 *.dump
 .secrets/
 client_secret*.json
+# Additional secret patterns
+**/secrets.env
+**/.env.secrets
+secrets.json
+*_secrets.json
+gitleaks-report.*
 
 # Python
 backend/.venv/

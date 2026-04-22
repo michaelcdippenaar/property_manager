@@ -1,0 +1,31 @@
+# Pre-commit hooks for Klikk Rentals
+#
+# Install pre-commit: pip install pre-commit
+# Activate in this repo: pre-commit install
+# Run manually: pre-commit run --all-files
+#
+# The gitleaks hook scans staged changes for secrets before every commit.
+# CI also runs gitleaks on full history — see .github/workflows/ci.yml.
+
+repos:
+  # ── Secret detection (gitleaks) ────────────────────────────────────────────
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.21.2
+    hooks:
+      - id: gitleaks
+        name: "gitleaks: detect secrets"
+        description: "Block commits that introduce credentials or API keys"
+        # Uses .gitleaks.toml in repo root for allowlist rules
+
+  # ── Trailing whitespace / file hygiene ─────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: "^.*\\.md$"
+      - id: end-of-file-fixer
+        exclude: "^agent-app/src-capacitor/"
+      - id: check-merge-conflict
+      - id: check-yaml
+        exclude: "^deploy/"
+      - id: detect-private-key

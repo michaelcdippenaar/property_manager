@@ -11,6 +11,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Secret scanning (gitleaks) ────────────────────────────────────────────
+  gitleaks:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history required for --log-opts scan
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE not required for public repos or self-hosted
+        # Config is in .gitleaks.toml at repo root
+
   # ── Python: ruff lint + black format check + pytest ──────────────────────────
   backend:
     name: Backend (ruff, black, pytest)
