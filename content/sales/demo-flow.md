@@ -52,7 +52,7 @@ Listen for pain points: manual lease creation, WhatsApp chaos, tenant complaints
 
 ## 6. Pricing & Close (3 min)
 
-**Say:** "All of this is free for up to 5 units. No credit card. You can sign up right now and start using it today."
+**Say:** "All of this is free for up to 5 properties. No credit card. You can sign up right now and start using it today."
 
 **If >5 units:** "The Professional tier is R49/unit — for 20 properties that's R980/month. Less than what you'd pay a part-time admin for one morning."
 

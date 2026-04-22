@@ -105,14 +105,14 @@ Estimated addressable count (SA): ~150 000–250 000 self-managing landlords (de
 
 - Displaces: WhatsApp + spreadsheet + Word template
 - There is no real software competitor at this tier — the competition is inertia
-- Wins on: free tier (up to 5 units), no setup complexity, SA-compliant leases out of the box
+- Wins on: free tier (up to 5 properties), no setup complexity, SA-compliant leases out of the box
 
 ### Segment Size (SA)
 
 | Metric | Estimate |
 |--------|---------|
 | Total addressable landlords | ~150 000–250 000 |
-| Likely free-tier users (1–5 units) | ~80% |
+| Likely free-tier users (1–5 properties) | ~80% |
 | Likely paying users (6–10 units, R49/unit) | ~20% |
 | Serviceable addressable (tech-ready, any metro) | ~30 000–50 000 |
 | MRR potential (10% conversion, avg 7 units @ R49) | ~R103 000–R172 000/month |

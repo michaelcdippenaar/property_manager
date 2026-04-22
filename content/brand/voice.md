@@ -22,7 +22,7 @@
 |----|-------|
 | "AI generates your lease" | "Leveraging artificial intelligence for lease optimization" |
 | "Built for the Rental Housing Act" | "Compliance-first approach to regulatory frameworks" |
-| "Free for up to 5 units" | "Freemium tier with limited feature access" |
+| "Free for up to 5 properties" | "Freemium tier with limited feature access" |
 | "Sign from any device" | "Omnichannel digital signature solution" |
 | "4 apps, one platform" | "Unified ecosystem synergy across stakeholders" |
 

@@ -210,7 +210,7 @@ Read the objection category first to understand what the prospect is really sayi
 |-----------|------------------|
 | "We use PayProp" | Klikk manages everything PayProp doesn't. They work together. |
 | "Don't trust AI for leases" | AI drafts, you approve every word. Full edit control. |
-| "Too expensive" | Free for 5 units. R2,500/month for 100 units. What's your time worth? |
+| "Too expensive" | Free for up to 5 properties. R2,500/month for up to 50 properties or 100 units. What's your time worth? |
 | "Never heard of you" | New, SA-focused, built by a landlord. Free tier = zero risk. |
 | "WeConnectU does everything" | At what price? Klikk has AI and a tenant app they don't. |
 | "Happy with Excel/WhatsApp" | Works until it doesn't. Try it free alongside your current tools. |
