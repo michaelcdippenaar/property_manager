@@ -16,7 +16,7 @@
 
 SSH into staging:
 ```bash
-ssh mc@102.135.240.222    # password: pass
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager
 ```
 
@@ -136,7 +136,7 @@ EMAIL_HOST_PASSWORD=<gmail app password>
 
 ```bash
 # 1. SSH in
-ssh mc@102.135.240.222
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager
 
 # 2. Create the secrets file (get values from Bitwarden → "Klikk → Staging secrets")
@@ -152,7 +152,7 @@ Use this when rotating an API key, changing a password, or adding a new secret v
 
 ```bash
 # Step 1 — SSH in
-ssh mc@102.135.240.222
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager
 
 # Step 2 — Edit the secrets file
@@ -273,7 +273,7 @@ rm ~/.ssh/klikk_staging_deploy ~/.ssh/klikk_staging_deploy.pub
 ### SSH into the server and go to the repo
 
 ```bash
-ssh mc@102.135.240.222       # password: pass
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager  # ALWAYS run git and make from here
 ```
 
@@ -500,7 +500,7 @@ Run these steps in order, top to bottom. Do not skip.
 
 ```bash
 # Step 1 — SSH into the server
-ssh mc@102.135.240.222
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 
 # Step 2 — Clone the repo
 git clone git@github.com:michaelcdippenaar/property_manager.git ~/apps/property_manager
@@ -543,7 +543,7 @@ Run these steps after pushing new code to GitHub.
 
 ```bash
 # Step 1 — SSH in and go to the repo
-ssh mc@102.135.240.222
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager
 
 # Step 2 — Check what is incoming
@@ -744,7 +744,7 @@ goes to `backend:8000` as before.
 ### First-time deploy (after pulling the volt code for the first time)
 
 ```bash
-ssh mc@102.135.240.222
+ssh -i ~/.ssh/klikk_staging mc@102.135.240.222
 cd ~/apps/property_manager
 
 # 1. Pull
@@ -965,3 +965,4 @@ npx cap open android
 | Container user | Backend runs as non-root `appuser` (defined in `backend/Dockerfile`). |
 | Secrets | Never in git. Always in `backend/.env.secrets`. Backed up in Bitwarden. |
 | DB access | Postgres is on `internal` network only — not reachable from outside Docker. |
+| SSH auth | `PasswordAuthentication no` in `/etc/ssh/sshd_config` on staging. Key-based auth only. Use `ssh -i ~/.ssh/klikk_staging mc@102.135.240.222`. |
