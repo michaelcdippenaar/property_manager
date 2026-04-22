@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177452385365"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -134,3 +134,39 @@ Checked commit 63facce against both required fixes:
 3. **New tests** (`test_2fa.py`): 29 tests confirmed. `HardBlockedEnrollmentTests` covers all four required scenarios (setup via token, full enrollment cycle, plain access token rejected, in-grace token path). Two additional no-auth guard tests added to `TOTPSetupTests` confirm `AllowAny` does not silently open unauthenticated access.
 
 Security pass: all r1 findings still clean. No new surface.
+
+### 2026-04-22 — tester (test run)
+
+**Automated: pytest backend/apps/test_hub/accounts/integration/test_2fa.py**
+
+Note: The test plan references `backend/apps/users/tests/test_2fa.py` which does not exist; the actual path (confirmed by implementer notes and project convention) is `backend/apps/test_hub/accounts/integration/test_2fa.py`.
+
+Result: **29 passed, 0 failed** (30.51s)
+
+Tests by class:
+- `LoginTwoFAGateTests` (5): all pass — enrolled agent returns two_fa_token, in-grace unenrolled gets access + enroll flag, past-grace hard-blocked, tenant bypass, wrong password
+- `TOTPVerifyTests` (4): all pass — correct code issues tokens, missing token, plain access token rejected, wrong code
+- `TOTPSetupTests` (6): all pass — setup returns secret+QR, already active error, confirm activates + issues 10 recovery codes, no-auth guards
+- `HardBlockedEnrollmentTests` (4): all pass — hard-blocked setup via two_fa_token, full enrollment cycle, plain access token rejected on setup, in-grace token path
+- `TOTPRecoveryTests` (3): all pass — valid code accepted, invalid rejected, reuse rejected
+- `TOTPStatusTests` (3): all pass — enrolled agent, unenrolled required agent, tenant not required
+- `RecoveryCodeModelTests` (4): all pass — 10 codes generated, redeem valid, redeem invalid, regenerate invalidates old
+
+**Manual: Agent login → prompted to enroll → scans QR → enters TOTP → logs in**
+
+Verified via API against `testagent@klikk.co.za` (unenrolled agent, in grace period):
+- Login returns `two_fa_enroll_required: true`, access + refresh tokens issued, `two_fa_token` present, `grace_deadline` set.
+- `POST /api/v1/auth/2fa/setup/` (Bearer access token) returns `secret`, `otpauth_uri`, and `qr_code_png_base64` (QR rendered).
+- `POST /api/v1/auth/2fa/setup/confirm/` with valid `totp_code` returns `detail: 2FA successfully enrolled.` + 10 recovery codes. PASS.
+- Admin SPA views confirmed: `TwoFAChallengeView.vue`, `TwoFAEnrollView.vue`, `TwoFAResetView.vue` exist; routes `/2fa/challenge`, `/2fa/enroll`, `/2fa-reset` all return HTTP 200 from dev server.
+
+**Manual: After enrolment, login requires TOTP every time**
+
+- Subsequent login for enrolled `testagent@klikk.co.za`: response contains only `two_fa_required: true` + `two_fa_token` (no access/refresh tokens). PASS.
+- `POST /api/v1/auth/2fa/verify/` with valid `totp_code` returns full `access` + `refresh` + `user`. PASS.
+
+**Manual: Recovery code lets user in when phone lost**
+
+- `POST /api/v1/auth/2fa/recovery/` with `two_fa_token` + first recovery code `BF70-2C16-AE25` returns HTTP 200 with full `access` + `refresh` + `user`. PASS.
+
+All checks pass.
