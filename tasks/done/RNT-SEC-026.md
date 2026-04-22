@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214202083740465"
 created: 2026-04-22
@@ -70,3 +70,23 @@ Security pass: no new endpoints; no PII logged; no raw SQL; no new auth paths. T
 Discovery filed: `tasks/discoveries/2026-04-22-xff-residual-ad-hoc-extractors.md` — three out-of-scope ad-hoc XFF extractors remain in `accounts/views.py:55`, `accounts/serializers.py:106`, and `esigning/views.py:628`. These were not in scope but should be a follow-up task.
 
 Staging criterion (last AC) deferred to tester as expected.
+
+**2026-04-22 — rentals-tester**
+
+Test run: `pytest apps/test_hub/ -k ip` + `pytest utils/tests/test_http.py -v`
+
+IP-specific results (all pass):
+- `utils/tests/test_http.py` — 11/11 PASS (NUM_PROXIES 0/1/2, TRUSTED_PROXY_IPS, fallbacks, spoofed XFF ignored)
+- `test_hub/accounts/integration/test_register_consent.py::test_xff_header_used_for_ip_when_present` — PASS
+- `test_hub/accounts/unit/test_audit.py::test_without_request_uses_null_ip_and_empty_ua` — PASS
+- `test_hub/esigning/integration/test_compliance.py::test_log_esigning_event_with_request_extracts_ip_and_ua` — PASS
+- `test_hub/esigning/unit/test_audit.py::test_ip_is_none_when_no_request` — PASS
+- `test_hub/esigning/unit/test_audit.py::test_extracts_ip_from_request` — PASS
+- `test_hub/esigning/unit/test_audit.py::test_extracts_ip_from_x_forwarded_for` — PASS
+
+Unrelated pre-existing failures found (not blocking this task; discoveries filed):
+- `test_municipal_bill_view.py` — 7 failures (discovery: 2026-04-22-municipal-bill-view-tests-broken.md)
+- `test_esigning_full.py::SubmissionCreateTests::test_create_with_multiple_signers` — 422 != 201 (discovery: 2026-04-22-esigning-submission-create-422.md)
+- `test_rate_limits.py::TestPublicSignMinuteThrottle::test_different_ips_not_throttled_together` — 404 != 429 (discovery: 2026-04-22-public-sign-rate-limit-404.md)
+
+Staging criterion (POPIA consent + e-signing audit log IPs) deferred — requires human verification with live Caddy proxy as noted by implementer.
