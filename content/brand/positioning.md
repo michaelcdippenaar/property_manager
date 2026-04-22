@@ -92,9 +92,9 @@ No app in this set competes with another. Together they eliminate the WhatsApp/E
 
 ### Pillar 4 — The Price Makes Sense for Small Portfolios
 
-WeConnectU charges ~R150–200/unit. Klikk charges R49/unit (Pro tier) or R39/unit (Agency tier). The free tier covers up to 5 units with no credit card required. A boutique PM firm managing 40 units pays ~R1 960/month — less than a part-time admin salary for comparable admin time saved.
+WeConnectU charges R150–200/unit. A 100-unit portfolio on WeConnectU costs R15,000–R20,000/month. The same portfolio on Klikk Pro is R2,500/month flat — the limit is 50 properties or 100 units, whichever is reached first. Firms managing more than 100 units move to Enterprise at R4,000/month base. The free tier covers up to 5 properties with no credit card required.
 
-**Hero line:** "Free for your first 5 units. Affordable for the rest."
+**Hero line:** "Free for your first 5 properties. R2,500/month after that — no matter how the units add up."
 
 **Target audience resonance:** T1 and T2 where price is the primary friction. Less important for T3 where business-case ROI language matters more.
 

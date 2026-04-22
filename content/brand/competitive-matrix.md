@@ -37,7 +37,7 @@ _Last updated: 2026-04-22. Feature claims verified against `content/product/feat
 | **16. Reusable clause library** | Y | N | N | N | N | N | N | N |
 | **17. Free tier (no credit card required)** | Y (up to 5 units) | N | N | N | N | N | Partial | Y (zero cost, zero capability) |
 | **18. SA-first (not adapted from global product)** | Y | Y | Y | N (MRI global) | Y | Y | Y | N/A |
-| **19. Price per unit (indicative)** | R49 (Pro) / R39 (Agency) | R100–150+ | R150–200 | Enterprise (quoted) | Per-check fees | R50–80 | R30–50 | ~R0 |
+| **19. Pricing model** | R2,500/mo flat (Pro, up to 100 units) / R4,000/mo base (Enterprise, 100+ units) | R100–150+/unit (indicative) | R150–200/unit (indicative) | Enterprise (quoted) | Per-check fees | R50–80/unit (indicative) | R30–50/unit (indicative) | ~R0 |
 | **20. POPIA-aware data handling** | Y | Y | Y | ? | Y | ? | ? | N |
 
 ---
@@ -76,9 +76,9 @@ HouseME has a tenant-facing web interface but not a native app. PayProp's mobile
 
 ### Price-to-Capability Ratio
 
-At R49/unit (Pro), Klikk delivers AI lease generation, e-signing, a tenant app, an agent app, and a full maintenance workflow. WeConnectU charges R150–200/unit for a product with none of the AI or mobile capabilities. Klikk's free tier (up to 5 units) has no real equivalent among the established players.
+At R2,500/month flat (Pro, up to 100 units), Klikk delivers AI lease generation, e-signing, a tenant app, an agent app, and a full maintenance workflow. That works out to R25/unit at full 100-unit capacity — a derived figure, stated transparently. WeConnectU charges R150–200/unit for a product with none of the AI or mobile capabilities. Klikk's free tier (up to 5 properties) has no real equivalent among the established players.
 
-**Axis 19:** Klikk is materially cheaper than WeConnectU and Prop Data on a per-unit basis while delivering more capability on AI and mobile axes.
+**Axis 19:** Klikk's flat-rate model is materially cheaper than WeConnectU and Prop Data at any portfolio size above approximately 17 units (where WeConnectU at R150/unit exceeds Klikk Pro's R2,500/month). The advantage widens as portfolio size grows.
 
 ---
 
@@ -126,7 +126,7 @@ PayProp does one thing well: rent collection and trust accounting. Klikk does ev
 
 ### "We're on WeConnectU"
 
-WeConnectU is a comprehensive platform, but it was built before AI and mobile became viable. It has no AI lease generation, no tenant mobile app, and no agent mobile app. It costs R150–200/unit. Klikk offers all three AI and mobile capabilities at R49/unit. If the WeConnectU contract is up, the business case for switching is direct.
+WeConnectU is a comprehensive platform, but it was built before AI and mobile became viable. It has no AI lease generation, no tenant mobile app, and no agent mobile app. It costs R150–200/unit — a 100-unit portfolio runs R15,000–R20,000/month. Klikk Pro covers the same 100 units for R2,500/month flat, and includes all three AI and mobile capabilities. If the WeConnectU contract is up, the business case for switching is direct.
 
 **When to use:** T3 rental department agencies where WeConnectU is the incumbent.
 
@@ -150,7 +150,7 @@ Klikk is new and SA-focused, built by a landlord who needed it. That means every
 
 ### "WeConnectU does everything. Why change?"
 
-At what cost, and with what tools? WeConnectU has no AI, no tenant mobile app, and charges 3–4x more per unit. The gap between Klikk and WeConnectU on AI and mobile is growing, not shrinking. Agencies that switch now build an AI-native operational model before competitors do.
+At what cost, and with what tools? WeConnectU has no AI, no tenant mobile app, and charges R150–200/unit — a 100-unit portfolio costs R15,000–R20,000/month vs R2,500/month on Klikk Pro. The gap between Klikk and WeConnectU on AI and mobile is growing, not shrinking. Agencies that switch now build an AI-native operational model before competitors do.
 
 **When to use:** T1 and T3 where WeConnectU is an active consideration.
 
@@ -177,5 +177,5 @@ Where Klikk is sole provider or market-leader among profiled SA competitors (BUI
 | Native e-signing (no subscription) | All alternatives require a third-party add-on |
 | Dedicated agent mobile app | No direct competitor has shipped one |
 | Dedicated tenant mobile app | No direct competitor has shipped a native app |
-| Price vs WeConnectU at equivalent breadth | 70–75% cheaper per unit |
+| Price vs WeConnectU at equivalent breadth | 83–87% cheaper at 100-unit capacity (R2,500/mo vs R15,000–R20,000/mo) |
 | Free tier | No equivalent among established SA competitors |
