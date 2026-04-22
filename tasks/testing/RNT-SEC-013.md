@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214181228024983"
 created: 2026-04-22
@@ -59,3 +59,5 @@ Fix the `.gitleaks.toml` path allowlist so that unanchored regexes no longer sup
 **Discovery filed:** `tasks/discoveries/2026-04-22-rha-gate-unreviewed-code-in-sec-commit.md` — PM to promote to a proper RNT task for the RHA compliance gate feature.
 
 2026-04-22 — implementer (resubmit): Confirmed `.gitleaks.toml` lines 88–94 contain all three `$`-anchored entries (`backend/\.env$`, `backend/\.env\.secrets$`, `admin/\.env$`). No code change was needed. This commit contains only the task file rename — no other files staged. The mixed-commit issue raised by the reviewer was caused by RNT-SEC-007 work being bundled in a prior commit; that work is tracked independently and is not part of this handoff.
+
+2026-04-22 — reviewer: Review passed (second pass). Commit `9ba825e` is clean — only the task file status/assignee fields updated; no code changes staged. `.gitleaks.toml` lines 88–94 confirmed: all three path allowlist entries carry a `$` end-anchor (`backend/\.env$`, `backend/\.env\.secrets$`, `admin/\.env$`). The anchors satisfy every acceptance criterion: committed variant files (`.env.development`, `.env.staging`, `.env.production`) are not covered by any allowlist entry and will be scanned normally. POPIA pass: no secrets, no PII, no new endpoints. The mixed-commit concern from the first round is resolved — this resubmit is scope-clean. Manual smoke-test (inject fake secret into `backend/.env.development`, verify gitleaks reports it) delegated to tester per the test plan.
