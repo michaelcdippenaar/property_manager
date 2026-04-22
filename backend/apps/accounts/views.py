@@ -93,7 +93,6 @@ class LoginView(APIView):
 
         # ── 2FA gate ──────────────────────────────────────────────────────────
         from .totp_views import _make_two_fa_token
-        from datetime import datetime
 
         totp_required = user.role in TOTP_REQUIRED_ROLES
         totp_enrolled = False

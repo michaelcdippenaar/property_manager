@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177452385365"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -110,3 +110,13 @@ The in-grace path also calls `api.post('/auth/2fa/setup/')` in the same way — 
 - All new 7 endpoints registered correctly in `accounts/urls.py`.
 
 **Note on `two_fa_token` in URL query params:** all three frontends pass the `two_fa_token` via Vue Router query params (`?token=...`), which exposes the JWT in browser history, server access logs, and potentially analytics referrer headers. This is the same pattern used by the existing `ResetPasswordView` (`admin/src/views/auth/ResetPasswordView.vue:67`), so it matches project convention. A security hardening task to switch to `sessionStorage` handoff instead of URL params would be worth filing — but it is not being held against this task since the convention is pre-existing.
+
+### 2026-04-22 — implementer (reviewer fixes)
+
+Both fixes were applied by the previous agent invocation before it was killed by rate limit — the code was correct in the working tree but uncommitted. Verified state and committed.
+
+**Fix 1 (BLOCKER):** `TOTPSetupView` and `TOTPSetupConfirmView` already have `permission_classes = [AllowAny]` and use the `_resolve_setup_user()` helper that accepts `two_fa_token` in the request body (mirroring `TOTPVerifyView`). Hard-blocked users (no access token, only `two_fa_token`) can reach both endpoints.
+
+**Fix 2 (MINOR):** `from datetime import datetime` dead import inside `LoginView.post()` is absent from `views.py` — already removed.
+
+**New tests:** `HardBlockedEnrollmentTests` class added to `test_2fa.py` with 4 tests: setup via two_fa_token, full enrollment (setup + confirm) via two_fa_token, plain access token rejected on setup, and in-grace user can use two_fa_token path. All 29 tests pass (23 original + 6 new).

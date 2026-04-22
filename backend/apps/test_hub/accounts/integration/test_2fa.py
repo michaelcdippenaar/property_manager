@@ -180,6 +180,109 @@ class TOTPSetupTests(TremlyAPITestCase):
         resp = self.client.post(self.setup_url)
         self.assertEqual(resp.status_code, 400)
 
+    def test_setup_no_auth_rejected(self):
+        """Setup without any token or Bearer should return 401."""
+        resp = self.client.post(self.setup_url)
+        self.assertEqual(resp.status_code, 401)
+
+    def test_setup_confirm_no_auth_rejected(self):
+        """Confirm without any token or Bearer should return 401."""
+        resp = self.client.post(self.confirm_url, {"totp_code": "123456"})
+        self.assertEqual(resp.status_code, 401)
+
+
+# ── Hard-blocked enrollment via two_fa_token tests ───────────────────────────
+
+class HardBlockedEnrollmentTests(TremlyAPITestCase):
+    """
+    Regression test for the blocker raised in review: when grace period has
+    expired the login response withholds access/refresh tokens and only returns
+    a ``two_fa_token``.  The setup endpoints must accept that token so the user
+    can still enroll.
+    """
+    setup_url = reverse("2fa-setup")
+    confirm_url = reverse("2fa-setup-confirm")
+
+    def _hard_blocked_login(self, email, password):
+        """Login and return the two_fa_token for a hard-blocked user."""
+        resp = self.client.post(reverse("auth-login"), {"email": email, "password": password})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data.get("two_fa_hard_blocked"), "Expected hard_blocked in response")
+        self.assertNotIn("access", resp.data, "Hard-blocked user must not receive access token")
+        return resp.data.get("two_fa_token")
+
+    def test_hard_blocked_user_can_setup_via_two_fa_token(self):
+        """Hard-blocked user (grace expired) can reach /auth/2fa/setup/ using two_fa_token."""
+        agent = self.create_user(email="hb_setup@test.com", password="pass12345", role="agent")
+        # Expire the grace period
+        past_deadline = timezone.now() - timedelta(days=1)
+        UserTOTP.objects.create(user=agent, secret="", grace_deadline=past_deadline)
+
+        two_fa_token = self._hard_blocked_login("hb_setup@test.com", "pass12345")
+        self.assertIsNotNone(two_fa_token)
+
+        resp = self.client.post(self.setup_url, {"two_fa_token": two_fa_token})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("secret", resp.data)
+        self.assertIn("otpauth_uri", resp.data)
+
+    def test_hard_blocked_user_can_complete_enrollment_via_two_fa_token(self):
+        """Hard-blocked user can call setup + confirm using only the two_fa_token."""
+        agent = self.create_user(email="hb_confirm@test.com", password="pass12345", role="agent")
+        past_deadline = timezone.now() - timedelta(days=1)
+        UserTOTP.objects.create(user=agent, secret="", grace_deadline=past_deadline)
+
+        two_fa_token = self._hard_blocked_login("hb_confirm@test.com", "pass12345")
+        self.assertIsNotNone(two_fa_token)
+
+        # Step 1: get the secret via setup
+        resp = self.client.post(self.setup_url, {"two_fa_token": two_fa_token})
+        self.assertEqual(resp.status_code, 200)
+        secret = resp.data["secret"]
+
+        # Step 2: confirm with a valid TOTP code
+        code = pyotp.TOTP(secret).now()
+        resp = self.client.post(self.confirm_url, {"two_fa_token": two_fa_token, "totp_code": code})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("recovery_codes", resp.data)
+        self.assertEqual(len(resp.data["recovery_codes"]), 10)
+
+        # TOTP record should now be active and enrollment is complete
+        agent.refresh_from_db()
+        self.assertTrue(agent.totp.is_active)
+
+    def test_hard_blocked_setup_with_regular_access_token_rejected(self):
+        """A plain Bearer access token must not be treated as a two_fa_token."""
+        agent = self.create_user(email="hb_plain@test.com", password="pass12345", role="agent")
+        past_deadline = timezone.now() - timedelta(days=1)
+        UserTOTP.objects.create(user=agent, secret="", grace_deadline=past_deadline)
+
+        # Obtain a regular access token directly (bypassing the login gate)
+        tokens = self.get_tokens(agent)
+        resp = self.client.post(self.setup_url, {"two_fa_token": tokens["access"]})
+        self.assertEqual(resp.status_code, 401)
+
+    def test_in_grace_user_can_setup_via_two_fa_token(self):
+        """
+        In-grace users receive both an access token AND a two_fa_token.  Both
+        paths must work.  This test confirms the two_fa_token path also succeeds
+        (for consistent frontend code across both states).
+        """
+        agent = self.create_user(email="ig_setup@test.com", password="pass12345", role="agent")
+
+        resp = self.client.post(reverse("auth-login"), {"email": "ig_setup@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+        # In-grace: access token IS present
+        self.assertIn("access", resp.data)
+        two_fa_token = resp.data.get("two_fa_token")
+        self.assertIsNotNone(two_fa_token)
+
+        # Use two_fa_token path for setup (frontend can use this consistently)
+        resp = self.client.post(self.setup_url, {"two_fa_token": two_fa_token})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("secret", resp.data)
+
 
 # ── Recovery code tests ───────────────────────────────────────────────────────
 

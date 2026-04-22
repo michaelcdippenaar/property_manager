@@ -6,12 +6,20 @@ Flow summary:
                            if 2FA NOT enrolled but required: returns {two_fa_required: false, two_fa_enroll_required: true, two_fa_token: <short JWT>}
                            if 2FA optional and not enrolled: returns full tokens as before
   2. POST /auth/2fa/verify/         (with two_fa_token in body) → returns full tokens
-  3. POST /auth/2fa/setup/          (authenticated) → creates pending TOTP, returns QR URI + secret
-  4. POST /auth/2fa/setup/confirm/  (authenticated, with two_fa_token) → activates TOTP, issues recovery codes
+  3. POST /auth/2fa/setup/          (AllowAny; two_fa_token in body OR Bearer token) → creates pending TOTP, returns QR URI + secret
+  4. POST /auth/2fa/setup/confirm/  (AllowAny; two_fa_token in body OR Bearer token) → activates TOTP, issues recovery codes
   5. POST /auth/2fa/recovery/       (with two_fa_token + recovery_code) → returns full tokens
   6. GET  /auth/2fa/status/         (authenticated) → 2FA status for the current user
   7. POST /auth/2fa/reset/request/  (public) → sends email with reset token
   8. POST /auth/2fa/reset/confirm/  (public, email token + recovery code) → deactivates TOTP so user can re-enroll
+
+NOTE on setup endpoints (3 & 4):
+  Both setup endpoints accept a user identity via one of two paths:
+    a) ``two_fa_token`` field in the request body — used by hard-blocked users who have no access token
+       (and optionally by in-grace users for a consistent frontend code path).
+    b) Standard ``Authorization: Bearer <access_token>`` — used by already-authenticated users who
+       choose to enable TOTP voluntarily (optional roles, or agents adding a second device via settings).
+  The endpoint resolves the user from whichever is present; ``two_fa_token`` takes precedence.
 
 The ``two_fa_token`` is a short-lived (10 min) JWT that carries the user PK as its subject
 and the custom claim ``two_fa_pending: true`` so it cannot be used as a regular access token.
@@ -126,19 +134,42 @@ class TOTPStatusView(APIView):
         return Response(_totp_status_for_user(request.user))
 
 
+def _resolve_setup_user(request):
+    """
+    Resolve the user for the setup endpoints from either:
+    - ``two_fa_token`` field in the request body (hard-blocked / in-grace enrollment path), or
+    - A valid ``Authorization: Bearer`` JWT (authenticated users enabling TOTP from settings).
+    Returns the User or raises ValueError with a human-readable message.
+    """
+    raw_token = (request.data.get("two_fa_token") or "").strip()
+    if raw_token:
+        return _decode_two_fa_token(raw_token)
+
+    # Fall back to authenticated user from the request
+    if request.user and request.user.is_authenticated:
+        return request.user
+
+    raise ValueError("Authentication required: provide a two_fa_token or a valid Bearer token.")
+
+
 class TOTPSetupView(APIView):
     """
     POST /auth/2fa/setup/
-    Authenticated user requests TOTP setup.
+    AllowAny.  Accepts ``two_fa_token`` in the request body (hard-blocked path)
+    OR a standard Bearer token (optional-TOTP path).  See module docstring.
     Returns otpauth:// URI (for QR) and base32 secret (for manual entry).
     Creates a pending UserTOTP record (is_active=False).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         import pyotp
 
-        user = request.user
+        try:
+            user = _resolve_setup_user(request)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
         # Re-use existing pending record or create fresh one
         totp_rec, created = UserTOTP.objects.get_or_create(user=user)
         if not created and totp_rec.is_active:
@@ -180,15 +211,21 @@ def _qr_base64(uri: str) -> str:
 class TOTPSetupConfirmView(APIView):
     """
     POST /auth/2fa/setup/confirm/
-    Body: { totp_code: "123456" }
-    Authenticated.  Verifies the code against the pending secret, activates it,
+    Body: { totp_code: "123456" [, two_fa_token: "..."] }
+    AllowAny.  Accepts ``two_fa_token`` in the request body (hard-blocked path)
+    OR a standard Bearer token (optional-TOTP path).
+    Verifies the code against the pending secret, activates it,
     sets the grace_deadline (or clears it if enrollment completes within grace),
     and issues 10 recovery codes (returned once, then gone).
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
-        user = request.user
+        try:
+            user = _resolve_setup_user(request)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_401_UNAUTHORIZED)
+
         code = (request.data.get("totp_code") or "").strip()
         if not code:
             return Response({"detail": "totp_code is required."}, status=status.HTTP_400_BAD_REQUEST)
