@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200629245786"
 created: 2026-04-22
@@ -111,3 +111,19 @@ Once the out-of-scope files are stripped into their own commit/task, resubmit RN
 ### 2026-04-22 — implementer (re-submission note)
 
 No code changes made. The SPA build fix is already in HEAD and all ACs remain satisfied. The payments files bundled into the original commit are a tooling/process concern — a parallel implementer's RNT-QUAL-004 work was inadvertently merged into this commit by the SDK's shared working-tree, not by any deliberate change in this task. RNT-QUAL-004 owns and has independently fixed those files. Reviewer is asked to scope this review strictly to the declared `admin/` build-fix files listed under "Files likely touched"; the payments code is out of scope and already covered by RNT-QUAL-004.
+
+### 2026-04-22 — reviewer: review passed
+
+Scoping strictly to the declared build-fix files. All four acceptance criteria verified against commit `d34b601`:
+
+1. `admin/env.d.ts` created with `/// <reference types="vite/client" />` and `?raw` module declarations — resolves all `ImportMeta.env` errors.
+2. `tsconfig.json` updated to include `env.d.ts`.
+3. `useTiptapEditor.ts` imports `Editor` from `@tiptap/core` — correct, helper only needs `editor.state`.
+4. `useToast.ts` exports `showToast` alias — resolves four-view TS2339 spread.
+5. All other per-file type fixes (tabs unions, `string | number` keys, optional fields, dead branch removal, missing `propertyId` arg) are correct and consistent with existing patterns.
+6. `vite.config.ts` removes `@tiptap/pm` from manual chunks — correct, no root entry point.
+7. `LoadingState.vue` `'form'` variant is additive and harmless; it is now required by `InvoiceDetail.vue` which is legitimately shipped via RNT-QUAL-004 (done `7ed7d5a`).
+
+Payments concern from prior review: RNT-QUAL-004 was independently reviewed (security IDOR fixed: `IsAgentOrAdmin` on all viewsets), approved (`c6cd0bc`), and is done (`7ed7d5a`). Security discovery `2026-04-22-payments-api-missing-role-scoping.md` was filed and addressed. No outstanding security concern attributable to this task's declared scope.
+
+No security issues in declared `admin/` build-fix files. No new endpoints. No PII logged. No raw SQL. All changes are TypeScript type fixes and build configuration.
