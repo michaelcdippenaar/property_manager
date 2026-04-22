@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214200629245786"
 created: 2026-04-22
@@ -77,3 +77,33 @@ Promoted from discovery `2026-04-22-admin-spa-build-broken.md` (found during OPS
 15. **`admin/vite.config.ts`** — Removed `'@tiptap/pm'` from the `vendor-tiptap` manual chunk. `@tiptap/pm` has only subpath exports (`@tiptap/pm/state` etc.) with no root entry — listing it as a top-level chunk caused Vite to fail on `resolvePackageEntry`.
 
 Final state: `npx vue-tsc --noEmit` exits 0, `npm run build` exits 0 with 2295 modules transformed.
+
+### 2026-04-22 — reviewer: changes requested
+
+The SPA build fixes are technically correct and all declared acceptance criteria appear satisfied. Sending back for one reason only: **scope violation in the commit**.
+
+**Required fixes:**
+
+1. **Out-of-scope files bundled into this commit.** The following files belong to RNT-QUAL-004 (Payments & Reconciliation), not RNT-QUAL-027. They must be removed from this task's commit and either live in their own RNT-QUAL-004 task commit or be reverted here entirely:
+   - `backend/apps/payments/__init__.py`
+   - `backend/apps/payments/apps.py`
+   - `backend/apps/payments/migrations/0001_initial.py`
+   - `backend/apps/payments/migrations/__init__.py`
+   - `backend/apps/payments/models.py`
+   - `backend/apps/payments/reconciliation.py`
+   - `backend/apps/payments/serializers.py`
+   - `backend/apps/payments/tests/__init__.py`
+   - `backend/apps/payments/tests/test_reconciliation_edges.py`
+   - `backend/apps/payments/urls.py`
+   - `backend/apps/payments/views.py`
+   - `backend/config/settings/base.py` (payments app install)
+   - `backend/config/urls.py` (payments URL registration)
+   - `admin/src/views/payments/InvoiceDetail.vue`
+   - `admin/src/views/payments/ReconciliationQueue.vue`
+   - `tasks/review/RNT-QUAL-004.md` (task file for a different task)
+
+   The `LoadingState.vue` variant `'form'` addition was added to support `InvoiceDetail.vue` — if those views are removed this change should be reconsidered (or kept only if `'form'` is needed independently).
+
+2. **Security issue logged as discovery** (do not fix in this task — see `tasks/discoveries/2026-04-22-payments-api-missing-role-scoping.md`): all three payments viewsets use `IsAuthenticated` only with no role-based queryset scoping, creating an IDOR allowing any tenant to read all invoices. The build-fix task is approved on its own merits; the payments work must go through a separate security review when that task is properly opened.
+
+Once the out-of-scope files are stripped into their own commit/task, resubmit RNT-QUAL-027 with only the declared build-fix changes.
