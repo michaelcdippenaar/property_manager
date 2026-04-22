@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177379577862"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -125,3 +125,58 @@ Checked against all autonomous acceptance criteria. Approved to move to testing.
 **Blocked criteria remain correctly blocked:** AC 2 (key rotation), AC 3 (history purge), and AC 5 (JWT invalidation) all require MC's production access. The runbook is complete and actionable. These cannot be verified by the tester until MC completes the manual steps.
 
 **Tester focus:** run `gitleaks detect --source . --no-git --verbose` and `gitleaks detect --source . --log-opts="--all"` against the current working tree and history (pre-filter-repo). Confirm pre-commit hook fires correctly with a test commit containing a dummy secret pattern. CI gitleaks job should be observable on the next PR.
+
+### 2026-04-22 — rentals-tester
+
+**Test run — BLOCKED (gitleaks scans fail)**
+
+Installed gitleaks v8.30.1 via Homebrew.
+
+#### Test 1: `gitleaks detect --source . --no-git --config .gitleaks.toml` → 0 findings
+
+FAIL — 164 leaks found, exit code 1.
+
+Key categories of findings:
+- `backend/.env` (on-disk, not git-tracked): ANTHROPIC_API_KEY (`sk-ant-api03-Sktqb9...`), DOCUSEAL_API_KEY, DOCUSEAL_WEBHOOK_SECRET, VAULT33_INTERNAL_TOKEN, GOOGLE_MAPS_API_KEY
+- `backend/.env.secrets` (on-disk, gitignored): ANTHROPIC_API_KEY
+- `backend/.secrets/google_oauth_client.json` (on-disk, gitignored): Google OAuth client_secret
+- `admin/.env` (on-disk, not git-tracked): VITE_GOOGLE_MAPS_KEY
+- `admin/dist/` (build output): embedded Google Maps key in JS bundles
+- `backend/media/vault/2/entities/*/docs/**/*.enc` (~45 findings): GitHub PATs, OAuth tokens, refresh tokens — encrypted vault test documents; flagged as real token patterns
+- `.claude/old/docuseal/docuseal/docuseal.env`: SECRET_KEY_BASE
+- `.claude/settings.local.json`: JWT access token
+- `Klikk Proerty Manager/.obsidian/plugins/obsidian-local-rest-api/data.json`: RSA private key + API key
+- `tasks/testing/RNT-SEC-001.md` (git-tracked): contains Volt API key and Google Maps key values in audit handoff notes — not excluded by `.gitleaks.toml`
+- `tasks/backlog/*.md` and `tasks/done/*.md` (git-tracked): Asana GIDs flagged as `asana-client-id` rule (~50 findings)
+
+Root cause: `.gitleaks.toml` allowlist is incomplete. Missing path exclusions for:
+1. `backend/media/vault/` — encrypted test documents
+2. `tasks/` — Asana GIDs in every task file + audit trail values
+3. `.claude/` untracked subdirs (old/, worktrees/, settings.local.json)
+4. `admin/dist/` build output
+5. `Klikk Proerty Manager/` Obsidian vault (untracked)
+
+Also: `tasks/testing/RNT-SEC-001.md` itself contains the Volt and Google Maps key values in the handoff notes but is not path-excluded (only `docs/ops/secret-rotation-2026-04.md` is excluded in `.gitleaks.toml`).
+
+#### Test 2: `gitleaks detect --source . --log-opts="--all" --config .gitleaks.toml` (full history scan) → 0 findings
+
+FAIL — 96 leaks found in 98 commits scanned, exit code 1.
+
+History scan findings are the same categories: ACCOUNTS.md example JWT tokens, tasks files with Asana GIDs, and audit trail files.
+
+#### Test 3: Pre-commit hook fires on dummy secret
+
+BLOCKED — Cannot test via `pre-commit run` due to SSL certificate error on this machine when downloading the gitleaks hook binary from GitHub. The `.pre-commit-config.yaml` structure is correct (gitleaks v8.21.2 pinned, detect-private-key as second layer). Separately confirmed that gitleaks itself does detect the anthropic-key rule class by running it against a file with a dummy `ANTHROPIC_API_KEY=sk-ant-...` pattern — the scan would have caught it. The hook config is structurally sound.
+
+Note: `pre-commit install` also fails with `core.hooksPath` set in repo git config. MC needs to run `git config --unset-all core.hooksPath` first, then `pre-commit install`.
+
+#### Test 4: CI job configuration — `gitleaks detect` runs on every PR
+
+PASS — `.github/workflows/ci.yml` has a `gitleaks` job using `gitleaks/gitleaks-action@v2`, `fetch-depth: 0` (full history), `GITHUB_TOKEN` set, runs on both `push` and `pull_request` to `main`. Config is read from `.gitleaks.toml` at root. Correctly structured.
+
+**Summary: 2 of 4 tests fail outright. 1 blocked. 1 pass.**
+
+**Fixes needed before re-test:**
+1. Expand `.gitleaks.toml` paths allowlist to include `backend/media/vault/`, `tasks/`, `admin/dist/`, `.claude/`, `Klikk Proerty Manager/` (and any other untracked local directories that exist on dev machines)
+2. Add `tasks/testing/RNT-SEC-001.md` (or the entire `tasks/` path) to the paths allowlist since task files legitimately contain audit trail values
+3. Resolve `core.hooksPath` git config conflict to allow `pre-commit install` to succeed
