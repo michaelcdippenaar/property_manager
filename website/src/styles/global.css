@@ -222,6 +222,21 @@ body::before {
 .step-badge.in-progress { background: #fffbeb; color: #d97706; }
 .step-badge.beta { background: #eff6ff; color: #2563eb; }
 
+/* ── Accessibility: focus-visible ring ── */
+/* Ensures keyboard users always see a clear focus indicator.
+   Suppresses the ring on mouse/touch (focus, not focus-visible). */
+:focus-visible {
+  outline: 2px solid var(--color-navy);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Lighter ring on dark backgrounds (hero, nav) */
+nav :focus-visible,
+footer :focus-visible {
+  outline-color: rgba(255, 255, 255, 0.9);
+}
+
 /* ── Responsive ── */
 @media (max-width: 1024px) {
   .section-title { font-size: 36px; }

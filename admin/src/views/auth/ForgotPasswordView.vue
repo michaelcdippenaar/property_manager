@@ -10,11 +10,11 @@
         <template v-if="!sent">
           <form @submit.prevent="handleSubmit" class="space-y-4">
             <div>
-              <label class="label">Email</label>
-              <input v-model="email" type="email" class="input" placeholder="you@klikk.co.za" required />
+              <label for="forgot-email" class="label">Email</label>
+              <input id="forgot-email" v-model="email" type="email" class="input" placeholder="you@klikk.co.za" required autocomplete="email" />
             </div>
-            <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
-              <AlertCircle :size="15" />
+            <div v-if="error" role="alert" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
+              <AlertCircle :size="15" aria-hidden="true" />
               {{ error }}
             </div>
             <button type="submit" class="btn-primary w-full justify-center py-2.5" :disabled="loading">

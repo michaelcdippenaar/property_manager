@@ -1,0 +1,271 @@
+/*
+ * klikk-components.css
+ * -----------------------------------------------------------------------------
+ * Shared primitive class styles ported from the admin-shell mockup.
+ * These are the building blocks used by the shared components in
+ * `src/components/shared/` and may be applied directly in views for
+ * mockup-fidelity one-offs.
+ *
+ * Design tokens (colors, fonts, radius, shadow) live in tailwind.config.js
+ * and are referenced here via theme() values or hex literals that mirror them.
+ *
+ * If you add a new primitive, keep the class name from the mockup (e.g.
+ * `.ev-row`, `.alert-strip`) so HTML can be copied from the prototype
+ * without rename churn.
+ * -----------------------------------------------------------------------------
+ */
+
+/* ─── Accessibility: global focus-visible ring ────────────────────────── */
+/* Provides a consistent, WCAG-AA-compliant focus indicator for keyboard
+   navigation across the admin SPA. Uses focus-visible so mouse users are
+   unaffected. Tailwind's focus-visible: utilities override this per element. */
+:focus-visible {
+  outline: 2px solid #2B2D6E; /* --navy */
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Stat tile (KPI card) ─────────────────────────────────────────────── */
+.klikk-stat {
+  background: #fff;
+  border: 1px solid #EFEFF5;
+  border-radius: 10px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 2px rgba(26,26,46,.04), 0 2px 8px rgba(26,26,46,.04);
+}
+.klikk-stat .label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6B6B7A;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.klikk-stat .value {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: #111;
+  line-height: 1.1;
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.klikk-stat .delta {
+  font-size: 12px;
+  color: #6B6B7A;
+  margin-top: 4px;
+}
+.klikk-stat .delta.down { color: #dc2626; }
+.klikk-stat .delta.up   { color: #0d9488; }
+
+/* ─── Badge / pill ──────────────────────────────────────────────────────── */
+.klikk-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  background: #EFEFF5;
+  color: #3b3e4e;
+}
+.klikk-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.klikk-badge.tone-active   { background: #dcfce7; color: #166534; }
+.klikk-badge.tone-signing  { background: #fef3c7; color: #92400e; }
+.klikk-badge.tone-vacant   { background: #EFEFF5; color: #6B6B7A; }
+.klikk-badge.tone-renewal  { background: #dbeafe; color: #1e40af; }
+.klikk-badge.tone-refund   { background: #fee2e2; color: #991b1b; }
+.klikk-badge.tone-marketing{ background: #E9EAF4; color: #2B2D6E; }
+.klikk-badge.tone-moveout  { background: #f3e8ff; color: #6b21a8; }
+.klikk-badge.tone-applied  { background: #ccfbf1; color: #115e59; }
+.klikk-badge.tone-ok       { background: #dcfce7; color: #166534; }
+.klikk-badge.tone-warn     { background: #fef3c7; color: #92400e; }
+.klikk-badge.tone-danger   { background: #fee2e2; color: #991b1b; }
+.klikk-badge.tone-info     { background: #dbeafe; color: #1e40af; }
+.klikk-badge.tone-gate     { background: #f3e8ff; color: #7C3AED; }
+.klikk-badge.size-sm       { font-size: 10px; padding: 2px 8px; }
+
+/* ─── Alert strip ──────────────────────────────────────────────────────── */
+.klikk-alert-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 3px solid #d97706;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.klikk-alert-strip.tone-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #dc2626;
+}
+.klikk-alert-strip.tone-info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-color: #2563eb;
+}
+.klikk-alert-strip.tone-ok {
+  background: #dcfce7;
+  color: #166534;
+  border-color: #0d9488;
+}
+.klikk-alert-strip.pulse::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+  animation: klikk-pulse 1.6s ease-in-out infinite;
+}
+@keyframes klikk-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .35; }
+}
+
+/* ─── Event row (time-pill · context · action) ─────────────────────────── */
+.klikk-ev-row {
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #EFEFF5;
+  transition: background .12s ease;
+}
+.klikk-ev-row:hover { background: #FAFAFC; }
+.klikk-ev-row:last-child { border-bottom: none; }
+
+.klikk-ev-when {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  background: #EFEFF5;
+  color: #6B6B7A;
+  white-space: nowrap;
+}
+.klikk-ev-when.overdue { background: #fee2e2; color: #991b1b; }
+.klikk-ev-when.today   { background: #fef3c7; color: #92400e; }
+.klikk-ev-when.soon    { background: #dbeafe; color: #1e40af; }
+.klikk-ev-when.future  { background: #EFEFF5; color: #6B6B7A; }
+
+.klikk-ev-body {
+  min-width: 0;
+}
+.klikk-ev-addr {
+  font-weight: 600;
+  font-size: 14px;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.klikk-ev-ctx {
+  font-size: 12px;
+  color: #6B6B7A;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.klikk-ev-act {
+  font-size: 13px;
+  color: #2B2D6E;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #EFEFF5;
+  background: #fff;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease;
+}
+.klikk-ev-act:hover {
+  background: #F5F5F8;
+  border-color: #E1E1EB;
+}
+.klikk-ev-act.primary {
+  background: #2B2D6E;
+  color: #fff;
+  border-color: #2B2D6E;
+}
+.klikk-ev-act.primary:hover {
+  background: #23255a;
+  border-color: #23255a;
+}
+
+/* ─── Page header ──────────────────────────────────────────────────────── */
+.klikk-page-header {
+  padding: 20px 0 16px;
+  border-bottom: 1px solid #EFEFF5;
+  margin-bottom: 20px;
+}
+.klikk-page-header .crumb {
+  font-size: 12px;
+  color: #6B6B7A;
+  margin-bottom: 6px;
+}
+.klikk-page-header .row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.klikk-page-header h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 26px;
+  font-weight: 600;
+  color: #111;
+  line-height: 1.2;
+}
+.klikk-page-header p.sub {
+  font-size: 13px;
+  color: #6B6B7A;
+  margin-top: 4px;
+}
+.klikk-page-header .actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ─── Panel / card surface ─────────────────────────────────────────────── */
+.klikk-pcard {
+  background: #fff;
+  border: 1px solid #EFEFF5;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(26,26,46,.04), 0 2px 8px rgba(26,26,46,.04);
+  overflow: hidden;
+}
+.klikk-pcard > h3 {
+  padding: 14px 18px;
+  border-bottom: 1px solid #EFEFF5;
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.klikk-pcard > .body {
+  padding: 14px 18px;
+}

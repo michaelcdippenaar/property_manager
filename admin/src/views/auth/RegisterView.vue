@@ -148,8 +148,8 @@
             </label>
           </div>
 
-          <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
-            <AlertCircle :size="15" />
+          <div v-if="error" role="alert" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
+            <AlertCircle :size="15" aria-hidden="true" />
             {{ error }}
           </div>
 

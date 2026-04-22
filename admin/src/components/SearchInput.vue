@@ -1,16 +1,19 @@
 <template>
   <div class="relative" :class="wrapClass">
-    <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+    <Search :size="14" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" aria-hidden="true" />
     <input
       :value="modelValue"
       @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       class="input pl-8"
       :placeholder="placeholder"
+      :aria-label="ariaLabel || placeholder"
+      type="search"
     />
     <button
       v-if="modelValue"
       @click="$emit('update:modelValue', '')"
-      class="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors"
+      aria-label="Clear search"
+      class="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600 rounded transition-colors focus-visible:outline-2 focus-visible:outline-navy focus-visible:outline-offset-1"
     >
       <X :size="13" />
     </button>
@@ -24,6 +27,7 @@ withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
   wrapClass?: string
+  ariaLabel?: string
 }>(), {
   placeholder: 'Search…',
   wrapClass: 'max-w-xs',

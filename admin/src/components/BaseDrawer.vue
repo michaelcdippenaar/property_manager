@@ -23,17 +23,21 @@
         >
           <div
             v-if="open"
+            role="dialog"
+            aria-modal="true"
+            :aria-labelledby="title ? drawerTitleId : undefined"
             class="relative bg-white shadow-2xl w-full flex flex-col overflow-hidden"
             :class="sizeClass"
           >
             <!-- Header -->
             <div v-if="title || $slots.header" class="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-4 border-b border-gray-100 flex-shrink-0">
               <slot name="header">
-                <h2 class="text-sm font-semibold text-gray-900">{{ title }}</h2>
+                <h2 :id="drawerTitleId" class="text-sm font-semibold text-gray-900">{{ title }}</h2>
               </slot>
               <button
                 @click="$emit('close')"
-                class="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
+                aria-label="Close panel"
+                class="p-1 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors focus-visible:outline-2 focus-visible:outline-navy focus-visible:outline-offset-1"
               >
                 <X :size="18" />
               </button>
@@ -56,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useId } from 'vue'
 import { X } from 'lucide-vue-next'
 
 const props = withDefaults(defineProps<{
@@ -68,6 +72,8 @@ const props = withDefaults(defineProps<{
   side: 'right',
   size: 'md',
 })
+
+const drawerTitleId = useId()
 
 defineEmits<{ close: [] }>()
 

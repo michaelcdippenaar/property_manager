@@ -7,16 +7,16 @@
 const appUrl = import.meta.env.PUBLIC_APP_URL ?? 'https://app.klikk.co.za';
 ---
 
-<nav id="main-nav">
-  <a href="/" class="nav-logo">Klikk<span>.</span></a>
-  <div class="nav-links">
-    <a href="/#lifecycle">Lifecycle</a>
-    <a href="/#apps">Apps</a>
-    <a href="/#features">Features</a>
-    <a href="/#integrations">Integrations</a>
-    <a href="/pricing">Pricing</a>
+<nav id="main-nav" aria-label="Main navigation">
+  <a href="/" class="nav-logo" aria-label="Klikk home">Klikk<span aria-hidden="true">.</span></a>
+  <div class="nav-links" role="list">
+    <a href="/#lifecycle" role="listitem">Lifecycle</a>
+    <a href="/#apps" role="listitem">Apps</a>
+    <a href="/#features" role="listitem">Features</a>
+    <a href="/#integrations" role="listitem">Integrations</a>
+    <a href="/pricing" role="listitem">Pricing</a>
   </div>
-  <a href={`${appUrl}/login`} target="_blank" class="btn-nav">Login</a>
+  <a href={`${appUrl}/login`} target="_blank" rel="noopener noreferrer" class="btn-nav">Login</a>
 </nav>
 
 <style>
