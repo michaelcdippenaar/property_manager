@@ -10,15 +10,15 @@
         <template v-if="!success">
           <form @submit.prevent="handleReset" class="space-y-4">
             <div>
-              <label class="label">New password</label>
-              <input v-model="password" type="password" class="input" placeholder="Min 8 characters" minlength="8" required />
+              <label for="reset-password" class="label">New password</label>
+              <input id="reset-password" v-model="password" type="password" class="input" placeholder="Min 8 characters" minlength="8" required autocomplete="new-password" />
             </div>
             <div>
-              <label class="label">Confirm password</label>
-              <input v-model="confirm" type="password" class="input" placeholder="Repeat password" required />
+              <label for="reset-confirm-password" class="label">Confirm password</label>
+              <input id="reset-confirm-password" v-model="confirm" type="password" class="input" placeholder="Repeat password" required autocomplete="new-password" />
             </div>
-            <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
-              <AlertCircle :size="15" />
+            <div v-if="error" role="alert" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
+              <AlertCircle :size="15" aria-hidden="true" />
               {{ error }}
             </div>
             <button type="submit" class="btn-primary w-full justify-center py-2.5" :disabled="loading">

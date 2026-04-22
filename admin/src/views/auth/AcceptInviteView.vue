@@ -45,32 +45,34 @@
         <form @submit.prevent="handleAccept" class="space-y-3" novalidate>
 
           <div>
-            <label class="label">Email</label>
-            <p class="text-sm font-medium text-gray-700 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">{{ invite.email }}</p>
+            <label for="invite-email" class="label">Email</label>
+            <p id="invite-email" class="text-sm font-medium text-gray-700 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">{{ invite.email }}</p>
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="label">First name</label>
-              <input v-model="form.first_name" type="text" class="input" :class="{ 'input-error': fieldErrors.first_name }" placeholder="John" />
+              <label for="invite-first-name" class="label">First name</label>
+              <input id="invite-first-name" v-model="form.first_name" type="text" class="input" :class="{ 'input-error': fieldErrors.first_name }" placeholder="John" autocomplete="given-name" />
               <p v-if="fieldErrors.first_name" class="input-error-msg">{{ fieldErrors.first_name }}</p>
             </div>
             <div>
-              <label class="label">Last name</label>
-              <input v-model="form.last_name" type="text" class="input" :class="{ 'input-error': fieldErrors.last_name }" placeholder="Doe" />
+              <label for="invite-last-name" class="label">Last name</label>
+              <input id="invite-last-name" v-model="form.last_name" type="text" class="input" :class="{ 'input-error': fieldErrors.last_name }" placeholder="Doe" autocomplete="family-name" />
               <p v-if="fieldErrors.last_name" class="input-error-msg">{{ fieldErrors.last_name }}</p>
             </div>
           </div>
 
           <div>
-            <label class="label">Password</label>
+            <label for="invite-password" class="label">Password</label>
             <div class="relative">
               <input
+                id="invite-password"
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 class="input pr-10"
                 :class="{ 'input-error': fieldErrors.password }"
                 placeholder="Min. 8 characters"
+                autocomplete="new-password"
               />
               <button
                 type="button"
@@ -86,19 +88,21 @@
           </div>
 
           <div>
-            <label class="label">Confirm password</label>
+            <label for="invite-confirm-password" class="label">Confirm password</label>
             <input
+              id="invite-confirm-password"
               v-model="confirmPassword"
               :type="showPassword ? 'text' : 'password'"
               class="input"
               :class="{ 'input-error': fieldErrors.confirmPassword }"
               placeholder="Re-enter password"
+              autocomplete="new-password"
             />
             <p v-if="fieldErrors.confirmPassword" class="input-error-msg">{{ fieldErrors.confirmPassword }}</p>
           </div>
 
-          <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
-            <AlertCircle :size="15" class="flex-shrink-0" />
+          <div v-if="error" role="alert" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
+            <AlertCircle :size="15" class="flex-shrink-0" aria-hidden="true" />
             <span>{{ error }}</span>
           </div>
 
