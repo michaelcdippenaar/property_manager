@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379577862"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -87,3 +87,41 @@ The runbook at `docs/ops/secret-rotation-2026-04.md` has exact commands for each
 - The `DB_PASSWORD=klikk_pass` in CI (`.github/workflows/ci.yml`) is intentional — it's a throwaway GitHub Actions postgres service container, not connected to production. The gitleaks allowlist permits it.
 - Google OAuth Client IDs are intentionally public (they appear in browser JS). They are in the allowlist. The associated OAuth *Client Secret* must stay in `.env.secrets`.
 - After MC runs `git filter-repo` + force-push, all local clones will need `git fetch --all && git reset --hard origin/main`.
+
+### 2026-04-22 — rentals-reviewer
+
+**Review passed.**
+
+Checked against all autonomous acceptance criteria. Approved to move to testing.
+
+**What I verified:**
+
+1. **Secret inventory (AC 1):** Confirmed `docs/ops/secret-rotation-2026-04.md` contains a complete, specific inventory table with secret values, file paths, earliest commits, and risk ratings. The not-found list is credible — grep through backend settings confirms SECRET_KEY, ANTHROPIC_API_KEY, EMAIL_HOST_PASSWORD were never committed.
+
+2. **Working-tree secrets removed (code review):** All six diff hunks across `backend/.env.{development,staging,production}`, `admin/.env.{development,staging,production}`, `agent-app/.env.{development,staging,production}`, and `deploy/docker-compose.staging.yml` correctly replace real values with comment placeholders. No real key values remain in the working tree.
+
+3. **`.env.secrets.example` updated (AC 4 partial):** `backend/.env.secrets.example` now lists `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_MAPS_API_KEY`, `VOLT_MCP`, and `VOLT_OWNER_API_KEY` — giving a new server setup a complete checklist.
+
+4. **`.gitignore` (AC 4):** Additions cover `*.secrets`, `**/secrets.env`, `**/.env.secrets`, `secrets.json`, `*_secrets.json`. No regressions to existing patterns.
+
+5. **Pre-commit hook (AC 4):** `.pre-commit-config.yaml` pins gitleaks at `v8.21.2` and includes `detect-private-key` as a second layer. The hook will fire before any new secret can land in a commit. Instructions in the file are clear.
+
+6. **`.gitleaks.toml` allowlist review:** Each allowlist entry is explained in an inline comment. The `klikk_pass` CI exemption is correct — the CI postgres service container is ephemeral and never exposed. The Google OAuth client ID exemption is technically accurate (client IDs are public-facing). The runbook file itself is path-excluded, which is correct since it contains known-rotated values for audit purposes. Regex escaping on the client ID literal is correct.
+
+7. **CI job (AC ongoing):** Uses `gitleaks/gitleaks-action@v2` with `fetch-depth: 0` (full history). Repo is PUBLIC so `GITLEAKS_LICENSE` is not required — the comment in the YAML correctly reflects this. The job runs on both `push` and `pull_request` to `main`.
+
+8. **Runbook quality (AC 6):** `docs/ops/secret-rotation-2026-04.md` covers all seven manual steps with exact commands, links to Google Cloud Console, and a post-rotation verification checklist. The ongoing prevention table is accurate.
+
+9. **POPIA pass:** No PII introduced or logged. No new endpoints. No raw SQL. Not applicable for this task type.
+
+10. **Frontend env vars:** `admin/src/composables/useGoogleAuth.ts` uses `|| ''` fallback, and `AddressAutocomplete.vue` rejects explicitly when the key is missing — graceful degradation, no crash. `admin/.env.development.example` and `admin/.env.production.example` document the vars correctly for the admin app.
+
+**Minor notes (non-blocking, for tester awareness):**
+
+- `agent-app` has no `.env*.example` file. A developer setting up agent-app locally has no documented reference for `GOOGLE_CLIENT_ID`. This is a pre-existing gap, not introduced by this PR, but worth raising. Filed as discovery `tasks/discoveries/2026-04-22-agent-app-missing-env-example.md`.
+
+- The discovery file `tasks/discoveries/2026-04-22-website-web-not-in-cicd.md` dropped by the implementer has `discovered_by: rentals-reviewer` — it should be `rentals-implementer`. Minor metadata error, no functional impact.
+
+**Blocked criteria remain correctly blocked:** AC 2 (key rotation), AC 3 (history purge), and AC 5 (JWT invalidation) all require MC's production access. The runbook is complete and actionable. These cannot be verified by the tester until MC completes the manual steps.
+
+**Tester focus:** run `gitleaks detect --source . --no-git --verbose` and `gitleaks detect --source . --log-opts="--all"` against the current working tree and history (pre-filter-repo). Confirm pre-commit hook fires correctly with a test commit containing a dummy secret pattern. CI gitleaks job should be observable on the next PR.
