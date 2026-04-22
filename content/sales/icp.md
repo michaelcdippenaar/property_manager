@@ -115,7 +115,7 @@ Estimated addressable count (SA): ~150 000–250 000 self-managing landlords (de
 | Likely free-tier users (1–5 units) | ~80% |
 | Likely paying users (6–10 units, R49/unit) | ~20% |
 | Serviceable addressable (tech-ready, any metro) | ~30 000–50 000 |
-| MRR potential (10% conversion, avg 7 units @ R49) | ~R1 03 000–R1 72 000/month |
+| MRR potential (10% conversion, avg 7 units @ R49) | ~R103 000–R172 000/month |
 
 Note: This tier converts at lower ARPU but generates referrals and builds brand trust. It is the top-of-funnel for agents who start as landlords and grow into agency operations.
 
