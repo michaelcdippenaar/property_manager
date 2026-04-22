@@ -7,9 +7,9 @@ lifecycle_stage: 1
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177379658607"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -81,3 +81,21 @@ Sweep through all four mandate types — sole, shared, multiple, limited — and
 **Taxonomy note for reviewer**: the task description uses "sole/shared/multiple/limited" but the live model uses `exclusivity` (sole/open) + `mandate_type` (full_management/letting_only/rent_collection/finders_fee) + optional `end_date` for duration. The tests cover all combinations. Multi-owner signing (>1 owner must sign) is not yet modelled in the data schema — the current e-signing flow supports one owner signer per mandate. A discovery note has been dropped for this gap.
 
 **Discovery filed**: `tasks/discoveries/2026-04-22-multi-owner-signing.md` — multi-owner signing (>1 owner per mandate) is not yet implemented.
+
+### 2026-04-22 — reviewer: changes requested
+
+**1. `renew` action passes raw `request.data` values directly to `RentalMandate.objects.create()` without validation — `backend/apps/properties/mandate_views.py` lines ~255-261.**
+
+The override fields (`commission_rate`, `start_date`, `end_date`, `commission_period`, `notice_period_days`, `maintenance_threshold`) are read straight from `request.data` and handed to the ORM. Django's `create()` does not call `full_clean()`, so malformed input (non-numeric `commission_rate`, invalid date strings like `"not-a-date"`, negative `notice_period_days`, an arbitrary string for `commission_period`) will either raise an unhandled DB-level `DataError`/`IntegrityError` that leaks a 500 to the caller, or silently write corrupt data.
+
+Fix: pass the overrideable fields through a purpose-built serializer (or at minimum call `mandate.full_clean()` after `create()` and wrap in a try/except that returns HTTP 400). The simplest approach is a small `MandateRenewSerializer(data=request.data)` that validates only the optional override fields before they are applied.
+
+No other issues found:
+- Auth and IDOR: clean — viewset-level `[IsAuthenticated, IsAgentOrAdmin]` covers both new actions; `get_queryset` scopes via `get_accessible_property_ids` so `get_object()` cannot return out-of-scope mandates.
+- Migration 0027: clean, reversible, nullable FKs, `SET_NULL` on self-reference.
+- `expire_mandates` command: correct `end_date__lt=today` filter, dry-run does not write, `fail_silently=True` on email, `select_related` on reminders query.
+- `terminate` action: status guard (400), reason required (400), active-lease guard (409) with override flag, saves only declared fields via `update_fields`.
+- MandateTab.vue: fetches active lease count before opening modal, override checkbox conditional on `hasActiveLease`, loading states wired, status label/badge cover `terminated`.
+- PropertyDetailPage.vue: read-only display tab, no mutation actions, consistent with mobile-tab pattern.
+- Test coverage: 24 tests cover all 4 types × all new state paths.
+- Discovery `tasks/discoveries/2026-04-22-multi-owner-signing.md` properly filed for the multi-owner gap called out in the original spec.
