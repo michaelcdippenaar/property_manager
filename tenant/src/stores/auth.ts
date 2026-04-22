@@ -18,9 +18,17 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!accessToken.value)
   const isTenant = computed(() => user.value?.role === 'tenant')
 
-  async function login(email: string, password: string) {
+  /**
+   * Authenticate with email + password.
+   * Returns raw response data so the caller can handle 2FA fields.
+   * Tokens are only stored when the server actually issues them.
+   */
+  async function login(email: string, password: string): Promise<any> {
     const { data } = await api.post('/auth/login/', { email, password })
-    _setTokens(data)
+    if (data.access && data.refresh) {
+      _setTokens(data)
+    }
+    return data
   }
 
   async function requestOtp(phone: string) {

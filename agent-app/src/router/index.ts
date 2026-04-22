@@ -34,6 +34,18 @@ export default route(function (/* { store, ssrContext } */) {
         meta: { public: true, title: 'Sign In' },
       },
       {
+        path: '/2fa/challenge',
+        name: '2fa-challenge',
+        component: () => import('../pages/TwoFAChallengePage.vue'),
+        meta: { public: true, title: '2FA Verification' },
+      },
+      {
+        path: '/2fa/enroll',
+        name: '2fa-enroll',
+        component: () => import('../pages/TwoFAEnrollPage.vue'),
+        meta: { public: true, title: 'Set Up 2FA' },
+      },
+      {
         path: '/',
         component: () => import('../layouts/MainLayout.vue'),
         meta: { requiresAuth: true },

@@ -85,12 +85,28 @@ async function handleLogin() {
   loading.value = true
   errorMsg.value = ''
   try {
-    await auth.login(email.value.trim(), password.value)
-    router.replace({ name: 'home' })
+    const data = await auth.login(email.value.trim(), password.value)
+    _handle2FA(data)
   } catch (e: any) {
     errorMsg.value = e?.response?.data?.detail || 'Invalid email or password.'
   } finally {
     loading.value = false
   }
+}
+
+function _handle2FA(data: any) {
+  if (!data) { router.replace({ name: 'home' }); return }
+
+  if (data.two_fa_required && data.two_fa_token) {
+    router.replace({ name: '2fa-challenge', query: { token: data.two_fa_token } })
+    return
+  }
+  if (data.two_fa_enroll_required && data.two_fa_token) {
+    const query: Record<string, string> = { token: data.two_fa_token, required: '1' }
+    if (data.two_fa_hard_blocked) query.blocked = '1'
+    router.replace({ name: '2fa-enroll', query })
+    return
+  }
+  router.replace({ name: 'home' })
 }
 </script>

@@ -49,14 +49,36 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('refresh_token', refresh)
   }
 
-  async function login(email: string, password: string) {
+  /**
+   * Authenticate with email + password.
+   * Returns raw response data so the caller can handle 2FA fields.
+   */
+  async function login(email: string, password: string): Promise<any> {
     const { data } = await api.post('/auth/login/', { email, password })
-    _setTokens(data.access, data.refresh)
-    await fetchMe()
+    if (data.access && data.refresh) {
+      _setTokens(data.access, data.refresh)
+      await fetchMe()
+    }
+    return data
   }
 
-  async function loginWithGoogle(credential: string) {
+  /**
+   * Authenticate with Google credential.
+   * Returns raw response data so the caller can handle 2FA fields.
+   */
+  async function loginWithGoogle(credential: string): Promise<any> {
     const { data } = await api.post('/auth/google/', { credential })
+    if (data.access && data.refresh) {
+      _setTokens(data.access, data.refresh)
+      user.value = data.user
+    }
+    return data
+  }
+
+  /**
+   * Set tokens from a two_fa_token exchange (challenge or recovery).
+   */
+  function setTokensFromTwoFA(data: { access: string; refresh: string; user: any }) {
     _setTokens(data.access, data.refresh)
     user.value = data.user
   }
@@ -98,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     homeRoute,
     login,
     loginWithGoogle,
+    setTokensFromTwoFA,
     logout,
     fetchMe,
     registerPushToken,

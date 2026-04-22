@@ -17,6 +17,18 @@ const router = createRouter({
       component: () => import('../views/auth/LoginView.vue'),
       meta: { public: true, depth: 0 },
     },
+    {
+      path: '/2fa/challenge',
+      name: '2fa-challenge',
+      component: () => import('../views/auth/TwoFAChallengeView.vue'),
+      meta: { public: true, depth: 0 },
+    },
+    {
+      path: '/2fa/enroll',
+      name: '2fa-enroll',
+      component: () => import('../views/auth/TwoFAEnrollView.vue'),
+      meta: { public: true, depth: 0 },
+    },
 
     // ── Main shell (depth 1) ────────────────────────────────────────
     {

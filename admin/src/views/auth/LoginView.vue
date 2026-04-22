@@ -115,8 +115,8 @@ onMounted(async () => {
     google.waitForCredential().then(async (credential) => {
       error.value = ''
       try {
-        await auth.googleAuth(credential)
-        router.push(auth.homeRoute)
+        const data = await auth.googleAuth(credential)
+        await _handle2FA(data)
       } catch (e: any) {
         if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
           error.value = 'Cannot connect to server. Please check your internet connection and try again.'
@@ -138,8 +138,8 @@ async function handleLogin() {
   loading.value = true
   error.value = ''
   try {
-    await auth.login(email.value, password.value)
-    router.push(auth.homeRoute)
+    const data = await auth.login(email.value, password.value)
+    await _handle2FA(data)
   } catch (e: any) {
     if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {
       error.value = 'Cannot connect to server. Please check your internet connection and try again.'
@@ -154,5 +154,39 @@ async function handleLogin() {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * After a successful credential check, inspect the server response.
+ * - two_fa_required=true  → /2fa/challenge  (TOTP code needed before access)
+ * - two_fa_enroll_required=true + hard_blocked → /2fa/enroll (must enroll, no access yet)
+ * - two_fa_enroll_required=true (grace period) → /2fa/enroll (nudge but tokens already set)
+ * - normal → go to homeRoute
+ */
+async function _handle2FA(data: any) {
+  if (!data) {
+    router.push(auth.homeRoute)
+    return
+  }
+
+  if (data.two_fa_required && data.two_fa_token) {
+    // Need to complete 2FA challenge
+    router.push({ name: '2fa-challenge', query: { token: data.two_fa_token } })
+    return
+  }
+
+  if (data.two_fa_enroll_required && data.two_fa_token) {
+    if (data.two_fa_hard_blocked) {
+      // No tokens issued — must enroll before getting access
+      router.push({ name: '2fa-enroll', query: { token: data.two_fa_token, required: '1', blocked: '1' } })
+    } else {
+      // Tokens already set by auth.login — can access app but should enroll
+      router.push({ name: '2fa-enroll', query: { token: data.two_fa_token, required: '1' } })
+    }
+    return
+  }
+
+  // Normal login — go home
+  router.push(auth.homeRoute)
 }
 </script>

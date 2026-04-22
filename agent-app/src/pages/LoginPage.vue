@@ -155,14 +155,30 @@ async function handleLogin() {
   error.value   = ''
   loading.value = true
   try {
-    await auth.login(email.value.trim(), password.value)
-    await router.replace(auth.homeRoute)
+    const data = await auth.login(email.value.trim(), password.value)
+    await _handle2FA(data)
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { detail?: string } } }
     error.value = axiosErr.response?.data?.detail || 'Invalid credentials. Please try again.'
   } finally {
     loading.value = false
   }
+}
+
+async function _handle2FA(data: any) {
+  if (!data) { await router.replace(auth.homeRoute); return }
+
+  if (data.two_fa_required && data.two_fa_token) {
+    await router.replace({ name: '2fa-challenge', query: { token: data.two_fa_token } })
+    return
+  }
+  if (data.two_fa_enroll_required && data.two_fa_token) {
+    const query: Record<string, string> = { token: data.two_fa_token, required: '1' }
+    if (data.two_fa_hard_blocked) query.blocked = '1'
+    await router.replace({ name: '2fa-enroll', query })
+    return
+  }
+  await router.replace(auth.homeRoute)
 }
 
 async function handleReset() {
@@ -193,8 +209,8 @@ onMounted(async () => {
     error.value   = ''
     loading.value = true
     try {
-      await auth.loginWithGoogle(credential)
-      await router.replace(auth.homeRoute)
+      const data = await auth.loginWithGoogle(credential)
+      await _handle2FA(data)
     } catch (err: unknown) {
       const axiosErr = err as { response?: { data?: { error?: string; detail?: string } } }
       error.value = axiosErr.response?.data?.error || axiosErr.response?.data?.detail || 'Google sign-in failed.'

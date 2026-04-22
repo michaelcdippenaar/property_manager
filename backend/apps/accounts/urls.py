@@ -10,6 +10,11 @@ from .views import (
 from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView
 from .oauth_views import GoogleAuthView
 from .lookup_views import EntityLookupView
+from .totp_views import (
+    TOTPStatusView, TOTPSetupView, TOTPSetupConfirmView,
+    TOTPVerifyView, TOTPRecoveryView,
+    TOTPResetRequestView, TOTPResetConfirmView,
+)
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
@@ -42,4 +47,12 @@ urlpatterns = [
     path("lookup/", EntityLookupView.as_view(), name="entity-lookup"),
     # Agency settings (singleton)
     path("agency/", AgencySettingsView.as_view(), name="agency-settings"),
+    # ── TOTP 2FA ──────────────────────────────────────────────────────────────
+    path("2fa/status/", TOTPStatusView.as_view(), name="2fa-status"),
+    path("2fa/setup/", TOTPSetupView.as_view(), name="2fa-setup"),
+    path("2fa/setup/confirm/", TOTPSetupConfirmView.as_view(), name="2fa-setup-confirm"),
+    path("2fa/verify/", TOTPVerifyView.as_view(), name="2fa-verify"),
+    path("2fa/recovery/", TOTPRecoveryView.as_view(), name="2fa-recovery"),
+    path("2fa/reset/request/", TOTPResetRequestView.as_view(), name="2fa-reset-request"),
+    path("2fa/reset/confirm/", TOTPResetConfirmView.as_view(), name="2fa-reset-confirm"),
 ]

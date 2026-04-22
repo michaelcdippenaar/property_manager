@@ -1,7 +1,10 @@
+import hashlib
+import secrets
 import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from django.utils import timezone
 
 
 class UserManager(BaseUserManager):
@@ -397,3 +400,116 @@ class LoginAttempt(models.Model):
 
     def __str__(self):
         return f"{'OK' if self.succeeded else 'FAIL'} login for {self.email}"
+
+
+# ── 2FA / TOTP ────────────────────────────────────────────────────────────────
+
+# Roles that MUST enroll in TOTP before full access is granted.
+TOTP_REQUIRED_ROLES = {
+    User.Role.ADMIN,
+    User.Role.AGENCY_ADMIN,
+    User.Role.AGENT,
+    User.Role.MANAGING_AGENT,
+    User.Role.ESTATE_AGENT,
+    User.Role.OWNER,
+}
+
+# Grace period before a required-2FA user is hard-blocked (days).
+TOTP_GRACE_PERIOD_DAYS = 7
+
+
+class UserTOTP(models.Model):
+    """
+    Stores the TOTP secret for a user's authenticator app.
+    One active record per user at most.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="totp")
+    secret = models.CharField(max_length=64)          # base32-encoded pyotp secret
+    enrolled_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=False)    # True once first code verified
+    # When a required-role user first logs in, we stamp this so the grace period
+    # can be checked without needing a separate query.
+    grace_deadline = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "User TOTP"
+
+    def __str__(self):
+        return f"TOTP for {self.user.email} ({'active' if self.is_active else 'pending'})"
+
+    @classmethod
+    def for_user(cls, user):
+        """Return the active TOTP record for a user, or None."""
+        try:
+            t = cls.objects.get(user=user)
+            return t if t.is_active else None
+        except cls.DoesNotExist:
+            return None
+
+    def verify(self, code: str, valid_window: int = 1) -> bool:
+        """Verify a TOTP code against this secret (±1 window = ±30 s)."""
+        import pyotp
+        totp = pyotp.TOTP(self.secret)
+        return totp.verify(code, valid_window=valid_window)
+
+
+class TOTPRecoveryCode(models.Model):
+    """
+    Single-use recovery codes issued during TOTP enrollment.
+    Codes are stored as SHA-256 hashes so the plaintext is never persisted.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="recovery_codes")
+    code_hash = models.CharField(max_length=64)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Recovery code for {self.user.email} ({'used' if self.used_at else 'available'})"
+
+    @property
+    def is_used(self):
+        return self.used_at is not None
+
+    @classmethod
+    def generate_for_user(cls, user, count: int = 10):
+        """
+        Delete existing codes for this user and issue `count` fresh ones.
+        Returns the list of plaintext codes (shown once, then discarded).
+        """
+        cls.objects.filter(user=user).delete()
+        plaintext_codes = []
+        for _ in range(count):
+            code = cls._make_code()
+            plaintext_codes.append(code)
+            cls.objects.create(user=user, code_hash=cls._hash(code))
+        return plaintext_codes
+
+    @staticmethod
+    def _make_code() -> str:
+        """Return a human-readable recovery code: XXXX-XXXX-XXXX (hex groups)."""
+        raw = secrets.token_hex(6)   # 12 hex chars
+        return f"{raw[:4].upper()}-{raw[4:8].upper()}-{raw[8:12].upper()}"
+
+    @staticmethod
+    def _hash(code: str) -> str:
+        return hashlib.sha256(code.encode()).hexdigest()
+
+    @classmethod
+    def redeem(cls, user, code: str):
+        """
+        Attempt to redeem a recovery code.  Returns the record if valid,
+        None otherwise.  Marks the code as used on success.
+        """
+        code_hash = cls._hash(code.strip().upper())
+        try:
+            rec = cls.objects.get(user=user, code_hash=code_hash, used_at__isnull=True)
+        except cls.DoesNotExist:
+            return None
+        rec.used_at = timezone.now()
+        rec.save(update_fields=["used_at"])
+        return rec

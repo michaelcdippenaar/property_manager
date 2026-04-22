@@ -14,7 +14,10 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from django.shortcuts import get_object_or_404
-from .models import User, OTPCode, Person, PersonDocument, PushToken, LoginAttempt, UserInvite, Agency
+from .models import (
+    User, OTPCode, Person, PersonDocument, PushToken, LoginAttempt, UserInvite, Agency,
+    UserTOTP, TOTP_REQUIRED_ROLES, TOTP_GRACE_PERIOD_DAYS,
+)
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
 from .throttles import AuthAnonThrottle, InviteAcceptThrottle, LoginHourlyThrottle, OTPSendThrottle, OTPVerifyThrottle
@@ -85,10 +88,69 @@ class LoginView(APIView):
         if email:
             LoginAttempt.objects.create(email=email, ip_address=ip or None, succeeded=True)
 
-        user = User.objects.filter(email=email).first()
+        user = serializer.validated_data["user"]
         log_auth_event("login_success", request=request, user=user)
 
-        return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        # ── 2FA gate ──────────────────────────────────────────────────────────
+        from .totp_views import _make_two_fa_token
+        from datetime import datetime
+
+        totp_required = user.role in TOTP_REQUIRED_ROLES
+        totp_enrolled = False
+        try:
+            totp_rec = user.totp
+            totp_enrolled = totp_rec.is_active
+        except UserTOTP.DoesNotExist:
+            totp_rec = None
+
+        if totp_required and not totp_enrolled:
+            # Ensure grace period record exists
+            if totp_rec is None:
+                totp_rec = UserTOTP.objects.create(user=user, secret="")
+            if totp_rec.grace_deadline is None:
+                totp_rec.grace_deadline = timezone.now() + timedelta(days=TOTP_GRACE_PERIOD_DAYS)
+                totp_rec.save(update_fields=["grace_deadline"])
+
+            now = timezone.now()
+            in_grace = now < totp_rec.grace_deadline
+            if in_grace:
+                # Allow through but signal that enrollment is required
+                two_fa_token = _make_two_fa_token(user)
+                refresh = RefreshToken.for_user(user)
+                return Response({
+                    "access": str(refresh.access_token),
+                    "refresh": str(refresh),
+                    "user": UserSerializer(user).data,
+                    "two_fa_required": False,
+                    "two_fa_enroll_required": True,
+                    "two_fa_token": two_fa_token,
+                    "grace_deadline": totp_rec.grace_deadline.isoformat(),
+                }, status=status.HTTP_200_OK)
+            else:
+                # Hard-blocked — must enroll via two_fa_token before getting full access
+                two_fa_token = _make_two_fa_token(user)
+                return Response({
+                    "two_fa_required": False,
+                    "two_fa_enroll_required": True,
+                    "two_fa_hard_blocked": True,
+                    "two_fa_token": two_fa_token,
+                }, status=status.HTTP_200_OK)
+
+        if totp_enrolled:
+            # 2FA required — return partial token; frontend calls /auth/2fa/verify/
+            two_fa_token = _make_two_fa_token(user)
+            return Response({
+                "two_fa_required": True,
+                "two_fa_token": two_fa_token,
+            }, status=status.HTTP_200_OK)
+
+        # No 2FA required/enrolled — issue full tokens directly
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "access": str(refresh.access_token),
+            "refresh": str(refresh),
+            "user": UserSerializer(user).data,
+        }, status=status.HTTP_200_OK)
 
 
 class MeView(APIView):
@@ -413,13 +475,30 @@ class AcceptInviteView(APIView):
 
         log_auth_event("invite_accepted", request=request, user=user, metadata={"invite_id": invite.id, "role": invite.role})
 
-        # Return JWT so the user is immediately logged in
+        # Return JWT so the user is immediately logged in.
+        # If this role requires 2FA, also signal enrollment so the frontend
+        # can redirect to the enrollment flow immediately post-registration.
         refresh = RefreshToken.for_user(user)
-        return Response({
+        totp_enroll_required = user.role in TOTP_REQUIRED_ROLES
+        if totp_enroll_required:
+            from .totp_views import _make_two_fa_token
+            two_fa_token = _make_two_fa_token(user)
+            totp_rec, _ = UserTOTP.objects.get_or_create(user=user, defaults={"secret": ""})
+            if totp_rec.grace_deadline is None:
+                totp_rec.grace_deadline = timezone.now() + timedelta(days=TOTP_GRACE_PERIOD_DAYS)
+                totp_rec.save(update_fields=["grace_deadline"])
+        else:
+            two_fa_token = None
+
+        response_data = {
             "access": str(refresh.access_token),
             "refresh": str(refresh),
             "user": UserSerializer(user).data,
-        }, status=status.HTTP_201_CREATED)
+            "two_fa_enroll_required": totp_enroll_required,
+        }
+        if two_fa_token:
+            response_data["two_fa_token"] = two_fa_token
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class TenantsListView(generics.ListAPIView):

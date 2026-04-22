@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .audit import log_auth_event
-from .models import Agency, User
+from .models import Agency, User, UserTOTP, TOTP_REQUIRED_ROLES
 from .serializers import UserSerializer
 from .throttles import AuthAnonThrottle
 
@@ -95,6 +95,51 @@ class GoogleAuthView(APIView):
             created = True
 
         log_auth_event("google_auth", request=request, user=user, metadata={"created": created, "email": email})
+
+        # ── 2FA gate ──────────────────────────────────────────────────────────
+        from .totp_views import _make_two_fa_token
+        from datetime import timedelta
+        from django.utils import timezone as tz
+
+        totp_required = user.role in TOTP_REQUIRED_ROLES
+        totp_enrolled = False
+        try:
+            totp_rec = user.totp
+            totp_enrolled = totp_rec.is_active
+        except UserTOTP.DoesNotExist:
+            totp_rec = None
+
+        if totp_required and not totp_enrolled:
+            if totp_rec is None:
+                from .models import TOTP_GRACE_PERIOD_DAYS
+                totp_rec = UserTOTP.objects.create(user=user, secret="")
+            if totp_rec.grace_deadline is None:
+                from .models import TOTP_GRACE_PERIOD_DAYS
+                totp_rec.grace_deadline = tz.now() + timedelta(days=TOTP_GRACE_PERIOD_DAYS)
+                totp_rec.save(update_fields=["grace_deadline"])
+
+            refresh = RefreshToken.for_user(user)
+            two_fa_token = _make_two_fa_token(user)
+            now = tz.now()
+            in_grace = now < totp_rec.grace_deadline
+            resp_data = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserSerializer(user).data,
+                "created": created,
+                "two_fa_enroll_required": True,
+                "two_fa_hard_blocked": not in_grace,
+                "two_fa_token": two_fa_token,
+                "grace_deadline": totp_rec.grace_deadline.isoformat(),
+            }
+            return Response(resp_data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+        if totp_enrolled:
+            two_fa_token = _make_two_fa_token(user)
+            return Response(
+                {"two_fa_required": True, "two_fa_token": two_fa_token, "created": created},
+                status=status.HTTP_200_OK,
+            )
 
         refresh = RefreshToken.for_user(user)
         return Response(

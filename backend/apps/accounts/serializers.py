@@ -123,21 +123,32 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid credentials.")
         if not user.is_active:
             raise serializers.ValidationError("Account is disabled.")
-        refresh = RefreshToken.for_user(user)
-        return {
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "user": UserSerializer(user).data,
-        }
+        # Return the user object; the view decides whether to issue full tokens
+        # or a partial two_fa_token depending on 2FA state.
+        return {"user": user}
 
 
 class UserSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
+    twofa_enrolled = serializers.SerializerMethodField()
+    twofa_required = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "email", "first_name", "last_name", "full_name", "phone", "role", "date_joined"]
-        read_only_fields = ["id", "email", "role", "date_joined"]
+        fields = ["id", "email", "first_name", "last_name", "full_name", "phone", "role", "date_joined",
+                  "twofa_enrolled", "twofa_required"]
+        read_only_fields = ["id", "email", "role", "date_joined", "twofa_enrolled", "twofa_required"]
+
+    def get_twofa_enrolled(self, obj) -> bool:
+        from .models import UserTOTP
+        try:
+            return obj.totp.is_active
+        except UserTOTP.DoesNotExist:
+            return False
+
+    def get_twofa_required(self, obj) -> bool:
+        from .models import TOTP_REQUIRED_ROLES
+        return obj.role in TOTP_REQUIRED_ROLES
 
 
 class PersonDocumentSerializer(serializers.ModelSerializer):

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import User, Person, Agency, UserInvite, AuthAuditLog, LoginAttempt
+from .models import User, Person, Agency, UserInvite, AuthAuditLog, LoginAttempt, UserTOTP, TOTPRecoveryCode
 
 
 @admin.register(User)
@@ -72,4 +72,26 @@ class LoginAttemptAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(UserTOTP)
+class UserTOTPAdmin(admin.ModelAdmin):
+    list_display = ("user", "is_active", "enrolled_at", "grace_deadline", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("user__email",)
+    readonly_fields = ("user", "secret", "enrolled_at", "grace_deadline", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(TOTPRecoveryCode)
+class TOTPRecoveryCodeAdmin(admin.ModelAdmin):
+    list_display = ("user", "used_at", "created_at")
+    list_filter = ("used_at",)
+    search_fields = ("user__email",)
+    readonly_fields = ("user", "code_hash", "used_at", "created_at")
+
+    def has_add_permission(self, request):
         return False

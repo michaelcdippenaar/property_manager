@@ -40,6 +40,25 @@ const router = createRouter({
       component: () => import('../views/signing/PublicSignView.vue'),
       meta: { public: true, allowWhenAuthenticated: true },
     },
+    // ── 2FA flows (public — user not yet fully authenticated) ──────────────
+    {
+      path: '/2fa/challenge',
+      name: '2fa-challenge',
+      component: () => import('../views/auth/TwoFAChallengeView.vue'),
+      meta: { public: true },
+    },
+    {
+      path: '/2fa/enroll',
+      name: '2fa-enroll',
+      component: () => import('../views/auth/TwoFAEnrollView.vue'),
+      meta: { public: true, allowWhenAuthenticated: true },
+    },
+    {
+      path: '/2fa-reset',
+      name: '2fa-reset',
+      component: () => import('../views/auth/TwoFAResetView.vue'),
+      meta: { public: true },
+    },
 
     // ── Agent / Admin layout ──
     {

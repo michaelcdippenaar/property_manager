@@ -40,9 +40,19 @@ export const useAuthStore = defineStore('auth', () => {
     return '/'
   })
 
-  async function login(email: string, password: string) {
+  /**
+   * Authenticate with email + password.
+   * Returns the raw response data so the caller can inspect 2FA fields.
+   * If the response contains full tokens (access + refresh), they are stored.
+   */
+  async function login(email: string, password: string): Promise<any> {
     const { data } = await api.post('/auth/login/', { email, password })
-    _setTokens(data)
+    // Only store tokens when the server actually issues them.
+    // If two_fa_required or two_fa_hard_blocked, no tokens are present.
+    if (data.access && data.refresh) {
+      _setTokens(data)
+    }
+    return data
   }
 
   async function register(payload: {
@@ -60,9 +70,16 @@ export const useAuthStore = defineStore('auth', () => {
     await login(payload.email, payload.password)
   }
 
-  async function googleAuth(credential: string) {
+  /**
+   * Authenticate with Google credential.
+   * Returns raw response data (may include 2FA fields).
+   */
+  async function googleAuth(credential: string): Promise<any> {
     const { data } = await api.post('/auth/google/', { credential })
-    _setTokens(data)
+    if (data.access && data.refresh) {
+      _setTokens(data)
+    }
+    return data
   }
 
   function _setTokens(data: { access: string; refresh: string; user: User }) {
