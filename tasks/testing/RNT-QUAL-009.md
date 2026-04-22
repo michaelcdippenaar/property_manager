@@ -7,12 +7,12 @@ lifecycle_stage: 11
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177140664256"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (review re-submission)
+updated: 2026-04-22 (approved by reviewer)
 ---
 
 ## Goal
@@ -135,3 +135,19 @@ When Celery Beat is introduced in a future task, the command docstring notes tha
 **Fix 3 — `feature` YAML key**
 
 Already correct in the working copy (`feature: maintenance_workflow`). No change needed.
+
+### 2026-04-22 — reviewer: Review passed
+
+All three blockers from the previous cycle are resolved.
+
+1. **Signal priority-change guard** (`backend/apps/maintenance/signals.py:135`): the `should_compute` block matches the exact spec given in round 1. The anti-recursion guard (exit on `sla_ack_deadline` in `update_fields`) is preserved and fires first, so no infinite loop is possible. Logic verified in source.
+
+2. **Beat task wired** (`backend/apps/maintenance/management/commands/escalate_overdue_maintenance.py`): clean Django management command wrapping the unchanged `tasks.escalate_overdue_maintenance()` function. `--dry-run` flag re-queries rather than re-using the same `tasks.py` logic, which is acceptable. No Celery in project confirmed. Cron guidance and future `@shared_task` migration path documented in the module docstring. The acceptance criterion is satisfied.
+
+3. **Feature YAML key**: `feature: maintenance_workflow` in task header matches canonical key in `content/product/features.yaml:185`. Confirmed.
+
+4. **New test** (`backend/apps/maintenance/tests/test_sla.py`, `TestSLADeadlineRecomputeOnPriorityChange`): covers urgent→medium priority downgrade and asserts both extension of deadline and rough sanity against expected hours. `timedelta` import is present at module level (line 16). Test is correct.
+
+5. **Security pass (re-confirmed)**: no new endpoints introduced in this commit. Existing `/maintenance/overdue/` auth and role-scoping unchanged. No raw SQL, no PII logged, no secrets.
+
+No outstanding issues. Proceed to test plan: `pytest backend/apps/maintenance/tests/test_sla.py` + manual emergency-ticket countdown scenario.
