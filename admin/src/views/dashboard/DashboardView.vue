@@ -98,6 +98,43 @@
       </div>
     </div>
 
+    <!-- ── Onboarding in progress ── -->
+    <div v-if="!loading && pendingOnboardings.length > 0" class="card p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="section-header flex items-center gap-1.5">
+          <ClipboardList :size="15" class="text-navy" /> Tenant onboarding in progress
+        </h2>
+        <RouterLink to="/tenants" class="text-xs text-navy hover:underline">View all tenants →</RouterLink>
+      </div>
+      <div class="space-y-3">
+        <div
+          v-for="ob in pendingOnboardings"
+          :key="ob.id"
+          class="flex items-center gap-3"
+        >
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-medium text-gray-800 truncate">{{ ob.tenant_name }}</span>
+              <span class="text-xs font-semibold text-gray-600 tabular-nums ml-2">{{ ob.progress }}%</span>
+            </div>
+            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-navy rounded-full transition-all duration-500"
+                :style="{ width: `${ob.progress}%` }"
+              />
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">{{ ob.lease_number }}</p>
+          </div>
+          <RouterLink
+            :to="{ name: 'tenant-detail', params: { id: ob.primary_tenant_id } }"
+            class="btn-ghost btn-sm text-xs flex-shrink-0"
+          >
+            View
+          </RouterLink>
+        </div>
+      </div>
+    </div>
+
     <!-- ── Needs Attention ── -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
@@ -261,7 +298,7 @@ import PageHeader from '../../components/PageHeader.vue'
 import {
   Building2, Users, Wrench,
   PenLine, CheckCircle2,
-  Settings, UserPlus, X, ShieldAlert,
+  Settings, UserPlus, X, ShieldAlert, ClipboardList,
 } from 'lucide-vue-next'
 
 const toast = useToast()
@@ -291,6 +328,7 @@ const agencyProfileIncomplete = computed(() => {
 
 const statsData = ref<Record<string, number>>({})
 const pendingSigning = ref<any[]>([])
+const pendingOnboardings = ref<any[]>([])
 const landlordCount = ref(0)
 const templateCount = ref(0)
 const signingCompleted = ref(0)
@@ -300,12 +338,13 @@ async function loadData() {
   loading.value = true
   animReady.value = false
   try {
-    const [s, signing, landlords, templates, signingAll] = await Promise.allSettled([
+    const [s, signing, landlords, templates, signingAll, onboarding] = await Promise.allSettled([
       api.get('/stats/'),
       api.get('/esigning/submissions/?status=pending&page_size=3'),
       api.get('/landlords/?page_size=1'),
       api.get('/leases/templates/?page_size=1'),
       api.get('/esigning/submissions/?page_size=1'),
+      api.get('/tenant/onboarding/?page_size=10'),
     ])
 
     propertiesStore.fetchAll()
@@ -313,6 +352,10 @@ async function loadData() {
 
     if (s.status === 'fulfilled') statsData.value = s.value.data
     if (signing.status === 'fulfilled') pendingSigning.value = (signing.value.data.results ?? signing.value.data).slice(0, 3)
+    if (onboarding.status === 'fulfilled') {
+      const all = onboarding.value.data.results ?? onboarding.value.data
+      pendingOnboardings.value = all.filter((ob: any) => !ob.is_complete).slice(0, 5)
+    }
 
     if (landlords.status === 'fulfilled') landlordCount.value = landlords.value.data.count ?? (landlords.value.data.results ?? landlords.value.data).length ?? 0
     if (templates.status === 'fulfilled') templateCount.value = templates.value.data.count ?? (templates.value.data.results ?? templates.value.data).length ?? 0

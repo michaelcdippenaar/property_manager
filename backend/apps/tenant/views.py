@@ -1,12 +1,15 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.permissions import IsAgentOrAdmin, IsTenant
 
-from .models import Tenant, TenantUnitAssignment
+from .models import Tenant, TenantOnboarding, TenantUnitAssignment
 from .serializers import (
     AssignUnitSerializer,
+    TenantOnboardingCreateSerializer,
+    TenantOnboardingSerializer,
     TenantSerializer,
     TenantUnitAssignmentSerializer,
 )
@@ -78,3 +81,63 @@ class TenantUnitAssignmentViewSet(viewsets.ModelViewSet):
         if tenant_id:
             qs = qs.filter(tenant_id=tenant_id)
         return qs
+
+
+class TenantOnboardingViewSet(viewsets.ModelViewSet):
+    """
+    CRUD + tick-item action for TenantOnboarding checklists.
+
+    Agents/admins: full access.
+    Tenants: read-only (GET list/detail) to power the welcome screen.
+    """
+
+    http_method_names = ["get", "post", "patch", "head", "options"]
+
+    def get_permissions(self):
+        if self.request.method in ("GET", "HEAD", "OPTIONS"):
+            # Both agents and tenants may read
+            return [IsAuthenticated()]
+        return [IsAgentOrAdmin()]
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return TenantOnboardingCreateSerializer
+        return TenantOnboardingSerializer
+
+    def get_queryset(self):
+        qs = TenantOnboarding.objects.select_related(
+            "lease__primary_tenant",
+            "lease__unit__property",
+        )
+        user = self.request.user
+        if user.role == "tenant":
+            # Tenant sees only their own onboarding records
+            qs = qs.filter(
+                lease__primary_tenant__linked_user=user,
+            )
+        else:
+            # Agents/admins can filter by lease or property
+            lease_id = self.request.query_params.get("lease")
+            if lease_id:
+                qs = qs.filter(lease_id=lease_id)
+            property_id = self.request.query_params.get("property")
+            if property_id:
+                qs = qs.filter(lease__unit__property_id=property_id)
+        return qs
+
+    def create(self, request, *args, **kwargs):
+        ser = TenantOnboardingCreateSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        onboarding = ser.save()
+        return Response(
+            TenantOnboardingSerializer(onboarding).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        """PATCH — tick one or more checklist items."""
+        instance = self.get_object()
+        ser = TenantOnboardingSerializer(instance, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        onboarding = ser.save()
+        return Response(TenantOnboardingSerializer(onboarding).data)

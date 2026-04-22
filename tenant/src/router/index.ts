@@ -30,6 +30,14 @@ const router = createRouter({
       meta: { public: true, depth: 0 },
     },
 
+    // ── Welcome / onboarding screen (full-screen, depth 1) ─────────
+    {
+      path: '/welcome',
+      name: 'welcome',
+      component: () => import('../views/home/WelcomeView.vue'),
+      meta: { requiresAuth: true, depth: 1 },
+    },
+
     // ── Main shell (depth 1) ────────────────────────────────────────
     {
       path: '/home',
@@ -117,6 +125,18 @@ router.beforeEach(async (to) => {
       auth.logout()
       return { name: 'login' }
     }
+  }
+
+  // Redirect tenant to welcome screen on first post-login visit
+  // (until they've seen it or dismissed it)
+  if (
+    to.name === 'home' &&
+    !sessionStorage.getItem('klikk_welcome_seen') &&
+    !sessionStorage.getItem('klikk_welcome_checked')
+  ) {
+    // Mark that we've already done this check this session to avoid looping
+    sessionStorage.setItem('klikk_welcome_checked', '1')
+    return { name: 'welcome' }
   }
 })
 

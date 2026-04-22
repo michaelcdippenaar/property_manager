@@ -256,6 +256,16 @@
       </div>
     </div>
 
+    <!-- ── Tab: Onboarding ── -->
+    <div v-else-if="activeTab === 'onboarding'" class="pt-2">
+      <TenantOnboardingView
+        :person-id="personId"
+        :latest-lease-id="activeLease?.id ?? (leases[0]?.id ?? null)"
+        :lease-deposit="activeLease?.deposit ?? leases[0]?.deposit ?? null"
+        :tenant-profile-path="`/tenants/${personId}`"
+      />
+    </div>
+
     <!-- ── Tab: Documents ── -->
     <div v-else-if="activeTab === 'documents'" class="pt-2">
       <div class="card p-5 space-y-4">
@@ -338,11 +348,12 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft, User, Users, Briefcase, Phone, Home, FileText, FileUp,
-  Upload, Eye, X, Loader2, Shield,
+  Upload, Eye, X, Loader2, Shield, ClipboardList,
 } from 'lucide-vue-next'
 
 import api from '../../api'
 import PageHeader from '../../components/PageHeader.vue'
+import TenantOnboardingView from './TenantOnboardingView.vue'
 import type { Person } from '../../types/person'
 import type { Lease } from '../../types/lease'
 import { usePersonsStore } from '../../stores/persons'
@@ -372,9 +383,10 @@ const uploadDocType = ref('id_copy')
 const local = ref<Partial<Person>>({})
 
 const tabs = [
-  { key: 'details',   label: 'Details',   icon: User },
-  { key: 'leases',    label: 'Leases',    icon: FileText },
-  { key: 'documents', label: 'Documents', icon: FileUp },
+  { key: 'details',    label: 'Details',    icon: User },
+  { key: 'leases',     label: 'Leases',     icon: FileText },
+  { key: 'onboarding', label: 'Onboarding', icon: ClipboardList },
+  { key: 'documents',  label: 'Documents',  icon: FileUp },
 ]
 const activeTab = ref('details')
 

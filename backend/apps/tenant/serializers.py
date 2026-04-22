@@ -1,10 +1,11 @@
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.accounts.models import Person
 from apps.leases.models import Lease
 from apps.properties.models import Unit
 
-from .models import Tenant, TenantUnitAssignment
+from .models import Tenant, TenantOnboarding, TenantUnitAssignment
 
 
 class TenantPersonSerializer(serializers.ModelSerializer):
@@ -73,6 +74,135 @@ class TenantUnitAssignmentSerializer(serializers.ModelSerializer):
         if obj.lease:
             return obj.lease.lease_number or f"Lease #{obj.lease_id}"
         return None
+
+
+class TenantOnboardingSerializer(serializers.ModelSerializer):
+    """
+    Serializer for TenantOnboarding checklist.
+
+    Read: full state of all checklist items + computed fields.
+    Write (PATCH): set any boolean item to true — the serializer automatically
+      stamps the corresponding *_at timestamp and updates completed_at when all
+      v1 items are ticked.
+    """
+
+    progress = serializers.IntegerField(read_only=True)
+    is_complete = serializers.BooleanField(read_only=True)
+    lease_id = serializers.IntegerField(source="lease_id", read_only=True)
+    lease_number = serializers.SerializerMethodField()
+    tenant_name = serializers.SerializerMethodField()
+    primary_tenant_id = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TenantOnboarding
+        fields = [
+            "id",
+            "lease_id",
+            "lease_number",
+            "tenant_name",
+            "primary_tenant_id",
+            # v1 items
+            "welcome_pack_sent",
+            "welcome_pack_sent_at",
+            "deposit_received",
+            "deposit_received_at",
+            "deposit_amount",
+            "first_rent_scheduled",
+            "first_rent_scheduled_at",
+            "keys_handed_over",
+            "keys_handed_over_at",
+            "emergency_contacts_captured",
+            "emergency_contacts_captured_at",
+            # v2 deferred
+            "incoming_inspection_booked",
+            "incoming_inspection_booked_at",
+            "deposit_banked_trust",
+            "deposit_banked_trust_at",
+            # computed
+            "progress",
+            "is_complete",
+            "completed_at",
+            "notes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "lease_id",
+            "lease_number",
+            "tenant_name",
+            "primary_tenant_id",
+            "welcome_pack_sent_at",
+            "deposit_received_at",
+            "first_rent_scheduled_at",
+            "keys_handed_over_at",
+            "emergency_contacts_captured_at",
+            "incoming_inspection_booked_at",
+            "deposit_banked_trust_at",
+            "progress",
+            "is_complete",
+            "completed_at",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_lease_number(self, obj: TenantOnboarding) -> str:
+        return obj.lease.lease_number or f"Lease #{obj.lease_id}"
+
+    def get_tenant_name(self, obj: TenantOnboarding) -> str:
+        pt = obj.lease.primary_tenant
+        return pt.full_name if pt else "—"
+
+    def get_primary_tenant_id(self, obj: TenantOnboarding) -> int | None:
+        pt = obj.lease.primary_tenant
+        return pt.pk if pt else None
+
+    # Timestamp fields corresponding to each boolean flag
+    _TIMESTAMP_MAP: dict[str, str] = {
+        "welcome_pack_sent": "welcome_pack_sent_at",
+        "deposit_received": "deposit_received_at",
+        "first_rent_scheduled": "first_rent_scheduled_at",
+        "keys_handed_over": "keys_handed_over_at",
+        "emergency_contacts_captured": "emergency_contacts_captured_at",
+        "incoming_inspection_booked": "incoming_inspection_booked_at",
+        "deposit_banked_trust": "deposit_banked_trust_at",
+    }
+
+    def update(self, instance: TenantOnboarding, validated_data: dict) -> TenantOnboarding:
+        now = timezone.now()
+        for flag, ts_field in self._TIMESTAMP_MAP.items():
+            if flag in validated_data:
+                new_val = validated_data[flag]
+                # Only stamp timestamp when transitioning False → True
+                if new_val and not getattr(instance, flag):
+                    validated_data[ts_field] = now
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        # Auto-complete when all v1 items are ticked
+        if instance.is_complete and instance.completed_at is None:
+            instance.completed_at = now
+
+        instance.save()
+        return instance
+
+
+class TenantOnboardingCreateSerializer(serializers.Serializer):
+    """Input serializer for creating an onboarding record for a lease."""
+
+    lease_id = serializers.PrimaryKeyRelatedField(queryset=Lease.objects.all(), source="lease")
+
+    def validate(self, data):
+        lease = data["lease"]
+        if TenantOnboarding.objects.filter(lease=lease).exists():
+            raise serializers.ValidationError(
+                {"lease_id": "An onboarding record already exists for this lease."}
+            )
+        return data
+
+    def create(self, validated_data):
+        return TenantOnboarding.objects.create(lease=validated_data["lease"])
 
 
 class AssignUnitSerializer(serializers.Serializer):

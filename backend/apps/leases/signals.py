@@ -55,6 +55,26 @@ def sync_unit_status_on_delete(sender, instance: Lease, **kwargs):
 
 
 @receiver(post_save, sender=Lease)
+def create_onboarding_on_active(sender, instance: Lease, created: bool, **kwargs):
+    """
+    When a Lease becomes `active`, ensure a TenantOnboarding checklist exists.
+
+    Guards against duplicate creation (OneToOneField) and import-time
+    circular import (lazy import inside the function).
+    """
+    if instance.status != Lease.Status.ACTIVE:
+        return
+    try:
+        from apps.tenant.models import TenantOnboarding
+
+        TenantOnboarding.objects.get_or_create(lease=instance)
+    except Exception:
+        logger.exception(
+            "Failed to create TenantOnboarding for lease #%s", instance.pk
+        )
+
+
+@receiver(post_save, sender=Lease)
 def broadcast_lease_update(sender, instance: Lease, created: bool, **kwargs):
     """Broadcast lease list changes to admin WebSocket clients."""
     try:

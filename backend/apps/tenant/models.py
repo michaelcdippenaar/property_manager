@@ -8,6 +8,113 @@ from apps.leases.models import Lease
 from apps.properties.models import Property, Unit
 
 
+class TenantOnboarding(models.Model):
+    """
+    Tracks the onboarding checklist for a tenant after their lease is signed.
+
+    Created automatically when a Lease moves to `active` status (via signal)
+    or created manually by an agent. Each boolean flag represents one step
+    the agent must complete to fully onboard the tenant.
+
+    When all v1 items are ticked, the lease is set to `active` and the unit
+    to `occupied` via the signal in leases/signals.py (already wired).
+
+    v2 items (incoming inspection, trust account deposit banking) are stored
+    but not included in the completion calculation.
+    """
+
+    lease = models.OneToOneField(
+        Lease,
+        on_delete=models.CASCADE,
+        related_name="onboarding",
+        help_text="The lease this onboarding checklist belongs to.",
+    )
+
+    # ── v1 checklist items ────────────────────────────────────────────────────
+    welcome_pack_sent = models.BooleanField(
+        default=False,
+        help_text="Welcome pack / house rules document sent to tenant.",
+    )
+    welcome_pack_sent_at = models.DateTimeField(null=True, blank=True)
+
+    deposit_received = models.BooleanField(
+        default=False,
+        help_text="Deposit payment received from tenant.",
+    )
+    deposit_received_at = models.DateTimeField(null=True, blank=True)
+    deposit_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text="Actual amount received (may differ from lease deposit).",
+    )
+
+    first_rent_scheduled = models.BooleanField(
+        default=False,
+        help_text="First rent payment scheduled / confirmed.",
+    )
+    first_rent_scheduled_at = models.DateTimeField(null=True, blank=True)
+
+    keys_handed_over = models.BooleanField(
+        default=False,
+        help_text="Physical keys / access codes handed to tenant.",
+    )
+    keys_handed_over_at = models.DateTimeField(null=True, blank=True)
+
+    emergency_contacts_captured = models.BooleanField(
+        default=False,
+        help_text="Emergency contact details captured on the tenant record.",
+    )
+    emergency_contacts_captured_at = models.DateTimeField(null=True, blank=True)
+
+    # ── v2 deferred items (stored, excluded from progress calc) ───────────────
+    incoming_inspection_booked = models.BooleanField(
+        default=False,
+        help_text="[v2 deferred] Incoming inspection appointment booked.",
+    )
+    incoming_inspection_booked_at = models.DateTimeField(null=True, blank=True)
+
+    deposit_banked_trust = models.BooleanField(
+        default=False,
+        help_text="[v2 deferred] Deposit transferred to trust account.",
+    )
+    deposit_banked_trust_at = models.DateTimeField(null=True, blank=True)
+
+    # ── Metadata ──────────────────────────────────────────────────────────────
+    notes = models.TextField(blank=True, help_text="Agent notes about this onboarding.")
+    completed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Set automatically when all v1 items are ticked.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tenant Onboarding"
+        verbose_name_plural = "Tenant Onboardings"
+
+    def __str__(self) -> str:
+        return f"Onboarding for {self.lease}"
+
+    # ── v1 items used for progress % calculation ──────────────────────────────
+    V1_ITEMS: tuple[str, ...] = (
+        "welcome_pack_sent",
+        "deposit_received",
+        "first_rent_scheduled",
+        "keys_handed_over",
+        "emergency_contacts_captured",
+    )
+
+    @property
+    def progress(self) -> int:
+        """Return completion percentage (0–100) based on v1 items only."""
+        done = sum(1 for field in self.V1_ITEMS if getattr(self, field))
+        return round(done / len(self.V1_ITEMS) * 100)
+
+    @property
+    def is_complete(self) -> bool:
+        """True when all v1 checklist items are ticked."""
+        return all(getattr(self, field) for field in self.V1_ITEMS)
+
+
 class Tenant(models.Model):
     """
     Canonical tenant record. Bridges Person (legal identity) and

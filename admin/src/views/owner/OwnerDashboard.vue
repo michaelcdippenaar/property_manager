@@ -25,6 +25,32 @@
       </div>
     </div>
 
+    <!-- Onboarding in progress -->
+    <div v-if="pendingOnboardings.length > 0" class="card p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xs font-semibold uppercase tracking-wide text-navy flex items-center gap-1.5">
+          <ClipboardList :size="13" /> Tenant onboarding in progress
+        </h2>
+      </div>
+      <div class="space-y-3">
+        <div v-for="ob in pendingOnboardings" :key="ob.id" class="flex items-center gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-sm font-medium text-gray-800 truncate">{{ ob.tenant_name }}</span>
+              <span class="text-xs font-semibold text-gray-600 tabular-nums ml-2">{{ ob.progress }}%</span>
+            </div>
+            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-navy rounded-full transition-all duration-500"
+                :style="{ width: `${ob.progress}%` }"
+              />
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">{{ ob.lease_number }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI Lease Builder CTA -->
     <RouterLink to="/owner/leases"
       class="card p-5 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer group no-underline block"
@@ -44,15 +70,23 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { Sparkles, ChevronRight } from 'lucide-vue-next'
+import { Sparkles, ChevronRight, ClipboardList } from 'lucide-vue-next'
 import api from '../../api'
 
 const stats = ref<any>(null)
+const pendingOnboardings = ref<any[]>([])
 
 onMounted(async () => {
   try {
-    const { data } = await api.get('/properties/owner/dashboard/')
-    stats.value = data
+    const [dashRes, onboardingRes] = await Promise.allSettled([
+      api.get('/properties/owner/dashboard/'),
+      api.get('/tenant/onboarding/?page_size=10'),
+    ])
+    if (dashRes.status === 'fulfilled') stats.value = dashRes.value.data
+    if (onboardingRes.status === 'fulfilled') {
+      const all = onboardingRes.value.data.results ?? onboardingRes.value.data
+      pendingOnboardings.value = all.filter((ob: any) => !ob.is_complete).slice(0, 5)
+    }
   } catch { /* ignore */ }
 })
 </script>
