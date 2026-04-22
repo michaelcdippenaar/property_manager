@@ -7,12 +7,12 @@ lifecycle_stage: 11
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177140664256"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (approved by reviewer)
+updated: 2026-04-22
 ---
 
 ## Goal
@@ -151,3 +151,10 @@ All three blockers from the previous cycle are resolved.
 5. **Security pass (re-confirmed)**: no new endpoints introduced in this commit. Existing `/maintenance/overdue/` auth and role-scoping unchanged. No raw SQL, no PII logged, no secrets.
 
 No outstanding issues. Proceed to test plan: `pytest backend/apps/maintenance/tests/test_sla.py` + manual emergency-ticket countdown scenario.
+
+### 2026-04-22 — tester
+
+**Test run**
+
+- `pytest backend/apps/maintenance/tests/test_sla.py` — **16 passed** (39.47s). All default SLA hours, agency override, deadline computation, pct properties, overdue flag, escalation marking, no-re-escalation, and priority-change recompute tests pass.
+- Manual UI — "Create emergency ticket → chip shows 4h countdown → roll forward time → chip goes red → escalation email sent" — **BLOCKED: untestable locally.** The time-rollforward and escalation-email steps require either a Django `freeze_time` / shell time-travel helper or a local mail sink (e.g. Mailpit/MailHog). Neither is configured in the dev environment. The component logic and escalation task are verified correct by code review (SLACountdownChip.vue colour thresholds match spec; management command wired). Test plan must be updated to either (a) add a pytest test using `freezegun` for the time-roll scenario + assert `sla_escalated=True`, or (b) explicitly accept that the time-rollforward step is covered by existing unit tests and drop the live-UI time-travel requirement.
