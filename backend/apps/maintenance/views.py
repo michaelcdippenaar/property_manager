@@ -39,6 +39,18 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status", "priority", "unit", "supplier"]
 
+    # Actions that mutate dispatch / awarding state must be agent-only.
+    _AGENT_ONLY_ACTIONS = {"dispatch_award", "dispatch_send", "job_dispatch"}
+
+    def get_permissions(self):
+        if self.action in self._AGENT_ONLY_ACTIONS:
+            # job_dispatch handles both GET (read) and POST (mutate).
+            # Only lock down the mutating POST; GET stays IsAuthenticated.
+            if self.action == "job_dispatch" and self.request.method == "GET":
+                return [IsAuthenticated()]
+            return [IsAgentOrAdmin()]
+        return super().get_permissions()
+
     def get_queryset(self):
         user = self.request.user
         qs = MaintenanceRequest.objects.select_related("supplier", "tenant").annotate(

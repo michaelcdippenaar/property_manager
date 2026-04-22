@@ -138,6 +138,53 @@ class MaintenanceActivityTests(TremlyAPITestCase):
         self.assertEqual(resp.data["metadata"], {})
 
 
+class MaintenanceDispatchTenantForbiddenTests(TremlyAPITestCase):
+    """Tenants must receive HTTP 403 on all three agent-only dispatch actions."""
+
+    def setUp(self):
+        self.agent = self.create_agent()
+        self.tenant = self.create_tenant()
+        self.prop = self.create_property(agent=self.agent)
+        self.unit = self.create_unit(property_obj=self.prop)
+        self.mr = self.create_maintenance_request(unit=self.unit, tenant=self.tenant)
+        self.supplier = self.create_supplier()
+        SupplierTrade.objects.create(supplier=self.supplier, trade="plumbing")
+        self.jd = JobDispatch.objects.create(maintenance_request=self.mr, dispatched_by=self.agent)
+        self.qr = JobQuoteRequest.objects.create(
+            dispatch=self.jd, supplier=self.supplier, status="quoted",
+        )
+
+    def test_tenant_cannot_post_job_dispatch(self):
+        self.authenticate(self.tenant)
+        resp = self.client.post(reverse("maintenance-job-dispatch", args=[self.mr.pk]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_tenant_can_get_job_dispatch(self):
+        """GET dispatch remains accessible to authenticated users (tenants can view)."""
+        self.authenticate(self.tenant)
+        resp = self.client.get(reverse("maintenance-job-dispatch", args=[self.mr.pk]))
+        # 200 (dispatch exists) or 404 (none yet) — either is fine, NOT 403
+        self.assertIn(resp.status_code, [200, 404])
+
+    def test_tenant_cannot_dispatch_send(self):
+        self.authenticate(self.tenant)
+        resp = self.client.post(
+            reverse("maintenance-dispatch-send", args=[self.mr.pk]),
+            {"supplier_ids": [self.supplier.pk]},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_tenant_cannot_dispatch_award(self):
+        self.authenticate(self.tenant)
+        resp = self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": self.qr.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
+
+
 class MaintenanceDispatchTests(TremlyAPITestCase):
 
     def setUp(self):
