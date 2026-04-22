@@ -7,9 +7,9 @@ lifecycle_stage: 10
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177452054690"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -95,3 +95,15 @@ Applied all three required security fixes to `backend/apps/payments/views.py`:
 - `@transaction.atomic` on all mutation functions — correct.
 - `_notify_reversal` wrapped in `try/except` — acceptable degradation.
 - `PaymentAuditLog` is append-only by design (no update/delete model methods).
+
+### 2026-04-22 — Review passed
+
+Checked all three required security fixes from the previous cycle against `backend/apps/payments/views.py` (commit c858463):
+
+1. **Permission class** — `IsAgentOrAdmin` correctly applied to `RentInvoiceViewSet`, `RentPaymentViewSet`, and `UnmatchedPaymentViewSet`. `IsAuthenticated` import removed. `IsAgentOrAdmin` confirmed to exist in `apps.accounts.permissions` (line 35).
+
+2. **Scope comments** — Prescribed comment present at `get_queryset()` in both `RentInvoiceViewSet` (line 58) and `UnmatchedPaymentViewSet` (line 178).
+
+3. **Viewset base restriction** — `RentInvoiceViewSet` is `RetrieveModelMixin + ListModelMixin + GenericViewSet` (no create/update/destroy). `UnmatchedPaymentViewSet` is `CreateModelMixin + RetrieveModelMixin + ListModelMixin + GenericViewSet` (no update/destroy). `RentPaymentViewSet` remains `RetrieveModelMixin + GenericViewSet`.
+
+All six acceptance criteria remain satisfied by models, reconciliation engine, and 23 tests. POPIA pass: no PII in audit log, all ORM writes parameterised, no raw SQL, `@transaction.atomic` on mutations. No new security issues introduced. Advancing to testing.
