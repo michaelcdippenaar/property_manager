@@ -90,6 +90,7 @@ services:
 
   # ── Marketing website (Astro) ─────────────────────────────────────────────
   website_web:
+    image: ${WEBSITE_IMAGE:-ghcr.io/michaelcdippenaar/klikk-website:latest}
     build:
       context: ..
       dockerfile: website/Dockerfile
