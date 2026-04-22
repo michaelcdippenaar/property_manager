@@ -267,7 +267,7 @@ class TierService:
         return LeaseBuilderSession.objects.filter(
             created_by_id__in=agent_ids,
             status="finalized",
-            updated_at__year=year,
+            created_at__year=year,
         ).count()
 
     def quota_statuses(self) -> list[QuotaStatus]:

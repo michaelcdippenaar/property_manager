@@ -33,6 +33,7 @@ import functools
 import os
 from typing import Callable
 
+from django.core.exceptions import ImproperlyConfigured
 from rest_framework import status
 from rest_framework.response import Response
 
@@ -63,10 +64,20 @@ def requires_feature(feature_slug: str) -> Callable:
                 # CBV: first_arg is self, args[0] is request
                 request = args[0]
             else:
-                # Can't identify request — let view handle it
-                request = None
+                # Cannot identify DRF Request — fail hard rather than granting access.
+                import django.conf
+                if django.conf.settings.DEBUG:
+                    raise ImproperlyConfigured(
+                        f"@requires_feature could not resolve DRF Request for feature "
+                        f"'{feature_slug}'. Check that the decorator is applied to a CBV "
+                        f"method (self, request, ...) or a plain FBV (request, ...)."
+                    )
+                return Response(
+                    {"detail": "Feature enforcement failed."},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
-            if request is not None and hasattr(request, 'user') and request.user.is_authenticated:
+            if hasattr(request, 'user') and request.user.is_authenticated:
                 from apps.accounts.models import Agency
                 from apps.accounts.tier_service import TierService
 
