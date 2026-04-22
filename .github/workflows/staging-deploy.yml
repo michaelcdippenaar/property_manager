@@ -1,8 +1,12 @@
 name: Deploy to Staging
 
 on:
-  push:
-    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for this deploy (optional)"
+        required: false
+        default: ""
 
 concurrency:
   group: staging-deploy

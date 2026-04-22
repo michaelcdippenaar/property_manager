@@ -7,7 +7,7 @@ Two GitHub Actions workflows automate quality gates and deployments:
 | Workflow | File | Trigger |
 |----------|------|---------|
 | **CI** | `.github/workflows/ci.yml` | Every PR to `main`, every push to `main` |
-| **Deploy to Staging** | `.github/workflows/staging-deploy.yml` | Every push to `main` (after CI passes) |
+| **Deploy to Staging** | `.github/workflows/staging-deploy.yml` | **Manual only** — `workflow_dispatch` (GitHub Actions UI or `gh workflow run`) |
 
 ---
 
@@ -37,7 +37,7 @@ Runs three parallel jobs:
 
 ## Staging Deploy Workflow
 
-Runs on every push to `main` (i.e. after any PR merge).
+Trigger: **manual only** (`workflow_dispatch`). Go to **GitHub → Actions → Deploy to Staging → Run workflow** and click "Run workflow". Auto-deploy on push to `main` is intentionally disabled until MC has manually tested the staging environment.
 
 ### `build-and-push` job
 - Tags all images with the short Git SHA (first 8 chars of `GITHUB_SHA`).
@@ -66,7 +66,7 @@ Set these in **GitHub → repository Settings → Secrets and variables → Acti
 |-------------|-------------|
 | `STAGING_SSH_KEY` | Private key matching the public key in `~/.ssh/authorized_keys` on the staging server. Use `ssh-keygen -t ed25519 -C "github-actions"`. |
 | `STAGING_SSH_USER` | SSH username (e.g. `mc`) |
-| `STAGING_HOST` | Staging server IP or hostname (e.g. `192.168.1.235`) |
+| `STAGING_HOST` | Staging server IP or hostname — set to `102.135.240.222` (or `www.klikk.co.za`) |
 | `STAGING_DOMAIN` | Public domain for the smoke-check (e.g. `backend.klikk.co.za`) |
 | `GHCR_PAT` | GitHub Personal Access Token with `read:packages` scope — used to `docker login ghcr.io` on the staging server so it can pull images. |
 
@@ -95,7 +95,7 @@ Each deploy keeps the previous image tag alive in GHCR (only `latest` is overwri
 SSH into the staging server and re-pin to the previous SHA:
 
 ```bash
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 cd ~/apps/property_manager
 
 # Find the previous commit SHA (8 chars)
