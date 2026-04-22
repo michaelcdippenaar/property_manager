@@ -37,9 +37,13 @@
         <SearchInput v-model="search" placeholder="Search suppliers…" />
       </div>
 
-      <div v-if="loading" class="p-6 space-y-3 animate-pulse">
-        <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
-      </div>
+      <LoadingState v-if="loading" variant="table" :rows="5" double-row />
+
+      <ErrorState
+        v-else-if="loadError"
+        :on-retry="loadSuppliers"
+        :offline="isOffline"
+      />
 
       <div v-else class="table-scroll"><table class="table-wrap">
         <thead>
@@ -465,11 +469,15 @@ import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import PageHeader from '../../components/PageHeader.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import { useToast } from '../../composables/useToast'
 
 const toast = useToast()
 
 const loading = ref(true)
+const loadError = ref(false)
+const isOffline = ref(false)
 const saving = ref(false)
 const search = ref('')
 const dialog = ref(false)
@@ -546,12 +554,17 @@ onMounted(async () => {
 
 async function loadSuppliers() {
   loading.value = true
+  loadError.value = false
+  isOffline.value = false
   try {
     const params: Record<string, any> = {}
     if (activeFilter.value === 'active') params.is_active = true
     if (activeFilter.value === 'inactive') params.is_active = false
     const { data } = await api.get('/maintenance/suppliers/', { params })
     suppliers.value = data.results ?? data
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
   } finally {
     loading.value = false
   }

@@ -31,13 +31,13 @@
     <FilterPills v-model="activeFilter" :options="filterOptions" @update:modelValue="loadRequests()" />
 
     <!-- Loading skeletons -->
-    <div v-if="loading" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      <div v-for="i in 6" :key="i" class="card p-5 space-y-3 animate-pulse">
-        <div class="h-3 bg-gray-100 rounded w-1/3"></div>
-        <div class="h-4 bg-gray-100 rounded w-2/3"></div>
-        <div class="h-3 bg-gray-100 rounded w-full"></div>
-      </div>
-    </div>
+    <LoadingState v-if="loading" variant="cards" :rows="6" />
+
+    <ErrorState
+      v-else-if="loadError"
+      :on-retry="loadRequests"
+      :offline="isOffline"
+    />
 
     <!-- Request cards -->
     <div v-else class="space-y-3">
@@ -85,10 +85,14 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '../../api'
 import { Clock, Truck, Archive, MessageCircle, User, Wrench } from 'lucide-vue-next'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import PageHeader from '../../components/PageHeader.vue'
 
 const loading = ref(true)
+const loadError = ref(false)
+const isOffline = ref(false)
 const activeFilter = ref('all')
 const requests = ref<any[]>([])
 const activeTab = ref<'active' | 'archived'>('active')
@@ -161,6 +165,8 @@ function connectListSocket() {
 
 async function loadRequests() {
   loading.value = true
+  loadError.value = false
+  isOffline.value = false
   try {
     const params: Record<string, string> = {}
     if (activeTab.value === 'archived') {
@@ -172,6 +178,9 @@ async function loadRequests() {
     }
     const { data } = await api.get('/maintenance/', { params })
     requests.value = data.results ?? data
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
   } finally {
     loading.value = false
   }

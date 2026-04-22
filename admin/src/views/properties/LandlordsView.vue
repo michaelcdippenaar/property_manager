@@ -18,9 +18,13 @@
         <FilterPills v-model="typeFilter" :options="typeOptions" />
       </div>
 
-      <div v-if="loading" class="p-6 space-y-3 animate-pulse">
-        <div v-for="i in 4" :key="i" class="h-5 bg-gray-100 rounded"></div>
-      </div>
+      <LoadingState v-if="loading" variant="table" :rows="4" show-avatar double-row />
+
+      <ErrorState
+        v-else-if="loadError"
+        :on-retry="reload"
+        :offline="isOffline"
+      />
 
       <div v-else-if="filteredLandlords.length" class="table-scroll"><table class="table-wrap">
         <thead>
@@ -170,6 +174,8 @@ import BaseModal from '../../components/BaseModal.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import type { PillOption } from '../../components/FilterPills.vue'
 import { useToast } from '../../composables/useToast'
@@ -191,6 +197,8 @@ const router = useRouter()
 const landlordsStore = useLandlordsStore()
 const { list: landlords, loading } = storeToRefs(landlordsStore)
 
+const loadError = ref(false)
+const isOffline = ref(false)
 const saving = ref(false)
 const search = ref('')
 const typeFilter = ref('all')
@@ -207,10 +215,26 @@ const createForm = ref({
   phone: '',
 })
 
+async function reload() {
+  loadError.value = false
+  isOffline.value = false
+  try {
+    await landlordsStore.fetchAll({ force: true })
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load owners'))
+  }
+}
+
 // Store handles cross-view reactivity — fetchAll() is a no-op within the
 // staleness window, so this is safe to call on every mount.
 onMounted(() => {
-  landlordsStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load owners')))
+  landlordsStore.fetchAll().catch((err: any) => {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load owners'))
+  })
 })
 
 const typeOptions = computed((): PillOption[] => {

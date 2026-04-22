@@ -27,9 +27,13 @@
         <button class="btn-ghost btn-sm text-gray-500" @click="selectedPropertyIds = []">Clear</button>
       </div>
 
-      <div v-if="loading" class="p-6 space-y-3 animate-pulse">
-        <div v-for="i in 4" :key="i" class="h-5 bg-gray-100 rounded"></div>
-      </div>
+      <LoadingState v-if="loading" variant="table" :rows="4" show-avatar show-badge double-row />
+
+      <ErrorState
+        v-else-if="loadError"
+        :on-retry="reload"
+        :offline="isOffline"
+      />
 
       <div v-else-if="filteredProperties.length" class="table-scroll"><table class="table-wrap">
         <thead>
@@ -350,6 +354,8 @@ import BaseModal from '../../components/BaseModal.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import SearchInput from '../../components/SearchInput.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
 import { extractApiError } from '../../utils/api-errors'
@@ -367,6 +373,8 @@ const toast = useToast()
 const propertiesStore = usePropertiesStore()
 const ownershipsStore = useOwnershipsStore()
 const { list: properties, loading } = storeToRefs(propertiesStore)
+const loadError = ref(false)
+const isOffline = ref(false)
 const saving = ref(false)
 const search = ref('')
 const statusFilter = ref('all')
@@ -529,8 +537,24 @@ function onAddressSelect(addr: AddressResult) {
 // Both lists flow through Pinia stores: cross-view mutations stay in sync
 // reactively, the 30s staleness window dedupes navigation, and KeepAlive's
 // stale-on-revisit problem is gone — no `onActivated` workaround needed.
+async function reload() {
+  loadError.value = false
+  isOffline.value = false
+  try {
+    await propertiesStore.fetchAll({ force: true })
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load properties'))
+  }
+}
+
 onMounted(() => {
-  propertiesStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load properties')))
+  propertiesStore.fetchAll().catch((err: any) => {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load properties'))
+  })
   landlordsStore.fetchAll().catch((err) => toast.error(extractApiError(err, 'Failed to load owners')))
 })
 

@@ -40,9 +40,13 @@
 
     <!-- ── Tab: All / Active / Expired — Lease table ── -->
     <div v-if="activeTab !== 'draft'" class="card overflow-hidden">
-      <div v-if="loading" class="p-6 space-y-3 animate-pulse">
-        <div v-for="i in 4" :key="i" class="h-14 bg-gray-100 rounded-lg"></div>
-      </div>
+      <LoadingState v-if="loading" variant="table" :rows="4" double-row />
+
+      <ErrorState
+        v-else-if="loadError"
+        :on-retry="loadLeases"
+        :offline="isOffline"
+      />
 
       <EmptyState
         v-else-if="!filteredLeases.length"
@@ -497,6 +501,8 @@ import ImportLeaseWizard from './ImportLeaseWizard.vue'
 import EditLeaseDrawer from './EditLeaseDrawer.vue'
 import ESigningPanel from './ESigningPanel.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import BaseDrawer from '../../components/BaseDrawer.vue'
 import BaseModal from '../../components/BaseModal.vue'
@@ -526,6 +532,8 @@ const tabs = computed(() => [
 const leasesStore = useLeasesStore()
 const personsStore = usePersonsStore()
 const { list: leases, loading } = storeToRefs(leasesStore)
+const loadError = ref(false)
+const isOffline = ref(false)
 const saving = ref(false)
 const showImport = ref(false)
 const showEdit = ref(false)
@@ -689,9 +697,13 @@ const signingData = ref(new Map<number, any>())
 const signingPanelRefs = ref<Record<number, any>>({})
 
 async function loadLeases() {
+  loadError.value = false
+  isOffline.value = false
   try {
     await leasesStore.fetchAll({ force: true })
-  } catch (err) {
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
     toast.error(extractApiError(err, 'Failed to load leases'))
   }
   loadSigningStatuses()

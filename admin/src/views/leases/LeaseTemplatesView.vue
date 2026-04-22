@@ -13,9 +13,13 @@
     </PageHeader>
 
     <!-- Template grid -->
-    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <div v-for="i in 4" :key="i" class="h-28 bg-gray-100 rounded-xl animate-pulse" />
-    </div>
+    <LoadingState v-if="loading" variant="cards" :rows="4" grid-cols="grid-cols-1 sm:grid-cols-2" />
+
+    <ErrorState
+      v-else-if="loadError"
+      :on-retry="reloadTemplates"
+      :offline="isOffline"
+    />
 
     <EmptyState
       v-else-if="!templates.length"
@@ -215,12 +219,16 @@ import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2, MoreVer
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
 const toast = useToast()
 const loading   = ref(true)
+const loadError = ref(false)
+const isOffline = ref(false)
 const templates = ref<any[]>([])
 const showCreate = ref(false)
 const creating  = ref(false)
@@ -280,13 +288,22 @@ async function archiveTemplate(e: Event, tmpl: any) {
   } catch { toast.error('Failed to archive') }
 }
 
-onMounted(async () => {
+async function reloadTemplates() {
+  loading.value = true
+  loadError.value = false
+  isOffline.value = false
   try {
     const { data } = await api.get('/leases/templates/')
     templates.value = data.results ?? data
-  } catch { /* ignore */ }
-  finally { loading.value = false }
-})
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(reloadTemplates)
 
 function onFileChange(e: Event) {
   form.value.file = (e.target as HTMLInputElement).files?.[0] ?? null

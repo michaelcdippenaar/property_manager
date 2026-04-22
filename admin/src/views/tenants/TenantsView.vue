@@ -24,9 +24,13 @@
         </div>
       </div>
 
-      <div v-if="loading" class="p-6 space-y-3 animate-pulse">
-        <div v-for="i in 5" :key="i" class="h-5 bg-gray-100 rounded"></div>
-      </div>
+      <LoadingState v-if="loading" variant="table" :rows="5" show-avatar double-row />
+
+      <ErrorState
+        v-else-if="loadError"
+        :on-retry="reload"
+        :offline="isOffline"
+      />
 
       <div v-else-if="filteredTenants.length" class="table-scroll"><table class="table-wrap">
         <thead>
@@ -88,6 +92,8 @@ import { Users, FilePlus2 } from 'lucide-vue-next'
 import SearchInput from '../../components/SearchInput.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import EmptyState from '../../components/EmptyState.vue'
+import LoadingState from '../../components/states/LoadingState.vue'
+import ErrorState from '../../components/states/ErrorState.vue'
 import { useToast } from '../../composables/useToast'
 import { initials, formatDate } from '../../utils/formatters'
 import { extractApiError } from '../../utils/api-errors'
@@ -96,6 +102,8 @@ import { usePersonsStore } from '../../stores/persons'
 const toast = useToast()
 const personsStore = usePersonsStore()
 const { tenants, loading } = storeToRefs(personsStore)
+const loadError = ref(false)
+const isOffline = ref(false)
 const search = ref('')
 const activeTab = ref<'all' | 'active' | 'inactive'>('all')
 
@@ -105,8 +113,24 @@ const tabs = [
   { key: 'inactive', label: 'Inactive' },
 ]
 
+async function reload() {
+  loadError.value = false
+  isOffline.value = false
+  try {
+    await personsStore.fetchTenants()
+  } catch (err: any) {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load tenants'))
+  }
+}
+
 onMounted(() => {
-  personsStore.fetchTenants().catch((err) => toast.error(extractApiError(err, 'Failed to load tenants')))
+  personsStore.fetchTenants().catch((err: any) => {
+    isOffline.value = !navigator.onLine
+    loadError.value = true
+    toast.error(extractApiError(err, 'Failed to load tenants'))
+  })
 })
 
 const filteredTenants = computed(() => {
