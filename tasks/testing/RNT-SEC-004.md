@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462750411"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -89,3 +89,20 @@ The `test_hub` app (`/api/v1/test-hub/`) was included unconditionally in `config
 ### 2026-04-22 — implementer (reviewer fix)
 
 Added `ENABLE_TEST_ENDPOINTS` row to the env-vars reference table in `deploy/DEVOPS.md` (section 6, "All backend environment variables"). The row explicitly marks the prod value as `False` and explains what it gates. All acceptance criteria are now met.
+
+### 2026-04-22 — reviewer: review passed (r2)
+
+**Verdict:** Approve.
+
+Checked the r2 commit (`07798f9`). The only change is a single row added to the env-vars table in `deploy/DEVOPS.md` at line 267, inside the "All backend environment variables" section. The row correctly marks the staging value as `True`, the production value as `**`False`**` (bolded), and names both gated surfaces (`/api/v1/test-hub/` and `ESigningTestPdfView`). This is precisely what was requested in the round-1 send-back.
+
+All five acceptance criteria are now satisfied:
+- Audit completed (only `ESigningTestPdfView` found; other named offenders confirmed absent).
+- `ENABLE_TEST_ENDPOINTS` flag added to `backend/config/settings/base.py` with `default=False`.
+- URL-level gating in `backend/config/urls.py` (test-hub block) and view-level guard in `ESigningTestPdfView.get()`.
+- `.env.production`, `.env.staging`, `.env.example` all updated.
+- `deploy/DEVOPS.md` env-vars table updated — criterion now met.
+
+Security pass: no new auth bypass, no PII logged, no raw SQL, no unvalidated input introduced. Flag default is `False`, so a missing env var fails closed in production.
+
+Test plan (`pytest backend/apps/test_hub/esigning/integration/test_endpoint_gating.py`) verified by tester.
