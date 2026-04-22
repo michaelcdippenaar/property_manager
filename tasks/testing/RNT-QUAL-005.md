@@ -7,12 +7,12 @@ lifecycle_stage: 1
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379658607"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r2
+updated: 2026-04-22-r3
 ---
 
 ## Goal
@@ -112,3 +112,14 @@ In `mandate_views.py` the `renew` action now:
 3. Reads override values from `renew_ser.validated_data` (Python-typed, never raw strings) when constructing the new `RentalMandate`.
 
 `MandateRenewSerializer` is also exported in the import line alongside `RentalMandateSerializer`. Smoke-checked: `django.setup()` + both serializer imports + viewset import all resolve cleanly.
+
+### 2026-04-22 — reviewer: Review passed
+
+Re-work commit `acf4966` addresses the only issue raised in the first round.
+
+Checked:
+- `MandateRenewSerializer` (plain `Serializer`, not `ModelSerializer`) correctly declares all seven optional override fields with proper DRF field types: `DecimalField` with matching `max_digits`/`decimal_places`, `DateField`, `ChoiceField` bound to `CommissionPeriod.choices`, `IntegerField(min_value=0)` for `notice_period_days`, `CharField(allow_blank=True)` for notes.
+- `renew` action in `mandate_views.py` (lines 248-252) now instantiates the serializer, returns HTTP 400 with field-level errors on invalid input, and reads all override values from `validated_data` — no raw `request.data` strings reach the ORM.
+- Import line updated to include `MandateRenewSerializer` alongside `RentalMandateSerializer`.
+- All other items confirmed clean in the first-round review remain unchanged in this diff (auth/IDOR scoping, migration 0027, expire command, terminate action, MandateTab.vue, PropertyDetailPage.vue, 24-test coverage).
+- Discovery filed: `tasks/discoveries/2026-04-22-mandate-renew-notes-not-inherited.md` — `notes` defaults to `""` instead of `mandate.notes` on renewal when omitted; pre-existing behaviour, out of scope for this re-work, P2.
