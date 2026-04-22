@@ -57,8 +57,9 @@ class TestHtmlToPdf:
         # Files dict should contain index.html
         assert "files" in mock_post.call_args[1] or "files" in str(mock_post.call_args)
 
+    @patch("apps.esigning.gotenberg.time.sleep")
     @patch("apps.esigning.gotenberg.requests.post")
-    def test_raises_on_http_error(self, mock_post):
+    def test_raises_on_http_error(self, mock_post, mock_sleep):
         import requests as req_lib
         from apps.esigning.gotenberg import html_to_pdf
 

@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.models import User
 from rest_framework.response import Response
 from rest_framework import status, generics
 
@@ -1938,7 +1939,7 @@ class PdfRenderJobListView(APIView):
         from .models import PdfRenderJob
         user = request.user
         # Admins see all jobs; agents see only their own
-        if getattr(user, 'role', None) == 'admin':
+        if user.role == User.Role.ADMIN:
             qs = PdfRenderJob.objects.select_related('template', 'requested_by').all()
         else:
             qs = PdfRenderJob.objects.select_related('template', 'requested_by').filter(
@@ -1972,7 +1973,7 @@ class PdfRenderJobRetryView(APIView):
         from .models import PdfRenderJob
         from .tasks import enqueue_pdf_render
         user = request.user
-        if getattr(user, 'role', None) == 'admin':
+        if user.role == User.Role.ADMIN:
             qs = PdfRenderJob.objects.filter(pk=pk)
         else:
             qs = PdfRenderJob.objects.filter(pk=pk, requested_by=user)

@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177452426023"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (review → in-progress by reviewer)
+updated: 2026-04-22 (in-progress → review by implementer)
 ---
 
 ## Goal
@@ -84,3 +84,9 @@ Required fix: add `@patch("apps.esigning.gotenberg.time.sleep")` (or `@patch("ti
 `backend/apps/leases/template_views.py:1941` and `:1975` — both views compare `getattr(user, 'role', None) == 'admin'` using a bare string literal. Every other place in the codebase (all of `apps/accounts/permissions.py`, other template_views) uses `User.Role.ADMIN`. The string happens to be `"admin"` today so it is functionally correct, but it diverges from the established convention and is brittle.
 
 Required fix: replace both occurrences with `user.role == User.Role.ADMIN` (import `User` from `apps.accounts.models` at the top of `template_views.py`, or use `from apps.accounts.models import User` inside the method if you prefer to avoid a module-level import).
+
+### 2026-04-22 — implementer (r1 fixes)
+
+**Fix 1 (BLOCKER):** Added `@patch("apps.esigning.gotenberg.time.sleep")` as the outer decorator on `test_raises_on_http_error` in `backend/apps/test_hub/esigning/unit/test_gotenberg.py`. The mock argument is `mock_sleep` (second positional param after `mock_post`). Audited all other `TestHtmlToPdf` methods — the remaining five tests all pass `ok=True` on the first attempt so the retry loop never executes; no sleep mock is needed there.
+
+**Fix 2 (MINOR):** Added `from apps.accounts.models import User` to module-level imports in `backend/apps/leases/template_views.py`. Replaced both `getattr(user, 'role', None) == 'admin'` occurrences with `user.role == User.Role.ADMIN`. Verified `manage.py check` still shows 0 errors; both files pass `py_compile`.
