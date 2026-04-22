@@ -32,3 +32,19 @@ CSRF_COOKIE_SECURE = True          # Only send CSRF cookie over HTTPS
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+
+# ── SameSite cookie policy ────────────────────────────────────────────────────
+# Lax prevents CSRF from cross-site navigations while allowing OAuth redirects.
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+SESSION_COOKIE_HTTPONLY = True     # JS must never read the session cookie
+
+# ── SecurityHeadersMiddleware — inject CSP, Referrer-Policy, Permissions-Policy
+# Append after Django's built-in SecurityMiddleware so it runs on every response.
+MIDDLEWARE = list(MIDDLEWARE) + [
+    "config.middleware.security_headers.SecurityHeadersMiddleware",
+]
+
+# CSP is in report-only mode in staging so violations surface in the browser
+# console / report-uri without breaking the app.
+SECURITY_HEADERS_CSP_REPORT_ONLY = True
