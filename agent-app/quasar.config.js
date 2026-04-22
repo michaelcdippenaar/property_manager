@@ -37,6 +37,11 @@ module.exports = configure(function (/* ctx */) {
       env: {
         API_URL: process.env.API_URL || 'http://localhost:8000/api/v1',
         GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+        // Sentry — leave blank in dev to skip initialisation
+        SENTRY_DSN: process.env.SENTRY_DSN || '',
+        SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT || 'development',
+        SENTRY_RELEASE: process.env.GIT_COMMIT || '',
+        SENTRY_TRACES_SAMPLE_RATE: process.env.SENTRY_TRACES_SAMPLE_RATE || '0.05',
       },
     },
 

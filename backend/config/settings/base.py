@@ -52,6 +52,8 @@ LOCAL_APPS = [
     "apps.test_hub",
     "apps.market_data",
     "apps.the_volt",
+    "apps.integrations",
+    "apps.contact",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -187,7 +189,12 @@ CORS_ALLOWED_ORIGINS = [
     # Capacitor agent-app (iOS WebView origin + Android WebView origin)
     "capacitor://localhost",
     "http://localhost",
+    # Marketing website
+    "https://klikk.co.za",
+    "https://www.klikk.co.za",
 ]
+
+CONTACT_EMAIL = config("CONTACT_EMAIL", default="mc@klikk.co.za")
 
 # Google OAuth
 GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
@@ -315,3 +322,42 @@ TWILIO_WHATSAPP_FROM = config("TWILIO_WHATSAPP_FROM", default="")
 # apps.notifications — phone normalization when number has leading 0 (e.g. SA)
 NOTIFICATIONS_DEFAULT_DIAL_CODE = config("NOTIFICATIONS_DEFAULT_DIAL_CODE", default="+27")
 NOTIFICATIONS_ENABLE_LOG = config("NOTIFICATIONS_ENABLE_LOG", default=True, cast=bool)
+
+# Vault33 internal gateway — trusted Vault33-family service fetches vault data
+# on behalf of an already-authenticated Klikk user. No owner-approval / OTP flow.
+# Every call writes a DataCheckout audit row on the Vault33 side.
+# See: apps/integrations/vault33.py
+VAULT33_BASE_URL = config("VAULT33_BASE_URL", default="http://localhost:8001")
+VAULT33_INTERNAL_TOKEN = config("VAULT33_INTERNAL_TOKEN", default="")
+
+# ── Sentry ────────────────────────────────────────────────────────────────────
+# Set SENTRY_DSN in .env to enable.  Leave blank to run without Sentry (dev default).
+# SENTRY_ENVIRONMENT should be "development" / "staging" / "production".
+# SENTRY_TRACES_SAMPLE_RATE: 0.0–1.0 fraction of transactions to trace (default 0.05).
+SENTRY_DSN = config("SENTRY_DSN", default="")
+SENTRY_ENVIRONMENT = config("SENTRY_ENVIRONMENT", default="development")
+SENTRY_TRACES_SAMPLE_RATE = config("SENTRY_TRACES_SAMPLE_RATE", default=0.05, cast=float)
+
+# Derive release from GIT_COMMIT env var (set by CI/deploy scripts).
+import subprocess as _sp
+
+def _git_sha() -> str | None:
+    try:
+        return _sp.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            stderr=_sp.DEVNULL,
+            cwd=str(BASE_DIR),
+        ).decode().strip()
+    except Exception:
+        return None
+
+SENTRY_RELEASE = os.environ.get("GIT_COMMIT") or _git_sha()
+
+if SENTRY_DSN:
+    from config.sentry import init as _sentry_init
+    _sentry_init(
+        dsn=SENTRY_DSN,
+        environment=SENTRY_ENVIRONMENT,
+        release=SENTRY_RELEASE,
+        traces_sample_rate=SENTRY_TRACES_SAMPLE_RATE,
+    )

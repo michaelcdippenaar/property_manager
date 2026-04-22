@@ -31,6 +31,8 @@ fastmcp>=2.0.0
 # GraphQL API (co-exists with DRF for flexible lease/template queries)
 graphene-django>=3.2.0
 google-auth
+# Sentry — error monitoring + performance tracing
+sentry-sdk[django]>=2.0.0
 # HTML parsing for market data scrapers
 beautifulsoup4>=4.12.0
 lxml>=5.0.0

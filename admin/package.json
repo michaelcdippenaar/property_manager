@@ -37,9 +37,11 @@
     "tiptap-pagination-plus": "^3.0.5",
     "vue": "^3.4.0",
     "vue-router": "^4.3.0",
-    "vuedraggable": "^4.1.0"
+    "vuedraggable": "^4.1.0",
+    "@sentry/vue": "^8.0.0"
   },
   "devDependencies": {
+    "@sentry/vite-plugin": "^2.0.0",
     "@playwright/test": "^1.59.1",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vitest/browser": "^4.1.2",
