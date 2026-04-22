@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-22
 ---
 
 ## Goal
@@ -134,3 +134,15 @@ Review passed.
 5. All acceptance criteria checkboxes were already marked complete by the implementer and verified as satisfied by this review.
 6. Smoke-check exit codes (0/0 findings for both `--no-git` and `--log-opts="--all"`) documented in handoff note for tester to reproduce.
 7. Security/POPIA pass: no new endpoints, no PII logged, no secrets introduced — the only secrets present are already-rotated values being suppressed until history is purged.
+
+### 2026-04-22 — rentals-tester
+
+**Test run — all pass**
+
+1. `gitleaks detect --source . --no-git --config .gitleaks.toml` → exit code 0, 0 findings (scanned 1.23 GB in 1m26s). PASS
+2. `gitleaks detect --source . --log-opts="--all" --config .gitleaks.toml` → exit code 0, 0 findings (118 commits scanned, 15.70 MB in 1.7s). PASS
+3. `git config --unset-all core.hooksPath && pre-commit install` → "pre-commit installed at .git/hooks/pre-commit", exit code 0. PASS
+
+CI gitleaks job verified present in `.github/workflows/ci.yml` (uses gitleaks/gitleaks-action@v2, reads `.gitleaks.toml` at repo root).
+
+All acceptance criteria satisfied. Task moves to done.
