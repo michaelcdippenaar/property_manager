@@ -225,7 +225,7 @@ Listen for:
 
 > "We already use PayProp."
 
-"Great — Klikk complements PayProp. PayProp handles payments; Klikk handles everything before and after the payment — leases, maintenance, tenant comms, owner reporting. We're building a direct integration."
+"Great — Klikk complements PayProp. PayProp handles payments; Klikk handles everything before and after the payment — leases, maintenance, tenant comms, owner reporting. A direct integration is on our roadmap."
 
 > "Is the AI actually reliable for leases?"
 

@@ -90,7 +90,7 @@ All prices in ZAR, excluding VAT.
 
 | Tier | Price | Portfolio |
 |------|-------|-----------|
-| **Free** | R0/month | Up to 5 properties — free forever. Bring your own LLM key. |
+| **Free** | R0/month | Up to 5 properties — free forever. 2 AI leases/year. Bring your own LLM key. |
 | **Pro** | R2,500/month | Up to 50 properties or 100 units. Unlimited AI leases, all portals, REST API + MCP server. |
 | **Enterprise** | R4,000/month base | 100+ properties. White-label, on-premises option, dedicated account manager. |
 
