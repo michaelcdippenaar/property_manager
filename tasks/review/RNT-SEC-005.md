@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177141074053"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-22 (r2)
 ---
 
 ## Goal
@@ -86,6 +86,25 @@ returns a bool; callers are responsible for the HTTP response. This matches the 
 used by all major webhook verification libraries. `docs/ops/webhooks.md` shows the
 correct view-level pattern. No existing view needed patching since there are no
 production webhook endpoints in v1.
+
+### 2026-04-22 (r2) — implementer: reviewer fixes applied
+
+Three issues from reviewer round 1 addressed:
+
+1. **Setting rename in `_verify_signature`** — `apps/esigning/webhooks.py`: replaced
+   `settings.DOCUSEAL_WEBHOOK_SECRET` → `settings.WEBHOOK_SECRET_ESIGNING` and
+   `settings.DOCUSEAL_WEBHOOK_HEADER_NAME` → `settings.WEBHOOK_HEADER_ESIGNING`.
+   Docstring and warning log message updated to match. Esigning unit test mocks
+   updated throughout (`apps/test_hub/esigning/unit/test_webhooks.py`).
+
+2. **Module docstring fix in `webhook_signature.py`** — removed `reject_if_invalid`
+   import from the usage example; replaced with an explicit inline pattern using
+   `get_webhook_secret` and a `Response({"detail": "Invalid signature."}, status=401)`
+   return — consistent with `docs/ops/webhooks.md`.
+
+3. **Dead mock block removed** — `utils/tests/test_webhook_signature.py`
+   `test_reads_named_secret_from_settings`: deleted the `with patch(...) as mock_fn: pass`
+   block. The real-settings assertion below it is the authoritative test.
 
 ### 2026-04-22 — reviewer: changes requested
 

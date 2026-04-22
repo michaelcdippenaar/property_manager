@@ -19,8 +19,8 @@ def _verify_signature(body: bytes, signature: str) -> bool:
     Verify an inbound webhook signature for the esigning integration.
 
     Behaviour:
-    - ``settings.DOCUSEAL_WEBHOOK_SECRET`` controls the shared secret.
-    - ``settings.DOCUSEAL_WEBHOOK_HEADER_NAME`` selects the verification mode:
+    - ``settings.WEBHOOK_SECRET_ESIGNING`` controls the shared secret.
+    - ``settings.WEBHOOK_HEADER_ESIGNING`` selects the verification mode:
       - Empty / not set → HMAC-SHA256 mode: compute HMAC over *body* and
         compare with *signature* using a timing-safe digest comparison.
       - Non-empty         → static-token mode: compare *signature* directly
@@ -32,12 +32,12 @@ def _verify_signature(body: bytes, signature: str) -> bool:
     The delegate helper ``utils.webhook_signature.verify_hmac_signature``
     is used for the HMAC path to keep replay-protection logic centralised.
     """
-    secret: str = getattr(settings, "DOCUSEAL_WEBHOOK_SECRET", "") or ""
-    header_name: str = getattr(settings, "DOCUSEAL_WEBHOOK_HEADER_NAME", "") or ""
+    secret: str = getattr(settings, "WEBHOOK_SECRET_ESIGNING", "") or ""
+    header_name: str = getattr(settings, "WEBHOOK_HEADER_ESIGNING", "") or ""
 
     if not secret:
         logger.warning(
-            "_verify_signature: DOCUSEAL_WEBHOOK_SECRET is not set — "
+            "_verify_signature: WEBHOOK_SECRET_ESIGNING is not set — "
             "signature verification skipped."
         )
         return True

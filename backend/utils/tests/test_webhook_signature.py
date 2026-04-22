@@ -147,10 +147,6 @@ class TestGetWebhookSecret:
     def test_reads_named_secret_from_settings(self):
         from utils.webhook_signature import get_webhook_secret
 
-        with patch("utils.webhook_signature.get_webhook_secret") as mock_fn:
-            # Inline test — patch Django settings directly
-            pass
-
         # Real test using Django settings mock
         import django.conf
         original = getattr(django.conf.settings, "WEBHOOK_SECRET_TESTING", None)

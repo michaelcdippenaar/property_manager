@@ -3,11 +3,13 @@ HMAC-SHA256 webhook signature verification helpers for Klikk.
 
 Usage — in any webhook view:
 
-    from utils.webhook_signature import verify_hmac_signature, reject_if_invalid
+    from utils.webhook_signature import verify_hmac_signature, get_webhook_secret
 
     def post(self, request):
-        if not verify_hmac_signature(request.body, request.META.get("HTTP_X_KLIKK_SIGNATURE", ""), secret):
-            return reject_if_invalid()
+        secret = get_webhook_secret("esigning")
+        sig = request.META.get("HTTP_X_KLIKK_SIGNATURE", "")
+        if not verify_hmac_signature(request.body, sig, secret):
+            return Response({"detail": "Invalid signature."}, status=401)
         ...
 
 Environment variables
