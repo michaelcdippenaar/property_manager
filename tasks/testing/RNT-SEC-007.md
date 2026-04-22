@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462435910"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22T21:00:00
+updated: 2026-04-22T22:00:00
 ---
 
 ## Goal
@@ -35,7 +35,7 @@ Today `rha_flags` on a lease is advisory — the operator can finalise a lease w
 
 ## Test plan
 **Automated:**
-- `pytest backend/apps/leases/tests/test_rha_gate.py` — cannot finalise with blocking flag; can finalise when cleared; override is audited
+- `pytest backend/apps/leases/tests/test_rha_gate.py` — cannot finalise with blocking flag; can finalise when cleared; override is audited (23 tests)
 
 **Manual:**
 - Draft a lease missing interest-bearing deposit → try send-for-signing → blocked with fix CTA
@@ -141,3 +141,27 @@ The `rha_override` POST action already requires `record_rha_override()` to succe
 Replaced the bare `run_rha_checks(lease)` + `lease.save(update_fields=["rha_flags"])` with a single `lease.refresh_rha_flags()` call. This ensures stale overrides are cleared whenever the blocking flag set has changed since the override was recorded, consistent with the documented contract of that method.
 
 **Test count correction:** updated first implementer handoff note from "20 unit tests" to "23 unit tests".
+
+### 2026-04-22 — reviewer (round 3): approved
+
+Reviewed commit `683158a`. Only `backend/apps/leases/views.py` changed (plus the task file move) — correct scope for a targeted POPIA redaction fix.
+
+**POPIA redaction — `rha_check` action (blocking issue from round 2):**
+
+Verified: `views.py` lines 291–305 build `override_payload` via a `_caller_is_staff` gate using `is_staff`, `is_superuser`, or `role in {"agency_admin", "admin"}`. Non-staff callers receive `{"override_recorded": True, "overridden_at": "..."}` with no `user_id` or `user_email`. Non-staff callers with no override receive `null`. Staff callers receive the full blob unchanged. Gate is consistent with `record_rha_override()`'s own permission check in `models.py` lines 157–167 — same allowed-roles set.
+
+**`rha_override` POST action — full blob retained correctly:**
+
+Verified: `record_rha_override()` raises `PermissionError` before writing if caller is not authorised. The POST action propagates that as HTTP 403. The full blob in the POST response is only reachable after the model-level gate passes — the POPIA comment at lines 335–338 documents this correctly. No PII leak path.
+
+**Non-blocking fix also applied:**
+
+`rha_check` GET action now calls `lease.refresh_rha_flags()` (line 286) instead of the bare `run_rha_checks` + `save` pattern, fixing the stale-override invalidation gap noted in round 2.
+
+**IDOR check:**
+
+`get_queryset()` scopes tenants to `get_tenant_leases(user)` and `get_object()` uses that queryset — a tenant cannot reach another tenant's lease via these actions.
+
+**No regressions introduced.** No other files touched.
+
+All acceptance criteria verified across the three review rounds. Passing to testing.
