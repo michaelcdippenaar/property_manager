@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177141074053"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (r2, approved)
+updated: 2026-04-22 (tester)
 ---
 
 ## Goal
@@ -166,3 +166,23 @@ All three r1 change requests verified in commit 9f7f620.
 Security pass clean: no new endpoints, no PII logged, no raw SQL, `WEBHOOK_SECRET_ESIGNING` is `getattr`-safe with empty-string default.
 
 Minor gap noted: `WEBHOOK_HEADER_ESIGNING` is used via `getattr` default in `webhooks.py` but not declared in `settings/base.py`. Runtime-safe due to the default; filed as discovery `tasks/discoveries/2026-04-22-esigning-docs-docuseal-secret-stale.md` (which also covers stale `DOCUSEAL_WEBHOOK_SECRET` references in `esigning.md` and `ESIGNING.md` docs — not a blocker).
+
+### 2026-04-22 — tester: Test run
+
+**pytest backend/utils/tests/test_webhook_signature.py — 13 passed**
+
+- TestVerifyHmacSignature::test_valid_signature_accepted — PASS
+- TestVerifyHmacSignature::test_invalid_signature_rejected — PASS
+- TestVerifyHmacSignature::test_missing_signature_rejected — PASS
+- TestVerifyHmacSignature::test_no_secret_skips_verification — PASS
+- TestVerifyHmacSignature::test_none_secret_treated_as_empty — PASS
+- TestVerifyHmacSignature::test_signature_case_insensitive — PASS
+- TestVerifyHmacSignature::test_tampered_body_rejected — PASS
+- TestReplayProtection::test_fresh_timestamp_accepted — PASS
+- TestReplayProtection::test_old_timestamp_rejected — PASS
+- TestReplayProtection::test_custom_max_age_respected — PASS
+- TestReplayProtection::test_invalid_timestamp_rejected — PASS
+- TestGetWebhookSecret::test_reads_named_secret_from_settings — PASS
+- TestGetWebhookSecret::test_returns_empty_string_when_not_configured — PASS
+
+All plan items verified: missing sig rejected, wrong sig rejected, replay (>5 min old) rejected, valid sig within window accepted. All 13 passed in 0.02s.
