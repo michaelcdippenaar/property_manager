@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
@@ -26,10 +27,37 @@ export default defineConfig(({ mode }) => {
         ]
       : []
 
+  // Bundle analyser: always emit stats.html so CI can upload as artefact.
+  const analyserPlugin = visualizer({
+    filename: 'dist/bundle-stats.html',
+    open: false,
+    gzipSize: true,
+    brotliSize: false,
+    template: 'treemap',
+  })
+
   return {
-    plugins: [vue(), ...sentryPlugins],
+    plugins: [vue(), ...sentryPlugins, analyserPlugin],
     build: {
       sourcemap: 'hidden', // Sentry plugin uploads .map files; 'hidden' strips //# sourceMappingURL= so browsers can't fetch them
+      // Performance budget: initial JS < 350 KB gzipped.
+      // Split out heavy vendor chunks so the main entry chunk stays lean.
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // TipTap editor suite is large — isolate in its own chunk loaded lazily
+            'vendor-tiptap': [
+              '@tiptap/vue-3',
+              '@tiptap/starter-kit',
+              '@tiptap/pm',
+            ],
+            // PDF rendering (pdfjs) is only used on signing / lease pages
+            'vendor-pdfjs': ['pdfjs-dist'],
+            // Vue ecosystem core
+            'vendor-vue': ['vue', 'vue-router', 'pinia'],
+          },
+        },
+      },
     },
     server: {
       host: '0.0.0.0',

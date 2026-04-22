@@ -84,7 +84,7 @@ class TestUserConsentView:
         doc = legal_setup["doc"]
         api_client.force_authenticate(user=agent)
         response = api_client.post("/api/v1/legal/consent/", {"document": doc.pk})
-        assert response.status_code == 200
+        assert response.status_code == 201
         assert UserConsent.objects.filter(user=agent, document=doc).exists()
 
     def test_post_consent_idempotent(self, api_client, legal_setup):

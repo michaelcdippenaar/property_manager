@@ -38,6 +38,11 @@ beautifulsoup4>=4.12.0
 lxml>=5.0.0
 # RSS/Atom news feed parsing
 feedparser>=6.0.0
+# TOTP 2FA — RFC 6238 one-time passwords
+pyotp>=2.9.0
+qrcode[pil]>=7.4.2
+# Performance profiling — silk is gated behind DEBUG in local.py (dev only)
+django-silk>=5.3.0
 # Testing
 pytest>=8.0
 pytest-django>=4.8

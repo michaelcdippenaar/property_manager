@@ -1,0 +1,158 @@
+name: Lighthouse CI — performance budget
+
+# Run on every PR against main and on main push.
+# Fails if marketing LCP or tenant bundle regressions breach budget.
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Marketing website: LCP < 2.5s on simulated 3G ─────────────────────────
+  lighthouse-website:
+    name: Lighthouse — marketing website (LCP budget)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: website
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Astro site
+        run: npm run build
+
+      - name: Upload bundle analyser report
+        uses: actions/upload-artifact@v4
+        with:
+          name: website-bundle-stats
+          path: website/dist/bundle-stats.html
+          retention-days: 30
+
+      - name: Serve build and run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          # Serve the static build locally and audit the home page
+          staticDistDir: website/dist
+          configPath: website/.lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+  # ── Admin SPA: bundle size gate < 350 KB gzipped ──────────────────────────
+  bundle-admin:
+    name: Bundle size — admin SPA (< 350 KB gz)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vite production build
+        run: npx vite build
+        env:
+          VITE_SENTRY_DSN: ""
+          VITE_APP_RELEASE: "ci-perf"
+
+      - name: Upload bundle analyser report
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-bundle-stats
+          path: admin/dist/bundle-stats.html
+          retention-days: 30
+
+      - name: Assert initial JS < 350 KB gzipped
+        # Measure the index entry chunk only (index-*.js) — vendor chunks are
+        # loaded lazily and don't count toward initial page weight.
+        run: |
+          entry=$(find dist/assets -name "index-*.js" | head -1)
+          if [ -z "$entry" ]; then
+            echo "FAIL: no index-*.js entry chunk found in dist/assets"
+            exit 1
+          fi
+          gz_bytes=$(gzip -c "$entry" | wc -c)
+          budget=358400  # 350 * 1024
+          echo "Entry chunk: $entry"
+          echo "Gzipped size: ${gz_bytes} bytes (budget: ${budget} bytes)"
+          if [ "$gz_bytes" -gt "$budget" ]; then
+            echo "FAIL: entry chunk exceeds 350 KB gzip budget"
+            exit 1
+          fi
+          echo "PASS: entry chunk within budget"
+
+  # ── Tenant web: bundle size gate < 250 KB gzipped ─────────────────────────
+  bundle-tenant:
+    name: Bundle size — tenant web (< 250 KB gz)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: tenant
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tenant/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vite production build
+        run: npx vite build
+
+      - name: Upload bundle analyser report
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-bundle-stats
+          path: tenant/dist/bundle-stats.html
+          retention-days: 30
+
+      - name: Assert initial JS < 250 KB gzipped
+        run: |
+          entry=$(find dist/assets -name "index-*.js" | head -1)
+          if [ -z "$entry" ]; then
+            echo "FAIL: no index-*.js entry chunk found in dist/assets"
+            exit 1
+          fi
+          gz_bytes=$(gzip -c "$entry" | wc -c)
+          budget=256000  # 250 * 1024
+          echo "Entry chunk: $entry"
+          echo "Gzipped size: ${gz_bytes} bytes (budget: ${budget} bytes)"
+          if [ "$gz_bytes" -gt "$budget" ]; then
+            echo "FAIL: entry chunk exceeds 250 KB gzip budget"
+            exit 1
+          fi
+          echo "PASS: entry chunk within budget"

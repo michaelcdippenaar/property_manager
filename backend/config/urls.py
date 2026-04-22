@@ -33,3 +33,7 @@ urlpatterns = [
     path("api/v1/legal/", include("apps.legal.urls")),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
+
+# django-silk profiler UI — available in dev only (gated by INSTALLED_APPS)
+if "silk" in settings.INSTALLED_APPS:
+    urlpatterns += [path("silk/", include("silk.urls", namespace="silk"))]
