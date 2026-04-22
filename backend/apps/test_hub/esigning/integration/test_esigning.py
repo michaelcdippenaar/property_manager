@@ -250,6 +250,53 @@ class ESigningResendTests(TremlyAPITestCase):
         )
         self.assertEqual(resp.status_code, 500)
 
+    @override_settings(
+        SIGNING_PUBLIC_APP_BASE_URL="https://app.test.com",
+        ESIGNING_PUBLIC_LINK_EXPIRY_DAYS=14,
+    )
+    @mock.patch("apps.esigning.webhooks._notify_next_signer")
+    def test_resend_expires_prior_links(self, mock_notify):
+        """Resending a signing invitation must immediately expire all prior active links
+        for the same signer role so old URLs cannot be used to sign."""
+        from apps.esigning.models import ESigningPublicLink
+        from django.utils import timezone
+        from datetime import timedelta
+
+        # Create two pre-existing links for the same signer role
+        prior_link_1 = ESigningPublicLink.objects.create(
+            submission=self.submission,
+            signer_role="landlord",
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        prior_link_2 = ESigningPublicLink.objects.create(
+            submission=self.submission,
+            signer_role="landlord",
+            expires_at=timezone.now() + timedelta(days=3),
+        )
+
+        self.authenticate(self.agent)
+        resp = self.client.post(
+            reverse("esigning-resend", args=[self.submission.pk]),
+            {"signer_role": "landlord"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+
+        # Prior links should now be expired (expires_at <= now)
+        prior_link_1.refresh_from_db()
+        prior_link_2.refresh_from_db()
+        now = timezone.now()
+        self.assertLessEqual(prior_link_1.expires_at, now)
+        self.assertLessEqual(prior_link_2.expires_at, now)
+
+        # A new active link should exist for the signer role
+        active_links = ESigningPublicLink.objects.filter(
+            submission=self.submission,
+            signer_role="landlord",
+            expires_at__gt=now,
+        )
+        self.assertEqual(active_links.count(), 1)
+
 
 class ESigningPublicLinkTests(TremlyAPITestCase):
     """UUID passwordless signing links for the admin /sign/:token page."""

@@ -64,6 +64,21 @@ def can_manage_esigning(user):
     return user.role in (User.Role.ADMIN, User.Role.AGENT)
 
 
+def _expire_prior_links(submission, signer_role: str):
+    """
+    Immediately expire all non-expired public links for *signer_role* on *submission*.
+    Called before creating a new link so that resend/re-issue invalidates the old URL.
+    Only links whose expiry is in the future are touched — already-expired links are
+    left unchanged to preserve the audit trail.
+    """
+    now = timezone.now()
+    ESigningPublicLink.objects.filter(
+        submission=submission,
+        signer_role__iexact=signer_role,
+        expires_at__gt=now,
+    ).update(expires_at=now)
+
+
 class ScopedESigningQuerysetMixin:
     def get_queryset(self):
         qs = esigning_submissions_for_user(self.request.user)
@@ -399,6 +414,10 @@ class ESigningResendView(APIView):
         if st in ("completed", "signed", "declined"):
             return Response({"error": "Signer has already finished"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Expire all prior non-expired links for this signer role so only one active
+        # link exists at a time. This ensures re-sending invalidates old links.
+        _expire_prior_links(obj, signer_role)
+
         # Create a fresh public link and send email
         default_days = int(getattr(settings, "ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", 14))
         link = ESigningPublicLink.objects.create(
@@ -417,7 +436,6 @@ class ESigningResendView(APIView):
             )
 
         email = (signer.get("email") or "").strip()
-        name = (signer.get("name") or "").strip()
         if email:
             from .webhooks import _notify_next_signer
             _notify_next_signer(obj, signer)
@@ -738,6 +756,9 @@ class ESigningCreatePublicLinkView(APIView):
         except (TypeError, ValueError):
             days = default_days
         days = max(1, min(days, 90))
+
+        # Expire prior links for this signer role so only one active link exists
+        _expire_prior_links(submission, signer_role)
 
         link = ESigningPublicLink.objects.create(
             submission=submission,
