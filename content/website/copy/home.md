@@ -10,7 +10,7 @@ _Last updated: 2026-04-22. All feature claims verified against `content/product/
 Klikk — AI Property Management for South African Rentals
 
 **Meta description (155 chars):**
-AI-powered lease generation, native e-signing, and a tenant app — built for the Rental Housing Act. Free for your first 5 properties. No credit card required.
+AI-powered lease generation, native e-signing, a tenant app — built for the Rental Housing Act. Free for your first 5 properties. No card required.
 
 **H1:** Property management, intelligently South African.
 
@@ -48,7 +48,7 @@ Stop juggling WhatsApp, Word templates, and spreadsheets. Klikk brings every par
 |------|-------|
 | 4 | Purpose-built apps |
 | <3 min | To generate a lease |
-| R2,500/mo | For up to 100 units |
+| R2,500/mo | Up to 50 props / 100 units |
 | 0 | Third-party e-signing subscriptions needed |
 
 ---
