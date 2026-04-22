@@ -22,3 +22,6 @@ A tenant can reset their own welcome screen by patching `seen_welcome_at: null`,
 
 ## Why I didn't fix it in the current task
 Out of scope for RNT-QUAL-033. The implementer's notes explicitly described it as writable by design; PM should decide whether to lock it down.
+
+## PM disposition — 2026-04-22
+Won't fix. Tenant owns the field; the dedicated `/auth/welcome/` endpoint is a convenience helper, not an enforced gate. Locking the field to read-only would break any future UX flow that needs to reset the onboarding screen (e.g., new feature tours). Deferred indefinitely.
