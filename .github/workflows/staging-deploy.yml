@@ -1,0 +1,128 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: false   # Never cancel an in-flight deploy; queue instead
+
+jobs:
+  build-and-push:
+    name: Build & push Docker images
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set image tag (short SHA)
+        id: meta
+        run: echo "version=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── backend ──────────────────────────────────────────────────────────────
+      - name: Build & push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/klikk-backend:latest
+            ghcr.io/${{ github.repository_owner }}/klikk-backend:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── admin SPA ─────────────────────────────────────────────────────────────
+      - name: Build & push admin
+        uses: docker/build-push-action@v6
+        with:
+          context: ./admin
+          file: ./admin/Dockerfile
+          push: true
+          build-args: BUILD_MODE=staging
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/klikk-admin:latest
+            ghcr.io/${{ github.repository_owner }}/klikk-admin:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ── agent app ─────────────────────────────────────────────────────────────
+      - name: Build & push agent-app
+        uses: docker/build-push-action@v6
+        with:
+          context: ./agent-app
+          file: ./agent-app/Dockerfile
+          push: true
+          build-args: BUILD_MODE=staging
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/klikk-agent-app:latest
+            ghcr.io/${{ github.repository_owner }}/klikk-agent-app:${{ steps.meta.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to staging server
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          GHCR_OWNER: ${{ github.repository_owner }}
+        run: |
+          ssh ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_HOST }} << EOF
+            set -e
+            cd ~/apps/property_manager
+
+            # Pull latest compose files and configs from this commit
+            git pull --ff-only origin main
+
+            # Log in to GHCR on the server (uses the same GITHUB_TOKEN-scoped PAT)
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${GHCR_OWNER}" --password-stdin
+
+            # Pin images to the exact SHA tag so the server knows which version is running
+            export BACKEND_IMAGE="ghcr.io/${GHCR_OWNER}/klikk-backend:${IMAGE_TAG}"
+            export ADMIN_IMAGE="ghcr.io/${GHCR_OWNER}/klikk-admin:${IMAGE_TAG}"
+            export AGENT_APP_IMAGE="ghcr.io/${GHCR_OWNER}/klikk-agent-app:${IMAGE_TAG}"
+
+            docker compose -f deploy/docker-compose.staging.yml pull backend admin_web agent_app_web
+            docker compose -f deploy/docker-compose.staging.yml up -d --remove-orphans
+
+            # Run any pending migrations
+            docker compose -f deploy/docker-compose.staging.yml exec -T backend \
+              python manage.py migrate --noinput
+
+            echo "Deployed commit ${IMAGE_TAG} to staging"
+          EOF
+
+      - name: Smoke-check staging health endpoint
+        run: |
+          sleep 10
+          curl --fail --retry 5 --retry-delay 5 \
+            https://${{ secrets.STAGING_DOMAIN }}/api/v1/health/ \
+            || (echo "Health check failed after deploy" && exit 1)
