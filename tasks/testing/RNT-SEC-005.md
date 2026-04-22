@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177141074053"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (r2)
+updated: 2026-04-22 (r2, approved)
 ---
 
 ## Goal
@@ -152,3 +152,17 @@ This patches `get_webhook_secret` with a MagicMock, discards the mock immediatel
 and the real function is called below as if the `with` block never ran. The block is
 misleading dead code. Remove it entirely — the real-settings assertion below it is
 the correct test.
+
+### 2026-04-22 (r2) — reviewer: review passed
+
+All three r1 change requests verified in commit 9f7f620.
+
+1. **Setting rename** — `apps/esigning/webhooks.py`: both `getattr` calls, the docstring, and the warning log message now read `WEBHOOK_SECRET_ESIGNING` / `WEBHOOK_HEADER_ESIGNING`. No `DOCUSEAL_*` references remain anywhere in runtime or test code.
+
+2. **Module docstring** — `utils/webhook_signature.py`: `reject_if_invalid` removed from the import example; replaced with `get_webhook_secret` + inline `Response({"detail": "Invalid signature."}, status=401)` pattern. No phantom symbol remains.
+
+3. **Dead mock block** — `utils/tests/test_webhook_signature.py` `test_reads_named_secret_from_settings`: the `with patch(...) as mock_fn: pass` block is gone. Only the real-settings assertion remains.
+
+Security pass clean: no new endpoints, no PII logged, no raw SQL, `WEBHOOK_SECRET_ESIGNING` is `getattr`-safe with empty-string default.
+
+Minor gap noted: `WEBHOOK_HEADER_ESIGNING` is used via `getattr` default in `webhooks.py` but not declared in `settings/base.py`. Runtime-safe due to the default; filed as discovery `tasks/discoveries/2026-04-22-esigning-docs-docuseal-secret-stale.md` (which also covers stale `DOCUSEAL_WEBHOOK_SECRET` references in `esigning.md` and `ESIGNING.md` docs — not a blocker).
