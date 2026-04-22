@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214203923425520"
 created: 2026-04-22
@@ -50,3 +50,5 @@ Scope all three payments viewsets (`RentInvoiceViewSet`, `RentPaymentViewSet`, `
 - New test file: `backend/apps/payments/tests/test_rbac.py` — 20 tests, all passing. Covers tenant IDOR (list + detail), agent property scoping, admin full access, and unmatched 403 for tenant/owner/agent roles.
 - All 43 payments tests pass (no regressions on reconciliation tests).
 - Note for reviewer: the search filter in `get_queryset` uses `primary_tenant__first_name` and `primary_tenant__last_name` which don't exist on `Person` (which uses `full_name`). This is a pre-existing bug — not introduced here. Flagged as a discovery if PM wants to track it.
+
+2026-04-22 — Review passed (rentals-reviewer). Checked: all 3 viewsets scoped — RentInvoiceViewSet and RentPaymentViewSet use get_accessible_property_ids (owner + agent branches) and get_tenant_leases (tenant branch), both matching the leases/views.py pattern exactly; UnmatchedPaymentViewSet uses IsAdminOrAgencyAdmin which correctly blocks tenant, owner, and agent roles. Write actions (record_payment, reverse, assign) retain IsAgentOrAdmin or IsAdminOrAgencyAdmin at the action level — no tenant write surface. IDOR: direct PK lookup for another tenant's invoice/payment returns 404 via queryset scoping (not a separate object-permission check, consistent with leases pattern). 20 RBAC tests cover list IDOR, detail IDOR, write 403, unmatched 403 for tenant/owner/agent, unauthenticated 401. Security pass: no raw SQL, no f-string queries, no PII logged, all imports are internal helpers with no injection risk. One pre-existing bug noted and filed as discovery tasks/discoveries/2026-04-22-payments-invoice-search-wrong-field-names.md (broken ?search= field names on Person model — not introduced by this diff, P2).
