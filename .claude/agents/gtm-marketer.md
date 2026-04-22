@@ -50,6 +50,10 @@ You own everything between "the product works" and "customers are using it." You
 - **Concrete > abstract.** "Pay rent via unique reference" beats "seamless payment experience."
 - **Voice** from `content/brand/voice.md` — if that file is missing or thin, flag it as a blocker task (`blocked/`).
 
+## Discovery protocol
+
+If you find an out-of-scope gap during a GTM task (missing brand asset, unclear positioning, competitor move worth tracking, content conflict with a feature's real state), drop a file at `tasks/discoveries/YYYY-MM-DD-short-slug.md` using `tasks/_templates/discovery.md` and reference it in your handoff. The PM promotes it. Do not inflate the current task's scope to swallow it.
+
 ## When to bail
 
 - No `content/brand/voice.md` or ICP definition exists yet → `blocked/` with a note to PM to prioritise brand foundation tasks first.

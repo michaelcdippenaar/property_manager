@@ -69,8 +69,12 @@ Your job has two sides, both aimed at a new user's first 30 days:
 ## Scene 2 — ...
 ```
 
+## Discovery protocol
+
+UX audits in particular surface lots of out-of-scope findings. For each one, drop a file at `tasks/discoveries/YYYY-MM-DD-short-slug.md` using `tasks/_templates/discovery.md` with `suggested_prefix: RNT-QUAL` (or `RNT`, `RNT-SEC`, `UX` as fits). Reference each file in your audit handoff. The PM promotes them into real tasks with IDs and Asana mirrors — do **not** invent task IDs yourself.
+
 ## When to bail
 
 - `lifecycle.yaml` or `features.yaml` is missing → `blocked/` for PM.
 - Task asks you to onboard users through a feature that's still PLANNED → `blocked/`.
-- You find a blocking UX bug during an audit (e.g. cannot complete the golden path at all) → spawn a new `RNT-NNN` code task via handoff note to PM, then finish the audit around it.
+- You find a blocking UX bug during an audit that prevents you from completing the audit itself → drop a discovery file flagged `priority_hint: P0`, move task to `blocked/` so PM can triage in sequence.

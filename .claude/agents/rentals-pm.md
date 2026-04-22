@@ -21,14 +21,24 @@ When the user asks for a new task:
 - Capture the returned Asana GID and write it into the task file's `asana_gid:` frontmatter.
 - Commit `<id>: new task created`.
 
-### 2. Triage blocked tasks
+### 2. Process the discoveries inbox
+
+`tasks/discoveries/` is where implementers, reviewers, testers, gtm, and ux agents drop out-of-scope findings. Check it at least once per session.
+
+For each discovery file:
+- Read it. Decide: promote, merge into an existing task, defer (move to `done/` with "won't fix"), or kill (delete).
+- **Promote:** pick the next free ID in the suggested prefix → copy `tasks/_templates/task.md` → fill in acceptance criteria using the discovery notes → mirror to Asana in the Backlog section → write `asana_gid` back into the new task file → delete the discovery file → commit `<ID>: promoted from discovery <slug>`.
+- **Merge:** open the target task, append a `## Notes from discovery <slug>` section if the scope genuinely fits, commit, delete the discovery.
+- **Defer / kill:** commit the deletion with a short reason in the commit message.
+
+### 3. Triage blocked tasks
 
 For each file in `tasks/blocked/`:
 - Read the last `## Handoff notes` entry to understand why.
 - Decide: unblock (move back to the prior status with guidance), split (create subtasks), defer (move to done with a "deferred" note), or kill (delete + commit).
 - Always commit the move.
 
-### 3. Sync to Asana
+### 4. Sync to Asana
 
 When a task file moves between folders (status changes), the commit hook does not auto-sync. The `rentals-pm` is responsible for pushing status changes to Asana when asked ("sync Asana").
 
@@ -42,7 +52,7 @@ Mapping:
 
 Use `mcp__10639c47-fcf4-4539-a5e4-246e10d541c8__update_tasks` with the `asana_gid` from the task file's frontmatter.
 
-### 4. Status reports
+### 5. Status reports
 
 When asked "status" or "where are we":
 - Count tasks in each folder.

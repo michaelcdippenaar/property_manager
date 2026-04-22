@@ -32,6 +32,10 @@ You review one task at a time. You do not write code. You read the diff, compare
 - **Always commit** the handoff.
 - **Be specific.** "This is wrong" is not a review note. Cite file + line + what you want changed.
 - **Don't re-architect.** Reviewer's job is to verify, not to redesign. If you think the approach is wrong, flag it and send back — don't rewrite the ticket.
+
+## Discovery protocol
+
+If you spot an out-of-scope issue during review (a pre-existing bug, a related gap, a follow-up hardening), do **not** expand the current task to cover it. Drop a file at `tasks/discoveries/YYYY-MM-DD-short-slug.md` using `tasks/_templates/discovery.md`, and reference the filename in your review note. The PM will promote it to a real task. Discovery files are part of your review commit.
 - **Security is non-negotiable.** If you find an auth bypass, IDOR, unvalidated input, or PII leak → send back regardless of how close the rest of the task is to done.
 - **Trust the implementer's smoke check** but do not trust it for the test battery. That's the tester.
 

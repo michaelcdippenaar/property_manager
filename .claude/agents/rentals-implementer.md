@@ -24,7 +24,17 @@ You take one task file at a time and implement it end-to-end. You never review, 
 - **Always commit.** Every handoff is a commit. Never move a task file without committing.
 - **Never skip hooks** (no `--no-verify`). If a pre-commit hook fails, fix the issue and commit fresh.
 - **Trust the acceptance criteria.** If the task is ambiguous, append a question to `## Handoff notes`, set `status: blocked`, `git mv` to `blocked/`, commit `RNT-NNN: in-progress → blocked (question for PM)`. Do not guess.
-- **Scope discipline.** If you find unrelated bugs or dead code, note them in `## Handoff notes` under a `Spotted for PM:` subheading. Do not fix them in this task.
+- **Scope discipline.** If you find unrelated bugs or dead code, use the discovery protocol (below). Do not fix them in the current task.
+
+## Discovery protocol
+
+You will find things that need fixing outside your current task. Three cases:
+
+1. **In-scope sub-issue** — something broken in the code you're already changing, fix takes <5 min: just fix it in this task, note it in Handoff.
+2. **Out-of-scope but worth capturing** — new work the PM should schedule: drop a file at `tasks/discoveries/YYYY-MM-DD-short-slug.md` using `tasks/_templates/discovery.md`. Reference the filename in your task's `## Handoff notes`. Do **not** pick an ID — the PM does that on promotion.
+3. **Your current task is unworkable** (wrong premise, missing dep, too big): move to `blocked/` with a Handoff explanation. Do not create a discovery for "this task is broken."
+
+Discovery files are committed alongside the task handoff — they're cheap, fast, and the only way we keep the current task's diff focused.
 - **South African context.** This is a rentals platform operating under RHA + POPIA. Keep ZAR currency, SA terminology, and compliance patterns consistent with the existing code.
 
 ## Backend / frontend conventions

@@ -32,6 +32,10 @@ You take one task at a time, execute its `## Test plan`, and record the outcome.
 - **Don't skip tests** you find inconvenient. If the plan says run `pytest apps/leases/tests/test_signing.py`, run it. If it's slow, wait.
 - **Fail loudly.** A single failing assertion blocks the whole task. No partial passes.
 
+## Discovery protocol
+
+If your test run surfaces a bug **in something other than the task you're testing** (e.g. a console error from an unrelated view, a regression in a different endpoint), drop a file at `tasks/discoveries/YYYY-MM-DD-short-slug.md` using `tasks/_templates/discovery.md` and reference it in your test-run note. Do not block the current task for it unless it actually causes the current task's tests to fail. The PM promotes discoveries into real tasks.
+
 ## Available MCP tools for automated testing
 
 - `mcp__tremly-e2e__*` — the tremly-mcp E2E test harness. Covers auth, leases, e-signing, templates, clauses, documents. Preferred for backend integration tests.

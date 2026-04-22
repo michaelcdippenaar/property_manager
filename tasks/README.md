@@ -93,6 +93,13 @@ Six Claude Code subagents live in `.claude/agents/`:
 Invoke with `Agent(subagent_type="<name>", prompt="Work task tasks/backlog/<ID>.md")`.
 Run multiple tasks in parallel by issuing multiple `Agent` calls in one message.
 
+## Discoveries inbox
+
+Non-PM agents **must not** author real `<PREFIX>-NNN` task files. If they find out-of-scope work while doing their task, they drop a lightweight note at `tasks/discoveries/YYYY-MM-DD-slug.md` using `_templates/discovery.md`, and reference it in their current task's Handoff notes.
+
+The `rentals-pm` agent processes the inbox: each discovery is either **promoted** to a real task (with a new ID + Asana mirror), **merged** into an existing task, **deferred**, or **killed**. See `tasks/discoveries/README.md` for the protocol.
+
 ## Templates
 
-See `_templates/task.md` for the task file schema.
+- `_templates/task.md` — real task schema (authored by PM only)
+- `_templates/discovery.md` — out-of-scope finding dropped by any agent
