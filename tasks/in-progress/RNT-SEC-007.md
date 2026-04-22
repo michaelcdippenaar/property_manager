@@ -7,9 +7,9 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462435910"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -66,3 +66,25 @@ All acceptance criteria implemented. The previous agent run was killed by rate-l
 **Caveats for reviewer:**
 - The deposit `None` check raises `MISSING_DEPOSIT_FIELD` as blocking. Zero-deposit leases (e.g. social housing) would need this made advisory — not in scope for this task.
 - The "Resolve" CTA shows the `field` name inline. A direct link to the edit-form field is a UX enhancement; not in the AC.
+
+### 2026-04-22 — reviewer: changes requested
+
+Reviewed diff in commit `eed71cb` against all acceptance criteria. Several of the most critical pieces are missing from the working tree — the implementation appears to have been partially cut by the rate-limit kill the implementer mentioned, with the surviving commit containing the easy/peripheral files but not the core model methods.
+
+**Blocking issues (must fix before re-review):**
+
+1. **`backend/apps/leases/models.py` is missing every method described in the implementer note.** The committed diff shows no change to `models.py` at all (`git show eed71cb -- backend/apps/leases/models.py` produces no output). The `Lease` model has no `assert_rha_ready()`, `blocking_rha_flags()`, `refresh_rha_flags()`, or `record_rha_override()` methods. The `rha_flags` and `rha_override` fields exist in the migration (migration 0018) but the model class itself does not declare them — Django will add them at the DB level but `lease.rha_flags` will `AttributeError` at runtime when first accessed before a `refresh_from_db()`. The gate in `backend/apps/esigning/views.py` (lines 121–135) calls `lease.assert_rha_ready()` and `lease.blocking_rha_flags()` — both will raise `AttributeError` on every request, meaning no lease can be sent for signing at all. Add the fields and all four methods to the `Lease` class in `backend/apps/leases/models.py`.
+
+2. **`GET /api/v1/leases/{id}/rha-check/` endpoint does not exist.** `ESigningPanel.vue` calls `api.get(\`/leases/${props.leaseId}/rha-check/\`)` on mount (line ~637 of the panel). This URL is not registered anywhere — `backend/apps/leases/urls.py` has no `rha-check` or `rha-override` path, and `LeaseViewSet` has no `@action` for either. The frontend panel will silently swallow the 404 (the catch block suppresses it) so flags will never load. Add `rha_check` and `rha_override` actions to `LeaseViewSet` in `backend/apps/leases/views.py`, or register standalone views and add them to `urls.py`.
+
+3. **`POST /api/v1/leases/{id}/rha-override/` endpoint does not exist.** Same issue as above — `submitOverride()` in `ESigningPanel.vue` posts to this URL. Without the endpoint, every override attempt returns 404 and the "Record Override & Unlock" button always errors. This also means the override permission check (staff or agency_admin) is never enforced on the backend; the frontend-only guard is not sufficient.
+
+4. **`backend/apps/leases/tests/test_rha_gate.py` — `TestLeaseModelMethods` will fail entirely.** All eight tests in this class call `lease.assert_rha_ready()` or `lease.record_rha_override()` which do not exist on the model. The tests are well-written and correct, they simply cannot pass until fix 1 is applied.
+
+**Lower-priority issues (fix in same pass):**
+
+5. **`Lease.deposit` is a non-nullable `DecimalField` (`models.py` line 25), so `rha_check.py`'s `deposit is None` check (`_check_mandatory_terms`, line ~96) can never fire in production.** Django will reject saving a lease with `deposit=None` at the ORM layer. Either make the field nullable (`null=True, blank=True`) to match the check's intent, or change the check to `deposit == 0` (and update the flag code/message). The implementer's own caveat acknowledges zero-deposit leases as a concern — aligning the field nullability with the check is the cleaner path.
+
+6. **`rha_check.py` `_check_notice_period` cross-references `RHA s5(3)(c)` for notice period, but `s5(3)(c)` is the rent amount clause.** The correct citation for notice period is `RHA s5(3)(e)`. This is already the citation used in `_check_mandatory_terms` for `MISSING_NOTICE_PERIOD`. Fix the `section` string in `_check_notice_period`'s `_flag()` call to `"RHA s5(3)(e)"`.
+
+7. **Escalation provision, renewal terms, and domicilium are listed in AC "mandatory terms" and in `content/product/rha-compliance.md` but are not checked in `rha_check.py`.** The AC says flags cover "escalation, duration, renewal, domicilium". The `Lease` model has no dedicated fields for these clauses, so there is nothing to check against — this is likely a model gap rather than a checker gap. Either add the checks with appropriate `advisory` severity against the clause text (if the model has it), or explicitly document in the code why these three are intentionally skipped. As-is there is a silent gap between what the AC claims is covered and what the checker actually enforces.
