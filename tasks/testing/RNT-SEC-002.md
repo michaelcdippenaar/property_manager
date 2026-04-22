@@ -7,12 +7,13 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: blocked
+status: testing
 asana_gid: "1214177462221163"
 assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
+unblocked: 2026-04-22
 ---
 
 ## Goal
@@ -171,3 +172,32 @@ pytest apps/test_hub/esigning/unit/test_rate_limits.py -v \
 **Manual curl test:** Not executed. The test plan's primary automated item (429 on threshold) is represented by `test_429_after_threshold_exceeded`, which is blocked by the migration conflict. The curl test would duplicate this and cannot be meaningfully substituted as a plan item.
 
 **Verdict:** Task blocked. The two DB-integration tests that directly verify the core acceptance criterion (429 returned after threshold is exceeded) cannot run due to the pre-existing properties migration conflict. The 15 unit tests covering throttle class wiring, scope declarations, and settings configuration all pass cleanly. Unblock path: resolve `tasks/discoveries/2026-04-22-properties-migration-conflict.md`, then re-run the full battery.
+
+### 2026-04-22 — pm: unblocked, moving to testing
+
+**Blocker resolved.** RNT-QUAL-011 (migration merge) landed in `tasks/done/` at commit `8fba70d`. Test run against the merged tree: **1349 passed, 1 skipped, 15 pre-existing unrelated failures** — the properties migration conflict that prevented the test DB from being created is gone.
+
+**Action for tester:** Re-run the full rate-limit battery, including the two previously blocked DB-integration tests:
+
+```
+pytest backend/apps/test_hub/esigning/unit/test_rate_limits.py -v
+```
+
+Both tests should now be able to create the test DB. The expected outcomes are:
+
+| Test | Expected |
+|------|----------|
+| `TestPublicSignMinuteThrottle::test_429_after_threshold_exceeded` | PASS |
+| `TestPublicSignMinuteThrottle::test_different_ips_not_throttled_together` | PASS |
+
+**IMPORTANT — rate-limit URL 404 issue (directly in scope for this task):**
+
+The discovery `tasks/discoveries/2026-04-22-pre-existing-test-failures.md` (filed by rentals-tester during QUAL-011) flags that **both rate-limit DB-integration tests are returning 404** on the URL `/api/v1/esigning/public-sign/.../sign/` — this is separate from and in addition to the migration blocker.
+
+This means even with the migration fixed, those two tests may fail with 404 rather than the expected 429. The tester must investigate whether:
+
+1. The URL pattern for the public signing endpoint was moved or renamed in a recent commit (check `backend/apps/esigning/urls.py` against what the tests are hitting).
+2. The test is using a hardcoded URL string that no longer matches the router output — prefer `reverse()` if so.
+3. The view is registered under a different URL than `public-sign` (the implementer notes it as `/api/v1/esigning/public/<token>/...`; the tests may still reference the old path).
+
+This 404 must be resolved before the DB-integration tests can be considered passing. Do not close this task until `test_429_after_threshold_exceeded` returns 429 (not 404) on the 11th request.
