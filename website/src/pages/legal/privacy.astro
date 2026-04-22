@@ -1,0 +1,456 @@
+---
+/**
+ * Privacy Policy — POPIA-compliant
+ *
+ * SA context: Responsible Party framing, s11 lawful bases, s14 retention,
+ * s72 cross-border (af-south-1 only), DSAR process, Information Officer (s56).
+ *
+ * Version history is displayed at the bottom. Material changes require
+ * re-acknowledgement from registered users (enforced via backend/apps/legal).
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const EFFECTIVE_DATE = '22 April 2026';
+const VERSION = '1.0';
+const INFO_OFFICER_EMAIL = 'info-officer@klikk.co.za';
+const PRIVACY_EMAIL = 'privacy@klikk.co.za';
+
+const versions = [
+  { version: '1.0', date: '22 April 2026', summary: 'Initial policy.' },
+];
+---
+
+<BaseLayout
+  title="Privacy Policy — Klikk"
+  description="How Klikk collects, uses, and protects your personal information in accordance with POPIA (Protection of Personal Information Act 4 of 2013)."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <!-- Header -->
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>Privacy Policy</h1>
+        <p class="legal-meta">
+          Version {VERSION} &mdash; Effective {EFFECTIVE_DATE}
+        </p>
+        <p class="legal-subtitle">
+          This policy explains how Klikk (Pty) Ltd collects, uses, stores, and protects your personal
+          information in accordance with the <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong>.
+        </p>
+      </div>
+
+      <!-- Quick links -->
+      <nav class="legal-toc reveal">
+        <p class="toc-label">Jump to section</p>
+        <ol>
+          <li><a href="#who-we-are">Who we are</a></li>
+          <li><a href="#what-we-collect">What PI we collect</a></li>
+          <li><a href="#lawful-basis">Lawful basis (POPIA s11)</a></li>
+          <li><a href="#how-we-use">How we use your PI</a></li>
+          <li><a href="#retention">Retention (POPIA s14)</a></li>
+          <li><a href="#sharing">Who we share PI with</a></li>
+          <li><a href="#cross-border">Cross-border transfers (POPIA s72)</a></li>
+          <li><a href="#security">Security (POPIA s19)</a></li>
+          <li><a href="#your-rights">Your rights</a></li>
+          <li><a href="#cookies">Cookies &amp; tracking</a></li>
+          <li><a href="#changes">Changes to this policy</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ol>
+      </nav>
+
+      <!-- Body -->
+      <div class="legal-body">
+
+        <section id="who-we-are" class="reveal">
+          <h2>1. Who we are</h2>
+          <p>
+            <strong>Klikk (Pty) Ltd</strong> ("Klikk", "we", "us") is the <strong>Responsible Party</strong> as
+            defined in POPIA s1 — we determine the purpose and means of processing personal information
+            collected through the Klikk platform and this website.
+          </p>
+          <div class="info-box">
+            <p><strong>Information Officer (POPIA s56):</strong></p>
+            <p>Email: <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></p>
+            <p>General privacy enquiries: <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></p>
+            <p>The Information Officer is registered with the Information Regulator of South Africa.</p>
+          </div>
+        </section>
+
+        <section id="what-we-collect" class="reveal">
+          <h2>2. What personal information we collect</h2>
+
+          <h3>2.1 Agency / Property manager accounts</h3>
+          <ul>
+            <li>Contact details: full name, email address, phone number</li>
+            <li>Business identity: agency name, CIPC registration number, VAT number, PPRA FFC number</li>
+            <li>Location: physical and postal address</li>
+            <li>Financial: bank account details for rental disbursements</li>
+            <li>Authentication credentials (hashed; never stored in plain text)</li>
+          </ul>
+
+          <h3>2.2 Property owner accounts</h3>
+          <ul>
+            <li>Contact details: full name, email address, phone number</li>
+            <li>Identity documents: SA ID number or passport number (FICA requirement)</li>
+            <li>Property details: stand number, address, title deed number</li>
+          </ul>
+
+          <h3>2.3 Tenant accounts</h3>
+          <ul>
+            <li>Contact details: full name, email address, phone number</li>
+            <li>Identity documents: SA ID number or passport number</li>
+            <li>Financial: monthly income, employer, occupation</li>
+            <li>Lease details: rental amounts, payment history, lease dates</li>
+            <li>Emergency contact name and phone number</li>
+          </ul>
+
+          <h3>2.4 Website visitors</h3>
+          <ul>
+            <li>Anonymised analytics (page views, referral source) — no individual tracking</li>
+            <li>Contact form submissions: name, email, message</li>
+          </ul>
+        </section>
+
+        <section id="lawful-basis" class="reveal">
+          <h2>3. Lawful basis for processing (POPIA s11)</h2>
+          <p>We process PI on one or more of the following grounds:</p>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Basis</th><th>Example use</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Contractual necessity (s11(1)(b))</td>
+                <td>Creating user accounts, executing lease agreements, processing maintenance requests</td>
+              </tr>
+              <tr>
+                <td>Legal obligation (s11(1)(c))</td>
+                <td>FICA compliance, PAIA access requests, tax records retention</td>
+              </tr>
+              <tr>
+                <td>Legitimate interests (s11(1)(f))</td>
+                <td>Fraud prevention, platform security, anonymised product analytics</td>
+              </tr>
+              <tr>
+                <td>Consent (s11(1)(a))</td>
+                <td>Marketing communications (opt-in only; withdrawal honoured immediately)</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="how-we-use" class="reveal">
+          <h2>4. How we use your PI</h2>
+          <ul>
+            <li><strong>Platform services:</strong> Create and manage accounts, generate leases, process maintenance requests, facilitate e-signing, send notifications.</li>
+            <li><strong>AI features:</strong> Lease generation and maintenance matching use anonymised or aggregated data. No PI is used to train third-party AI models without explicit consent.</li>
+            <li><strong>Communications:</strong> Transactional emails (password reset, lease events, payment reminders). Marketing only with opt-in consent.</li>
+            <li><strong>Compliance:</strong> FICA identity verification, PAIA request handling, audit logs for regulatory purposes.</li>
+            <li><strong>Security:</strong> Authentication, fraud detection, access logging.</li>
+          </ul>
+        </section>
+
+        <section id="retention" class="reveal">
+          <h2>5. Data retention (POPIA s14)</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Data category</th><th>Retention period</th><th>Reason</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Lease agreements &amp; associated PI</td>
+                <td>5 years post lease end</td>
+                <td>SARS requirements; RHA s5</td>
+              </tr>
+              <tr>
+                <td>Maintenance records</td>
+                <td>3 years</td>
+                <td>Potential disputes</td>
+              </tr>
+              <tr>
+                <td>Authentication audit logs</td>
+                <td>2 years</td>
+                <td>Security / fraud</td>
+              </tr>
+              <tr>
+                <td>Inactive user accounts</td>
+                <td>3 years from last login, then deleted</td>
+                <td>Legitimate interests</td>
+              </tr>
+              <tr>
+                <td>Marketing consent records</td>
+                <td>Duration of consent + 3 years</td>
+                <td>Proof of consent</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="legal-note">Data subject to a legal hold (litigation, regulatory inquiry) is retained until the hold is lifted.</p>
+        </section>
+
+        <section id="sharing" class="reveal">
+          <h2>6. Who we share PI with</h2>
+          <p>We do <strong>not sell</strong> personal information. We share PI only as follows:</p>
+          <ul>
+            <li><strong>Service providers (Operators):</strong> AWS (af-south-1), Twilio for SMS, transactional email providers — all bound by POPIA-compliant data processing agreements.</li>
+            <li><strong>Other platform participants:</strong> Landlords see tenant PI relevant to their properties; agents see PI for properties they manage; tenants see their own PI and landlord contact details.</li>
+            <li><strong>Legal requirement:</strong> If required by a court order, subpoena, or statutory obligation.</li>
+            <li><strong>Business transfers:</strong> In the event of a merger or acquisition, PI transfers only with equivalent protections and advance notice.</li>
+          </ul>
+        </section>
+
+        <section id="cross-border" class="reveal">
+          <h2>7. Cross-border transfers (POPIA s72)</h2>
+          <p>
+            Klikk stores all personal information on <strong>AWS af-south-1 (Cape Town)</strong> servers
+            located within South Africa. We do not routinely transfer PI outside South Africa.
+            Where any cross-border transfer does occur (for example, via a third-party integration),
+            we will ensure adequate protection as required by POPIA s72.
+          </p>
+          <div class="info-box info-box--success">
+            <strong>Your data stays in South Africa.</strong> af-south-1 is AWS&apos;s Cape Town region.
+          </div>
+        </section>
+
+        <section id="security" class="reveal">
+          <h2>8. Security measures (POPIA s19)</h2>
+          <ul>
+            <li>All data in transit encrypted via TLS 1.2+</li>
+            <li>All data at rest encrypted (AWS AES-256)</li>
+            <li>JWT-based authentication with token rotation</li>
+            <li>Role-based access control; principle of least privilege</li>
+            <li>Audit logging of all authentication and data-access events</li>
+            <li>Regular backups with point-in-time recovery</li>
+          </ul>
+        </section>
+
+        <section id="your-rights" class="reveal">
+          <h2>9. Your rights (POPIA s23–25; PAIA)</h2>
+          <p>You have the right to:</p>
+          <ul>
+            <li><strong>Access</strong> your PI — submit a PAIA Form 2 request to <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></li>
+            <li><strong>Correct or delete</strong> inaccurate PI — in-app profile edit, or email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></li>
+            <li><strong>Object</strong> to processing based on legitimate interests</li>
+            <li><strong>Withdraw consent</strong> for marketing at any time (unsubscribe link in every email)</li>
+            <li><strong>Data portability</strong> — request a machine-readable export of your PI</li>
+            <li><strong>Complain</strong> to the <a href="https://inforeg.org.za" target="_blank" rel="noopener">Information Regulator of South Africa</a> if you believe your rights have been violated</li>
+          </ul>
+          <p>We respond to DSAR submissions within <strong>30 days</strong> of receipt.</p>
+        </section>
+
+        <section id="cookies" class="reveal">
+          <h2>10. Cookies and tracking</h2>
+          <p>
+            The Klikk marketing website uses <strong>Plausible Analytics</strong> — a privacy-first analytics
+            tool that uses no cookies and performs no cross-site tracking. The Klikk platform applications
+            use session tokens stored in secure, httpOnly cookies. No third-party advertising trackers are used.
+          </p>
+        </section>
+
+        <section id="changes" class="reveal">
+          <h2>11. Changes to this policy</h2>
+          <p>
+            We will publish material changes on this page at least <strong>30 days before</strong> they take effect.
+            If you are a registered user, we will notify you by email and require re-acknowledgement before
+            you can continue using the platform.
+          </p>
+        </section>
+
+        <section id="contact" class="reveal">
+          <h2>12. Contact</h2>
+          <ul>
+            <li><strong>Privacy enquiries:</strong> <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></li>
+            <li><strong>Information Officer / PAIA requests:</strong> <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></li>
+            <li><strong>Information Regulator of South Africa:</strong> <a href="https://inforeg.org.za" target="_blank" rel="noopener">inforeg.org.za</a></li>
+          </ul>
+        </section>
+
+        <!-- Version history -->
+        <section class="version-history reveal">
+          <h2>Version history</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Version</th><th>Date</th><th>Summary</th></tr>
+            </thead>
+            <tbody>
+              {versions.map(v => (
+                <tr>
+                  <td>{v.version}</td>
+                  <td>{v.date}</td>
+                  <td>{v.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .legal-header {
+    margin-bottom: 40px;
+  }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 16px;
+  }
+  .legal-subtitle {
+    font-size: 17px;
+    color: #374151;
+    line-height: 1.7;
+  }
+  .legal-toc {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 12px;
+  }
+  .legal-toc ol {
+    list-style: decimal;
+    padding-left: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+  }
+  .legal-toc a {
+    font-size: 14px;
+    color: var(--color-navy);
+    text-decoration: none;
+  }
+  .legal-toc a:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+  }
+  .legal-body section {
+    margin-bottom: 52px;
+  }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: #374151;
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+  .legal-body p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: #374151;
+    margin-bottom: 12px;
+  }
+  .legal-body ul, .legal-body ol {
+    padding-left: 22px;
+    margin-bottom: 16px;
+  }
+  .legal-body li {
+    font-size: 15px;
+    line-height: 1.7;
+    color: #374151;
+    margin-bottom: 6px;
+  }
+  .legal-body a {
+    color: var(--color-navy);
+    text-decoration: underline;
+  }
+  .legal-body a:hover {
+    color: var(--color-accent);
+  }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td {
+    border-bottom: none;
+  }
+  .legal-table tr:nth-child(even) td {
+    background: #f9fafb;
+  }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  .info-box p { color: #1e40af; font-size: 14px; margin-bottom: 4px; }
+  .info-box a { color: #1d4ed8; }
+  .info-box--success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+  }
+  .info-box--success p { color: #166534; }
+  .legal-note {
+    font-size: 13px;
+    color: #6b7280;
+    font-style: italic;
+  }
+  .version-history {
+    border-top: 2px solid #e5e7eb;
+    padding-top: 32px;
+    margin-top: 32px;
+  }
+</style>

@@ -1,0 +1,341 @@
+---
+/**
+ * POPIA Statement — Responsible Party + Operator framing
+ *
+ * SA context: POPIA Chapter 3 eight conditions, s56 Information Officer,
+ * s72 cross-border, s22 breach notification, s23-25 data subject rights.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const EFFECTIVE_DATE = '22 April 2026';
+const VERSION = '1.0';
+const INFO_OFFICER_EMAIL = 'info-officer@klikk.co.za';
+const PRIVACY_EMAIL = 'privacy@klikk.co.za';
+
+const conditions = [
+  {
+    name: 'Accountability',
+    description: 'Our Information Officer oversees compliance. Internal policies and staff training are maintained.',
+  },
+  {
+    name: 'Processing limitation',
+    description: 'We collect only PI that is adequate, relevant, and not excessive for the specific purpose.',
+  },
+  {
+    name: 'Purpose specification',
+    description: 'Purposes are clearly defined at collection. PI is not processed for incompatible purposes without a new lawful basis.',
+  },
+  {
+    name: 'Further processing limitation',
+    description: 'Further processing is compatible with the original purpose or based on new consent.',
+  },
+  {
+    name: 'Information quality',
+    description: 'We provide in-app mechanisms to update or correct PI. We maintain records currency through periodic data-quality reviews.',
+  },
+  {
+    name: 'Openness',
+    description: 'This statement and our Privacy Policy disclose all processing activities. We notify data subjects at the point of collection.',
+  },
+  {
+    name: 'Security safeguards',
+    description: 'Technical and organisational measures: TLS 1.2+, AES-256 at rest, RBAC, audit logging, regular backups, penetration testing.',
+  },
+  {
+    name: 'Data subject participation',
+    description: 'Data subjects may access, correct, delete, or object to processing of their PI. We respond within 30 days.',
+  },
+];
+
+const versions = [
+  { version: '1.0', date: '22 April 2026', summary: 'Initial statement.' },
+];
+---
+
+<BaseLayout
+  title="POPIA Compliance Statement — Klikk"
+  description="Klikk's Protection of Personal Information Act (POPIA) compliance statement. Responsible Party framing, Information Officer contact, eight conditions, data subject rights."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>POPIA Compliance Statement</h1>
+        <p class="legal-meta">Version {VERSION} &mdash; Effective {EFFECTIVE_DATE}</p>
+        <p class="legal-subtitle">
+          Klikk (Pty) Ltd is committed to the lawful, responsible, and transparent processing of personal information
+          in accordance with the <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong>,
+          which came into full effect on 1 July 2021.
+        </p>
+      </div>
+
+      <div class="legal-body">
+
+        <section id="responsible-party" class="reveal">
+          <h2>1. Responsible Party and Information Officer</h2>
+          <p>
+            Klikk is the <strong>Responsible Party</strong> as defined in POPIA s1 — we determine the purpose and
+            means of processing personal information collected through our platform.
+          </p>
+          <div class="info-box">
+            <p><strong>Information Officer (POPIA s56):</strong></p>
+            <p>Name: [to be confirmed on incorporation]</p>
+            <p>Email: <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></p>
+            <p>The Information Officer is registered with the <strong>Information Regulator of South Africa</strong> as required by POPIA s55–56.</p>
+          </div>
+        </section>
+
+        <section id="operator" class="reveal">
+          <h2>2. Operator relationships</h2>
+          <p>
+            Where Klikk processes personal information on behalf of another Responsible Party (for example, a property
+            agency that uses the Klikk platform to manage their clients' data), Klikk acts as an <strong>Operator</strong>
+            as defined in POPIA s1.
+          </p>
+          <p>In this capacity, Klikk:</p>
+          <ul>
+            <li>Processes PI only on the documented instructions of the Responsible Party</li>
+            <li>Does not retain PI beyond the term of the service agreement</li>
+            <li>Provides reasonable technical and organisational security measures</li>
+            <li>Assists the Responsible Party in meeting their POPIA obligations</li>
+            <li>Enters into a written Operator Agreement with each Responsible Party customer</li>
+          </ul>
+          <p>
+            Where Klikk holds a direct relationship with a data subject (e.g., a platform account holder),
+            Klikk acts as Responsible Party.
+          </p>
+        </section>
+
+        <section id="conditions" class="reveal">
+          <h2>3. The eight conditions for lawful processing</h2>
+          <p>Klikk applies all eight conditions for lawful processing set out in POPIA Chapter 3:</p>
+          <div class="conditions-grid">
+            {conditions.map((c, i) => (
+              <div class="condition-card">
+                <div class="condition-number">{i + 1}</div>
+                <div class="condition-body">
+                  <h3>{c.name}</h3>
+                  <p>{c.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section id="special-pi" class="reveal">
+          <h2>4. Special personal information</h2>
+          <p>
+            POPIA s26–35 affords heightened protection to special personal information including health information,
+            religious or political beliefs, trade union membership, criminal records, and financial information.
+          </p>
+          <p>Klikk does not intentionally collect special personal information except:</p>
+          <ul>
+            <li>
+              <strong>Financial information</strong> (monthly income, bank details): collected only where necessary
+              for rental applications and disbursements, on a lawful basis.
+            </li>
+            <li>
+              <strong>SA ID numbers:</strong> collected for FICA identity verification purposes under statutory obligation.
+            </li>
+          </ul>
+        </section>
+
+        <section id="marketing" class="reveal">
+          <h2>5. Direct marketing</h2>
+          <p>
+            Klikk only sends direct marketing communications to users who have explicitly opted in. Each marketing
+            communication includes a clear, functional unsubscribe mechanism. We do not sell PI to third-party marketers.
+          </p>
+        </section>
+
+        <section id="cross-border" class="reveal">
+          <h2>6. Cross-border transfers (POPIA s72)</h2>
+          <p>
+            All PI is stored and processed on <strong>AWS af-south-1 (Cape Town)</strong> — within South Africa.
+            Cross-border transfers are avoided. Where unavoidable (e.g., third-party API integrations), Klikk ensures
+            adequate protection as required by POPIA s72 and confirms the destination country has adequate protection
+            or obtains the data subject's consent.
+          </p>
+        </section>
+
+        <section id="breach" class="reveal">
+          <h2>7. Security incidents (POPIA s22)</h2>
+          <p>In the event of a security compromise involving PI, Klikk will:</p>
+          <ul>
+            <li>Notify the Information Regulator as soon as reasonably possible</li>
+            <li>Notify affected data subjects where there is a real risk of harm</li>
+            <li>Document the incident, cause, and remedial actions taken</li>
+          </ul>
+          <p>Security incidents may be reported to: <a href="mailto:security@klikk.co.za">security@klikk.co.za</a></p>
+        </section>
+
+        <section id="rights" class="reveal">
+          <h2>8. Data subject rights (POPIA s23–25)</h2>
+          <p>Data subjects may exercise the following rights at any time:</p>
+          <ul>
+            <li><strong>Access</strong> — submit a PAIA Form 2 request to <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></li>
+            <li><strong>Correction or deletion</strong> — email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> or use in-app profile settings</li>
+            <li><strong>Object</strong> to processing — email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a> with reason</li>
+            <li><strong>Withdraw consent</strong> — unsubscribe link in all marketing emails, or email <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></li>
+            <li><strong>Complain</strong> to the <a href="https://inforeg.org.za" target="_blank" rel="noopener">Information Regulator</a></li>
+          </ul>
+          <p>We respond to data subject requests within <strong>30 days</strong>.</p>
+        </section>
+
+        <section id="paia" class="reveal">
+          <h2>9. PAIA manual</h2>
+          <p>
+            Our PAIA s51 manual (including Form 2 for access requests) is available at
+            <a href="/legal/paia-manual">klikk.co.za/legal/paia-manual</a> and on request from the Information Officer.
+          </p>
+        </section>
+
+        <section id="contact" class="reveal">
+          <h2>10. Contact</h2>
+          <ul>
+            <li><strong>POPIA enquiries:</strong> <a href={`mailto:${PRIVACY_EMAIL}`}>{PRIVACY_EMAIL}</a></li>
+            <li><strong>PAIA / Information Officer:</strong> <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></li>
+            <li><strong>Information Regulator:</strong> <a href="https://inforeg.org.za" target="_blank" rel="noopener">inforeg.org.za</a></li>
+          </ul>
+        </section>
+
+        <section class="version-history reveal">
+          <h2>Version history</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Version</th><th>Date</th><th>Summary</th></tr>
+            </thead>
+            <tbody>
+              {versions.map(v => (
+                <tr>
+                  <td>{v.version}</td>
+                  <td>{v.date}</td>
+                  <td>{v.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner { max-width: 760px; margin: 0 auto; }
+  .legal-header { margin-bottom: 40px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .legal-subtitle { font-size: 17px; color: #374151; line-height: 1.7; }
+  .legal-body section { margin-bottom: 52px; }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 { font-size: 15px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  .legal-body p { font-size: 15px; line-height: 1.75; color: #374151; margin-bottom: 12px; }
+  .legal-body ul { padding-left: 22px; margin-bottom: 16px; }
+  .legal-body li { font-size: 15px; line-height: 1.7; color: #374151; margin-bottom: 6px; }
+  .legal-body a { color: var(--color-navy); text-decoration: underline; }
+  .legal-body a:hover { color: var(--color-accent); }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  .info-box p { color: #1e40af; font-size: 14px; margin-bottom: 4px; }
+  .info-box a { color: #1d4ed8; }
+  .conditions-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .condition-card {
+    display: flex;
+    gap: 16px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 20px;
+  }
+  .condition-number {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--color-navy);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .condition-body h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-navy);
+    margin-bottom: 4px;
+    margin-top: 4px;
+  }
+  .condition-body p {
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.6;
+    margin-bottom: 0;
+  }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td { border-bottom: none; }
+  .legal-table tr:nth-child(even) td { background: #f9fafb; }
+  .version-history { border-top: 2px solid #e5e7eb; padding-top: 32px; margin-top: 32px; }
+</style>

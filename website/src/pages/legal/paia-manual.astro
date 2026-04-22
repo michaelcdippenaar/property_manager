@@ -1,0 +1,453 @@
+---
+/**
+ * PAIA Section 51 Manual
+ *
+ * Compiled in terms of s51 of the Promotion of Access to Information Act 2 of 2000.
+ * Includes Form 2 download link, fee schedule, response times, and refusal grounds.
+ * SA context: PAIA s56 (30-day response), s57 (extension), s78 (court application).
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const COMPILED_DATE = '22 April 2026';
+const VERSION = '1.0';
+const INFO_OFFICER_EMAIL = 'info-officer@klikk.co.za';
+
+const feeSchedule = [
+  { format: 'Printed copy (per page)', fee: 'R2.00' },
+  { format: 'Electronic copy — first 20 pages', fee: 'No charge' },
+  { format: 'Electronic copy — per page beyond first 20', fee: 'R2.00' },
+  { format: 'CD / USB (per disc or drive)', fee: 'R70.00' },
+  { format: 'Inspection of records (per hour or part thereof)', fee: 'R145.00' },
+];
+
+const recordCategories = [
+  { category: 'User account records', description: 'Registration data, authentication logs, profile information' },
+  { category: 'Property records', description: 'Property details, unit information, lease documents' },
+  { category: 'Lease agreements', description: 'Executed leases, addenda, renewal records' },
+  { category: 'Tenant records', description: 'Application data, identity documents, payment history' },
+  { category: 'Maintenance records', description: 'Maintenance requests, supplier assignments, invoices' },
+  { category: 'Financial records', description: 'Subscription invoices, payment history' },
+  { category: 'Communications', description: 'Transactional emails, notifications, audit logs' },
+  { category: 'Third-party integration data', description: 'Data exchanged with authorised integrations' },
+];
+---
+
+<BaseLayout
+  title="PAIA Manual — Klikk"
+  description="Klikk's PAIA section 51 manual. How to request access to records, Form 2 download, fee schedule, and Information Regulator contact details."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>PAIA Section 51 Manual</h1>
+        <p class="legal-meta">Version {VERSION} &mdash; Compiled {COMPILED_DATE}</p>
+        <p class="legal-subtitle">
+          Compiled in terms of <strong>section 51 of the Promotion of Access to Information Act 2 of 2000 (PAIA)</strong>.
+          This manual assists data subjects in exercising their constitutional right of access to information.
+        </p>
+        <div class="form2-cta reveal">
+          <div class="form2-text">
+            <strong>Ready to make a request?</strong>
+            <p>Download and complete Form 2, then email it to the Information Officer.</p>
+          </div>
+          <a href="/docs/paia-form-2.pdf" class="btn-download" download>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PAIA Form 2 (PDF)
+          </a>
+        </div>
+      </div>
+
+      <div class="legal-body">
+
+        <!-- Part A -->
+        <div class="part-label reveal">Part A — Introduction</div>
+
+        <section id="purpose" class="reveal">
+          <h2>A1. Purpose</h2>
+          <p>
+            The Promotion of Access to Information Act 2 of 2000 gives effect to the constitutional right of access
+            to information held by private bodies, as protected under <strong>section 32 of the Constitution of
+            the Republic of South Africa, 1996</strong>. This manual is compiled in terms of PAIA s51 and is
+            intended to assist data subjects in exercising their rights.
+          </p>
+        </section>
+
+        <section id="information-officer" class="reveal">
+          <h2>A2. Information Officer</h2>
+          <div class="info-box">
+            <p><strong>Company:</strong> Klikk (Pty) Ltd</p>
+            <p><strong>Registered address:</strong> [to be inserted on incorporation]</p>
+            <p><strong>Postal address:</strong> PO Box [XXX], [City], [Postal Code]</p>
+            <p><strong>Information Officer:</strong> [Name — to be confirmed]</p>
+            <p><strong>Email:</strong> <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a></p>
+            <p><strong>Phone:</strong> [to be inserted]</p>
+          </div>
+        </section>
+
+        <section id="sahrc" class="reveal">
+          <h2>A3. South African Human Rights Commission</h2>
+          <p>
+            The South African Human Rights Commission has compiled a guide on how to use PAIA (POPIA s10).
+            The guide is available from:
+          </p>
+          <div class="contact-card">
+            <p><strong>South African Human Rights Commission</strong></p>
+            <p>Private Bag 2700, Houghton 2041</p>
+            <p>Website: <a href="https://sahrc.org.za" target="_blank" rel="noopener">sahrc.org.za</a></p>
+            <p>Email: <a href="mailto:PAIA@sahrc.org.za">PAIA@sahrc.org.za</a></p>
+          </div>
+        </section>
+
+        <!-- Part B -->
+        <div class="part-label reveal">Part B — Records held by Klikk</div>
+
+        <section id="public-records" class="reveal">
+          <h2>B1. Records available without a formal PAIA request</h2>
+          <p>The following information is publicly available and does not require a formal PAIA request:</p>
+          <ul>
+            <li><a href="/legal/privacy">Privacy Policy</a></li>
+            <li><a href="/legal/terms">Terms of Service</a></li>
+            <li><a href="/legal/popia">POPIA Statement</a></li>
+            <li>This PAIA Manual</li>
+            <li>Marketing and product information (klikk.co.za)</li>
+          </ul>
+          <p>Registered users can access their own PI directly via the Klikk platform dashboard.</p>
+        </section>
+
+        <section id="record-categories" class="reveal">
+          <h2>B2. Categories of records held</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Category</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              {recordCategories.map(r => (
+                <tr>
+                  <td>{r.category}</td>
+                  <td>{r.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section id="records-not-held" class="reveal">
+          <h2>B3. Records not held by Klikk</h2>
+          <ul>
+            <li>Title deeds (held by the Deeds Registry)</li>
+            <li>Municipal utility accounts (held by municipalities)</li>
+            <li>SARS tax records (held by SARS)</li>
+            <li>Trust account statements (held by the relevant financial institution)</li>
+          </ul>
+        </section>
+
+        <!-- Part C -->
+        <div class="part-label reveal">Part C — How to request access</div>
+
+        <section id="who-may-request" class="reveal">
+          <h2>C1. Who may request</h2>
+          <p>
+            Any person (natural or juristic) may request access to records held by Klikk. Data subjects have the
+            right to request their own PI. Third-party requests are subject to privacy protections under POPIA.
+          </p>
+        </section>
+
+        <section id="form-2" class="reveal">
+          <h2>C2. Form 2 — Request for access to records</h2>
+          <p>
+            A formal PAIA request must be submitted using <strong>Form 2</strong> (prescribed under the PAIA Regulations).
+            Form 2 must be completed in full and submitted to the Information Officer.
+          </p>
+          <div class="submit-methods">
+            <div class="submit-method">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </div>
+              <div>
+                <h3>Email (preferred)</h3>
+                <p><a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a><br/>Attach completed Form 2 PDF.</p>
+              </div>
+            </div>
+            <div class="submit-method">
+              <div class="method-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              </div>
+              <div>
+                <h3>Post</h3>
+                <p>Information Officer, Klikk (Pty) Ltd<br/>PO Box [XXX], [City], [Postal Code]</p>
+              </div>
+            </div>
+          </div>
+          <a href="/docs/paia-form-2.pdf" class="btn-download-inline" download>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PAIA Form 2 (PDF)
+          </a>
+        </section>
+
+        <section id="request-fee" class="reveal">
+          <h2>C3. Request fee</h2>
+          <p>
+            A request fee of <strong>R140.00</strong> is payable before the request is processed, as prescribed by the
+            PAIA Regulations (GN R187 of 15 February 2002, as amended). This fee may be waived at our discretion for
+            requests relating to your own PI.
+          </p>
+        </section>
+
+        <section id="access-fee" class="reveal">
+          <h2>C4. Access fee</h2>
+          <p>Where access is granted, an access fee may be charged to recover the reasonable cost of reproduction:</p>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Format</th><th>Fee</th></tr>
+            </thead>
+            <tbody>
+              {feeSchedule.map(f => (
+                <tr>
+                  <td>{f.format}</td>
+                  <td><strong>{f.fee}</strong></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="legal-note">Persons who cannot afford the fee may apply for a waiver (Form 2, Section 4).</p>
+        </section>
+
+        <section id="response-time" class="reveal">
+          <h2>C5. Response time</h2>
+          <p>
+            Klikk will respond within <strong>30 days</strong> of receiving a properly completed Form 2 and any
+            applicable request fee (PAIA s56). This period may be extended by a further 30 days where the request
+            requires extensive searching or relates to a large volume of records (PAIA s57).
+          </p>
+        </section>
+
+        <section id="refusal" class="reveal">
+          <h2>C6. Grounds for refusal</h2>
+          <p>Access may be refused where (non-exhaustive):</p>
+          <ul>
+            <li>The record contains the PI of a third party who has not consented</li>
+            <li>Disclosure would be unreasonably prejudicial to commercial interests</li>
+            <li>The record is subject to legal professional privilege</li>
+            <li>Disclosure could endanger the safety of a person</li>
+            <li>The record does not exist or cannot be found after a reasonable search</li>
+          </ul>
+          <p>If access is refused, Klikk will provide written reasons. The requester may apply to the Information Regulator or a court for review.</p>
+        </section>
+
+        <!-- Part D -->
+        <div class="part-label reveal">Part D — Rights and remedies</div>
+
+        <section id="regulator" class="reveal">
+          <h2>D1. Information Regulator</h2>
+          <div class="contact-card">
+            <p><strong>Information Regulator (South Africa)</strong></p>
+            <p>JD House, 27 Stiemens Street, Braamfontein, Johannesburg 2001</p>
+            <p>Website: <a href="https://inforeg.org.za" target="_blank" rel="noopener">inforeg.org.za</a></p>
+            <p>Email: <a href="mailto:inforeg@justice.gov.za">inforeg@justice.gov.za</a></p>
+            <p>Complaints: <a href="mailto:complaints.IR@justice.gov.za">complaints.IR@justice.gov.za</a></p>
+          </div>
+        </section>
+
+        <section id="court" class="reveal">
+          <h2>D2. Court application</h2>
+          <p>
+            A requester who is refused access or dissatisfied with a decision may apply to the High Court or a
+            Magistrates' Court with jurisdiction (PAIA s78).
+          </p>
+        </section>
+
+        <!-- Part E -->
+        <div class="part-label reveal">Part E — Availability of this manual</div>
+
+        <section id="availability" class="reveal">
+          <h2>E1. How to obtain this manual</h2>
+          <ul>
+            <li><strong>Online:</strong> klikk.co.za/legal/paia-manual</li>
+            <li><strong>By email:</strong> <a href={`mailto:${INFO_OFFICER_EMAIL}`}>{INFO_OFFICER_EMAIL}</a> (PDF copy provided free of charge)</li>
+            <li><strong>South African Human Rights Commission office</strong></li>
+          </ul>
+          <p class="legal-note">
+            Compiled by: Klikk (Pty) Ltd — Information Officer &mdash; {COMPILED_DATE}
+          </p>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner { max-width: 760px; margin: 0 auto; }
+  .legal-header { margin-bottom: 48px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .legal-subtitle { font-size: 17px; color: #374151; line-height: 1.7; margin-bottom: 24px; }
+  .form2-cta {
+    background: var(--color-navy);
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 24px;
+  }
+  .form2-text { color: white; }
+  .form2-text strong { font-size: 15px; display: block; margin-bottom: 4px; }
+  .form2-text p { font-size: 13px; color: rgba(255,255,255,0.65); margin: 0; }
+  .btn-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-accent);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .btn-download:hover { background: var(--color-accent-dark); }
+  .btn-download-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-navy);
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    text-decoration: none;
+    margin-top: 16px;
+    transition: background 0.2s;
+  }
+  .btn-download-inline:hover { background: var(--color-navy-light); }
+  .part-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    background: #fff0f4;
+    border-left: 3px solid var(--color-accent);
+    padding: 8px 14px;
+    border-radius: 0 6px 6px 0;
+    margin-bottom: 8px;
+    margin-top: 40px;
+  }
+  .legal-body section { margin-bottom: 40px; }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 { font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 4px; }
+  .legal-body p { font-size: 15px; line-height: 1.75; color: #374151; margin-bottom: 12px; }
+  .legal-body ul { padding-left: 22px; margin-bottom: 16px; }
+  .legal-body li { font-size: 15px; line-height: 1.7; color: #374151; margin-bottom: 6px; }
+  .legal-body a { color: var(--color-navy); text-decoration: underline; }
+  .legal-body a:hover { color: var(--color-accent); }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+  }
+  .info-box p { color: #1e40af; font-size: 14px; margin-bottom: 4px; }
+  .info-box a { color: #1d4ed8; }
+  .contact-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 14px;
+  }
+  .contact-card p { color: #374151; font-size: 14px; margin-bottom: 4px; }
+  .contact-card a { color: var(--color-navy); }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td { border-bottom: none; }
+  .legal-table tr:nth-child(even) td { background: #f9fafb; }
+  .submit-methods {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .submit-method {
+    display: flex;
+    gap: 12px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .method-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--color-navy);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .submit-method h3 { font-size: 13px; font-weight: 600; color: var(--color-navy); margin-bottom: 4px; margin-top: 4px; }
+  .submit-method p { font-size: 13px; color: #6b7280; margin: 0; line-height: 1.5; }
+  .submit-method a { color: var(--color-navy); }
+  .legal-note { font-size: 13px; color: #6b7280; font-style: italic; }
+  @media (max-width: 600px) {
+    .submit-methods { grid-template-columns: 1fr; }
+    .form2-cta { flex-direction: column; align-items: flex-start; }
+  }
+</style>

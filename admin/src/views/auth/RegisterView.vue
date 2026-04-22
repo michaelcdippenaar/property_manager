@@ -125,6 +125,23 @@
             />
           </div>
 
+          <!-- ToS acceptance -->
+          <div class="flex items-start gap-2.5 pt-1">
+            <input
+              id="tos-accept"
+              v-model="tosAccepted"
+              type="checkbox"
+              class="mt-0.5 h-4 w-4 rounded border-gray-300 text-navy accent-navy cursor-pointer flex-shrink-0"
+              required
+            />
+            <label for="tos-accept" class="text-xs text-gray-500 leading-relaxed cursor-pointer">
+              I have read and agree to Klikk's
+              <a href="https://klikk.co.za/legal/terms" target="_blank" class="text-navy underline hover:text-pink-brand">Terms of Service</a>
+              and
+              <a href="https://klikk.co.za/legal/privacy" target="_blank" class="text-navy underline hover:text-pink-brand">Privacy Policy</a>.
+            </label>
+          </div>
+
           <div v-if="error" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
             <AlertCircle :size="15" />
             {{ error }}
@@ -133,7 +150,7 @@
           <button
             type="submit"
             class="btn-primary w-full justify-center py-2.5 mt-2"
-            :disabled="loading"
+            :disabled="loading || !tosAccepted"
           >
             <Loader2 v-if="loading" :size="15" class="animate-spin" />
             {{ loading ? 'Creating account...' : 'Create account' }}
@@ -186,6 +203,7 @@ const form = reactive({
 })
 const confirmPassword = ref('')
 const showPassword = ref(false)
+const tosAccepted = ref(false)
 const loading = ref(false)
 const error = ref('')
 const googleButtonRef = ref<HTMLElement | null>(null)

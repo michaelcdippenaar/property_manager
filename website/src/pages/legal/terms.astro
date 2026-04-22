@@ -1,0 +1,375 @@
+---
+/**
+ * Terms of Service — Platform ToS (not a tenancy agreement)
+ *
+ * SA context: CPA, ECTA, RHA acknowledgement, jurisdiction (SA courts).
+ * Version history kept; material changes trigger re-acknowledgement
+ * (enforced via backend/apps/legal ToS consent model).
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const EFFECTIVE_DATE = '22 April 2026';
+const VERSION = '1.0';
+
+const versions = [
+  { version: '1.0', date: '22 April 2026', summary: 'Initial terms.' },
+];
+---
+
+<BaseLayout
+  title="Terms of Service — Klikk"
+  description="Klikk platform Terms of Service. Governing law: Republic of South Africa. Covers platform use, AI-generated content, e-signatures, acceptable use, and liability."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>Terms of Service</h1>
+        <p class="legal-meta">Version {VERSION} &mdash; Effective {EFFECTIVE_DATE}</p>
+        <p class="legal-subtitle">
+          These Terms govern your use of the Klikk property management platform. They cover platform use only —
+          lease agreements between landlords and tenants are separate documents governed by the
+          <strong>Rental Housing Act 50 of 1999</strong>.
+        </p>
+      </div>
+
+      <nav class="legal-toc reveal">
+        <p class="toc-label">Jump to section</p>
+        <ol>
+          <li><a href="#agreement">Agreement</a></li>
+          <li><a href="#services">Services</a></li>
+          <li><a href="#accounts">Accounts</a></li>
+          <li><a href="#acceptable-use">Acceptable use</a></li>
+          <li><a href="#ai-content">AI-generated content</a></li>
+          <li><a href="#lease-agreements">Lease agreements</a></li>
+          <li><a href="#e-signatures">Electronic signatures</a></li>
+          <li><a href="#data">Data &amp; privacy</a></li>
+          <li><a href="#ip">Intellectual property</a></li>
+          <li><a href="#fees">Fees &amp; payment</a></li>
+          <li><a href="#termination">Suspension &amp; termination</a></li>
+          <li><a href="#liability">Limitation of liability</a></li>
+          <li><a href="#jurisdiction">Governing law</a></li>
+          <li><a href="#changes">Changes</a></li>
+        </ol>
+      </nav>
+
+      <div class="legal-body">
+
+        <section id="agreement" class="reveal">
+          <h2>1. Agreement</h2>
+          <p>
+            By registering for or using the Klikk platform ("Platform"), you ("User") agree to these Terms of Service ("Terms").
+            If you are registering on behalf of a company or agency, you represent that you have authority to bind that entity.
+          </p>
+          <p>
+            <strong>Service provider:</strong> Klikk (Pty) Ltd &mdash; legal@klikk.co.za
+          </p>
+          <p>
+            These Terms govern platform use only. They do not constitute a tenancy agreement between landlord and tenant.
+            Such agreements are governed by the lease document generated within the Platform and the Rental Housing Act 50 of 1999.
+          </p>
+        </section>
+
+        <section id="services" class="reveal">
+          <h2>2. Services</h2>
+          <p>Klikk provides a software-as-a-service platform that includes:</p>
+          <ul>
+            <li>Property and unit management</li>
+            <li>AI-assisted lease generation (RHA-compliant templates)</li>
+            <li>Electronic signing of lease documents (ECTA-compliant)</li>
+            <li>Maintenance request management and supplier matching</li>
+            <li>Tenant and owner communication portals</li>
+            <li>Document storage and management</li>
+            <li>Analytics and reporting</li>
+          </ul>
+          <div class="info-box">
+            <strong>Important:</strong> Klikk is a <strong>platform provider</strong>, not a property management company.
+            We provide tools; you are responsible for the legal compliance of property management activities conducted using those tools.
+          </div>
+        </section>
+
+        <section id="accounts" class="reveal">
+          <h2>3. Accounts</h2>
+          <h3>3.1 Registration</h3>
+          <p>You must provide accurate, current information during registration. One set of credentials per person; sharing credentials is prohibited.</p>
+
+          <h3>3.2 Agency bootstrap</h3>
+          <p>
+            The first user to register on a new Klikk account becomes the Agency Admin. Subsequent users must be invited
+            by the Agency Admin. This prevents unauthorised access to existing data.
+          </p>
+
+          <h3>3.3 Security</h3>
+          <p>
+            You are responsible for maintaining the confidentiality of your credentials. Notify us immediately at
+            <a href="mailto:security@klikk.co.za">security@klikk.co.za</a> if you suspect unauthorised access.
+          </p>
+
+          <h3>3.4 Subscription tiers</h3>
+          <p>
+            Platform access is subject to the pricing tier associated with your account. Feature availability and
+            usage limits are defined in the current pricing schedule at
+            <a href="/pricing">klikk.co.za/pricing</a>.
+          </p>
+        </section>
+
+        <section id="acceptable-use" class="reveal">
+          <h2>4. Acceptable use</h2>
+          <p>You agree <strong>not</strong> to:</p>
+          <ul>
+            <li>Use the Platform for any purpose that is unlawful under South African law</li>
+            <li>Upload or transmit content that is defamatory, fraudulent, or infringes third-party IP rights</li>
+            <li>Attempt to reverse-engineer, decompile, or extract source code</li>
+            <li>Use automated scripts to scrape or extract Platform data without our written consent</li>
+            <li>Impersonate another person or entity</li>
+            <li>Interfere with or disrupt the Platform's infrastructure</li>
+            <li>Use the Platform in violation of the RHA, POPIA, FICA, or FAIS</li>
+            <li>Discriminate in tenant selection on any ground prohibited by the Constitution or the Rental Housing Act</li>
+          </ul>
+        </section>
+
+        <section id="ai-content" class="reveal">
+          <h2>5. AI-generated content</h2>
+          <p>
+            The Platform includes AI-assisted features including lease generation and maintenance matching.
+            AI-generated content is provided as a <strong>starting point only</strong>. You are solely responsible
+            for reviewing, verifying, and legally executing any AI-generated document.
+          </p>
+          <p>
+            Klikk does not provide legal advice. Consult a qualified attorney for complex or disputed matters.
+          </p>
+        </section>
+
+        <section id="lease-agreements" class="reveal">
+          <h2>6. Lease agreements</h2>
+          <p>Klikk provides template lease agreements that conform to the Rental Housing Act. However:</p>
+          <ul>
+            <li>Templates are not a substitute for legal advice</li>
+            <li>You are responsible for ensuring the lease is appropriate for your specific circumstances</li>
+            <li>Klikk is not a party to any lease agreement created using the Platform</li>
+            <li>Disputes between landlord and tenant are subject to the Rental Housing Tribunal or courts, not Klikk</li>
+          </ul>
+        </section>
+
+        <section id="e-signatures" class="reveal">
+          <h2>7. Electronic signatures</h2>
+          <p>
+            E-signatures facilitated through the Platform comply with the
+            <strong>Electronic Communications and Transactions Act 25 of 2002 (ECTA)</strong>.
+            An audit trail (IP address, timestamp, signature hash) is retained for each signed document.
+            You are responsible for confirming the identity of signatories where required by law.
+          </p>
+        </section>
+
+        <section id="data" class="reveal">
+          <h2>8. Data and privacy</h2>
+          <p>
+            By using the Platform, you acknowledge our <a href="/legal/privacy">Privacy Policy</a> and
+            <a href="/legal/popia">POPIA Statement</a>. You are responsible for ensuring you have a
+            lawful basis to submit third-party personal information (e.g., tenant data) to the Platform.
+          </p>
+        </section>
+
+        <section id="ip" class="reveal">
+          <h2>9. Intellectual property</h2>
+          <p>
+            All Platform software, designs, trademarks, and content are owned by or licensed to Klikk.
+            You receive a limited, non-exclusive, non-transferable licence to use the Platform for its intended purpose.
+            No ownership or IP rights are transferred.
+          </p>
+          <p>
+            Your data (property details, lease documents, etc.) remains your property. You grant Klikk a limited
+            licence to process it for service delivery purposes.
+          </p>
+        </section>
+
+        <section id="fees" class="reveal">
+          <h2>10. Fees and payment</h2>
+          <ul>
+            <li>Fees are set out in the pricing schedule at <a href="/pricing">klikk.co.za/pricing</a>, subject to change with 30 days' written notice</li>
+            <li>Annual subscribers receive a price-lock for the subscription period</li>
+            <li>Payment is due in advance; failure to pay may result in service suspension</li>
+            <li>All prices are in South African Rand (ZAR) and inclusive of VAT where applicable</li>
+          </ul>
+        </section>
+
+        <section id="termination" class="reveal">
+          <h2>11. Suspension and termination</h2>
+          <p>Klikk may suspend or terminate your account with 5 business days' notice for:</p>
+          <ul>
+            <li>Non-payment</li>
+            <li>Material breach of these Terms</li>
+            <li>Activity that poses a security or legal risk to the Platform or other users</li>
+          </ul>
+          <p>Klikk may terminate immediately for serious breaches (fraud, unlawful use).</p>
+          <p>
+            You may terminate your account at any time; you remain liable for fees accrued up to termination.
+            A data export will be available for 30 days post-termination.
+          </p>
+        </section>
+
+        <section id="liability" class="reveal">
+          <h2>12. Limitation of liability</h2>
+          <p>To the maximum extent permitted by South African law:</p>
+          <ul>
+            <li>Klikk provides the Platform "as is" without warranty of uninterrupted or error-free operation</li>
+            <li>Klikk is not liable for indirect, incidental, or consequential loss arising from use of the Platform</li>
+            <li>Klikk's aggregate liability for any claim is limited to fees paid by you in the 12 months preceding the claim</li>
+            <li>Nothing in these Terms excludes liability for gross negligence or fraud</li>
+          </ul>
+          <p class="legal-note">
+            These limitations apply to the fullest extent permitted by the Consumer Protection Act 68 of 2008 (CPA) and other applicable South African law.
+          </p>
+        </section>
+
+        <section id="jurisdiction" class="reveal">
+          <h2>13. Governing law and jurisdiction</h2>
+          <p>
+            These Terms are governed by the laws of the <strong>Republic of South Africa</strong>.
+            Any dispute will be resolved in the High Court of South Africa (Western Cape Division) or the Magistrates'
+            Court with jurisdiction, at Klikk's election. The parties consent to the jurisdiction of South African courts.
+          </p>
+        </section>
+
+        <section id="changes" class="reveal">
+          <h2>14. Changes to these Terms</h2>
+          <p>
+            Material changes will be communicated by email and in-app notification at least <strong>30 days</strong> before
+            they take effect. Where re-acknowledgement is required, you will be prompted before accessing the Platform.
+          </p>
+        </section>
+
+        <section class="version-history reveal">
+          <h2>Version history</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Version</th><th>Date</th><th>Summary</th></tr>
+            </thead>
+            <tbody>
+              {versions.map(v => (
+                <tr>
+                  <td>{v.version}</td>
+                  <td>{v.date}</td>
+                  <td>{v.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section class="legal-contact reveal">
+          <h2>Contact</h2>
+          <ul>
+            <li><strong>Legal enquiries:</strong> <a href="mailto:legal@klikk.co.za">legal@klikk.co.za</a></li>
+            <li><strong>Security issues:</strong> <a href="mailto:security@klikk.co.za">security@klikk.co.za</a></li>
+          </ul>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .legal-header { margin-bottom: 40px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .legal-subtitle { font-size: 17px; color: #374151; line-height: 1.7; }
+  .legal-toc {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 12px;
+  }
+  .legal-toc ol {
+    list-style: decimal;
+    padding-left: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+  }
+  .legal-toc a { font-size: 14px; color: var(--color-navy); text-decoration: none; }
+  .legal-toc a:hover { color: var(--color-accent); text-decoration: underline; }
+  .legal-body section { margin-bottom: 52px; }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 { font-size: 15px; font-weight: 600; color: #374151; margin-top: 20px; margin-bottom: 8px; }
+  .legal-body p { font-size: 15px; line-height: 1.75; color: #374151; margin-bottom: 12px; }
+  .legal-body ul { padding-left: 22px; margin-bottom: 16px; }
+  .legal-body li { font-size: 15px; line-height: 1.7; color: #374151; margin-bottom: 6px; }
+  .legal-body a { color: var(--color-navy); text-decoration: underline; }
+  .legal-body a:hover { color: var(--color-accent); }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td { border-bottom: none; }
+  .legal-table tr:nth-child(even) td { background: #f9fafb; }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  .legal-note { font-size: 13px; color: #6b7280; font-style: italic; }
+  .version-history { border-top: 2px solid #e5e7eb; padding-top: 32px; margin-top: 32px; }
+</style>

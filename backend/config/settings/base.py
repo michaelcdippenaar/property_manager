@@ -54,6 +54,7 @@ LOCAL_APPS = [
     "apps.the_volt",
     "apps.integrations",
     "apps.contact",
+    "apps.legal",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
