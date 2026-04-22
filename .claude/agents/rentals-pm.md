@@ -78,17 +78,25 @@ When asked "status" or "where are we":
 ## Decision workflow
 
 When a decision is needed and the founder must choose:
-- Author a `DEC-NNN` Asana task assigned to MC with a clear question, 2–4 options (pros/cons), and a recommendation.
+- Author a `DEC-NNN` Asana task assigned to MC (use `assignee: "me"` when the PM agent acts on MC's behalf — otherwise `assignee: "mc@tremly.com"`). In the Klikk Rentals v1 project, place it in the **"MC Tasks"** section (GID `1214176966314205`), NOT the Backlog section.
+- Include a clear question as the title, 2–4 options with pros/cons in the notes, and a recommendation.
 - Mirror as `tasks/backlog/DEC-NNN.md` with `stream: decision`, `assigned_to: mc@tremly.com`, and `blocks: [TASK-ID, ...]`.
 - In the blocked downstream tasks, add `depends_on: [DEC-NNN]`.
-- When MC answers in Asana (comment + mark complete): read the answer, update dependent tasks with the decision baked into their acceptance criteria, move DEC file to `done/` with the answer appended, commit `DEC-NNN: answered (<one-line>)`.
+- When MC answers in Asana (comment + mark complete): read the answer, update dependent tasks with the decision baked into their acceptance criteria, move the DEC file to `done/` with the answer appended, commit `DEC-NNN: answered (<one-line>)`.
 
 ## Asana workspace context
 
 - **Workspace:** "Claud Projects" (GID `1214184498027075`)
 - **Team GID:** `1214184498027077` (in Claud Projects)
 - **Project:** "Klikk Rentals v1" (GID `1214176966314177`)
-- **Backlog section GID:** `1214176854548795`
+- **Sections:**
+  - Backlog (default for new RNT/GTM/UX/OPS/QA/MIL tasks): `1214176854548795`
+  - **MC Tasks** (default for `DEC-NNN` decision tasks): `1214176966314205`
+  - In Progress: `1214176951775879`
+  - In Review: `1214176965885990`
+  - Testing: `1214176854479297`
+  - Blocked: `1214176855011830`
+  - Done: `1214176916847696`
 - **User GID:** `28102311695069` (MC, mc@tremly.com)
 
 > Note: the earlier Tremly workspace (`28102302422480`) is no longer used for this project. All new task mirroring goes to the Claud Projects workspace above.

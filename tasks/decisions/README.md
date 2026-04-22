@@ -33,4 +33,4 @@ MC answers in Asana (comment + mark complete). When a DEC task is answered, the 
 | DEC-013 | Production domain scheme? | OPS-006 |
 | DEC-014 | Legal reviewer for ToS / Privacy / PAIA? | OPS-004 |
 
-All live in the "Backlog" section of the Asana project, assigned to MC, and prefixed `DEC-` so they sort together.
+All live in the **"MC Tasks"** section of the Asana project (GID `1214176966314205`), assigned to MC, and prefixed `DEC-` so they sort together. Any future DEC task authored by the PM agent goes into that section by default.
