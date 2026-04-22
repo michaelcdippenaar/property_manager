@@ -22,7 +22,7 @@ class Lease(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     monthly_rent = models.DecimalField(max_digits=10, decimal_places=2)
-    deposit = models.DecimalField(max_digits=10, decimal_places=2)
+    deposit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
 
     # Utility terms
@@ -57,6 +57,26 @@ class Lease(models.Model):
     # Raw AI extraction result stored for audit / re-use
     ai_parse_result = models.JSONField(null=True, blank=True)
 
+    # RHA compliance gate — populated by refresh_rha_flags()
+    rha_flags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "List of RHA compliance flags. Each flag: "
+            "{code, section, severity ('blocking'|'advisory'), message, field}. "
+            "Blocking flags prevent finalize / send-for-signing."
+        ),
+    )
+    # Set when blocking flags are overridden by an authorised user
+    rha_override = models.JSONField(
+        null=True,
+        blank=True,
+        help_text=(
+            "If blocking flags were overridden, stores "
+            "{user_id, user_email, reason, overridden_at, flags_at_override}."
+        ),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -65,6 +85,102 @@ class Lease(models.Model):
     def __str__(self):
         name = self.primary_tenant.full_name if self.primary_tenant else "Unknown"
         return f"Lease: {name} @ {self.unit}"
+
+    # ── RHA compliance helpers ─────────────────────────────────────────── #
+
+    def refresh_rha_flags(self) -> list:
+        """
+        Re-run all RHA compliance checks against this lease, persist the results
+        to ``rha_flags``, and return the new flag list.
+
+        Clears any existing ``rha_override`` if the flag set has changed since
+        the override was recorded (i.e. the operator must re-override after fixing
+        some but not all issues).
+        """
+        from apps.leases.rha_check import run_rha_checks
+
+        new_flags = run_rha_checks(self)
+
+        # If override exists, check whether the blocking flag set has changed.
+        # Any change (more or fewer blocking codes) invalidates the override so
+        # the operator must explicitly re-confirm.
+        if self.rha_override:
+            old_blocking_codes = {
+                f["code"]
+                for f in (self.rha_override.get("flags_at_override") or [])
+                if f.get("severity") == "blocking"
+            }
+            new_blocking_codes = {
+                f["code"] for f in new_flags if f.get("severity") == "blocking"
+            }
+            if old_blocking_codes != new_blocking_codes:
+                self.rha_override = None
+
+        self.rha_flags = new_flags
+        self.save(update_fields=["rha_flags", "rha_override"])
+        return new_flags
+
+    def blocking_rha_flags(self) -> list:
+        """Return only the blocking flags from the cached ``rha_flags`` list."""
+        return [f for f in (self.rha_flags or []) if f.get("severity") == "blocking"]
+
+    def assert_rha_ready(self) -> None:
+        """
+        Raise ``ValueError`` if this lease has unresolved blocking RHA flags
+        and no active override.
+
+        Call this before finalise / send-for-signing.
+        """
+        if self.rha_override:
+            return
+        blocking = self.blocking_rha_flags()
+        if blocking:
+            codes = ", ".join(f["code"] for f in blocking)
+            raise ValueError(
+                f"Lease has {len(blocking)} blocking RHA compliance flag(s): {codes}. "
+                "Resolve these issues or record an authorised override before proceeding."
+            )
+
+    def record_rha_override(self, user, reason: str) -> None:
+        """
+        Record a staff-authorised override for the current blocking flags.
+
+        Only ``is_staff``, ``is_superuser``, or ``role == 'agency_admin'`` users
+        may call this.  A non-empty *reason* is required for audit purposes.
+
+        Raises:
+            PermissionError: if *user* lacks the required role/flag.
+            ValueError: if *reason* is empty or there are no blocking flags to override.
+        """
+        from django.utils import timezone
+
+        # Permission check
+        allowed_roles = {"agency_admin", "admin"}
+        is_authorised = (
+            getattr(user, "is_staff", False)
+            or getattr(user, "is_superuser", False)
+            or getattr(user, "role", None) in allowed_roles
+        )
+        if not is_authorised:
+            raise PermissionError(
+                "Only staff or agency_admin users may override RHA compliance flags."
+            )
+
+        if not reason or not reason.strip():
+            raise ValueError("A non-empty reason is required to override RHA flags.")
+
+        blocking = self.blocking_rha_flags()
+        if not blocking:
+            raise ValueError("No blocking RHA flags are present — nothing to override.")
+
+        self.rha_override = {
+            "user_id": user.pk,
+            "user_email": getattr(user, "email", str(user)),
+            "reason": reason.strip(),
+            "overridden_at": timezone.now().isoformat(),
+            "flags_at_override": list(self.rha_flags or []),
+        }
+        self.save(update_fields=["rha_override"])
 
 
 class LeaseTemplate(models.Model):
@@ -343,6 +459,61 @@ class InventoryItem(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_condition_in_display()})"
+
+
+class PdfRenderJob(models.Model):
+    """
+    Tracks async PDF render requests that could not be completed synchronously
+    (e.g. because Gotenberg was unavailable).
+
+    A background thread retries the render up to MAX_ATTEMPTS times with
+    exponential back-off.  Once the PDF is ready the operator can download it
+    from the admin UI; if all retries fail the status is set to FAILED.
+    """
+
+    class Status(models.TextChoices):
+        PENDING  = "pending",   "Pending"
+        RUNNING  = "running",   "Running"
+        DONE     = "done",      "Done"
+        FAILED   = "failed",    "Failed"
+
+    MAX_ATTEMPTS = 3
+
+    # Which template was being exported (nullable — future-proof for other callers)
+    template = models.ForeignKey(
+        LeaseTemplate,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="render_jobs",
+    )
+
+    # The full HTML payload so the retry worker can attempt without re-rendering
+    html_payload = models.TextField(help_text="Full HTML sent to Gotenberg")
+
+    status   = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    error    = models.TextField(blank=True)
+
+    # Set by the background worker once the PDF is ready
+    result_pdf = models.FileField(upload_to="render_jobs/", null=True, blank=True)
+
+    # Who triggered this render (for the admin UI)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="pdf_render_jobs",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        tmpl = self.template.name if self.template else "unknown"
+        return f"PdfRenderJob #{self.id} [{self.status}] — {tmpl}"
 
 
 class LeaseDocument(models.Model):

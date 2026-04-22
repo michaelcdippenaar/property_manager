@@ -268,6 +268,57 @@ class LeaseViewSet(viewsets.ModelViewSet):
         serializer = LeaseSerializer(new_lease, context={"request": request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    # ── RHA compliance gate ──
+
+    @action(detail=True, methods=["get"], url_path="rha-check")
+    def rha_check(self, request, pk=None):
+        """
+        GET /api/v1/leases/{id}/rha-check/
+
+        Refresh RHA compliance flags for this lease and return the current flag
+        list split into blocking and advisory categories.
+        """
+        from apps.leases.rha_check import run_rha_checks, blocking_flags, advisory_flags
+
+        lease = self.get_object()
+        flags = run_rha_checks(lease)
+        # Persist the refreshed flags without invalidating any existing override
+        # (advisory-only runs should not wipe an override).
+        lease.rha_flags = flags
+        lease.save(update_fields=["rha_flags"])
+        return Response({
+            "lease_id": lease.pk,
+            "flags": flags,
+            "blocking": blocking_flags(flags),
+            "advisory": advisory_flags(flags),
+            "override": lease.rha_override,
+        })
+
+    @action(detail=True, methods=["post"], url_path="rha-override")
+    def rha_override(self, request, pk=None):
+        """
+        POST /api/v1/leases/{id}/rha-override/
+
+        Record a staff-authorised override for the current blocking RHA flags.
+        Requires ``is_staff``, ``is_superuser``, or ``role == 'agency_admin'``.
+
+        Body: { "reason": "<non-empty explanation>" }
+        """
+        lease = self.get_object()
+        reason = (request.data.get("reason") or "").strip()
+
+        try:
+            lease.record_rha_override(request.user, reason)
+        except PermissionError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({
+            "detail": "RHA override recorded.",
+            "override": lease.rha_override,
+        })
+
     @action(detail=True, methods=["post"], url_path="generate-events")
     def generate_events(self, request, pk=None):
         """Auto-generate calendar events for this lease."""

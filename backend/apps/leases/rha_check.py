@@ -114,6 +114,13 @@ def _check_mandatory_terms(lease: "Lease", flags: list):
               message="Lease end date must be after the start date.",
               field="end_date")
 
+    # Escalation provision, renewal terms, and domicilium (RHA s5(3)(f)–(g)):
+    # The Lease model has no dedicated fields for escalation clause text,
+    # renewal clause text, or domicilium address.  These are expected to live
+    # inside the signed lease document itself (HTML/PDF via LeaseTemplate).
+    # Until the model grows those fields they cannot be checked here; they are
+    # intentionally skipped.  Track as a discovery: out-of-scope model gap.
+
     # Notice period
     if not lease.notice_period_days or lease.notice_period_days < 1:
         _flag(flags,
@@ -183,14 +190,14 @@ def _check_deposit(lease: "Lease", flags: list):
 
 def _check_notice_period(lease: "Lease", flags: list):
     """
-    RHA s5(3)(c) / common interpretation: notice period should be at least
+    RHA s5(3)(e): notice period should be at least
     one calendar month (30 days) for fixed-term leases.
     """
     days = lease.notice_period_days
     if days and days < 20:
         _flag(flags,
               code="NOTICE_PERIOD_TOO_SHORT",
-              section="RHA s5(3)(c)",
+              section="RHA s5(3)(e)",
               severity="blocking",
               message=(
                   f"Notice period is {days} days, which is less than the recommended 20 business days. "

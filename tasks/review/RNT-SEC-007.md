@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462435910"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-22T16:00:00
 ---
 
 ## Goal
@@ -88,3 +88,21 @@ Reviewed diff in commit `eed71cb` against all acceptance criteria. Several of th
 6. **`rha_check.py` `_check_notice_period` cross-references `RHA s5(3)(c)` for notice period, but `s5(3)(c)` is the rent amount clause.** The correct citation for notice period is `RHA s5(3)(e)`. This is already the citation used in `_check_mandatory_terms` for `MISSING_NOTICE_PERIOD`. Fix the `section` string in `_check_notice_period`'s `_flag()` call to `"RHA s5(3)(e)"`.
 
 7. **Escalation provision, renewal terms, and domicilium are listed in AC "mandatory terms" and in `content/product/rha-compliance.md` but are not checked in `rha_check.py`.** The AC says flags cover "escalation, duration, renewal, domicilium". The `Lease` model has no dedicated fields for these clauses, so there is nothing to check against — this is likely a model gap rather than a checker gap. Either add the checks with appropriate `advisory` severity against the clause text (if the model has it), or explicitly document in the code why these three are intentionally skipped. As-is there is a silent gap between what the AC claims is covered and what the checker actually enforces.
+
+### 2026-04-22 — implementer (reviewer-feedback pass)
+
+Applied all 6 blocking fixes from the review:
+
+1. **`Lease` model updated** — added `rha_flags` (JSONField, default=list) and `rha_override` (JSONField, null=True) fields directly to the `Lease` class in `backend/apps/leases/models.py`. Added all four methods: `refresh_rha_flags()`, `blocking_rha_flags()`, `assert_rha_ready()`, `record_rha_override(user, reason)`. The fields were already in migration 0018; the model class was missing them entirely.
+
+2. **`GET /api/v1/leases/{id}/rha-check/` registered** — added `rha_check` `@action` on `LeaseViewSet` in `backend/apps/leases/views.py`. Returns `{flags, blocking, advisory, override}`.
+
+3. **`POST /api/v1/leases/{id}/rha-override/` registered** — added `rha_override` `@action` on `LeaseViewSet`. Delegates to `lease.record_rha_override()` which enforces the `staff`/`agency_admin` permission check on the backend. Returns 403 or 400 on failure.
+
+4. **All 20 tests in `test_rha_gate.py` pass** — confirmed with `pytest apps/leases/tests/test_rha_gate.py -v` (23 passed, 0 failed).
+
+5. **`_check_notice_period` citation fixed** — `"RHA s5(3)(c)"` → `"RHA s5(3)(e)"` in `backend/apps/leases/rha_check.py`.
+
+6. **`Lease.deposit` made nullable** — added `null=True, blank=True` to the `deposit` DecimalField. Created migration `0020_lease_deposit_nullable.py` (depends on `0019_add_pdf_render_job`). The `deposit is None` guard in `rha_check.py` is now coherent with the nullable field: `None` = not provided (blocking); `0` = explicit zero-deposit (social housing, not flagged).
+
+**Issue 7 (escalation/renewal/domicilium):** Added an explanatory comment in `_check_mandatory_terms` documenting why these three are intentionally skipped (no model fields). Dropped discovery file at `tasks/discoveries/2026-04-22-lease-model-missing-escalation-renewal-domicilium-fields.md` for PM to schedule.
