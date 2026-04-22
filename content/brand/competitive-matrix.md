@@ -35,7 +35,7 @@ _Last updated: 2026-04-22. Feature claims verified against `content/product/feat
 | **14. Viewing scheduler (built-in)** | Y | N | Partial | Partial | N | N | N | N |
 | **15. RHA-aligned lease templates** | Y | N | Partial | Partial | N | Partial | Partial | N |
 | **16. Reusable clause library** | Y | N | N | N | N | N | N | N |
-| **17. Free tier (no credit card required)** | Y (up to 5 units) | N | N | N | N | N | Partial | Y (zero cost, zero capability) |
+| **17. Free tier (no credit card required)** | Y (up to 5 properties) | N | N | N | N | N | Partial | Y (zero cost, zero capability) |
 | **18. SA-first (not adapted from global product)** | Y | Y | Y | N (MRI global) | Y | Y | Y | N/A |
 | **19. Pricing model** | R2,500/mo flat (Pro, up to 100 units) / R4,000/mo base (Enterprise, 100+ units) | R100–150+/unit (indicative) | R150–200/unit (indicative) | Enterprise (quoted) | Per-check fees | R50–80/unit (indicative) | R30–50/unit (indicative) | ~R0 |
 | **20. POPIA-aware data handling** | Y | Y | Y | ? | Y | ? | ? | N |
