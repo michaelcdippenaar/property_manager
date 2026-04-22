@@ -59,6 +59,14 @@ const {
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
+  <!--
+    Plausible Analytics — consent-gated (POPIA s11(1)(a))
+    The script is intentionally NOT auto-loaded here.
+    ConsentBanner.astro injects it after the user accepts analytics.
+    data-domain must match the domain registered in the self-hosted Plausible instance.
+  -->
+  <script id="plausible-script-tag" type="text/plain" data-domain="klikk.co.za" src="https://analytics.klikk.co.za/js/script.tagged-events.js" defer></script>
+
   <!-- Structured data: Organisation + SoftwareApplication + LocalBusiness (SA) -->
   <script type="application/ld+json" set:html={JSON.stringify({
     "@context": "https://schema.org",
@@ -111,7 +119,6 @@ const {
         "name": "Klikk",
         "description": "AI-powered property management platform for South African rental agencies and private landlords.",
         "url": "https://klikk.co.za",
-        "telephone": null,
         "email": "hello@klikk.co.za",
         "address": {
           "@type": "PostalAddress",

@@ -7,7 +7,14 @@
  * cookies, no cross-site tracking). The banner offers accept / opt-out.
  *
  * Cookie name: klikk_consent (1 year)
- * Values: "essential" (accepted) | "declined"
+ * Values: "analytics" (accepted analytics) | "essential" (essential only)
+ *
+ * Analytics stack: Plausible Analytics (self-hosted, ZA data residency).
+ * The Plausible script tag in BaseLayout.astro uses type="text/plain" so it
+ * is inert until this component activates it on consent acceptance.
+ * Declining consent leaves the script permanently inert — no analytics data
+ * is collected. This satisfies POPIA s11(1)(a) and aligns with the approach
+ * documented in docs/marketing/attribution-dashboard.md.
  *
  * The banner is hidden if the cookie is already set.
  */
