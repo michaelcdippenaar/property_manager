@@ -30,7 +30,7 @@ A persona sheet in `content/sales/personas/` maps to each tier.
 
 Primary markets: Greater Cape Town (Atlantic Seaboard, Southern Suburbs, Winelands), Johannesburg (Sandton, Rosebank, northern suburbs), Pretoria (Menlyn, Waterkloof), Durban (Umhlanga, Ballito).
 
-Rationale: These nodes have the highest density of private residential rentals, highest average rental values (stronger unit economics for Klikk's per-unit fee), and highest concentration of tech-adopting agents under 40.
+Rationale: These nodes have the highest density of private residential rentals, highest average rental values, and highest concentration of tech-adopting agents under 40.
 
 Estimated addressable count (SA): ~3 500–5 000 boutique rental agencies and independent PM firms. Source: PPRA registrations (Property Practitioners Regulatory Authority) — approximately 40 000 registered practitioners; roughly 10–12% operate dedicated rental management businesses at this scale.
 
@@ -53,7 +53,7 @@ Estimated addressable count (SA): ~3 500–5 000 boutique rental agencies and in
 
 - Displaces: Excel + WhatsApp + paper, RentMaster (declining), manual processes
 - Competes against: WeConnectU (too expensive for this tier at ~R150–200/unit), Prop Data (enterprise, overkill)
-- Wins on: price (R49/unit vs R150+), AI lease generation, tenant app, agent mobile app, ease of setup
+- Wins on: price (Pro R2,500/month flat vs R150+/unit at competitors), AI lease generation, tenant app, agent mobile app, ease of setup
 
 ### Segment Size (SA)
 
@@ -62,8 +62,8 @@ Estimated addressable count (SA): ~3 500–5 000 boutique rental agencies and in
 | Total addressable firms | ~3 500–5 000 |
 | Units per firm (avg) | 35 |
 | Serviceable addressable market | ~1 500–2 000 firms (tech-ready, right size) |
-| Units in SAM | ~52 500–70 000 units |
-| MRR at R49/unit (SAM capture rate 10%) | ~R257 000–R343 000/month |
+| Firms in SAM | ~1 500–2 000 |
+| MRR at Pro R2,500/month (SAM capture rate 10%) | ~R375 000–R500 000/month (directional estimate) |
 
 ---
 
@@ -113,9 +113,9 @@ Estimated addressable count (SA): ~150 000–250 000 self-managing landlords (de
 |--------|---------|
 | Total addressable landlords | ~150 000–250 000 |
 | Likely free-tier users (1–5 properties) | ~80% |
-| Likely paying users (6–10 units, R49/unit) | ~20% |
+| Likely paying users (6+ properties, Pro R2,500/month) | ~20% |
 | Serviceable addressable (tech-ready, any metro) | ~30 000–50 000 |
-| MRR potential (10% conversion, avg 7 units @ R49) | ~R103 000–R172 000/month |
+| MRR potential (10% conversion, R2,500/month flat) | ~R750 000–R1 250 000/month (directional estimate) |
 
 Note: This tier converts at lower ARPU but generates referrals and builds brand trust. It is the top-of-funnel for agents who start as landlords and grow into agency operations.
 
@@ -159,7 +159,7 @@ Estimated addressable count (SA): ~800–1 200 agencies with a meaningful rental
 
 - Displaces: WeConnectU (R150–200/unit), Prop Data, or hybrid manual
 - Competes against: WeConnectU (feature parity argument), PayProp + Excel
-- Wins on: AI features (unique differentiator WeConnectU lacks), tenant app, agent mobile app, ZAR pricing at Agency tier (R39/unit — lower per-unit cost than competitors at this portfolio size), faster lease turnaround
+- Wins on: AI features (unique differentiator WeConnectU lacks), tenant app, agent mobile app, Enterprise flat-rate pricing (R4,000/month base — significant saving vs R150–200/unit at 120 units), faster lease turnaround
 
 ### Segment Size (SA)
 
@@ -168,21 +168,21 @@ Estimated addressable count (SA): ~800–1 200 agencies with a meaningful rental
 | Total addressable agencies | ~800–1 200 |
 | Units per agency (avg) | 120 |
 | Serviceable addressable (willing to switch) | ~200–400 agencies |
-| Units in SAM | ~24 000–48 000 units |
-| MRR at R39/unit (SAM capture rate 10%) | ~R93 600–R187 200/month |
+| Agencies in SAM | ~200–400 |
+| MRR at Enterprise R4,000/month (SAM capture rate 10%) | ~R80 000–R160 000/month (directional estimate) |
 
 ---
 
 ## Combined SAM Summary
 
-| Tier | Firms | Units (SAM) | MRR at 10% Capture |
+| Tier | Firms | Pricing tier | MRR at 10% Capture |
 |------|-------|-------------|---------------------|
-| T1: Boutique PM | ~1 500–2 000 | ~52 500–70 000 | ~R257 000–R343 000 |
-| T2: Self-managing landlord | ~30 000–50 000 | ~210 000–350 000 | ~R103 000–R172 000 |
-| T3: Rental department agency | ~200–400 | ~24 000–48 000 | ~R93 600–R187 200 |
-| **Total** | | | **~R454 000–R702 000/month** |
+| T1: Boutique PM | ~1 500–2 000 firms | Pro R2,500/month | ~R375 000–R500 000 |
+| T2: Self-managing landlord | ~30 000–50 000 landlords | Pro R2,500/month | ~R750 000–R1 250 000 |
+| T3: Rental department agency | ~200–400 agencies | Enterprise R4,000/month | ~R80 000–R160 000 |
+| **Total** | | | **~R1 205 000–R1 910 000/month** |
 
-These figures are directional, not audited. They use publicly available SA property and PPRA data combined with pricing from `content/product/pricing.yaml`.
+These figures are directional, not audited. They use publicly available SA property and PPRA data combined with flat-rate pricing from `content/product/pricing.yaml`. Actual MRR will vary based on tier mix and conversion rates.
 
 ---
 

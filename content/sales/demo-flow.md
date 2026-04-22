@@ -54,6 +54,8 @@ Listen for pain points: manual lease creation, WhatsApp chaos, tenant complaints
 
 **Say:** "All of this is free for up to 5 properties. No credit card. You can sign up right now and start using it today."
 
-**If >5 units:** "The Professional tier is R49/unit — for 20 properties that's R980/month. Less than what you'd pay a part-time admin for one morning."
+**If >5 properties (Pro prospect):** "The Pro tier is R2,500/month flat — covers up to 50 properties. No per-unit fees. For 20 properties that's R125/property a month. Less than what you'd pay a part-time admin for one morning."
+
+**If 50+ properties (Enterprise prospect):** "Enterprise is R4,000/month base, covers 100+ properties — R50/property above 100. White-label, dedicated support, and on-premises hosting if needed."
 
 **Close:** "Want me to set up your account now, or would you prefer to explore the free tier on your own first?"

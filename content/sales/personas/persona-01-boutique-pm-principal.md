@@ -61,7 +61,7 @@ _Last updated: 2026-04-22_
 | "My current process works fine" | Doesn't — but he has no benchmark. Demo the gap. |
 | "What happens to my existing tenants?" | Migration anxiety — address with document upload / AI import |
 | "I use PayProp, I don't want to change that" | Misunderstanding — Klikk complements PayProp, doesn't replace it |
-| "R49/unit sounds expensive" | Reframe: 45 units = R2 205/month = less than one hour of his time saved per week |
+| "R2,500/month sounds expensive" | Reframe: 45 units = R55/unit/month flat. Less than one hour of his time saved per week. WeConnectU charges R150–200/unit — Klikk is a third of the cost. |
 
 ---
 

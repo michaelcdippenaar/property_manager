@@ -110,7 +110,7 @@ She does not decide alone. Approval chain: Cindy proposes → principal approves
 ## How to Reach Cindy
 
 **Best channel:** LinkedIn (direct message or InMail), warm referral from a peer agency, or via IEASA events.
-**Message hook:** "140 units on WeConnectU at R150/unit. Klikk gives you more features at R39/unit — with an AI lease engine and agent mobile app WeConnectU doesn't have."
+**Message hook:** "140 units on WeConnectU at R150/unit — that's R21,000/month. Klikk Enterprise is R4,000/month flat with an AI lease engine and agent mobile app WeConnectU doesn't have."
 **Demo trigger:** Show the WeConnectU cost comparison side-by-side, then run the lease generation demo. Book a team trial.
 
 ---
