@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462750411"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -23,7 +23,7 @@ Identify and gate every test/debug endpoint so they return 404 in production. Le
 - [x] Gate each one behind `settings.DEBUG` OR a `ENABLE_TEST_ENDPOINTS` flag that defaults False
 - [x] Known offenders to remove/gate: `ESigningTestPdfView`, `esigning_form_submit_test`, `esigning_native_signing_test`, `esigning_pdf_layout_compare`, `esigning_test_pdf`
 - [x] Staging env may have them on via flag; production does not
-- [x] Deployment checklist updated: verify `ENABLE_TEST_ENDPOINTS=false` in prod env
+- [ ] Deployment checklist updated: verify `ENABLE_TEST_ENDPOINTS=false` in prod env
 
 ## Files likely touched
 - `backend/config/settings.py` (ENABLE_TEST_ENDPOINTS flag)
@@ -66,3 +66,22 @@ The `test_hub` app (`/api/v1/test-hub/`) was included unconditionally in `config
 **Smoke check:** `django.setup()` succeeds, `reverse("esigning-test-pdf")` resolves, `settings.ENABLE_TEST_ENDPOINTS` reads `False` from local `.env`, and `test-hub` does NOT appear in the URL resolver when the flag is off.
 
 **Caveats for reviewer:** The `test_hub` app remains in `INSTALLED_APPS` regardless of the flag (needed for migrations and the test runner itself). Only its URLs are gated — this is intentional and correct.
+
+### 2026-04-22 — reviewer: changes requested
+
+**Verdict:** Send back. One acceptance criterion unmet; one discovery filed.
+
+**Required fixes:**
+
+1. `deploy/DEVOPS.md` — The criterion "Deployment checklist updated: verify `ENABLE_TEST_ENDPOINTS=false` in prod env" is not satisfied. `backend/.env.production` has a "MUST remain False" comment, but that is a static file a developer reads before deployment, not a checklist an operator runs at deploy time. Add a section to `deploy/DEVOPS.md` (the live ops runbook) — either a pre-production checklist table row or a dedicated "Environment flags" section — that explicitly lists `ENABLE_TEST_ENDPOINTS=False` as a required production setting to verify before cutting a release. Something as simple as a new table row in the existing env-vars table at DEVOPS.md:97 (or a new "Pre-deploy checklist" heading) is sufficient. The task criterion is checked off but the file was never touched.
+
+**What looks good (no changes needed):**
+
+- `backend/config/settings/base.py`: flag placement, `default=False`, correct `strtobool` cast via `decouple`.
+- `backend/config/urls.py`: URL-level gating using unpacking splat is clean and idiomatic; URL resolver returns 404 for all test-hub sub-paths when flag is off. No route pollution.
+- `backend/apps/esigning/views.py`: auth check (`IsAgentOrAdmin`) runs before the flag guard inside `get()` because DRF dispatches permissions before calling the view method — the unauthenticated test is therefore correct.
+- `.env.production` / `.env.staging` / `.env.example`: all updated correctly.
+- `test_endpoint_gating.py`: three cases cover flag-off, flag-on (Gotenberg mocked), and unauthenticated. Factory helpers and `override_settings` usage match existing test patterns.
+- `test_hub` remaining in `INSTALLED_APPS` is intentional and correct — only URL registration is gated.
+
+**Discovery filed:** `tasks/discoveries/2026-04-22-gotenberg-health-endpoint-recon.md` — `GotenbergHealthView` proxies Gotenberg's full `/health` JSON (including engine names and version strings) to any authenticated agent. Not a blocker for this task but worth hardening separately.
