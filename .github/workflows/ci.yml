@@ -73,7 +73,11 @@ jobs:
       - name: Run pytest
         env:
           DJANGO_SETTINGS_MODULE: config.settings.local
-          DATABASE_URL: postgres://klikk_user:klikk_pass@localhost:5432/klikk_test
+          DB_NAME: klikk_test
+          DB_USER: klikk_user
+          DB_PASSWORD: klikk_pass
+          DB_HOST: localhost
+          DB_PORT: "5432"
           SECRET_KEY: ci-test-secret-key-not-used-in-production
           DEBUG: "True"
           ALLOWED_HOSTS: "localhost,127.0.0.1"

@@ -81,29 +81,22 @@ jobs:
     environment: staging
 
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Write SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.STAGING_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
-
       - name: Deploy via SSH
-        env:
-          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
-          GHCR_OWNER: ${{ github.repository_owner }}
-        run: |
-          ssh ${{ secrets.STAGING_SSH_USER }}@${{ secrets.STAGING_HOST }} << EOF
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: IMAGE_TAG,GHCR_OWNER,GHCR_PAT
+          script: |
             set -e
             cd ~/apps/property_manager
 
             # Pull latest compose files and configs from this commit
             git pull --ff-only origin main
 
-            # Log in to GHCR on the server (uses the same GITHUB_TOKEN-scoped PAT)
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${GHCR_OWNER}" --password-stdin
+            # Log in to GHCR on the server — PAT is passed as an env var, never embedded
+            echo "$GHCR_PAT" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin
 
             # Pin images to the exact SHA tag so the server knows which version is running
             export BACKEND_IMAGE="ghcr.io/${GHCR_OWNER}/klikk-backend:${IMAGE_TAG}"
@@ -118,7 +111,10 @@ jobs:
               python manage.py migrate --noinput
 
             echo "Deployed commit ${IMAGE_TAG} to staging"
-          EOF
+        env:
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          GHCR_OWNER: ${{ github.repository_owner }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
       - name: Smoke-check staging health endpoint
         run: |
