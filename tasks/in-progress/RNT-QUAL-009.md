@@ -2,14 +2,14 @@
 id: RNT-QUAL-009
 stream: rentals
 title: "Maintenance SLA timers + overdue surfacing across agent and owner views"
-feature: full_maintenance_workflow
+feature: maintenance_workflow
 lifecycle_stage: 11
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177140664256"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -23,7 +23,7 @@ Each maintenance ticket has a target SLA based on priority (emergency = 4h ack /
 - [x] Countdown chip on ticket list (green > 50%, yellow 20–50%, red < 20% or overdue)
 - [x] Agent dashboard: widget "Overdue maintenance" with count + CTA
 - [x] Owner dashboard: same widget scoped to their properties
-- [x] Beat task: auto-escalate (notify agency admin) on overdue by >48h
+- [ ] Beat task: auto-escalate (notify agency admin) on overdue by >48h
 - [x] SLA rules tuneable per agency
 
 ## Files likely touched
@@ -77,3 +77,39 @@ Each maintenance ticket has a target SLA based on priority (emergency = 4h ack /
 - The beat task is a plain Python function, not a `@shared_task`. Reviewer should confirm whether Celery is available and wire it up, or use an alternative (e.g. Django management command + cron). A discovery note is **not** filed since this is in scope — just needs the wiring.
 - Existing tickets in the DB won't have `sla_ack_deadline` set until they are next saved. A one-off management command to backfill could be added if needed (the `compute_sla_deadlines` method on the model makes this trivial).
 - The `MaintenanceRequest.Priority` choices in the existing code use `urgent/high/medium/low` — the task spec mentioned "emergency/urgent/routine" but those were conceptual labels; the implementation maps them as: emergency=urgent, urgent=high, routine=medium/low. This is consistent with the existing DB data.
+
+### 2026-04-22 — reviewer: changes requested
+
+Two blockers must be fixed before this can proceed to testing.
+
+**1. Signal does not re-compute deadlines on priority change — `backend/apps/maintenance/signals.py:135`**
+
+The docstring says "first created or its priority changes" but the guard reads:
+```python
+if not instance.sla_ack_deadline or not instance.sla_resolve_deadline:
+```
+Once deadlines are written, a subsequent save (e.g. agent escalates `medium` → `urgent`) will not recalculate. The deadline stays at 14 days instead of switching to the 4h/24h window. Fix: also trigger when `created=True`, and when `update_fields` is `None` (full save) or contains `"priority"`. Simplest safe approach:
+
+```python
+should_compute = (
+    created
+    or not instance.sla_ack_deadline
+    or not instance.sla_resolve_deadline
+    or (update_fields is None)
+    or ("priority" in (update_fields or []))
+)
+```
+
+Add a test to `test_sla.py`: create urgent ticket → update priority to medium → assert resolve deadline extended.
+
+**2. Beat task is unwired — acceptance criterion "Beat task: auto-escalate on overdue by >48h" is not satisfied**
+
+`escalate_overdue_maintenance()` in `backend/apps/maintenance/tasks.py` is a plain Python function with no `@shared_task` decorator and no entry in `CELERY_BEAT_SCHEDULE`. No `celery.py` or `celeryconfig.py` exists in the project. The function is correct and well-tested, but it will never run automatically. This is an in-scope delivery gap, not reviewer housekeeping.
+
+Required: either (a) add `@shared_task` + a `CELERY_BEAT_SCHEDULE` entry in `backend/core/settings.py`, or (b) create a Django management command `call_command("escalate_overdue_maintenance")` + document a cron entry, or (c) file a discovery for Celery setup and mark this criterion explicitly deferred in the task. Do not leave it silently unwired.
+
+**3. Minor — `feature` field in task YAML**
+
+Task header has `feature: full_maintenance_workflow` but `content/product/features.yaml` has `maintenance_workflow`. Update the header field to match the canonical key so tooling that reads the field stays consistent.
+
+No security issues found. Auth on `/maintenance/overdue/` inherits `IsAuthenticated` from the viewset. Role scoping is consistent with `get_queryset`. ORM queries are parameterised. No PII logged. SLA fields are correctly `read_only` in the serializer.
