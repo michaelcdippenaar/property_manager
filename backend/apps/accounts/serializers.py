@@ -16,10 +16,21 @@ class RegisterSerializer(serializers.ModelSerializer):
         write_only=True,
     )
     agency_name = serializers.CharField(required=False, allow_blank=True, write_only=True, default="")
+    # POPIA s11 — IDs of the current ToS and Privacy Policy documents that the
+    # user explicitly accepted during registration. Both are optional so that
+    # programmatic / test registrations are not hard-blocked, but the consent
+    # rows are created server-side when the IDs are supplied so the audit trail
+    # carries the correct IP + user-agent at the moment of registration.
+    tos_document_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
+    privacy_document_id = serializers.IntegerField(required=False, allow_null=True, write_only=True)
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "phone", "password", "account_type", "agency_name"]
+        fields = [
+            "email", "first_name", "last_name", "phone", "password",
+            "account_type", "agency_name",
+            "tos_document_id", "privacy_document_id",
+        ]
 
     def validate_email(self, value):
         email = value.strip().lower()
@@ -43,6 +54,9 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         account_type = validated_data.pop("account_type", Agency.AccountType.INDIVIDUAL)
         agency_name = validated_data.pop("agency_name", "")
+        # Pop consent IDs — not model fields; handled separately below.
+        tos_document_id = validated_data.pop("tos_document_id", None)
+        privacy_document_id = validated_data.pop("privacy_document_id", None)
 
         # Free the unique-email constraint on any soft-deleted user so the new
         # registration can claim the address. Audit-log rows, leases, and other
@@ -66,7 +80,37 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.agency = agency
         user.save(update_fields=["agency"])
 
+        # POPIA s11 — persist UserConsent rows for any document IDs supplied.
+        # Done server-side so IP + user-agent are recorded at the exact moment
+        # of registration rather than via a subsequent client-initiated API call.
+        request = self.context.get("request")
+        self._record_consent(user, tos_document_id, request)
+        self._record_consent(user, privacy_document_id, request)
+
         return user
+
+    @staticmethod
+    def _record_consent(user, document_id, request):
+        """Create a UserConsent row for the given document ID, if supplied and valid."""
+        if not document_id:
+            return
+        from apps.legal.models import LegalDocument, UserConsent
+        try:
+            doc = LegalDocument.objects.get(pk=document_id, is_current=True)
+        except LegalDocument.DoesNotExist:
+            # Stale or invalid ID — skip silently; registration still succeeds.
+            return
+        ip = None
+        ua = ""
+        if request:
+            xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
+            ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR") or None
+            ua = request.META.get("HTTP_USER_AGENT", "")[:500]
+        UserConsent.objects.get_or_create(
+            user=user,
+            document=doc,
+            defaults={"ip_address": ip, "user_agent": ua},
+        )
 
 
 class LoginSerializer(serializers.Serializer):

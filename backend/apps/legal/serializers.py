@@ -43,8 +43,10 @@ class UserConsentSerializer(serializers.ModelSerializer):
 
         document = validated_data["document"]
 
-        # Idempotent: if consent already recorded, return existing row
-        consent, _ = UserConsent.objects.get_or_create(
+        # Idempotent: if consent already recorded, return existing row.
+        # The `_created` attribute is set on the instance so the view can
+        # return HTTP 201 (new row) vs HTTP 200 (idempotent duplicate).
+        consent, created = UserConsent.objects.get_or_create(
             user=user,
             document=document,
             defaults={
@@ -52,6 +54,7 @@ class UserConsentSerializer(serializers.ModelSerializer):
                 "user_agent": request.META.get("HTTP_USER_AGENT", "")[:500],
             },
         )
+        consent._created = created
         return consent
 
     @staticmethod

@@ -67,61 +67,67 @@
 
           <!-- Agency name (agency only) -->
           <div v-if="form.account_type === 'agency'">
-            <label class="label">Agency name</label>
-            <input v-model="form.agency_name" type="text" class="input" placeholder="e.g. Pam Golding Properties" required />
+            <label for="reg-agency-name" class="label">Agency name</label>
+            <input id="reg-agency-name" v-model="form.agency_name" type="text" class="input" placeholder="e.g. Pam Golding Properties" required autocomplete="organization" />
           </div>
 
           <div class="grid grid-cols-2 gap-3">
             <div>
-              <label class="label">First name</label>
-              <input v-model="form.first_name" type="text" class="input" placeholder="John" required />
+              <label for="reg-first-name" class="label">First name</label>
+              <input id="reg-first-name" v-model="form.first_name" type="text" class="input" placeholder="John" required autocomplete="given-name" />
             </div>
             <div>
-              <label class="label">Last name</label>
-              <input v-model="form.last_name" type="text" class="input" placeholder="Doe" required />
+              <label for="reg-last-name" class="label">Last name</label>
+              <input id="reg-last-name" v-model="form.last_name" type="text" class="input" placeholder="Doe" required autocomplete="family-name" />
             </div>
           </div>
 
           <div>
-            <label class="label">Email</label>
-            <input v-model="form.email" type="email" class="input" placeholder="you@klikk.co.za" required />
+            <label for="reg-email" class="label">Email</label>
+            <input id="reg-email" v-model="form.email" type="email" class="input" placeholder="you@klikk.co.za" required autocomplete="email" />
           </div>
 
           <div>
-            <label class="label">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
-            <input v-model="form.phone" type="tel" class="input" placeholder="082 123 4567" />
+            <label for="reg-phone" class="label">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
+            <input id="reg-phone" v-model="form.phone" type="tel" class="input" placeholder="082 123 4567" autocomplete="tel" />
           </div>
 
           <div>
-            <label class="label">Password</label>
+            <label for="reg-password" class="label">Password</label>
             <div class="relative">
               <input
+                id="reg-password"
                 v-model="form.password"
                 :type="showPassword ? 'text' : 'password'"
                 class="input pr-10"
                 placeholder="••••••••"
                 minlength="8"
                 required
+                autocomplete="new-password"
               />
               <button
                 type="button"
+                :aria-label="showPassword ? 'Hide password' : 'Show password'"
+                :aria-pressed="showPassword"
                 @click="showPassword = !showPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus-visible:outline-2 focus-visible:outline-navy focus-visible:outline-offset-1 rounded"
               >
-                <Eye v-if="!showPassword" :size="16" />
-                <EyeOff v-else :size="16" />
+                <Eye v-if="!showPassword" :size="16" aria-hidden="true" />
+                <EyeOff v-else :size="16" aria-hidden="true" />
               </button>
             </div>
           </div>
 
           <div>
-            <label class="label">Confirm password</label>
+            <label for="reg-confirm-password" class="label">Confirm password</label>
             <input
+              id="reg-confirm-password"
               v-model="confirmPassword"
               :type="showPassword ? 'text' : 'password'"
               class="input"
               placeholder="••••••••"
               required
+              autocomplete="new-password"
             />
           </div>
 
@@ -185,6 +191,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { useGoogleAuth } from '../../composables/useGoogleAuth'
 import { Eye, EyeOff, AlertCircle, Loader2, Building2, Home, ChevronLeft } from 'lucide-vue-next'
+import api from '../../api'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -208,7 +215,25 @@ const loading = ref(false)
 const error = ref('')
 const googleButtonRef = ref<HTMLElement | null>(null)
 
+// Current legal document IDs — fetched once on mount so we can pass them
+// to the register endpoint for server-side POPIA s11 consent recording.
+const tosDocumentId = ref<number | null>(null)
+const privacyDocumentId = ref<number | null>(null)
+
 onMounted(async () => {
+  // Pre-fetch current legal document IDs for POPIA s11 consent recording.
+  // Failure is non-blocking — registration will still work; consent just won't
+  // include document IDs (backend handles missing IDs gracefully).
+  try {
+    const { data } = await api.get('/legal/documents/current/')
+    for (const doc of data) {
+      if (doc.doc_type === 'tos') tosDocumentId.value = doc.id
+      if (doc.doc_type === 'privacy') privacyDocumentId.value = doc.id
+    }
+  } catch {
+    // Non-fatal — proceed without IDs
+  }
+
   if (google.isConfigured && googleButtonRef.value) {
     google.waitForCredential().then(async (credential) => {
       error.value = ''
@@ -258,6 +283,10 @@ async function handleRegister() {
       phone: form.phone || undefined,
       account_type: form.account_type || 'individual',
       agency_name: form.account_type === 'agency' ? form.agency_name : undefined,
+      // POPIA s11 — pass current document IDs so the backend can persist
+      // UserConsent rows server-side with the correct IP + user-agent.
+      tos_document_id: tosDocumentId.value,
+      privacy_document_id: privacyDocumentId.value,
     })
     // After registration + auto-login, redirect to dashboard
     router.push(auth.homeRoute)

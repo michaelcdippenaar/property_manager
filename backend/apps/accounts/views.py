@@ -33,7 +33,9 @@ class RegisterView(APIView):
     throttle_classes = [AuthAnonThrottle]
 
     def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
+        # Pass request in context so RegisterSerializer can record UserConsent
+        # rows with the correct IP + user-agent for POPIA s11 audit trail.
+        serializer = RegisterSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         log_auth_event("register", request=request, user=user)

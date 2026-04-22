@@ -47,6 +47,7 @@ class UserConsentView(APIView):
 
     POST body: { "document": <document_id> }
     Idempotent: posting the same document twice returns 200 with the existing record.
+    New consent returns 201.
     """
     permission_classes = [IsAuthenticated]
 
@@ -58,6 +59,6 @@ class UserConsentView(APIView):
         serializer = UserConsentSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         consent = serializer.save()
-        # 200 if already existed (idempotent), 201 if newly created
-        created = consent.accepted_at is not None
-        return Response(UserConsentSerializer(consent).data, status=status.HTTP_200_OK)
+        # 201 if a new row was created; 200 if the same version was already recorded (idempotent).
+        response_status = status.HTTP_201_CREATED if getattr(consent, "_created", False) else status.HTTP_200_OK
+        return Response(UserConsentSerializer(consent).data, status=response_status)
