@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379596082"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -66,3 +66,27 @@ The root `admin/src/components/EmptyState.vue` now forwards all props/slots to `
 - The pre-existing TS errors in the codebase (deleted `AppLayout.vue`, `PropertyDetailView.vue`, etc.) were present before this task — none are from this diff.
 - `DispatchView.vue`, `JobsListView.vue`, `owner/OwnerPropertiesView.vue`, `LeaseOverviewView.vue` and `LeaseCalendarView.vue` still use inline skeletons — they were either not pure list views or had bespoke loading patterns. Out-of-scope for this task but could be a follow-up.
 - The `isOffline` detection uses `navigator.onLine` at catch time — accurate for hard offline; a server 500 will show the generic error rather than the offline variant.
+
+### 2026-04-22 — reviewer (approved)
+
+All seven acceptance criteria verified against commit `2d33656`.
+
+**What was checked:**
+
+1. `LoadingState.vue` (`admin/src/components/states/LoadingState.vue`) — three variants (`table`, `cards`, `detail`), all with `role="status" aria-busy="true"` and `:aria-label`. Skeleton rows use `animate-pulse` with configurable row count, widths, avatar/badge slots. Passes aria-busy criterion.
+
+2. `EmptyState.vue` (`admin/src/components/states/EmptyState.vue`) — branded navy/5 icon ring, title, optional description, default CTA slot, named `#secondary` slot. `icon` defaults to `Inbox`. Backward-compat wrapper at `admin/src/components/EmptyState.vue` forwards `$props` + slots correctly; Vue omits undefined optional props from `$props` so the `Inbox` default in `states/EmptyState.vue` still fires for consumers that omit `icon`.
+
+3. `ErrorState.vue` (`admin/src/components/states/ErrorState.vue`) — inline retry button with spinner/disabled guard, `WifiOff` offline variant, hardcoded `support@klikk.co.za` contact link. Retry callback is awaited with `retrying` ref preventing double-click.
+
+4. All 8 named list views in the diff have the old `animate-pulse` div blocks replaced with `<LoadingState>` and a new `<ErrorState v-else-if="loadError">` branch wired to the relevant reload function.
+
+5. `/components` route registered as a child of the agent/admin layout at `admin/src/router/index.ts:156` — inherits `requiresAuth: true` + roles guard. `ComponentsView.vue` demonstrates all three components with realistic SA-context copy.
+
+6. Empty-state copy in `ComponentsView.vue` ("Add your first property to start managing your portfolio. It takes less than a minute.", "Tenants are registered automatically when you create a lease.") is warm, action-oriented, and free of brand-voice anti-patterns.
+
+7. All upgraded table views use `variant="table"` skeleton rows; card views use `variant="cards"`. No spinner overlays remain in the diff.
+
+**Security / POPIA pass:** Pure frontend component work — no new API endpoints, no backend changes, no PII logged or exposed.
+
+**Minor observation (not a blocker):** `RequestsView.vue`, `SuppliersView.vue` (maintenance), and `DirectoryView.vue` set `loadError` on catch but do not call `toast.error()`. The other five upgraded views do both. The `ErrorState` component provides inline user feedback so this is not a UX gap, but it is an inconsistency with the pattern established in this same diff. Consider normalising in a follow-up cleanup.
