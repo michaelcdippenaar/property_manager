@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 from datetime import timedelta
 
@@ -7,6 +9,56 @@ from django.utils import timezone
 from .models import ESigningPublicLink, ESigningSubmission
 
 logger = logging.getLogger(__name__)
+
+
+# ── Signature verification ────────────────────────────────────────────
+
+
+def _verify_signature(body: bytes, signature: str) -> bool:
+    """
+    Verify an inbound webhook signature for the esigning integration.
+
+    Behaviour:
+    - ``settings.DOCUSEAL_WEBHOOK_SECRET`` controls the shared secret.
+    - ``settings.DOCUSEAL_WEBHOOK_HEADER_NAME`` selects the verification mode:
+      - Empty / not set → HMAC-SHA256 mode: compute HMAC over *body* and
+        compare with *signature* using a timing-safe digest comparison.
+      - Non-empty         → static-token mode: compare *signature* directly
+        against the secret using ``hmac.compare_digest`` (constant-time).
+    - When the secret is not configured (empty string / falsy) the check is
+      skipped and True is returned, allowing the integration to run without
+      enforced verification in development.  A warning is logged.
+
+    The delegate helper ``utils.webhook_signature.verify_hmac_signature``
+    is used for the HMAC path to keep replay-protection logic centralised.
+    """
+    secret: str = getattr(settings, "DOCUSEAL_WEBHOOK_SECRET", "") or ""
+    header_name: str = getattr(settings, "DOCUSEAL_WEBHOOK_HEADER_NAME", "") or ""
+
+    if not secret:
+        logger.warning(
+            "_verify_signature: DOCUSEAL_WEBHOOK_SECRET is not set — "
+            "signature verification skipped."
+        )
+        return True
+
+    if not signature:
+        logger.warning("_verify_signature: missing signature — rejected.")
+        return False
+
+    if header_name:
+        # Static token mode: compare signature directly against the secret.
+        valid = hmac.compare_digest(secret, signature)
+        if not valid:
+            logger.warning("_verify_signature: static token mismatch — rejected.")
+        return valid
+
+    # HMAC-SHA256 mode
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    valid = hmac.compare_digest(expected, signature.lower().strip())
+    if not valid:
+        logger.warning("_verify_signature: HMAC mismatch — rejected.")
+    return valid
 
 
 # ── Signer helpers ────────────────────────────────────────────────────

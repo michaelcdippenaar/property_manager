@@ -19,7 +19,7 @@ def _make_body(payload: dict) -> bytes:
 class TestWebhookHmacValidation:
     """HMAC signature verification for DocuSeal webhooks."""
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_valid_hmac_signature_accepted(self):
         """A request with a correct HMAC signature should be accepted."""
         from apps.esigning.webhooks import _verify_signature
@@ -35,7 +35,7 @@ class TestWebhookHmacValidation:
 
         assert result is True
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_invalid_hmac_signature_rejected(self):
         """A request with a wrong HMAC signature should be rejected."""
         from apps.esigning.webhooks import _verify_signature
@@ -50,7 +50,7 @@ class TestWebhookHmacValidation:
 
         assert result is False
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_missing_signature_with_secret_rejected(self):
         """A request with no signature header, when secret is configured, should be rejected."""
         from apps.esigning.webhooks import _verify_signature
@@ -64,7 +64,7 @@ class TestWebhookHmacValidation:
 
         assert result is False
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_no_secret_configured_allows_all(self):
         """When DOCUSEAL_WEBHOOK_SECRET is empty, signature check is skipped."""
         from apps.esigning.webhooks import _verify_signature
@@ -82,7 +82,7 @@ class TestWebhookHmacValidation:
 class TestWebhookStaticHeaderValidation:
     """Static header token validation (alternative to HMAC)."""
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_correct_static_token_accepted(self):
         """When DOCUSEAL_WEBHOOK_HEADER_NAME is set, matching token is accepted."""
         from apps.esigning.webhooks import _verify_signature
@@ -96,7 +96,7 @@ class TestWebhookStaticHeaderValidation:
 
         assert result is True
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_wrong_static_token_rejected(self):
         """When DOCUSEAL_WEBHOOK_HEADER_NAME is set, wrong token is rejected."""
         from apps.esigning.webhooks import _verify_signature
@@ -110,21 +110,12 @@ class TestWebhookStaticHeaderValidation:
 
         assert result is False
 
-    @pytest.mark.red
+    @pytest.mark.green
     def test_verify_signature_function_exists(self):
-        """RED: Verify that _verify_signature() exists in webhooks module.
+        """_verify_signature() exists in webhooks module and is importable."""
+        from apps.esigning.webhooks import _verify_signature
 
-        This test is marked red because the private function name/signature
-        should be confirmed against the actual webhooks.py implementation.
-        The function may be named differently or inline in the view.
-        """
-        try:
-            from apps.esigning.webhooks import _verify_signature
-        except ImportError:
-            raise NotImplementedError(
-                "_verify_signature not found in apps.esigning.webhooks. "
-                "Locate the actual signature verification function and update import."
-            )
+        assert callable(_verify_signature)
 
 
 class TestWebhookEndpointSignatureEnforcement:

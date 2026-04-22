@@ -344,6 +344,20 @@ NOTIFICATIONS_ENABLE_LOG = config("NOTIFICATIONS_ENABLE_LOG", default=True, cast
 VAULT33_BASE_URL = config("VAULT33_BASE_URL", default="http://localhost:8001")
 VAULT33_INTERNAL_TOKEN = config("VAULT33_INTERNAL_TOKEN", default="")
 
+# ── Webhook shared secrets (HMAC-SHA256) ──────────────────────────────────────
+# Pattern: WEBHOOK_SECRET_<NAME>  — one per integration.
+# Loaded by utils.webhook_signature.get_webhook_secret("<name>").
+# Rotate by updating the env var and restarting the server.
+# Leave empty in development to skip verification (a warning is logged).
+# See docs/ops/webhooks.md for the full scheme.
+#
+# Currently defined integrations:
+#   WEBHOOK_SECRET_ESIGNING   — reserved for future machine-to-machine callbacks
+#                                (native signing is inbound from tenants, not servers)
+#   WEBHOOK_SECRET_CONTACT    — not used (contact form is origin-allowlisted, not HMAC)
+#
+WEBHOOK_SECRET_ESIGNING = config("WEBHOOK_SECRET_ESIGNING", default="")
+
 # ── Sentry ────────────────────────────────────────────────────────────────────
 # Set SENTRY_DSN in .env to enable.  Leave blank to run without Sentry (dev default).
 # SENTRY_ENVIRONMENT should be "development" / "staging" / "production".
