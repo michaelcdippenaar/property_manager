@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: null
 created: 2026-04-22
@@ -78,3 +78,25 @@ Smoke-check results (local, gitleaks 8.30.1):
 - `gitleaks detect --source . --log-opts="--all" --config .gitleaks.toml` → exit code 0, 0 findings (107 commits)
 
 Updated `docs/ops/secret-rotation-2026-04.md` section 2.4 with the `core.hooksPath` unset step and explanatory comment covering when the setting gets introduced and why unsetting is safe. Note: the runbook's "Step 6" label referenced in the acceptance criteria maps to section 2.4 in the document (there is no separate "Step 6: run pre-commit install" heading); the update was placed where `pre-commit install` is described.
+
+### 2026-04-22 — rentals-reviewer
+
+Review requested changes.
+
+**What was checked:** All 8 required path exclusions are present and each has an inline comment. The 4 extra paths found during smoke-check are reasonable additions. The `core.hooksPath` runbook update in `docs/ops/secret-rotation-2026-04.md` section 2.4 is correct, complete, and the note explaining when/why is clear. Smoke-check exit codes are documented. Volt regex allowlist entry is appropriately commented and linked to the rotation runbook.
+
+**Required fixes (must address before re-review):**
+
+1. **`backend/\.env` regex is overbroad** (`/.gitleaks.toml` path entry, line ~79).
+   The pattern `backend/\.env` matches not just the gitignored `backend/.env` but also the committed files `backend/.env.development`, `backend/.env.staging`, `backend/.env.production`, and `backend/.env.secrets.example`. Those committed files must remain scannable.
+   Fix: anchor the pattern so it matches only the bare file, e.g. `'''backend/\.env$'''` or `'''backend/\.env[^.]'''`. Verify the chosen anchor still yields 0 findings on `--no-git`.
+
+2. **`backend/\.env\.secrets` regex may over-match** (`/.gitleaks.toml` path entry).
+   `backend/\.env\.secrets` matches `backend/.env.secrets.example` (a committed placeholder file). That file should still be scanned.
+   Fix: anchor to `'''backend/\.env\.secrets$'''`.
+
+3. **`admin/\.env` regex is overbroad** (`/.gitleaks.toml` path entry).
+   Matches the committed files `admin/.env.development`, `admin/.env.staging`, `admin/.env.production`.
+   Fix: anchor to `'''admin/\.env$'''`. Verify exit 0 after the change.
+
+A discovery file covering items 1–3 has been dropped at `tasks/discoveries/2026-04-22-gitleaks-env-regex-overbroad.md`.
