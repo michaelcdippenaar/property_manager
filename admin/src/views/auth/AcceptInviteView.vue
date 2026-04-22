@@ -46,7 +46,15 @@
 
           <div>
             <label for="invite-email" class="label">Email</label>
-            <p id="invite-email" class="text-sm font-medium text-gray-700 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg">{{ invite.email }}</p>
+            <input
+              type="email"
+              id="invite-email"
+              :value="invite.email"
+              readonly
+              tabindex="-1"
+              class="input bg-gray-50 text-gray-700 cursor-default"
+              aria-readonly="true"
+            />
           </div>
 
           <div class="grid grid-cols-2 gap-3">

@@ -20,9 +20,12 @@
           :leave-active-class="`transition ease-in duration-150`"
           leave-from-class="translate-x-0"
           :leave-to-class="side === 'right' ? 'translate-x-full' : '-translate-x-full'"
+          @after-enter="activate"
+          @before-leave="deactivate"
         >
           <div
             v-if="open"
+            ref="trapRef"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="title ? drawerTitleId : undefined"
@@ -62,6 +65,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useFocusTrap } from '../composables/useFocusTrap'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -73,9 +77,11 @@ const props = withDefaults(defineProps<{
   size: 'md',
 })
 
+const emit = defineEmits<{ close: [] }>()
+
 const drawerTitleId = useId()
 
-defineEmits<{ close: [] }>()
+const { trapRef, activate, deactivate } = useFocusTrap(() => emit('close'))
 
 const sizeClass = computed(() => ({
   sm: 'sm:max-w-sm',

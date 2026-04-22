@@ -20,9 +20,12 @@
           leave-active-class="transition ease-in duration-150"
           leave-from-class="opacity-100 scale-100"
           leave-to-class="opacity-0 scale-95"
+          @after-enter="activate"
+          @before-leave="deactivate"
         >
           <div
             v-if="open"
+            ref="trapRef"
             role="dialog"
             aria-modal="true"
             :aria-labelledby="title ? modalTitleId : undefined"
@@ -63,6 +66,7 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
 import { X } from 'lucide-vue-next'
+import { useFocusTrap } from '../composables/useFocusTrap'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -74,9 +78,11 @@ const props = withDefaults(defineProps<{
   closable: true,
 })
 
-defineEmits<{ close: [] }>()
+const emit = defineEmits<{ close: [] }>()
 
 const modalTitleId = useId()
+
+const { trapRef, activate, deactivate } = useFocusTrap(() => emit('close'))
 
 const sizeClass = computed(() => ({
   sm: 'sm:max-w-sm',
