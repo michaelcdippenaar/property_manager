@@ -7,9 +7,9 @@ lifecycle_stage: 10
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177452054690"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -75,6 +75,18 @@ The reconciliation engine logic, models, and tests are solid and satisfy all six
 3. **`backend/apps/payments/views.py` — `RentInvoiceViewSet` and `UnmatchedPaymentViewSet` are full `ModelViewSet`.** This exposes `POST /api/v1/payments/invoices/` (create invoice), `PUT/PATCH /api/v1/payments/invoices/{id}/` (edit invoice), `DELETE /api/v1/payments/invoices/{id}/` (delete invoice), and the equivalent for unmatched payments to any authenticated user. Invoices should only be created by the system when a rent period opens — not by arbitrary API callers. Restrict `RentInvoiceViewSet` to read + custom actions only: change it to `mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet` (or override `http_method_names`). `UnmatchedPaymentViewSet` may keep `create` (operators can manually enter an unmatched deposit) but should not allow `update` or `destroy` — restrict it similarly.
 
 **Discovery filed:** `tasks/discoveries/2026-04-22-payments-missing-vue-router-wiring.md` — Vue Router wiring for the two new payment views is missing but is out of scope for this task per the implementer's own caveat. Filed as a follow-on.
+
+### 2026-04-22 — implementer (security fixes)
+
+Applied all three required security fixes to `backend/apps/payments/views.py`:
+
+1. **Permission class** — replaced `IsAuthenticated` with `IsAgentOrAdmin` (imported from `apps.accounts.permissions`) on all three viewsets: `RentInvoiceViewSet`, `RentPaymentViewSet`, `UnmatchedPaymentViewSet`. Removed the now-unused `IsAuthenticated` import.
+
+2. **Scope comments** — added the prescribed comment (`# Queryset is intentionally unscoped — view is gated to IsAgentOrAdmin which limits exposure to operator roles only.`) at the top of `get_queryset()` in both `RentInvoiceViewSet` and `UnmatchedPaymentViewSet`.
+
+3. **Restricted viewset bases** — `RentInvoiceViewSet` changed from `ModelViewSet` to `mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet` (read + custom actions only; create/update/destroy removed). `UnmatchedPaymentViewSet` changed from `ModelViewSet` to `mixins.CreateModelMixin, mixins.RetrieveModelMixin, mixins.ListModelMixin, GenericViewSet` (create + read only; update/destroy removed). `RentPaymentViewSet` was already correctly restricted to `RetrieveModelMixin`.
+
+`manage.py check` — 0 issues after changes.
 
 **What was checked and passed:**
 - All six acceptance criteria covered by models, reconciliation engine, and 23 tests.

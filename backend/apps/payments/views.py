@@ -16,10 +16,11 @@ from decimal import Decimal
 from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, GenericViewSet
+from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
+
+from apps.accounts.permissions import IsAgentOrAdmin
 
 from .models import PaymentAuditLog, RentInvoice, RentPayment, UnmatchedPayment
 from .reconciliation import apply_payment, assign_unmatched, reverse_payment
@@ -34,19 +35,28 @@ from .serializers import (
 )
 
 
-class RentInvoiceViewSet(ModelViewSet):
+class RentInvoiceViewSet(
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    GenericViewSet,
+):
     """
-    CRUD + reconciliation actions for RentInvoice.
+    Read-only viewset for RentInvoice + reconciliation custom actions.
+
+    Invoices are created by the system when a rent period opens — not via
+    the API — so create / update / destroy are intentionally excluded.
 
     Supports ?search= (fuzzy match on lease_number / tenant name).
     Supports ?status= to filter by invoice status.
     Supports ?lease= to filter by lease pk.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     serializer_class = RentInvoiceSerializer
 
     def get_queryset(self):
+        # Queryset is intentionally unscoped — view is gated to IsAgentOrAdmin
+        # which limits exposure to operator roles only.
         qs = RentInvoice.objects.select_related("lease").prefetch_related(
             "payments"
         )
@@ -117,7 +127,7 @@ class RentPaymentViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     Read-only viewset for individual payments, plus the reverse action.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     serializer_class = RentPaymentSerializer
     queryset = RentPayment.objects.select_related("invoice", "created_by")
 
@@ -147,15 +157,26 @@ class RentPaymentViewSet(mixins.RetrieveModelMixin, GenericViewSet):
         )
 
 
-class UnmatchedPaymentViewSet(ModelViewSet):
+class UnmatchedPaymentViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.ListModelMixin,
+    GenericViewSet,
+):
     """
-    CRUD for UnmatchedPayment + manual assign action.
+    Create + read viewset for UnmatchedPayment + manual assign action.
+
+    Operators may manually enter an unmatched deposit (create) but update
+    and destroy are excluded — once quarantined, a record is only resolved
+    via the assign action, preserving the audit trail.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAgentOrAdmin]
     serializer_class = UnmatchedPaymentSerializer
 
     def get_queryset(self):
+        # Queryset is intentionally unscoped — view is gated to IsAgentOrAdmin
+        # which limits exposure to operator roles only.
         qs = UnmatchedPayment.objects.select_related("assigned_to_invoice", "resolved_payment")
         status_filter = self.request.query_params.get("status", "pending")
         if status_filter:
