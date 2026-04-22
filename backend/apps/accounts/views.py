@@ -252,6 +252,24 @@ class PushTokenView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class MarkWelcomeSeenView(APIView):
+    """
+    POST /auth/welcome/
+    Idempotent — stamps seen_welcome_at on the authenticated user the first
+    time they dismiss the tenant welcome screen.  Subsequent calls are a no-op.
+    Returns the updated UserSerializer payload so the client can refresh its
+    cached profile in one round-trip.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if not user.seen_welcome_at:
+            user.seen_welcome_at = timezone.now()
+            user.save(update_fields=["seen_welcome_at"])
+        return Response(UserSerializer(user).data)
+
+
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 

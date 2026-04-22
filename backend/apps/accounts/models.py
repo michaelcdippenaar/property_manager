@@ -71,6 +71,10 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)
+    seen_welcome_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When the tenant first dismissed the welcome screen; null = not yet seen.",
+    )
 
     objects = UserManager()
 

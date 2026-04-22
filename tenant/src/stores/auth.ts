@@ -8,6 +8,7 @@ export interface User {
   full_name: string
   role: string
   phone?: string
+  seen_welcome_at?: string | null
 }
 
 export const useAuthStore = defineStore('auth', () => {

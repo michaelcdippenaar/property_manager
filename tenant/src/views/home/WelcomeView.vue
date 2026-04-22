@@ -138,9 +138,14 @@ onMounted(async () => {
   }
 })
 
-function goHome(): void {
-  // Mark welcome as seen so we don't redirect again on refresh
-  sessionStorage.setItem('klikk_welcome_seen', '1')
+async function goHome(): Promise<void> {
+  // Stamp seen_welcome_at server-side so the flag survives new tabs and restarts.
+  // Fire-and-forget: navigate immediately; the store update propagates on response.
+  api.post('/auth/welcome/').then(({ data }) => {
+    auth.user = { ...auth.user!, ...data }
+  }).catch(() => {
+    // Non-fatal — worst case the user sees the screen once more next login.
+  })
   router.replace({ name: 'home' })
 }
 

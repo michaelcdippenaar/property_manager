@@ -127,15 +127,9 @@ router.beforeEach(async (to) => {
     }
   }
 
-  // Redirect tenant to welcome screen on first post-login visit
-  // (until they've seen it or dismissed it)
-  if (
-    to.name === 'home' &&
-    !sessionStorage.getItem('klikk_welcome_seen') &&
-    !sessionStorage.getItem('klikk_welcome_checked')
-  ) {
-    // Mark that we've already done this check this session to avoid looping
-    sessionStorage.setItem('klikk_welcome_checked', '1')
+  // Redirect tenant to welcome screen if they haven't dismissed it yet.
+  // Uses server-side seen_welcome_at (durable across tabs and browser restarts).
+  if (to.name === 'home' && auth.user?.role === 'tenant' && !auth.user?.seen_welcome_at) {
     return { name: 'welcome' }
   }
 })
