@@ -226,6 +226,44 @@ rm ~/.ssh/klikk_staging_deploy ~/.ssh/klikk_staging_deploy.pub
 > add `from="X.X.X.X"` restrictions in `authorized_keys` for the GitHub Actions IP ranges,
 > or use `iptables`/`ufw` to whitelist GitHub's IP ranges only for port 22.
 
+### Harden SSH on the staging server (run once by MC)
+
+SSH password authentication must be disabled on the staging server. Run these steps while you
+still have password access (or from a console session), then verify key-based login works before
+disconnecting.
+
+```bash
+# 1. Confirm your personal SSH key is in authorized_keys
+#    (if not, append it first — replace <your-pub-key> with the contents of ~/.ssh/id_ed25519.pub)
+grep -q "$(cat ~/.ssh/id_ed25519.pub)" ~/.ssh/authorized_keys || \
+  cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys
+
+# 2. Disable password authentication
+sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/' /etc/ssh/sshd_config
+
+# Verify the change before reloading
+grep -E "^PasswordAuthentication|^ChallengeResponseAuthentication" /etc/ssh/sshd_config
+# Expected output:
+#   PasswordAuthentication no
+#   ChallengeResponseAuthentication no
+
+# 3. Reload sshd (do NOT restart — keeps existing sessions alive)
+sudo systemctl reload ssh
+
+# 4. Open a NEW terminal and confirm key-based login works BEFORE closing this session
+#    From your local machine:
+#      ssh -o PasswordAuthentication=no mc@102.135.240.222
+#    Should succeed with your key.
+
+# 5. Confirm password login is now refused
+#    ssh -o PubkeyAuthentication=no mc@102.135.240.222
+#    Should fail with "Permission denied (publickey)."
+
+# 6. Rotate the staging OS password (password auth is now off, but rotate anyway for hygiene)
+sudo passwd mc
+```
+
 ---
 
 ## 6. Backend Config Reference
