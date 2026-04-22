@@ -17,7 +17,7 @@ from django.shortcuts import get_object_or_404
 from .models import User, OTPCode, Person, PersonDocument, PushToken, LoginAttempt, UserInvite, Agency
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
-from .throttles import AuthAnonThrottle, OTPSendThrottle, OTPVerifyThrottle
+from .throttles import AuthAnonThrottle, InviteAcceptThrottle, LoginHourlyThrottle, OTPSendThrottle, OTPVerifyThrottle
 
 
 class RegisterView(APIView):
@@ -42,7 +42,7 @@ class RegisterView(APIView):
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
-    throttle_classes = [AuthAnonThrottle]
+    throttle_classes = [AuthAnonThrottle, LoginHourlyThrottle]
 
     LOCKOUT_THRESHOLD = 5
     LOCKOUT_WINDOW_MINUTES = 30
@@ -302,7 +302,7 @@ class PasswordResetConfirmView(APIView):
 class AcceptInviteView(APIView):
     """Accept an invite: validate token, create user with password or Google credential."""
     permission_classes = [AllowAny]
-    throttle_classes = [AuthAnonThrottle]
+    throttle_classes = [InviteAcceptThrottle]
 
     def get(self, request):
         """Return invite details (email, role) for the frontend to pre-fill."""

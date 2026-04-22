@@ -156,10 +156,23 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
     "DEFAULT_THROTTLE_RATES": {
+        # Auth endpoints (login, register, Google OAuth, password reset)
         "anon_auth": "5/min",
+        # OTP send / verify
         "otp_send": "3/min",
         "otp_verify": "5/min",
+        # Per-user login hourly bucket (applied alongside anon_auth)
+        "login_hourly_user": "20/hour",
+        # Tenant-invite acceptance
+        "invite_accept": "5/min",
+        # Public e-signing endpoints (no auth, UUID token in URL)
+        "public_sign_minute": "10/min",
+        "public_sign_hourly": "60/hour",
     },
 }
 

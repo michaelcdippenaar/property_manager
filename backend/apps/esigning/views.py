@@ -23,6 +23,10 @@ from . import services
 from .audit import log_esigning_event
 from .models import ESigningPublicLink, ESigningSubmission, SigningDraft, SupportingDocument
 from .serializers import ESigningSubmissionSerializer
+from .throttles import PublicSignHourlyThrottle, PublicSignMinuteThrottle
+
+# Shared throttle list applied to every unauthenticated public-signing view.
+PUBLIC_SIGN_THROTTLES = [PublicSignMinuteThrottle, PublicSignHourlyThrottle]
 
 logger = logging.getLogger(__name__)
 
@@ -429,6 +433,7 @@ class ESigningPublicSignDetailView(APIView):
 
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def _resolve_link(self, link_id):
         """Common link validation for public signing endpoints."""
@@ -514,6 +519,7 @@ class ESigningPublicDocumentView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def get(self, request, link_id):
         link, sub, signer, error = ESigningPublicSignDetailView()._resolve_link(link_id)
@@ -550,6 +556,7 @@ class ESigningPublicSubmitSignatureView(APIView):
     """
     permission_classes = [AllowAny]
     authentication_classes = []
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def post(self, request, link_id):
         link, sub, signer, error = ESigningPublicSignDetailView()._resolve_link(link_id)
@@ -838,6 +845,7 @@ class ESigningPublicDraftView(APIView):
     Tenants call this to save partial signing progress between sessions.
     """
     permission_classes = [AllowAny]
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def get(self, request, link_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
@@ -900,6 +908,7 @@ class ESigningPublicDocumentsView(APIView):
     """
     permission_classes = [AllowAny]
     parser_classes = [MultiPartParser, FormParser]
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def _doc_payload(self, doc):
         return {
@@ -991,6 +1000,7 @@ class ESigningPublicDocumentDeleteView(APIView):
     Agent/admin deletions go through the submission documents endpoint.
     """
     permission_classes = [AllowAny]
+    throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def delete(self, request, link_id, doc_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
