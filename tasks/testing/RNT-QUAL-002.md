@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177452426023"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (in-progress → review by implementer)
+updated: 2026-04-22 (review → testing by reviewer)
 ---
 
 ## Goal
@@ -90,3 +90,22 @@ Required fix: replace both occurrences with `user.role == User.Role.ADMIN` (impo
 **Fix 1 (BLOCKER):** Added `@patch("apps.esigning.gotenberg.time.sleep")` as the outer decorator on `test_raises_on_http_error` in `backend/apps/test_hub/esigning/unit/test_gotenberg.py`. The mock argument is `mock_sleep` (second positional param after `mock_post`). Audited all other `TestHtmlToPdf` methods — the remaining five tests all pass `ok=True` on the first attempt so the retry loop never executes; no sleep mock is needed there.
 
 **Fix 2 (MINOR):** Added `from apps.accounts.models import User` to module-level imports in `backend/apps/leases/template_views.py`. Replaced both `getattr(user, 'role', None) == 'admin'` occurrences with `user.role == User.Role.ADMIN`. Verified `manage.py check` still shows 0 errors; both files pass `py_compile`.
+
+### 2026-04-22 — reviewer: approved (r1 fixes verified)
+
+**Review passed.**
+
+Checked all five acceptance criteria:
+1. Retry loop in `gotenberg.py` — `MAX_RETRIES = 3`, backoff `1 * 2^(attempt-1)` yields 1s/2s/4s on 5xx and `requests.Timeout`/`ConnectionError`. Correct.
+2. Background thread worker in `leases/tasks.py` — matches fire-and-forget pattern from `properties/tasks.py`, 5-minute inter-attempt delay, `MAX_ATTEMPTS = 3`. `PdfRenderJob` model and migration `0019_add_pdf_render_job.py` in place.
+3. UI: `TemplateEditorView.vue` handles HTTP 202 and shows "Preparing your document — we'll email you when ready." Spinner + disabled button prevents double-submit.
+4. Operator render-jobs view at route `leases/render-jobs` → `PdfRenderJobsView.vue` with Retry CTA. Route wired in `router/index.ts`. API endpoints at `/leases/render-jobs/` and `/leases/render-jobs/<pk>/retry/` registered in `urls.py`.
+5. Sentry metrics: `_emit_metric` (latency distribution) and `_increment_counter` (success/failure counters) in `gotenberg.py`.
+
+**R1 fixes confirmed:**
+- Fix 1 (BLOCKER): `@patch("apps.esigning.gotenberg.time.sleep")` now present as outer decorator on `test_raises_on_http_error` in `backend/apps/test_hub/esigning/unit/test_gotenberg.py` line 60. Other `TestHtmlToPdf` tests correctly omit the patch (pass `ok=True` on first try).
+- Fix 2 (MINOR): `user.role == User.Role.ADMIN` used in both `PdfRenderJobListView` (line 1942) and `PdfRenderJobRetryView` (line 1976). `User` imported at module level.
+
+**Security/POPIA pass:** both new endpoints have `permission_classes = [IsAgentOrAdmin]`. Non-admin path scopes queries to `requested_by=user` — no IDOR. HTML payload stored in DB is per-user. No PII logged; error strings come from Gotenberg response body (not user data). No raw SQL.
+
+13 tests in `test_pdf_resilience.py` cover retry count, timeout, exhaustion, backoff doubling, no-sleep on success, Sentry counters, worker DONE/FAILED/retry-on-second-attempt, 202 fallback, and 200 happy path.
