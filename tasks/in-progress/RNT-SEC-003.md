@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177452385365"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -78,3 +78,35 @@ Frontend:
 4. `test_register_default_role_is_admin` in `test_auth.py` was failing before this task — confirmed by stash-test. Not caused by this change.
 5. QR code generation (`qrcode[pil]`) requires Pillow (already in requirements). If `qrcode` is unavailable in production, `qr_code_png_base64` returns an empty string — the `otpauth_uri` is still returned so users can enter the secret manually.
 6. The 2FA reset email template name is `2fa_reset` — the notification service `send_template_email` call is wrapped in a `try/except` so it won't hard-fail if the template isn't yet created.
+
+### 2026-04-22 — reviewer (changes requested)
+
+**Review requested changes**
+
+Overall the implementation is solid — models, migration, throttling, token isolation, and the 23-test suite are all well-structured. Two issues must be fixed before this can go to testing:
+
+**1. [BLOCKER] Hard-blocked enrollment path is broken (`backend/apps/accounts/totp_views.py:136`, `backend/apps/accounts/totp_views.py:188`)**
+
+`TOTPSetupView` and `TOTPSetupConfirmView` both use `permission_classes = [IsAuthenticated]`. When a user's grace period has expired, `LoginView` returns **no access/refresh tokens** — only a `two_fa_token`. The frontend `api` client reads `access_token` from `localStorage`; if it is absent, the `Authorization` header is not sent and both setup endpoints return 401. A hard-blocked user has no way to enroll.
+
+Fix options (implementer's choice, but must be consistent across all three clients):
+- Change `TOTPSetupView` and `TOTPSetupConfirmView` to `AllowAny` + accept `two_fa_token` in the request body (same pattern as `TOTPVerifyView`). Use `_decode_two_fa_token()` to identify the user.
+- Or: accept `two_fa_token` as a `Bearer` alternative in those two endpoints via a custom permission class.
+
+The in-grace path also calls `api.post('/auth/2fa/setup/')` in the same way — that case works because an access token is returned, but confirm the flow covers both paths in tests.
+
+**2. [MINOR] Dead import in `backend/apps/accounts/views.py:96`**
+
+`from datetime import datetime` is imported inside `LoginView.post()` but `datetime` is never used in that block — `timedelta` is already imported at file top (line 6). Remove the dead import.
+
+**Discovery filed:** `tasks/discoveries/2026-04-22-totp-accountant-viewer-roles.md` — whether `ACCOUNTANT` and `VIEWER` roles should be in `TOTP_REQUIRED_ROLES` needs a PM decision (P2, out of scope for this task).
+
+**Security items checked (pass):**
+- `two_fa_token` carries `two_fa_pending: true` claim; `_decode_two_fa_token` rejects plain access tokens — tested at `test_verify_regular_access_token_rejected`.
+- Recovery codes stored as SHA-256 hashes; plaintext never persisted.
+- `TOTPVerifyView` and `TOTPRecoveryView` both use `OTPVerifyThrottle`.
+- `TOTPResetRequestView` returns identical response for registered/unregistered email (enumeration prevention).
+- No PII logged in audit events; `otp_failed`/`otp_verified` metadata is source-only.
+- All new 7 endpoints registered correctly in `accounts/urls.py`.
+
+**Note on `two_fa_token` in URL query params:** all three frontends pass the `two_fa_token` via Vue Router query params (`?token=...`), which exposes the JWT in browser history, server access logs, and potentially analytics referrer headers. This is the same pattern used by the existing `ResetPasswordView` (`admin/src/views/auth/ResetPasswordView.vue:67`), so it matches project convention. A security hardening task to switch to `sessionStorage` handoff instead of URL params would be worth filing — but it is not being held against this task since the convention is pre-existing.
