@@ -29,7 +29,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [vue(), ...sentryPlugins],
     build: {
-      sourcemap: true, // needed for Sentry source-map upload
+      sourcemap: 'hidden', // Sentry plugin uploads .map files; 'hidden' strips //# sourceMappingURL= so browsers can't fetch them
     },
     server: {
       host: '0.0.0.0',
