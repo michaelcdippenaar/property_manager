@@ -41,6 +41,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from django.template import Context, Engine
+from django.utils.safestring import mark_safe
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,7 @@ def render_template_email(
     # Render note and body with placeholders
     render_ctx["note"] = _render_string(md["note"], render_ctx)
     raw_body_rendered = _render_string(md["body"], render_ctx)
-    render_ctx["body_text"] = _simple_md_to_html(raw_body_rendered)
+    render_ctx["body_text"] = mark_safe(_simple_md_to_html(raw_body_rendered))
 
     # Render full HTML
     base_html = _load_base_html()
