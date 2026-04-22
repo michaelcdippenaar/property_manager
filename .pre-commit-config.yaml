@@ -17,6 +17,16 @@ repos:
         description: "Block commits that introduce credentials or API keys"
         # Uses .gitleaks.toml in repo root for allowlist rules
 
+  # ── Email template: compiled/base.html sync check (OPS-015) ──────────────────
+  - repo: local
+    hooks:
+      - id: check-email-templates
+        name: "email-templates: compiled/base.html in sync with base.mjml"
+        language: script
+        entry: scripts/compile_email_templates.sh --check
+        pass_filenames: false
+        files: "^backend/apps/notifications/email_templates/"
+
   # ── Trailing whitespace / file hygiene ─────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

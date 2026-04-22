@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462435910"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22T16:00:00
+updated: 2026-04-22T20:00:00
 ---
 
 ## Goal
@@ -106,3 +106,19 @@ Applied all 6 blocking fixes from the review:
 6. **`Lease.deposit` made nullable** — added `null=True, blank=True` to the `deposit` DecimalField. Created migration `0020_lease_deposit_nullable.py` (depends on `0019_add_pdf_render_job`). The `deposit is None` guard in `rha_check.py` is now coherent with the nullable field: `None` = not provided (blocking); `0` = explicit zero-deposit (social housing, not flagged).
 
 **Issue 7 (escalation/renewal/domicilium):** Added an explanatory comment in `_check_mandatory_terms` documenting why these three are intentionally skipped (no model fields). Dropped discovery file at `tasks/discoveries/2026-04-22-lease-model-missing-escalation-renewal-domicilium-fields.md` for PM to schedule.
+
+### 2026-04-22 — reviewer (round 2): changes requested
+
+All 6 round-1 fixes verified present and correct. One new blocking POPIA issue found.
+
+**Blocking — fix before re-review:**
+
+1. **POPIA: `GET /api/v1/leases/{id}/rha-check/` leaks staff user email to tenants.** `backend/apps/leases/views.py` `rha_check` action (line 294) returns `"override": lease.rha_override` unconditionally. The `rha_override` JSON blob contains `user_email` and `user_id` of the staff member who recorded the override (stored by `Lease.record_rha_override()` at `models.py` lines 177–178). `LeaseViewSet.get_queryset()` scopes TENANT role users to their own leases but does not block them from calling `@action` endpoints. A tenant can call `GET /api/v1/leases/{id}/rha-check/` on their own lease and receive a staff employee's email address in the response. Under POPIA, an employee's email is personal information and must not be disclosed to third parties without their consent. Fix: strip or omit the `override` key for callers who are not `is_staff`, `is_superuser`, or `role in {agency_admin, admin}`. Alternatively, store only a non-PII summary in the public-facing response (e.g. `"override_recorded": true, "overridden_at": "..."`).
+
+**Non-blocking observations (no send-back required, but note for implementer):**
+
+2. **`rha_check` GET action bypasses `refresh_rha_flags()` override-invalidation logic.** The action does `lease.save(update_fields=["rha_flags"])` directly (views.py line 288) instead of calling `lease.refresh_rha_flags()`. The model method has logic to clear `rha_override` when the blocking flag set changes between the override and the current run — this safety net is not exercised by a GET to `rha-check`. The existing `assert_rha_ready()` call in the esigning gate will still block submission correctly, but the `rha-check` endpoint will not clear a stale override even when blocking codes have changed. This is lower-risk since overrides are only acted on at submission time, but it is inconsistent with the documented contract of `refresh_rha_flags()`. Fix as part of issue 1 or in a follow-up — not blocking this cycle.
+
+3. **Test count discrepancy.** The task says "20 pytest tests" but `test_rha_gate.py` contains 23 test functions. All 23 are valid and well-written. Update the task description count to 23 when re-submitting.
+
+Discovery filed: `tasks/discoveries/2026-04-22-lease-model-missing-escalation-renewal-domicilium-fields.md` (by implementer — already present, no action needed).
