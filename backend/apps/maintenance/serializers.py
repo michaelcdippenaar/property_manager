@@ -114,11 +114,14 @@ class MaintenanceRequestSerializer(serializers.ModelSerializer):
         source="tenant.full_name", read_only=True, default=None,
     )
     activity_count = serializers.IntegerField(read_only=True, default=0)
+    sla_ack_pct = serializers.FloatField(read_only=True, default=None)
+    sla_resolve_pct = serializers.FloatField(read_only=True, default=None)
+    is_sla_overdue = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = MaintenanceRequest
         fields = "__all__"
-        read_only_fields = ["tenant", "created_at", "updated_at"]
+        read_only_fields = ["tenant", "created_at", "updated_at", "sla_ack_deadline", "sla_resolve_deadline", "sla_escalated"]
         extra_kwargs = {
             "unit": {"required": False},
         }

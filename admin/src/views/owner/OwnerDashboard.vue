@@ -51,6 +51,9 @@
       </div>
     </div>
 
+    <!-- Overdue maintenance widget -->
+    <OverdueMaintenanceWidget :max-preview="3" />
+
     <!-- AI Lease Builder CTA -->
     <RouterLink to="/owner/leases"
       class="card p-5 flex items-center gap-4 hover:shadow-md transition-shadow cursor-pointer group no-underline block"
@@ -72,6 +75,7 @@ import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { Sparkles, ChevronRight, ClipboardList } from 'lucide-vue-next'
 import api from '../../api'
+import OverdueMaintenanceWidget from '../../components/OverdueMaintenanceWidget.vue'
 
 const stats = ref<any>(null)
 const pendingOnboardings = ref<any[]>([])

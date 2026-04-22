@@ -57,7 +57,13 @@
             </div>
             <p class="text-xs text-gray-500 mt-1 line-clamp-1">{{ req.description }}</p>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+            <SLACountdownChip
+              :resolve-deadline="req.sla_resolve_deadline"
+              :resolve-pct="req.sla_resolve_pct"
+              :is-overdue="req.is_sla_overdue"
+              :status="req.status"
+            />
             <span :class="priorityBadge(req.priority)" class="text-micro">{{ req.priority }}</span>
             <span :class="statusBadge(req.status)" class="text-micro">{{ req.status?.replace('_', ' ') }}</span>
           </div>
@@ -89,6 +95,7 @@ import LoadingState from '../../components/states/LoadingState.vue'
 import ErrorState from '../../components/states/ErrorState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import PageHeader from '../../components/PageHeader.vue'
+import SLACountdownChip from '../../components/SLACountdownChip.vue'
 
 const loading = ref(true)
 const loadError = ref(false)

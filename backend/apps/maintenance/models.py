@@ -1,6 +1,57 @@
+from datetime import timedelta
+
 from django.db import models
+from django.utils import timezone
 from apps.accounts.models import User
 from apps.properties.models import Property, Unit
+
+
+# ── Default SLA hours per priority ─────────────────────────────────────────────
+# Keys match MaintenanceRequest.Priority values.
+# Tuple: (ack_hours, resolve_hours)
+DEFAULT_SLA_HOURS: dict[str, tuple[int, int]] = {
+    "urgent":  (4,   24),
+    "high":    (24,  72),
+    "medium":  (72,  336),   # 72h ack / 14d resolve
+    "low":     (72,  336),
+}
+
+
+class AgencySLAConfig(models.Model):
+    """
+    Per-agency SLA overrides for maintenance ticket priorities.
+    Falls back to DEFAULT_SLA_HOURS when no record exists for a priority.
+    """
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.CASCADE, related_name="sla_configs",
+    )
+    priority = models.CharField(
+        max_length=10,
+        choices=[
+            ("urgent", "Urgent (emergency)"),
+            ("high",   "High (urgent)"),
+            ("medium", "Medium (routine)"),
+            ("low",    "Low (routine)"),
+        ],
+    )
+    ack_hours = models.PositiveIntegerField(help_text="Hours to first acknowledgement")
+    resolve_hours = models.PositiveIntegerField(help_text="Hours to full resolution")
+
+    class Meta:
+        unique_together = [("agency", "priority")]
+        ordering = ["agency", "priority"]
+
+    def __str__(self):
+        return f"{self.agency} — {self.priority}: {self.ack_hours}h/{self.resolve_hours}h"
+
+    @classmethod
+    def get_hours(cls, agency, priority: str) -> tuple[int, int]:
+        """Return (ack_hours, resolve_hours) for the given agency + priority."""
+        if agency:
+            record = cls.objects.filter(agency=agency, priority=priority).first()
+            if record:
+                return record.ack_hours, record.resolve_hours
+        return DEFAULT_SLA_HOURS.get(priority, (72, 336))
 
 
 class Supplier(models.Model):
@@ -265,6 +316,16 @@ class MaintenanceRequest(models.Model):
     image = models.ImageField(upload_to="maintenance/", null=True, blank=True)
     acknowledged_at = models.DateTimeField(null=True, blank=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
+    sla_ack_deadline = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Computed: created_at + ack SLA hours for this priority",
+    )
+    sla_resolve_deadline = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Computed: created_at + resolve SLA hours for this priority",
+    )
+    # Set True after agency admin has been alerted for >48h overdue escalation
+    sla_escalated = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -273,6 +334,57 @@ class MaintenanceRequest(models.Model):
 
     def __str__(self):
         return f"{self.title} — {self.unit}"
+
+    # ── SLA helpers ────────────────────────────────────────────────────────────
+
+    def compute_sla_deadlines(self, agency=None):
+        """
+        Recompute and store sla_ack_deadline + sla_resolve_deadline.
+        Call after priority or created_at changes.
+        """
+        ack_h, res_h = AgencySLAConfig.get_hours(agency, self.priority)
+        base = self.created_at or timezone.now()
+        self.sla_ack_deadline = base + timedelta(hours=ack_h)
+        self.sla_resolve_deadline = base + timedelta(hours=res_h)
+
+    @property
+    def sla_ack_pct(self) -> float | None:
+        """
+        Percentage of ack SLA window remaining (0–100).
+        Returns None when no deadline set or ticket already acknowledged.
+        Negative values indicate overdue.
+        """
+        if not self.sla_ack_deadline or self.acknowledged_at:
+            return None
+        total = (self.sla_ack_deadline - self.created_at).total_seconds()
+        if total <= 0:
+            return None
+        remaining = (self.sla_ack_deadline - timezone.now()).total_seconds()
+        return round(remaining / total * 100, 1)
+
+    @property
+    def sla_resolve_pct(self) -> float | None:
+        """
+        Percentage of resolve SLA window remaining (0–100).
+        Returns None when no deadline set or ticket already resolved/closed.
+        Negative values indicate overdue.
+        """
+        if not self.sla_resolve_deadline or self.status in (self.Status.RESOLVED, self.Status.CLOSED):
+            return None
+        total = (self.sla_resolve_deadline - self.created_at).total_seconds()
+        if total <= 0:
+            return None
+        remaining = (self.sla_resolve_deadline - timezone.now()).total_seconds()
+        return round(remaining / total * 100, 1)
+
+    @property
+    def is_sla_overdue(self) -> bool:
+        """True when resolve deadline has passed and ticket is still open/in-progress."""
+        if self.status in (self.Status.RESOLVED, self.Status.CLOSED):
+            return False
+        if self.sla_resolve_deadline and timezone.now() > self.sla_resolve_deadline:
+            return True
+        return False
 
 
 class MaintenanceSkill(models.Model):

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import (
+    AgencySLAConfig,
     AgentQuestion, AgentTokenLog, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceActivity, MaintenanceRequest, MaintenanceSkill,
     Supplier, SupplierDocument, SupplierJobAssignment, SupplierProperty, SupplierTrade,
@@ -94,6 +95,13 @@ class AgentTokenLogAdmin(admin.ModelAdmin):
     list_filter = ["endpoint", "model"]
     readonly_fields = ["created_at"]
     raw_id_fields = ["user"]
+
+
+@admin.register(AgencySLAConfig)
+class AgencySLAConfigAdmin(admin.ModelAdmin):
+    list_display = ["agency", "priority", "ack_hours", "resolve_hours"]
+    list_filter = ["priority"]
+    raw_id_fields = ["agency"]
 
 
 @admin.register(SupplierJobAssignment)

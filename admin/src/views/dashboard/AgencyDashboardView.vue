@@ -190,6 +190,9 @@
       </div>
     </div>
 
+    <!-- ── Overdue Maintenance Widget ── -->
+    <OverdueMaintenanceWidget />
+
     <!-- Agency profile nudge -->
     <div
       v-if="agencyProfileIncomplete"
@@ -285,6 +288,7 @@ import { useToast } from '../../composables/useToast'
 import { useAuthStore } from '../../stores/auth'
 import { usePropertiesStore } from '../../stores/properties'
 import PropertyTimelineWidget from './PropertyTimelineWidget.vue'
+import OverdueMaintenanceWidget from '../../components/OverdueMaintenanceWidget.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import {
   Building2, Users, Wrench, FileText, Home,

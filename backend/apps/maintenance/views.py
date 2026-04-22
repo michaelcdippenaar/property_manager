@@ -104,6 +104,41 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             "pending_questions": pending_questions,
         })
 
+    @action(detail=False, methods=["get"], url_path="overdue")
+    def overdue(self, request):
+        """
+        Return overdue maintenance tickets scoped to the requesting user.
+
+        Overdue = resolve deadline has passed AND ticket is open / in_progress.
+        Owner users see only tickets for their properties.
+        Agents see all tickets in their accessible properties.
+        """
+        now = timezone.now()
+        qs = MaintenanceRequest.objects.filter(
+            sla_resolve_deadline__lt=now,
+            status__in=[MaintenanceRequest.Status.OPEN, MaintenanceRequest.Status.IN_PROGRESS],
+        ).select_related("unit__property", "tenant", "supplier").order_by("sla_resolve_deadline")
+
+        user = request.user
+        if hasattr(user, "role"):
+            if user.role == "tenant":
+                qs = qs.filter(tenant=user)
+            elif user.role == "owner":
+                # Filter to properties owned by this user
+                from apps.properties.models import Property
+                owned = Property.objects.filter(owner=user).values_list("id", flat=True)
+                qs = qs.filter(unit__property_id__in=list(owned))
+            elif user.role not in ("admin", "agency_admin"):
+                from apps.properties.access import get_accessible_property_ids
+                prop_ids = get_accessible_property_ids(user)
+                qs = qs.filter(unit__property_id__in=prop_ids)
+
+        page = self.paginate_queryset(qs)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        return Response(self.get_serializer(qs, many=True).data)
+
     # --- Dispatch & Quoting ---
 
     @action(detail=True, methods=["get", "post"], url_path="dispatch")
