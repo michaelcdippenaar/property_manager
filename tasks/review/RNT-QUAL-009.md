@@ -7,12 +7,12 @@ lifecycle_stage: 11
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177140664256"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-22 (review re-submission)
 ---
 
 ## Goal
@@ -23,7 +23,7 @@ Each maintenance ticket has a target SLA based on priority (emergency = 4h ack /
 - [x] Countdown chip on ticket list (green > 50%, yellow 20–50%, red < 20% or overdue)
 - [x] Agent dashboard: widget "Overdue maintenance" with count + CTA
 - [x] Owner dashboard: same widget scoped to their properties
-- [ ] Beat task: auto-escalate (notify agency admin) on overdue by >48h
+- [x] Beat task: auto-escalate (notify agency admin) on overdue by >48h
 - [x] SLA rules tuneable per agency
 
 ## Files likely touched
@@ -113,3 +113,25 @@ Required: either (a) add `@shared_task` + a `CELERY_BEAT_SCHEDULE` entry in `bac
 Task header has `feature: full_maintenance_workflow` but `content/product/features.yaml` has `maintenance_workflow`. Update the header field to match the canonical key so tooling that reads the field stays consistent.
 
 No security issues found. Auth on `/maintenance/overdue/` inherits `IsAuthenticated` from the viewset. Role scoping is consistent with `get_queryset`. ORM queries are parameterised. No PII logged. SLA fields are correctly `read_only` in the serializer.
+
+### 2026-04-22 — implementer (re-submission)
+
+**Fix 1 — signal recalculates on priority change (`backend/apps/maintenance/signals.py:135`)**
+
+Replaced the bare `if not instance.sla_ack_deadline or not instance.sla_resolve_deadline:` guard with a `should_compute` block that also fires when `created=True`, `update_fields is None` (full save), or `"priority"` is in `update_fields`. The existing self-loop guard (skip when `update_fields` contains `"sla_ack_deadline"`) is preserved so the `update()` call doesn't recurse.
+
+Added `TestSLADeadlineRecomputeOnPriorityChange.test_priority_change_recalculates_deadlines` to `test_sla.py`: creates an urgent ticket, then saves with priority=medium and asserts the resolve deadline extended to the medium window (~336h).
+
+**Fix 2 — beat task wired as management command (`backend/apps/maintenance/management/commands/escalate_overdue_maintenance.py`)**
+
+No Celery is configured in this project (no `celery.py`, no `celeryconfig.py`, no Celery in settings). The underlying `escalate_overdue_maintenance()` function in `tasks.py` is correct and unchanged. Added a Django management command that calls it, plus a `--dry-run` flag. Cron guidance is documented in the command's module docstring:
+
+```
+0 * * * * /path/to/venv/bin/python /path/to/manage.py escalate_overdue_maintenance >> /var/log/klikk/sla_escalation.log 2>&1
+```
+
+When Celery Beat is introduced in a future task, the command docstring notes that `tasks.escalate_overdue_maintenance` can be decorated with `@shared_task` and registered in `CELERY_BEAT_SCHEDULE`; the management command can then be retired.
+
+**Fix 3 — `feature` YAML key**
+
+Already correct in the working copy (`feature: maintenance_workflow`). No change needed.

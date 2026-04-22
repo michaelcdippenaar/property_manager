@@ -125,36 +125,45 @@ def set_sla_deadlines(sender, instance: MaintenanceRequest, created: bool, **kwa
     Compute and persist SLA deadlines whenever a ticket is first created
     or its priority changes.  Uses update() to avoid infinite recursion.
     """
-    # Only compute when deadlines are missing (new ticket) or when we're in a
-    # save that originates from compute_sla_deadlines itself (detected by
-    # checking the update_fields kwarg).
+    # Guard: skip the save that originates from our own update() call below.
     update_fields = kwargs.get("update_fields")
     if update_fields and "sla_ack_deadline" in update_fields:
-        return  # already came from our own update, skip
+        return
 
-    if not instance.sla_ack_deadline or not instance.sla_resolve_deadline:
+    # Recompute when: ticket just created, deadlines not yet set, a full save
+    # (update_fields is None), or the priority field was explicitly changed.
+    should_compute = (
+        created
+        or not instance.sla_ack_deadline
+        or not instance.sla_resolve_deadline
+        or (update_fields is None)
+        or ("priority" in (update_fields or []))
+    )
+    if not should_compute:
+        return
+
+    try:
+        # Resolve agency from the unit's property → agency
+        agency = None
         try:
-            # Resolve agency from the unit's property → agency
-            agency = None
-            try:
-                agency = instance.unit.property.agency if instance.unit_id else None
-            except Exception:
-                pass
-
-            from datetime import timedelta
-            from django.utils import timezone
-
-            ack_h, res_h = AgencySLAConfig.get_hours(agency, instance.priority)
-            base = instance.created_at or timezone.now()
-            ack_dl = base + timedelta(hours=ack_h)
-            res_dl = base + timedelta(hours=res_h)
-
-            MaintenanceRequest.objects.filter(pk=instance.pk).update(
-                sla_ack_deadline=ack_dl,
-                sla_resolve_deadline=res_dl,
-            )
+            agency = instance.unit.property.agency if instance.unit_id else None
         except Exception:
-            logger.exception("Failed to set SLA deadlines for MaintenanceRequest #%s", instance.pk)
+            pass
+
+        from datetime import timedelta
+        from django.utils import timezone
+
+        ack_h, res_h = AgencySLAConfig.get_hours(agency, instance.priority)
+        base = instance.created_at or timezone.now()
+        ack_dl = base + timedelta(hours=ack_h)
+        res_dl = base + timedelta(hours=res_h)
+
+        MaintenanceRequest.objects.filter(pk=instance.pk).update(
+            sla_ack_deadline=ack_dl,
+            sla_resolve_deadline=res_dl,
+        )
+    except Exception:
+        logger.exception("Failed to set SLA deadlines for MaintenanceRequest #%s", instance.pk)
 
 
 @receiver(post_save, sender=MaintenanceRequest)

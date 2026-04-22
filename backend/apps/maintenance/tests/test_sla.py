@@ -170,6 +170,45 @@ class TestSLAPercentage:
 
 
 @pytest.mark.django_db
+class TestSLADeadlineRecomputeOnPriorityChange:
+    """Ensure set_sla_deadlines recalculates when priority is changed on an existing ticket."""
+
+    def test_priority_change_recalculates_deadlines(self):
+        from apps.accounts.models import User
+        from apps.properties.models import Property, Unit
+        from apps.maintenance.models import MaintenanceRequest, DEFAULT_SLA_HOURS
+
+        user = User.objects.create_user(email="prio_change@test.com", password="x", role="tenant")
+        prop = Property.objects.create(name="Prio Prop", property_type="house")
+        unit = Unit.objects.create(property=prop, unit_number="P1", rent_amount=5000)
+
+        # Create urgent ticket — short deadlines
+        ticket = MaintenanceRequest.objects.create(
+            unit=unit,
+            tenant=user,
+            title="Priority change test",
+            description="desc",
+            priority="urgent",
+        )
+        ticket.refresh_from_db()
+        urgent_resolve_deadline = ticket.sla_resolve_deadline
+        assert urgent_resolve_deadline is not None
+
+        # Change to medium — deadline should now be much later (336h vs 24h)
+        ticket.priority = "medium"
+        ticket.save()
+        ticket.refresh_from_db()
+
+        medium_resolve_h = DEFAULT_SLA_HOURS["medium"][1]
+        assert ticket.sla_resolve_deadline > urgent_resolve_deadline, (
+            "Deadline should extend when priority is downgraded from urgent to medium"
+        )
+        # Rough sanity: medium resolve should be ~336h from created_at
+        expected_medium_res = ticket.created_at + timedelta(hours=medium_resolve_h)
+        assert abs((ticket.sla_resolve_deadline - expected_medium_res).total_seconds()) < 5
+
+
+@pytest.mark.django_db
 class TestEscalateTask:
     def test_escalates_overdue_tickets(self):
         from apps.accounts.models import User
