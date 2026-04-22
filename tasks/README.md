@@ -74,6 +74,7 @@ Zero-padded, monotonic per prefix. Reserve the next free ID before creating a ta
 - `OPS-NNN` — ops & launch readiness
 - `QA-NNN` — QA & testing
 - `MIL-NNN` — cross-stream milestones / launch gates
+- `DEC-NNN` — founder decisions (open questions MC answers in Asana; see `tasks/decisions/README.md`)
 
 ## Asana sync
 

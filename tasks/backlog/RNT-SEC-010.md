@@ -20,18 +20,17 @@ Establish a baseline vulnerability posture across backend (pip), admin (npm), mo
 
 ## Acceptance criteria
 - [ ] `pip-audit` run on `backend/requirements.txt` → 0 High/Critical
-- [ ] `npm audit --audit-level=high` on `admin/`, `web_app/`, `website/` → 0 High/Critical
-- [ ] `dart pub outdated --mode=security` on `mobile/`, `tenant_app/` → 0 High/Critical
+- [ ] `npm audit --audit-level=high` on `admin/`, `web_app/`, `website/`, `agent-app/` → 0 High/Critical
 - [ ] CI job runs these on every PR and fails on regression
 - [ ] Dependabot (or Renovate) enabled on repo with weekly schedule
 - [ ] Document the scan + resolutions in `docs/ops/dependency-audit-2026-04.md`
+- [ ] Flutter (`mobile/`, `tenant_app/`) excluded — deferred to v2
 
 ## Files likely touched
 - `.github/workflows/security.yml` (new)
 - `.github/dependabot.yml` (new)
 - `backend/requirements.txt`
-- `admin/package.json`, `web_app/package.json`, `website/package.json`
-- `mobile/pubspec.yaml`, `tenant_app/pubspec.yaml`
+- `admin/package.json`, `web_app/package.json`, `website/package.json`, `agent-app/package.json`
 
 ## Test plan
 **Automated:**

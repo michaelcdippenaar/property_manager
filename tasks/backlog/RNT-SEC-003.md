@@ -26,14 +26,17 @@ Require TOTP-based 2FA for every user role that can modify property, lease, or f
 - [ ] Recovery codes issued on enrollment (10 codes, printable)
 - [ ] Admin SPA login flow supports 2FA challenge
 - [ ] Mobile agent app (Quasar) supports 2FA challenge
+- [ ] Tenant web app (`web_app/`) supports 2FA challenge for tenants who opt in
 - [ ] 2FA reset requires email verification + existing recovery code
+- [ ] Flutter tenant mobile app deferred to v2 — no 2FA wiring needed there for v1.0
 
 ## Files likely touched
 - `backend/apps/users/models.py` (UserProfile.twofa_required, twofa_enrolled_at)
 - `backend/apps/users/views.py` (enrollment, challenge, reset)
 - `backend/apps/users/serializers.py`
 - `admin/src/views/auth/*.vue` (challenge screen, enrollment)
-- `mobile/src/features/auth/*` (agent app challenge)
+- `agent-app/src/features/auth/*` (Quasar agent app challenge)
+- `web_app/src/views/auth/*` (tenant web opt-in)
 
 ## Test plan
 **Automated:**

@@ -73,6 +73,15 @@ When asked "status" or "where are we":
   - `OPS-NNN` — ops & launch readiness (CI/CD, observability, backups, legal, secrets, domain, email, tier enforcement)
   - `QA-NNN` — QA & testing (BE regression, FE E2E, mobile smoke, RBAC, a11y, perf, website QA, design-token audit)
   - `MIL-NNN` — cross-stream milestones / launch gates
+  - `DEC-NNN` — founder decisions (questions for MC to answer in Asana; thin mirror at `tasks/backlog/DEC-NNN.md` with a `blocks:` field pointing at the tasks that wait on the answer)
+
+## Decision workflow
+
+When a decision is needed and the founder must choose:
+- Author a `DEC-NNN` Asana task assigned to MC with a clear question, 2–4 options (pros/cons), and a recommendation.
+- Mirror as `tasks/backlog/DEC-NNN.md` with `stream: decision`, `assigned_to: mc@tremly.com`, and `blocks: [TASK-ID, ...]`.
+- In the blocked downstream tasks, add `depends_on: [DEC-NNN]`.
+- When MC answers in Asana (comment + mark complete): read the answer, update dependent tasks with the decision baked into their acceptance criteria, move DEC file to `done/` with the answer appended, commit `DEC-NNN: answered (<one-line>)`.
 
 ## Asana workspace context
 

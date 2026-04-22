@@ -29,8 +29,9 @@ Finish the UI surface for the Tenant Onboarding flow — the backend models and 
 - `admin/src/views/tenants/TenantOnboarding.vue` (new or flesh out)
 - `admin/src/components/TenantOnboardingChecklist.vue` (new)
 - `web_app/src/views/Welcome.vue` (new)
-- `mobile/src/features/onboarding/*`
 - `backend/apps/tenants/views.py` (onboarding state endpoints)
+
+> v1.0 scope note: Flutter tenant mobile app deferred to v2. Tenant onboarding UI is web-only (web_app/) for v1.0.
 
 ## Test plan
 **Manual:**

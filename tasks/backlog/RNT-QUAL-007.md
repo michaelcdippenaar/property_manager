@@ -16,20 +16,21 @@ updated: 2026-04-22
 ---
 
 ## Goal
-Wire FCM/APNs push so the mobile apps actually notify users on lease signed, rent received, maintenance update, chat reply — without this the apps feel dead between opens.
+Wire FCM/APNs push on the Quasar agent app and browser Web Push on the tenant web so key events (lease signed, rent received, maintenance update, chat reply) don't only fire when the app is open.
 
 ## Acceptance criteria
 - [ ] Agent app (Quasar/Capacitor): FCM + APNs token registration on login
-- [ ] Tenant app (Flutter): FCM + APNs token registration on login
+- [ ] Tenant web: Web Push (PWA service worker) with subscription on login + POPIA opt-in banner (browser permission prompt is triggered from a user gesture, not on page load)
 - [ ] Backend `notifications` module with event dispatch on: mandate signed, lease sent for signing, lease signed, rent received, rent overdue, maintenance logged, maintenance update, chat message received
 - [ ] User preferences: in-app screen to toggle categories per device
 - [ ] Deep-link each notification to the relevant screen (mandate → mandate detail, rent overdue → invoice)
 - [ ] POPIA: only send to devices with active sessions; revoke tokens on logout
+- [ ] v1.0 scope: Flutter tenant mobile deferred to v2 — no FCM on Flutter tenant in v1
 
 ## Files likely touched
 - `backend/apps/notifications/*` (new or extend)
-- `mobile/src/features/notifications/*` (Flutter tenant)
-- `agent-app/src/services/push.ts` (Quasar agent)
+- `web_app/src/service-worker.ts` (new — Web Push)
+- `agent-app/src/services/push.ts` (Quasar agent FCM+APNs)
 
 ## Test plan
 **Manual:**
