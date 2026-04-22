@@ -106,9 +106,33 @@
             Edit
           </button>
 
-          <!-- New mandate (if active/expired/cancelled) -->
+          <!-- Terminate (active only) -->
           <button
-            v-if="['active', 'expired', 'cancelled'].includes(activeMandate.status)"
+            v-if="activeMandate.status === 'active'"
+            class="btn-ghost text-xs flex items-center gap-1.5 text-danger-600 hover:bg-danger-50"
+            :disabled="terminating"
+            @click="openTerminateModal"
+          >
+            <Loader2 v-if="terminating" :size="12" class="animate-spin" />
+            <XCircle v-else :size="12" />
+            Terminate
+          </button>
+
+          <!-- Renew (active / expired / terminated) -->
+          <button
+            v-if="['active', 'expired', 'terminated'].includes(activeMandate.status)"
+            class="btn-ghost text-xs flex items-center gap-1.5"
+            :disabled="renewing"
+            @click="renewMandate"
+          >
+            <Loader2 v-if="renewing" :size="12" class="animate-spin" />
+            <RefreshCw v-else :size="12" />
+            Renew
+          </button>
+
+          <!-- New mandate (if active/expired/cancelled/terminated) -->
+          <button
+            v-if="['active', 'expired', 'cancelled', 'terminated'].includes(activeMandate.status)"
             class="btn-ghost text-xs flex items-center gap-1.5"
             @click="showCreateModal = true"
           >
@@ -149,6 +173,73 @@
       </div>
 
     </template>
+
+    <!-- ────────────────────────────────── -->
+    <!-- Terminate modal                   -->
+    <!-- ────────────────────────────────── -->
+    <BaseModal
+      :open="showTerminateModal"
+      title="Terminate Mandate"
+      size="md"
+      @close="showTerminateModal = false; terminateReason = ''; terminateOverride = false"
+    >
+      <div class="space-y-4">
+        <p class="text-sm text-gray-600">
+          Terminating the mandate ends the agency relationship for this property.
+          <span class="font-medium">
+            Notice period: {{ activeMandate?.notice_period_days ?? 60 }} days.
+          </span>
+        </p>
+
+        <div
+          v-if="hasActiveLease"
+          class="rounded-xl border border-warning-200 bg-warning-50 px-4 py-3 text-xs text-warning-800 flex items-start gap-2"
+        >
+          <AlertTriangle :size="14" class="mt-0.5 shrink-0 text-warning-600" />
+          <div>
+            <p class="font-medium">Active lease on this property</p>
+            <p>Terminating while tenants are in occupation may create legal exposure under the RHA.
+               Tick the override below to proceed anyway.</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="label">Written reason / notice <span class="text-danger-400">*</span></label>
+          <textarea
+            v-model="terminateReason"
+            rows="3"
+            placeholder="e.g. Owner has sold the property and will manage it directly."
+            class="input"
+          />
+        </div>
+
+        <label v-if="hasActiveLease" class="flex items-start gap-2 cursor-pointer">
+          <input v-model="terminateOverride" type="checkbox" class="mt-0.5 accent-navy" />
+          <span class="text-xs text-gray-700">
+            I understand the risk — terminate despite an active lease.
+          </span>
+        </label>
+
+        <div class="flex justify-end gap-3 pt-1">
+          <button
+            type="button"
+            class="btn-ghost"
+            @click="showTerminateModal = false; terminateReason = ''; terminateOverride = false"
+          >
+            Cancel
+          </button>
+          <button
+            class="btn-danger text-sm flex items-center gap-1.5"
+            :disabled="!terminateReason.trim() || (hasActiveLease && !terminateOverride) || terminating"
+            @click="confirmTerminate"
+          >
+            <Loader2 v-if="terminating" :size="13" class="animate-spin" />
+            <XCircle v-else :size="13" />
+            Terminate Mandate
+          </button>
+        </div>
+      </div>
+    </BaseModal>
 
     <!-- ────────────────────────────────── -->
     <!-- Create / Edit modal               -->
@@ -286,6 +377,7 @@
 import { ref, computed, onMounted } from 'vue'
 import {
   FileSignature, Loader2, Plus, Send, Pencil, PenTool, Upload,
+  XCircle, RefreshCw, AlertTriangle,
 } from 'lucide-vue-next'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
@@ -300,13 +392,18 @@ const { showToast } = useToast()
 const mandatesStore = useMandatesStore()
 
 // ── State ────────────────────────────────── //
-const loading         = ref(false)
-const saving          = ref(false)
-const sending         = ref(false)
-const parsing         = ref(false)
-const showCreateModal = ref(false)
-const mandates        = ref<any[]>([])
-const editingMandate  = ref<any>(null)
+const loading             = ref(false)
+const saving              = ref(false)
+const sending             = ref(false)
+const parsing             = ref(false)
+const terminating         = ref(false)
+const renewing            = ref(false)
+const showCreateModal     = ref(false)
+const showTerminateModal  = ref(false)
+const terminateReason     = ref('')
+const terminateOverride   = ref(false)
+const mandates            = ref<any[]>([])
+const editingMandate      = ref<any>(null)
 
 // Upload-and-extract state
 const uploadInput    = ref<HTMLInputElement | null>(null)
@@ -345,6 +442,16 @@ const ownerInfo = computed(() => ({
   name:  activeMandate.value?.owner_name  ?? '',
   email: activeMandate.value?.owner_email ?? '',
 }))
+
+// Whether this property has an active lease (used for termination guard).
+// We derive this from the mandate's signing_progress if available; in a real
+// implementation this could be fetched separately.
+const hasActiveLease = computed(() => {
+  // The mandate API does not directly expose lease status. We load it on demand
+  // when the terminate modal opens. For now expose as a ref so we can populate it.
+  return _hasActiveLease.value
+})
+const _hasActiveLease = ref(false)
 
 // ── Data loading ─────────────────────────── //
 async function load() {
@@ -508,6 +615,69 @@ async function sendForSigning() {
   }
 }
 
+// ── Terminate mandate ─────────────────────── //
+async function openTerminateModal() {
+  // Check for active leases before opening the modal
+  try {
+    const resp = await api.get(`/leases/?property=${props.propertyId}&status=active&page_size=1`)
+    _hasActiveLease.value = (resp.data?.results?.length ?? 0) > 0 || (resp.data?.count ?? 0) > 0
+  } catch {
+    _hasActiveLease.value = false
+  }
+  showTerminateModal.value = true
+}
+
+async function confirmTerminate() {
+  if (!activeMandate.value) return
+  terminating.value = true
+  try {
+    const payload: any = { reason: terminateReason.value.trim() }
+    if (terminateOverride.value) payload.override_active_lease = true
+    await api.post(`/properties/mandates/${activeMandate.value.id}/terminate/`, payload)
+    showToast('Mandate terminated', 'success')
+    showTerminateModal.value = false
+    terminateReason.value = ''
+    terminateOverride.value = false
+    await load()
+  } catch (err) {
+    showToast(extractApiError(err, 'Failed to terminate mandate'), 'error')
+  } finally {
+    terminating.value = false
+  }
+}
+
+// ── Renew mandate ─────────────────────────── //
+async function renewMandate() {
+  if (!activeMandate.value) return
+  renewing.value = true
+  try {
+    const resp = await api.post(`/properties/mandates/${activeMandate.value.id}/renew/`, {})
+    showToast('Mandate renewed — new draft created', 'success')
+    await load()
+    // Open the edit modal so the agent can review & adjust the cloned terms
+    const renewed = mandates.value.find((m: any) => m.id === resp.data.id)
+    if (renewed) {
+      editingMandate.value = renewed
+      form.value = {
+        mandate_type:          renewed.mandate_type,
+        exclusivity:           renewed.exclusivity,
+        commission_rate:       Number(renewed.commission_rate),
+        commission_period:     renewed.commission_period,
+        start_date:            renewed.start_date ?? '',
+        end_date:              renewed.end_date ?? '',
+        notice_period_days:    renewed.notice_period_days,
+        maintenance_threshold: Number(renewed.maintenance_threshold),
+        notes:                 renewed.notes ?? '',
+      }
+      showCreateModal.value = true
+    }
+  } catch (err) {
+    showToast(extractApiError(err, 'Failed to renew mandate'), 'error')
+  } finally {
+    renewing.value = false
+  }
+}
+
 // ── After signing completes ── //
 async function handleSigned() {
   await load()
@@ -539,6 +709,7 @@ function statusLabel(s: string) {
     active: 'Active',
     expired: 'Expired',
     cancelled: 'Cancelled',
+    terminated: 'Terminated',
   }
   return labels[s] ?? s
 }
@@ -551,6 +722,7 @@ function statusBadgeClass(s: string) {
     active:           'bg-success-50 text-success-700',
     expired:          'bg-danger-50 text-danger-600',
     cancelled:        'bg-danger-50 text-danger-600',
+    terminated:       'bg-danger-50 text-danger-600',
   }
   return map[s] ?? 'bg-gray-100 text-gray-500'
 }

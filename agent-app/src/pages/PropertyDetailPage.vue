@@ -17,6 +17,7 @@
         <q-tab name="maintenance" label="Repairs" />
         <q-tab name="leases" label="Leases" />
         <q-tab name="viewings" label="Viewings" />
+        <q-tab name="mandate" label="Mandate" />
       </q-tabs>
       <q-separator v-show="!mStore.activeRequest" />
 
@@ -448,6 +449,107 @@
           </div>
         </q-tab-panel>
 
+        <!-- ── MANDATE tab ────────────────────────────────────────────────── -->
+        <q-tab-panel name="mandate" class="q-pa-none">
+          <div v-if="loadingMandate" class="row justify-center q-py-lg">
+            <q-spinner-dots color="primary" :size="SPINNER_SIZE_INLINE" />
+          </div>
+
+          <template v-else-if="!activeMandate">
+            <div class="empty-state">
+              <q-icon name="assignment" :size="EMPTY_ICON_SIZE" class="empty-state-icon" />
+              <div class="empty-state-title">No mandate on file</div>
+              <div class="empty-state-subtitle">
+                A signed rental mandate is required before this property can be listed or managed.
+              </div>
+            </div>
+          </template>
+
+          <template v-else>
+            <q-list separator>
+
+              <!-- Mandate type + exclusivity -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-icon name="assignment" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Mandate type</q-item-label>
+                  <q-item-label class="text-weight-medium">{{ mandateTypeLabel(activeMandate.mandate_type) }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-badge
+                    :color="activeMandate.exclusivity === 'sole' ? 'primary' : 'grey-5'"
+                    :label="activeMandate.exclusivity === 'sole' ? 'Sole' : 'Open'"
+                    outline
+                  />
+                </q-item-section>
+              </q-item>
+
+              <!-- Status -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-icon name="info_outline" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Status</q-item-label>
+                  <q-badge :color="mandateStatusColor(activeMandate.status)" :label="mandateStatusLabel(activeMandate.status)" />
+                </q-item-section>
+              </q-item>
+
+              <!-- Commission -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-icon name="percent" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Commission</q-item-label>
+                  <q-item-label>{{ commissionDisplay(activeMandate) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <!-- Dates -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-icon name="event" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Period</q-item-label>
+                  <q-item-label>
+                    {{ formatDate(activeMandate.start_date) }}
+                    <span v-if="activeMandate.end_date"> – {{ formatDate(activeMandate.end_date) }}</span>
+                    <span v-else> (ongoing)</span>
+                  </q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <!-- Notice period -->
+              <q-item>
+                <q-item-section avatar>
+                  <q-icon name="notifications_none" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Notice period</q-item-label>
+                  <q-item-label>{{ activeMandate.notice_period_days }} days</q-item-label>
+                </q-item-section>
+              </q-item>
+
+              <!-- Owner -->
+              <q-item v-if="activeMandate.owner_name">
+                <q-item-section avatar>
+                  <q-icon name="person_outline" color="grey-5" size="20px" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label caption>Owner</q-item-label>
+                  <q-item-label>{{ activeMandate.owner_name }}</q-item-label>
+                  <q-item-label caption class="text-grey-5">{{ activeMandate.owner_email || '—' }}</q-item-label>
+                </q-item-section>
+              </q-item>
+
+            </q-list>
+          </template>
+        </q-tab-panel>
+
       </q-tab-panels>
     </q-card>
 
@@ -464,6 +566,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch, inject } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { api } from '../boot/axios'
 import { getProperty, listViewings, listLeases, type Property, type PropertyViewing, type AgentLease } from '../services/api'
 import { useMaintenanceStore } from '../stores/maintenance'
 import { usePlatform } from '../composables/usePlatform'
@@ -488,9 +591,11 @@ const tab             = ref('info')
 const loading         = ref(true)
 const loadingViewings = ref(false)
 const loadingLeases   = ref(false)
+const loadingMandate  = ref(false)
 const property        = ref<Property | null>(null)
 const viewings        = ref<PropertyViewing[]>([])
 const allLeases       = ref<AgentLease[]>([])
+const mandates        = ref<any[]>([])
 const chatMessage     = ref('')
 const showClosed      = ref(false)
 const chatContainer   = ref<HTMLElement | null>(null)
@@ -510,6 +615,46 @@ const propertyLeases = computed(() =>
 const activeLeaseCount = computed(() =>
   propertyLeases.value.filter((l) => l.status === 'active').length,
 )
+
+// Active mandate: first non-cancelled mandate
+const activeMandate = computed(() =>
+  mandates.value.find((m) => !['cancelled'].includes(m.status)) ?? mandates.value[0] ?? null,
+)
+
+const MANDATE_TYPE_LABELS: Record<string, string> = {
+  full_management:  'Full Management',
+  letting_only:     'Letting Only',
+  rent_collection:  'Rent Collection Only',
+  finders_fee:      'Finders Fee',
+}
+
+function mandateTypeLabel(type: string): string {
+  return MANDATE_TYPE_LABELS[type] ?? type
+}
+
+function mandateStatusLabel(s: string): string {
+  const labels: Record<string, string> = {
+    draft: 'Draft', sent: 'Sent for Signing', partially_signed: 'Partially Signed',
+    active: 'Active', expired: 'Expired', cancelled: 'Cancelled', terminated: 'Terminated',
+  }
+  return labels[s] ?? s
+}
+
+function mandateStatusColor(s: string): string {
+  const map: Record<string, string> = {
+    active: 'positive', sent: 'info', partially_signed: 'warning',
+    expired: 'negative', cancelled: 'grey-5', terminated: 'negative', draft: 'grey-5',
+  }
+  return map[s] ?? 'grey-5'
+}
+
+function commissionDisplay(m: any): string {
+  const rate = Number(m.commission_rate)
+  if (m.commission_period === 'once_off') {
+    return `${rate} month${rate !== 1 ? 's' : ''} rent (once-off)`
+  }
+  return `${rate}% per month`
+}
 
 const upcomingViewingCount = computed(() =>
   viewings.value.filter((v) => v.status === 'scheduled' || v.status === 'confirmed').length,
@@ -590,15 +735,21 @@ onMounted(async () => {
 
     loadingViewings.value = true
     loadingLeases.value   = true
+    loadingMandate.value  = true
 
-    const [viewingsResp, leasesResp] = await Promise.allSettled([
+    const [viewingsResp, leasesResp, mandatesResp] = await Promise.allSettled([
       listViewings({ property: Number(props.id) }),
       listLeases(),
+      api.get(`/properties/mandates/?property=${props.id}`).then((r: any) => r.data),
       mStore.fetchRequests(Number(props.id)),
     ])
 
     if (viewingsResp.status === 'fulfilled') viewings.value = viewingsResp.value.results
     if (leasesResp.status === 'fulfilled')   allLeases.value = leasesResp.value.results
+    if (mandatesResp.status === 'fulfilled') {
+      const data: any = mandatesResp.value
+      mandates.value = Array.isArray(data) ? data : (data?.results ?? [])
+    }
 
     // Auto-switch to repairs if there are open issues
     if (mStore.openCount > 0) tab.value = 'maintenance'
@@ -612,6 +763,7 @@ onMounted(async () => {
     loading.value         = false
     loadingViewings.value = false
     loadingLeases.value   = false
+    loadingMandate.value  = false
   }
 })
 

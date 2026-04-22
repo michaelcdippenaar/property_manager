@@ -1,12 +1,15 @@
 """
 Rental Mandate Views
 ====================
-Provides CRUD for RentalMandate plus the `send-for-signing` action that
-generates the mandate PDF and kicks off the native e-signing flow.
+Provides CRUD for RentalMandate plus these actions:
+  - `send-for-signing` — generates the mandate PDF and kicks off the native e-signing flow
+  - `terminate`        — terminates an active mandate (notice period + active-lease check)
+  - `renew`            — clones a mandate for renewal, linking it to its predecessor
 """
 import hashlib
 import logging
 
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -147,4 +150,121 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
         return Response(
             RentalMandateSerializer(mandate, context={"request": request}).data,
             status=status.HTTP_200_OK,
+        )
+
+    # ------------------------------------------------------------------ #
+    # terminate                                                            #
+    # ------------------------------------------------------------------ #
+
+    @action(detail=True, methods=["post"], url_path="terminate")
+    def terminate(self, request, pk=None):
+        """
+        Terminate an active mandate.
+
+        Rules enforced:
+          - Only `active` mandates may be terminated.
+          - If the property has a currently active lease, termination is
+            blocked unless `override_active_lease=true` is supplied.
+          - `reason` (str) is required to record the written notice.
+
+        POST body:
+          {
+            "reason": "...",
+            "override_active_lease": false   // optional, default false
+          }
+        """
+        mandate = self.get_object()
+
+        if mandate.status != RentalMandate.Status.ACTIVE:
+            return Response(
+                {"detail": f"Only active mandates can be terminated. Current status: '{mandate.status}'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        reason = (request.data.get("reason") or "").strip()
+        if not reason:
+            return Response(
+                {"detail": "A written termination reason is required (notice_period_days="
+                           f"{mandate.notice_period_days})."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        override = bool(request.data.get("override_active_lease", False))
+
+        # Active-lease guard
+        has_active_lease = mandate.property.units.filter(
+            leases__status="active"
+        ).exists()
+        if has_active_lease and not override:
+            return Response(
+                {"detail": "This property has an active lease. Terminating the mandate while "
+                           "tenants are in occupation may create legal exposure. "
+                           "Pass override_active_lease=true to proceed."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        mandate.status             = RentalMandate.Status.TERMINATED
+        mandate.terminated_at      = timezone.now()
+        mandate.terminated_reason  = reason
+        mandate.save(update_fields=["status", "terminated_at", "terminated_reason", "updated_at"])
+
+        return Response(
+            RentalMandateSerializer(mandate, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    # ------------------------------------------------------------------ #
+    # renew                                                                #
+    # ------------------------------------------------------------------ #
+
+    @action(detail=True, methods=["post"], url_path="renew")
+    def renew(self, request, pk=None):
+        """
+        Clone the mandate for renewal.
+
+        Creates a new draft mandate for the same property and landlord,
+        copying all terms.  The new mandate's `previous_mandate` FK points
+        back to this one, preserving the audit chain.
+
+        The source mandate must be `active`, `expired`, or `terminated`.
+
+        Optional POST body keys (override cloned defaults):
+          start_date, end_date, commission_rate, commission_period,
+          notice_period_days, maintenance_threshold, notes
+        """
+        mandate = self.get_object()
+
+        if mandate.status not in (
+            RentalMandate.Status.ACTIVE,
+            RentalMandate.Status.EXPIRED,
+            RentalMandate.Status.TERMINATED,
+        ):
+            return Response(
+                {"detail": f"Cannot renew a mandate in status '{mandate.status}'. "
+                           "Only active, expired, or terminated mandates may be renewed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        data = request.data or {}
+
+        new_mandate = RentalMandate.objects.create(
+            property          = mandate.property,
+            landlord          = mandate.landlord,
+            mandate_type      = mandate.mandate_type,
+            exclusivity       = mandate.exclusivity,
+            commission_rate   = data.get("commission_rate",   mandate.commission_rate),
+            commission_period = data.get("commission_period", mandate.commission_period),
+            start_date        = data.get("start_date",        mandate.start_date),
+            end_date          = data.get("end_date",          mandate.end_date),
+            notice_period_days= data.get("notice_period_days", mandate.notice_period_days),
+            maintenance_threshold = data.get("maintenance_threshold", mandate.maintenance_threshold),
+            notes             = data.get("notes", ""),
+            status            = RentalMandate.Status.DRAFT,
+            previous_mandate  = mandate,
+            created_by        = request.user,
+        )
+
+        return Response(
+            RentalMandateSerializer(new_mandate, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
         )

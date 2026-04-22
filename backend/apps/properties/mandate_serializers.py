@@ -23,6 +23,8 @@ class RentalMandateSerializer(serializers.ModelSerializer):
             "notice_period_days", "maintenance_threshold",
             "status",
             "notes",
+            "terminated_at", "terminated_reason",
+            "previous_mandate",
             "submission_id",
             "signing_status",
             "signing_progress",
@@ -30,7 +32,10 @@ class RentalMandateSerializer(serializers.ModelSerializer):
             "owner_name",
             "created_at", "updated_at",
         ]
-        read_only_fields = ["status", "created_at", "updated_at"]
+        read_only_fields = [
+            "status", "terminated_at", "terminated_reason",
+            "previous_mandate", "created_at", "updated_at",
+        ]
 
     def get_submission_id(self, obj):
         sub = getattr(obj, "esigning_submission", None)

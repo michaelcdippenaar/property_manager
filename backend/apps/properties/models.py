@@ -343,6 +343,7 @@ class RentalMandate(models.Model):
         ACTIVE           = "active",           "Active"
         EXPIRED          = "expired",          "Expired"
         CANCELLED        = "cancelled",        "Cancelled"
+        TERMINATED       = "terminated",       "Terminated"
 
     property  = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="mandates")
     landlord  = models.ForeignKey(
@@ -382,6 +383,23 @@ class RentalMandate(models.Model):
         help_text="Final countersigned mandate PDF (auto-populated when e-signing completes)",
     )
     notes = models.TextField(blank=True)
+
+    # Termination fields
+    terminated_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="Timestamp when the mandate was formally terminated",
+    )
+    terminated_reason = models.TextField(
+        blank=True,
+        help_text="Written reason / notice provided by the terminating party",
+    )
+
+    # Renewal chain — links a renewed mandate back to its predecessor
+    previous_mandate = models.ForeignKey(
+        "self", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="renewals",
+        help_text="The mandate this one was cloned from during renewal",
+    )
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
