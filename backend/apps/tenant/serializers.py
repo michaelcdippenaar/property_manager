@@ -88,7 +88,7 @@ class TenantOnboardingSerializer(serializers.ModelSerializer):
 
     progress = serializers.IntegerField(read_only=True)
     is_complete = serializers.BooleanField(read_only=True)
-    lease_id = serializers.IntegerField(source="lease_id", read_only=True)
+    lease_id = serializers.IntegerField(read_only=True)
     lease_number = serializers.SerializerMethodField()
     tenant_name = serializers.SerializerMethodField()
     primary_tenant_id = serializers.SerializerMethodField()

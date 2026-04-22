@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: blocked
+status: review
 asana_gid: "1214177379561081"
-assigned_to: null
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r4
+updated: 2026-04-22-r5
 ---
 
 ## Goal
@@ -192,3 +192,7 @@ lease_id = serializers.IntegerField(read_only=True)
 ```
 
 **Verdict: BLOCKED — serializer bug causes 500 on all onboarding API reads with data.**
+
+### 2026-04-22 — implementer (unblock fix)
+
+One-line fix in `backend/apps/tenant/serializers.py` line 91: removed redundant `source="lease_id"` from `lease_id = serializers.IntegerField(...)`. DRF raises `AssertionError` at field access time when `source` matches the field name; dropping it resolves the 500. All 8 unit tests still pass (`pytest backend/apps/test_hub/tenant/unit/test_onboarding.py`).
