@@ -20,7 +20,9 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 from rest_framework import mixins
 
-from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.models import User
+from apps.accounts.permissions import IsAdminOrAgencyAdmin, IsAgentOrAdmin
+from rest_framework.permissions import IsAuthenticated
 
 from .models import PaymentAuditLog, RentInvoice, RentPayment, UnmatchedPayment
 from .reconciliation import apply_payment, assign_unmatched, reverse_payment
@@ -51,15 +53,33 @@ class RentInvoiceViewSet(
     Supports ?lease= to filter by lease pk.
     """
 
-    permission_classes = [IsAgentOrAdmin]
+    permission_classes = [IsAuthenticated]
     serializer_class = RentInvoiceSerializer
 
     def get_queryset(self):
-        # Queryset is intentionally unscoped — view is gated to IsAgentOrAdmin
-        # which limits exposure to operator roles only.
-        qs = RentInvoice.objects.select_related("lease").prefetch_related(
-            "payments"
-        )
+        user = self.request.user
+        qs = RentInvoice.objects.select_related("lease").prefetch_related("payments")
+
+        # Role-based queryset scoping (mirrors leases/views.py pattern).
+        if user.role == User.Role.ADMIN or user.is_superuser:
+            # System admin: unrestricted access.
+            pass
+        elif user.role == User.Role.TENANT:
+            # Tenants may only see invoices for leases they are party to.
+            from apps.tenant_portal.views import get_tenant_leases
+            tenant_lease_ids = get_tenant_leases(user).values_list("pk", flat=True)
+            qs = qs.filter(lease_id__in=tenant_lease_ids)
+        elif user.role == User.Role.OWNER:
+            # Owners see invoices only for leases on properties they own.
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(lease__unit__property_id__in=prop_ids)
+        else:
+            # All agent/staff roles: scope to properties accessible to this user.
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(lease__unit__property_id__in=prop_ids)
+
         params = self.request.query_params
 
         if status_filter := params.get("status"):
@@ -91,7 +111,8 @@ class RentInvoiceViewSet(
         serializer = PaymentAuditLogSerializer(logs, many=True)
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], url_path="payments")
+    @action(detail=True, methods=["post"], url_path="payments",
+            permission_classes=[IsAgentOrAdmin])
     def record_payment(self, request, pk=None):
         """Record a new payment against this invoice and reconcile."""
         invoice = self.get_object()
@@ -127,11 +148,30 @@ class RentPaymentViewSet(mixins.RetrieveModelMixin, GenericViewSet):
     Read-only viewset for individual payments, plus the reverse action.
     """
 
-    permission_classes = [IsAgentOrAdmin]
+    permission_classes = [IsAuthenticated]
     serializer_class = RentPaymentSerializer
-    queryset = RentPayment.objects.select_related("invoice", "created_by")
 
-    @action(detail=True, methods=["post"], url_path="reverse")
+    def get_queryset(self):
+        user = self.request.user
+        qs = RentPayment.objects.select_related("invoice", "created_by")
+
+        # Role-based queryset scoping mirrors RentInvoiceViewSet above.
+        if user.role == User.Role.ADMIN or user.is_superuser:
+            pass
+        elif user.role == User.Role.TENANT:
+            from apps.tenant_portal.views import get_tenant_leases
+            tenant_lease_ids = get_tenant_leases(user).values_list("pk", flat=True)
+            qs = qs.filter(invoice__lease_id__in=tenant_lease_ids)
+        else:
+            # Owner and all agent/staff roles: scope to accessible properties.
+            from apps.properties.access import get_accessible_property_ids
+            prop_ids = get_accessible_property_ids(user)
+            qs = qs.filter(invoice__lease__unit__property_id__in=prop_ids)
+
+        return qs
+
+    @action(detail=True, methods=["post"], url_path="reverse",
+            permission_classes=[IsAgentOrAdmin])
     def reverse(self, request, pk=None):
         """Reverse (bounce) a cleared payment."""
         payment = self.get_object()
@@ -166,17 +206,18 @@ class UnmatchedPaymentViewSet(
     """
     Create + read viewset for UnmatchedPayment + manual assign action.
 
+    Restricted to agency_admin and admin roles only — unmatched deposits are
+    financial reconciliation records that tenants and owners must not access.
+
     Operators may manually enter an unmatched deposit (create) but update
     and destroy are excluded — once quarantined, a record is only resolved
     via the assign action, preserving the audit trail.
     """
 
-    permission_classes = [IsAgentOrAdmin]
+    permission_classes = [IsAdminOrAgencyAdmin]
     serializer_class = UnmatchedPaymentSerializer
 
     def get_queryset(self):
-        # Queryset is intentionally unscoped — view is gated to IsAgentOrAdmin
-        # which limits exposure to operator roles only.
         qs = UnmatchedPayment.objects.select_related("assigned_to_invoice", "resolved_payment")
         status_filter = self.request.query_params.get("status", "pending")
         if status_filter:
