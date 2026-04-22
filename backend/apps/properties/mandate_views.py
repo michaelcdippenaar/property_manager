@@ -20,7 +20,7 @@ from apps.esigning.models import ESigningSubmission
 from apps.esigning.views import _auto_send_signing_links
 from apps.properties.access import get_accessible_property_ids
 
-from .mandate_serializers import RentalMandateSerializer
+from .mandate_serializers import MandateRenewSerializer, RentalMandateSerializer
 from .mandate_services import build_mandate_signers, generate_mandate_html
 from .models import RentalMandate
 
@@ -245,23 +245,27 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        data = request.data or {}
+        renew_ser = MandateRenewSerializer(data=request.data or {})
+        if not renew_ser.is_valid():
+            return Response(renew_ser.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        overrides = renew_ser.validated_data
 
         new_mandate = RentalMandate.objects.create(
-            property          = mandate.property,
-            landlord          = mandate.landlord,
-            mandate_type      = mandate.mandate_type,
-            exclusivity       = mandate.exclusivity,
-            commission_rate   = data.get("commission_rate",   mandate.commission_rate),
-            commission_period = data.get("commission_period", mandate.commission_period),
-            start_date        = data.get("start_date",        mandate.start_date),
-            end_date          = data.get("end_date",          mandate.end_date),
-            notice_period_days= data.get("notice_period_days", mandate.notice_period_days),
-            maintenance_threshold = data.get("maintenance_threshold", mandate.maintenance_threshold),
-            notes             = data.get("notes", ""),
-            status            = RentalMandate.Status.DRAFT,
-            previous_mandate  = mandate,
-            created_by        = request.user,
+            property              = mandate.property,
+            landlord              = mandate.landlord,
+            mandate_type          = mandate.mandate_type,
+            exclusivity           = mandate.exclusivity,
+            commission_rate       = overrides.get("commission_rate",       mandate.commission_rate),
+            commission_period     = overrides.get("commission_period",     mandate.commission_period),
+            start_date            = overrides.get("start_date",            mandate.start_date),
+            end_date              = overrides.get("end_date",              mandate.end_date),
+            notice_period_days    = overrides.get("notice_period_days",    mandate.notice_period_days),
+            maintenance_threshold = overrides.get("maintenance_threshold", mandate.maintenance_threshold),
+            notes                 = overrides.get("notes", ""),
+            status                = RentalMandate.Status.DRAFT,
+            previous_mandate      = mandate,
+            created_by            = request.user,
         )
 
         return Response(

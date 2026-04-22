@@ -7,12 +7,12 @@ lifecycle_stage: 1
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177379658607"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-22-r2
 ---
 
 ## Goal
@@ -99,3 +99,16 @@ No other issues found:
 - PropertyDetailPage.vue: read-only display tab, no mutation actions, consistent with mobile-tab pattern.
 - Test coverage: 24 tests cover all 4 types × all new state paths.
 - Discovery `tasks/discoveries/2026-04-22-multi-owner-signing.md` properly filed for the multi-owner gap called out in the original spec.
+
+### 2026-04-22 — implementer (re-work)
+
+**Reviewer fix: `renew` action raw-input validation.**
+
+Added `MandateRenewSerializer` (a plain `serializers.Serializer`, not a `ModelSerializer`) to `backend/apps/properties/mandate_serializers.py`. It declares all seven overrideable fields as optional with the same constraints as the model (`DecimalField` with correct `max_digits`/`decimal_places`, `DateField`, `ChoiceField` for `commission_period`, `IntegerField(min_value=0)` for `notice_period_days`).
+
+In `mandate_views.py` the `renew` action now:
+1. Instantiates `MandateRenewSerializer(data=request.data or {})`.
+2. Returns HTTP 400 with field-level errors if `.is_valid()` fails.
+3. Reads override values from `renew_ser.validated_data` (Python-typed, never raw strings) when constructing the new `RentalMandate`.
+
+`MandateRenewSerializer` is also exported in the import line alongside `RentalMandateSerializer`. Smoke-checked: `django.setup()` + both serializer imports + viewset import all resolve cleanly.

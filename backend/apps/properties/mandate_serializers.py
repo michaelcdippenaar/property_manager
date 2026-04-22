@@ -2,6 +2,29 @@ from rest_framework import serializers
 from .models import RentalMandate
 
 
+class MandateRenewSerializer(serializers.Serializer):
+    """Validates the optional override fields accepted by the `renew` action.
+
+    All fields are optional — omitted fields inherit values from the source
+    mandate.  This serializer exists solely to reject malformed input before
+    anything reaches the ORM.
+    """
+
+    commission_rate = serializers.DecimalField(
+        max_digits=6, decimal_places=2, required=False
+    )
+    commission_period = serializers.ChoiceField(
+        choices=RentalMandate.CommissionPeriod.choices, required=False
+    )
+    start_date = serializers.DateField(required=False)
+    end_date = serializers.DateField(required=False, allow_null=True)
+    notice_period_days = serializers.IntegerField(min_value=0, required=False)
+    maintenance_threshold = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False
+    )
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+
 class RentalMandateSerializer(serializers.ModelSerializer):
     property_name  = serializers.CharField(source="property.name", read_only=True)
     landlord_name  = serializers.CharField(source="landlord.name", read_only=True)
