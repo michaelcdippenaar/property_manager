@@ -1,3 +1,4 @@
+from utils.http import get_client_ip
 from .models import AuthAuditLog
 
 
@@ -6,8 +7,7 @@ def log_auth_event(event_type, request=None, user=None, metadata=None):
     ip = ""
     ua = ""
     if request:
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR", "")
+        ip = get_client_ip(request) or ""
         ua = request.META.get("HTTP_USER_AGENT", "")
 
     return AuthAuditLog.objects.create(

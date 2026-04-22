@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import LegalDocument, UserConsent
+from utils.http import get_client_ip
 
 
 class LegalDocumentSerializer(serializers.ModelSerializer):
@@ -50,19 +51,12 @@ class UserConsentSerializer(serializers.ModelSerializer):
             user=user,
             document=document,
             defaults={
-                "ip_address": self._get_ip(request),
+                "ip_address": get_client_ip(request),
                 "user_agent": request.META.get("HTTP_USER_AGENT", "")[:500],
             },
         )
         consent._created = created
         return consent
-
-    @staticmethod
-    def _get_ip(request):
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if xff:
-            return xff.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR") or None
 
 
 class PendingConsentSerializer(serializers.ModelSerializer):
