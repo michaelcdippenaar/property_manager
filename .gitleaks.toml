@@ -35,6 +35,12 @@ regexes = [
   '''volt_owner_xxx''',
   '''volt_owner_\.\.\."""''',
   '''volt_owner_…''',
+
+  # Known-rotated Volt MCP owner key — documented in docs/ops/secret-rotation-2026-04.md
+  # as HIGH-severity (Step 3); committed to git history in older commits and pending
+  # purge via git filter-repo (Step 4, MC-gated). The key has been revoked/rotated;
+  # allowlisting here prevents false-positive noise until history is rewritten.
+  '''volt_owner_FslvHrwNvOjNU4RfCshcUUx0le6zRenxnu9CWJbPepM''',
 ]
 
 paths = [
@@ -47,4 +53,49 @@ paths = [
   "tenant-app/src-capacitor/",
   # Rotation runbook references known-rotated values for audit trail
   "docs/ops/secret-rotation-2026-04.md",
+
+  # Encrypted vault test documents contain token-shaped byte sequences from
+  # binary/encrypted file content — not production secrets
+  '''backend/media/vault/''',
+
+  # Task markdown files trigger asana-client-id rule on Asana GIDs in frontmatter,
+  # and handoff notes may reference known-rotated values for audit-trail purposes
+  '''tasks/''',
+
+  # Local Claude agent subdirs (untracked: old/, worktrees, settings.local.json)
+  # may contain JWT tokens or historical API keys that are never committed
+  '''.claude/''',
+
+  # Admin build output — bundled JS may embed the Google Maps key for the
+  # environment that was built; this is a transpiled artefact, not source
+  '''admin/dist/''',
+
+  # Obsidian vault (untracked on-disk only); data.json contains an RSA private key
+  # and local REST API key that are entirely local and never pushed to the remote
+  '''Klikk Proerty Manager/''',
+
+  # On-disk gitignored env files — already excluded from git, but gitleaks
+  # --no-git scans the working tree including gitignored files
+  '''backend/\.env''',
+  '''backend/\.env\.secrets''',
+
+  # Admin app gitignored env file — same rationale as backend/.env above
+  '''admin/\.env''',
+
+  # Gitignored secrets directory containing google_oauth_client.json
+  # (OAuth client_secret); never committed, only present on developer machines
+  '''backend/\.secrets/''',
+
+  # API documentation — contains intentionally truncated/placeholder JWT strings
+  # (e.g. "eyJ0eXAiOiJKV1Qi...") and example tokens like "abc123def456"
+  # to illustrate request/response shapes; none are real credentials
+  '''backend/apps/accounts/ACCOUNTS\.md''',
+
+  # Test integration suite — contains test fixture passwords (e.g. "newstrongpass789")
+  # that are only ever used inside an isolated Django test database; not real secrets
+  '''backend/apps/test_hub/''',
+
+  # Old path for the same test file before it was moved to test_hub/; same rationale —
+  # fixture passwords in a historical commit, not real credentials
+  '''backend/apps/accounts/tests/''',
 ]

@@ -66,6 +66,15 @@ Added `*.secrets` glob and additional secret-file patterns.
 Activate on each developer machine:
 ```bash
 pip install pre-commit
+
+# Step 6 — prerequisite: unset core.hooksPath if set
+# core.hooksPath can be set by Husky, lint-staged, an IDE (e.g. JetBrains / VS Code
+# plugins), or a global Git template. When it is set, `pre-commit install` writes the
+# hook to the custom path, but Git only looks in .git/hooks by default, so the hook
+# never runs. Unsetting it redirects hook installs back to .git/hooks.
+# Unsetting core.hooksPath does NOT break anything in this repo — we do not use Husky
+# or any other hook manager that requires it.
+git config --unset-all core.hooksPath   # safe to run even if it is not set (exits 5, ignore)
 pre-commit install
 ```
 
