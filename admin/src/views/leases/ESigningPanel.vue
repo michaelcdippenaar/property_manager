@@ -165,6 +165,102 @@
       </button>
     </template>
 
+    <!-- ── RHA compliance flags ── -->
+    <!-- Blocking flags: red banner, prevents signing -->
+    <div
+      v-if="rhaBlockingFlags.length > 0 && !rhaOverride"
+      class="rounded-xl border border-danger-200 bg-danger-50 p-4 space-y-3"
+    >
+      <div class="flex items-start gap-2">
+        <ShieldAlert :size="16" class="text-danger-600 mt-0.5 flex-shrink-0" />
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-danger-800">RHA Compliance Issues — Cannot Send for Signing</div>
+          <p class="text-xs text-danger-600 mt-0.5">
+            {{ rhaBlockingFlags.length }} blocking issue{{ rhaBlockingFlags.length !== 1 ? 's' : '' }} must be resolved before this lease can be sent for signing.
+          </p>
+        </div>
+      </div>
+      <ul class="space-y-2">
+        <li
+          v-for="flag in rhaBlockingFlags"
+          :key="flag.code"
+          class="flex items-start gap-2 text-xs text-danger-700"
+        >
+          <XCircle :size="13" class="text-danger-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <span class="font-medium">{{ flag.section }}:</span> {{ flag.message }}
+            <span v-if="flag.field" class="ml-1 text-danger-400">(field: {{ flag.field }})</span>
+          </div>
+        </li>
+      </ul>
+      <!-- Override — staff / agency_admin only -->
+      <div v-if="!showOverrideForm" class="pt-1">
+        <button
+          class="text-xs text-danger-500 hover:text-danger-700 underline underline-offset-2 transition-colors"
+          @click="showOverrideForm = true"
+        >
+          Override as authorised user (reason required)
+        </button>
+      </div>
+      <div v-else class="space-y-2 pt-1 border-t border-danger-200">
+        <label class="label text-danger-700">Override reason *</label>
+        <textarea
+          v-model="overrideReason"
+          class="input text-xs resize-none h-16"
+          placeholder="Explain why this lease may proceed despite the compliance issues…"
+        />
+        <div class="flex items-center gap-2">
+          <button
+            class="btn-primary bg-danger-600 hover:bg-danger-700 text-xs flex items-center gap-1.5"
+            :disabled="!overrideReason.trim() || overrideLoading"
+            @click="submitOverride"
+          >
+            <Loader2 v-if="overrideLoading" :size="12" class="animate-spin" />
+            <ShieldAlert v-else :size="12" />
+            Record Override &amp; Unlock
+          </button>
+          <button class="btn-ghost text-xs" @click="showOverrideForm = false; overrideReason = ''">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Advisory flags: yellow warning banner -->
+    <div
+      v-if="rhaAdvisoryFlags.length > 0"
+      class="rounded-xl border border-warning-200 bg-warning-50 p-4 space-y-2"
+    >
+      <div class="flex items-start gap-2">
+        <AlertTriangle :size="15" class="text-warning-600 mt-0.5 flex-shrink-0" />
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-semibold text-warning-800">
+            {{ rhaAdvisoryFlags.length }} Advisory RHA Reminder{{ rhaAdvisoryFlags.length !== 1 ? 's' : '' }}
+          </div>
+        </div>
+      </div>
+      <ul class="space-y-1.5">
+        <li
+          v-for="flag in rhaAdvisoryFlags"
+          :key="flag.code"
+          class="flex items-start gap-2 text-xs text-warning-700"
+        >
+          <AlertTriangle :size="12" class="text-warning-500 mt-0.5 flex-shrink-0" />
+          <span><span class="font-medium">{{ flag.section }}:</span> {{ flag.message }}</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Override recorded confirmation -->
+    <div
+      v-if="rhaOverride"
+      class="flex items-start gap-2 px-4 py-3 bg-warning-50 border border-warning-200 rounded-xl"
+    >
+      <ShieldAlert :size="14" class="text-warning-600 mt-0.5 flex-shrink-0" />
+      <div class="text-xs text-warning-700">
+        <span class="font-semibold">RHA override recorded</span> by {{ rhaOverride.user_email }} on {{ formatDate(rhaOverride.overridden_at) }}.
+        Reason: "{{ rhaOverride.reason }}"
+      </div>
+    </div>
+
     <!-- ── Empty state: no submissions yet ── -->
     <div v-else-if="leaseData?.status !== 'active'" class="text-center py-6">
       <div class="w-12 h-12 rounded-full bg-navy/5 flex items-center justify-center mx-auto mb-3">
@@ -174,7 +270,11 @@
       <p class="text-xs text-gray-400 mt-1 mb-4 max-w-xs mx-auto">
         Send this lease to your tenants to review and sign electronically. They'll get an email with a link.
       </p>
-      <button class="btn-primary text-xs flex items-center gap-1.5 mx-auto" @click="openModal">
+      <button
+        class="btn-primary text-xs flex items-center gap-1.5 mx-auto"
+        :disabled="rhaBlockingFlags.length > 0 && !rhaOverride"
+        @click="openModal"
+      >
         <Send :size="13" />
         Send for Signing
       </button>
@@ -332,6 +432,7 @@ import api from '../../api'
 import {
   Send, Mail, CheckCircle2, Clock, XCircle, AlertCircle, Eye,
   Plus, Loader2, Download, Link2, Wifi, WifiOff, PenTool, X,
+  ShieldAlert, AlertTriangle,
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
@@ -372,6 +473,13 @@ const actionLoadingId = ref<number | string | null>(null)
 const copyingLinkId = ref<number | string | null>(null)
 const linkHint = ref('')
 
+// RHA compliance state
+const rhaFlags     = ref<any[]>([])
+const rhaOverride  = ref<any | null>(null)
+const showOverrideForm = ref(false)
+const overrideReason   = ref('')
+const overrideLoading  = ref(false)
+
 interface DraftSigner {
   name: string
   email: string
@@ -396,6 +504,14 @@ const signedCount = computed(() =>
 const canSubmit = computed(() =>
   draftSigners.value.length > 0 &&
   draftSigners.value.every(s => s.name.trim() && s.email.trim())
+)
+
+const rhaBlockingFlags = computed(() =>
+  rhaFlags.value.filter((f: any) => f.severity === 'blocking')
+)
+
+const rhaAdvisoryFlags = computed(() =>
+  rhaFlags.value.filter((f: any) => f.severity === 'advisory')
 )
 
 // ── Real-time WebSocket updates ──────────────────────────────────────── //
@@ -450,7 +566,7 @@ const landlordLinkLoading = ref(false)
 
 // ── Lifecycle ────────────────────────────────────────────────────────── //
 onMounted(async () => {
-  await loadSubmissions()
+  await Promise.all([loadSubmissions(), loadRhaFlags()])
   if (props.autoOpen && !submissions.value.length) {
     openModal()
   }
@@ -511,6 +627,36 @@ function signerNarrativeColor(s: any): string {
 }
 
 // ── API ──────────────────────────────────────────────────────────────── //
+
+async function loadRhaFlags() {
+  if (!props.leaseId) return
+  try {
+    const { data } = await api.get(`/leases/${props.leaseId}/rha-check/`)
+    rhaFlags.value = data.rha_flags ?? []
+    rhaOverride.value = data.rha_override ?? null
+  } catch {
+    // Silent — RHA check is a best-effort pre-flight; don't block the panel
+  }
+}
+
+async function submitOverride() {
+  if (!overrideReason.value.trim()) return
+  overrideLoading.value = true
+  errorMsg.value = ''
+  try {
+    const { data } = await api.post(`/leases/${props.leaseId}/rha-override/`, {
+      reason: overrideReason.value.trim(),
+    })
+    rhaOverride.value = data.rha_override
+    showOverrideForm.value = false
+    overrideReason.value = ''
+  } catch (e: any) {
+    errorMsg.value = e?.response?.data?.error ?? 'Could not record override'
+  } finally {
+    overrideLoading.value = false
+  }
+}
+
 async function loadSubmissions() {
   if (!props.leaseId) return
   loading.value = true
@@ -549,7 +695,14 @@ async function submitSigning() {
     closeModal()
     emit('signed')
   } catch (e: any) {
-    errorMsg.value = e?.response?.data?.error ?? 'Failed to create submission'
+    const responseData = e?.response?.data
+    if (responseData?.rha_override_required) {
+      // Refresh flags so the banner becomes visible
+      rhaFlags.value = responseData.rha_flags ?? rhaFlags.value
+      errorMsg.value = 'Blocked by RHA compliance issues. Resolve or override the flags shown above.'
+    } else {
+      errorMsg.value = responseData?.error ?? 'Failed to create submission'
+    }
   } finally {
     submitting.value = false
   }

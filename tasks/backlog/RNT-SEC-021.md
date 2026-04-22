@@ -1,0 +1,37 @@
+---
+id: RNT-SEC-021
+stream: rentals
+title: "Harden @requires_feature decorator: raise on unresolvable request instead of silent pass-through"
+feature: ""
+lifecycle_stage: null
+priority: P2
+effort: S
+v1_phase: "1.0"
+status: backlog
+assigned_to: null
+depends_on: []
+asana_gid: "1214195192546765"
+created: 2026-04-22
+updated: 2026-04-22
+---
+
+## Goal
+Replace the `else: request = None` silent pass-through in `@requires_feature` with an explicit error so views with non-standard signatures never accidentally bypass the tier gate.
+
+## Acceptance criteria
+- [ ] When request cannot be identified, decorator raises `ImproperlyConfigured` in DEBUG mode and returns HTTP 500 in production (no silent pass-through)
+- [ ] Test: applying decorator to a view with an unexpected signature does not silently grant access — asserts `ImproperlyConfigured` or 500 response
+- [ ] All existing `@requires_feature` decorated views still work correctly
+
+## Files likely touched
+- `backend/apps/accounts/decorators.py` (line 65-67, `else: request = None` branch)
+- `backend/apps/test_hub/accounts/` (new test)
+
+## Test plan
+**Automated:**
+- `cd backend && pytest apps/test_hub/accounts/ -k "requires_feature" -v`
+- Existing decorated views: assert tier gate still enforced
+- Unexpected-signature view: assert `ImproperlyConfigured` / 500
+
+## Handoff notes
+2026-04-22: Promoted from discovery `2026-04-22-requires-feature-request-detection.md` (found during OPS-007 review). Latent privilege-escalation vector as more features get gated.

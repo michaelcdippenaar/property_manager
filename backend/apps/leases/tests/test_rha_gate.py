@@ -1,0 +1,315 @@
+"""
+RHA compliance gate tests — RNT-SEC-007.
+
+Tests for rha_check.py logic, Lease model methods, and the
+send-for-signing (esigning) gate.
+
+Run with:
+    pytest backend/apps/leases/tests/test_rha_gate.py -v
+"""
+from __future__ import annotations
+
+import pytest
+from datetime import date, timedelta
+from decimal import Decimal
+from unittest.mock import MagicMock, patch, PropertyMock
+
+
+pytestmark = pytest.mark.unit
+
+
+# ── rha_check module ──────────────────────────────────────────────────── #
+
+class TestRhaCheckModule:
+    """Unit tests for rha_check.run_rha_checks() — no DB required."""
+
+    def _make_lease(self, **overrides):
+        """
+        Build a minimal Lease-like mock that passes all RHA checks by default,
+        then apply *overrides* to trigger specific flags.
+        """
+        from apps.leases.models import LeaseEvent
+
+        lease = MagicMock()
+        lease.pk = 1
+        lease.primary_tenant_id = 1
+        lease.unit_id = 1
+        lease.monthly_rent = Decimal("10000.00")
+        lease.deposit = Decimal("10000.00")
+        lease.start_date = date(2026, 1, 1)
+        lease.end_date = date(2026, 12, 31)
+        lease.notice_period_days = 30
+        lease.rha_flags = []
+        lease.rha_override = None
+
+        # events queryset mock: return both inspection types
+        events_qs = MagicMock()
+        events_qs.values_list.return_value = [
+            LeaseEvent.EventType.INSPECTION_IN,
+            LeaseEvent.EventType.INSPECTION_OUT,
+        ]
+        lease.events = events_qs
+
+        for key, value in overrides.items():
+            setattr(lease, key, value)
+
+        return lease
+
+    def test_clean_lease_has_no_blocking_flags(self):
+        """A fully-populated lease should have zero blocking flags."""
+        from apps.leases.rha_check import run_rha_checks, blocking_flags
+        lease = self._make_lease()
+        flags = run_rha_checks(lease)
+        assert len(blocking_flags(flags)) == 0
+
+    def test_missing_primary_tenant_is_blocking(self):
+        """Missing primary tenant → MISSING_PRIMARY_TENANT blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(primary_tenant_id=None)
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_PRIMARY_TENANT" in codes
+
+    def test_missing_unit_is_blocking(self):
+        """Missing unit → MISSING_PREMISES blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(unit_id=None)
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_PREMISES" in codes
+
+    def test_zero_rent_is_blocking(self):
+        """Zero monthly rent → MISSING_RENT blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(monthly_rent=Decimal("0.00"))
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_RENT" in codes
+
+    def test_missing_start_date_is_blocking(self):
+        """Missing start date → MISSING_START_DATE blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(start_date=None)
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_START_DATE" in codes
+
+    def test_missing_end_date_is_blocking(self):
+        """Missing end date → MISSING_END_DATE blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(end_date=None)
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_END_DATE" in codes
+
+    def test_end_before_start_is_blocking(self):
+        """end_date <= start_date → END_BEFORE_START blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(
+            start_date=date(2026, 6, 1),
+            end_date=date(2026, 5, 1),
+        )
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "END_BEFORE_START" in codes
+
+    def test_deposit_exceeds_2x_rent_is_blocking(self):
+        """Deposit > 2× rent → DEPOSIT_EXCEEDS_2X_RENT blocking flag (RHA s5(3)(g))."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(
+            monthly_rent=Decimal("5000.00"),
+            deposit=Decimal("15000.00"),  # 3× rent
+        )
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "DEPOSIT_EXCEEDS_2X_RENT" in codes
+
+    def test_deposit_exactly_2x_rent_is_not_blocking(self):
+        """Deposit == 2× rent → no DEPOSIT_EXCEEDS_2X_RENT flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(
+            monthly_rent=Decimal("5000.00"),
+            deposit=Decimal("10000.00"),  # exactly 2×
+        )
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "DEPOSIT_EXCEEDS_2X_RENT" not in codes
+
+    def test_short_notice_period_is_blocking(self):
+        """Notice period < 20 days → NOTICE_PERIOD_TOO_SHORT blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(notice_period_days=7)
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "NOTICE_PERIOD_TOO_SHORT" in codes
+
+    def test_interest_bearing_reminder_is_advisory(self):
+        """Deposit interest-bearing account check is always advisory."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease()
+        flags = run_rha_checks(lease)
+        advisory_codes = [f["code"] for f in flags if f["severity"] == "advisory"]
+        assert "DEPOSIT_INTEREST_BEARING_REMINDER" in advisory_codes
+
+    def test_pro_rata_advisory_when_start_not_first(self):
+        """Start date not on 1st → PRO_RATA_FIRST_MONTH advisory flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(start_date=date(2026, 1, 15))
+        flags = run_rha_checks(lease)
+        advisory_codes = [f["code"] for f in flags if f["severity"] == "advisory"]
+        assert "PRO_RATA_FIRST_MONTH" in advisory_codes
+
+    def test_missing_inspection_events_are_advisory(self):
+        """No inspection events → advisory flags (not blocking)."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease()
+        # Override events queryset to return nothing
+        events_qs = MagicMock()
+        events_qs.values_list.return_value = []
+        lease.events = events_qs
+
+        flags = run_rha_checks(lease)
+        advisory_codes = [f["code"] for f in flags if f["severity"] == "advisory"]
+        assert "MISSING_INSPECTION_IN_EVENT" in advisory_codes
+        assert "MISSING_INSPECTION_OUT_EVENT" in advisory_codes
+
+    def test_each_flag_has_required_keys(self):
+        """Every flag must have code, section, severity, message, field."""
+        from apps.leases.rha_check import run_rha_checks
+        # Lease with several issues to generate multiple flags
+        lease = self._make_lease(
+            primary_tenant_id=None,
+            deposit=Decimal("25000.00"),
+        )
+        flags = run_rha_checks(lease)
+        assert len(flags) > 0
+        for flag in flags:
+            assert "code" in flag
+            assert "section" in flag
+            assert "severity" in flag
+            assert "message" in flag
+            assert "field" in flag
+            assert flag["severity"] in ("blocking", "advisory")
+
+
+# ── Lease model methods ───────────────────────────────────────────────── #
+
+class TestLeaseModelMethods:
+    """Unit tests for Lease.assert_rha_ready() and record_rha_override()."""
+
+    def _make_lease_instance(self, flags=None, override=None):
+        """Minimal Lease instance without DB."""
+        from apps.leases.models import Lease
+        from django.db.models.base import ModelState
+        lease = Lease.__new__(Lease)
+        lease._state = ModelState()
+        lease.rha_flags = flags if flags is not None else []
+        lease.rha_override = override
+        return lease
+
+    def test_assert_rha_ready_passes_with_no_flags(self):
+        """No flags → assert_rha_ready() raises nothing."""
+        lease = self._make_lease_instance(flags=[])
+        lease.assert_rha_ready()  # should not raise
+
+    def test_assert_rha_ready_passes_with_only_advisory_flags(self):
+        """Only advisory flags → assert_rha_ready() raises nothing."""
+        lease = self._make_lease_instance(flags=[
+            {"code": "ADVISORY_X", "severity": "advisory", "section": "RHA s5", "message": "reminder", "field": "deposit"},
+        ])
+        lease.assert_rha_ready()  # should not raise
+
+    def test_assert_rha_ready_raises_when_blocking_flags_present(self):
+        """Blocking flags → assert_rha_ready() raises ValueError."""
+        lease = self._make_lease_instance(flags=[
+            {"code": "MISSING_RENT", "severity": "blocking", "section": "RHA s5(3)(c)", "message": "No rent", "field": "monthly_rent"},
+        ])
+        with pytest.raises(ValueError, match="blocking"):
+            lease.assert_rha_ready()
+
+    def test_assert_rha_ready_passes_with_override_even_when_blocking(self):
+        """If rha_override is recorded, assert_rha_ready() must not raise."""
+        lease = self._make_lease_instance(
+            flags=[{"code": "MISSING_RENT", "severity": "blocking", "section": "RHA s5(3)(c)", "message": "No rent", "field": "monthly_rent"}],
+            override={"user_id": 1, "reason": "test override", "overridden_at": "2026-04-22T10:00:00Z", "flags_at_override": []},
+        )
+        lease.assert_rha_ready()  # should not raise
+
+    def test_record_rha_override_requires_staff_or_agency_admin(self):
+        """Non-staff non-agency_admin → record_rha_override raises PermissionError."""
+        lease = self._make_lease_instance(flags=[
+            {"code": "MISSING_RENT", "severity": "blocking", "section": "X", "message": "x", "field": "y"},
+        ])
+        user = MagicMock()
+        user.role = "agent"
+        user.is_staff = False
+        user.is_superuser = False
+        with pytest.raises(PermissionError):
+            lease.record_rha_override(user, "test reason")
+
+    def test_record_rha_override_requires_non_empty_reason(self):
+        """Empty reason → record_rha_override raises ValueError."""
+        lease = self._make_lease_instance(flags=[
+            {"code": "MISSING_RENT", "severity": "blocking", "section": "X", "message": "x", "field": "y"},
+        ])
+        user = MagicMock()
+        user.role = "agency_admin"
+        user.is_staff = False
+        user.is_superuser = False
+        with pytest.raises(ValueError, match="reason"):
+            lease.record_rha_override(user, "")
+
+    def test_record_rha_override_requires_blocking_flags_to_be_present(self):
+        """No blocking flags → record_rha_override raises ValueError (nothing to override)."""
+        lease = self._make_lease_instance(flags=[])
+        user = MagicMock()
+        user.role = "admin"
+        user.is_staff = True
+        user.is_superuser = False
+        with pytest.raises(ValueError, match="No blocking"):
+            lease.record_rha_override(user, "I have a reason")
+
+    def test_record_rha_override_persists_for_agency_admin(self):
+        """agency_admin with blocking flags and reason → override is recorded."""
+        from apps.leases.models import Lease
+        from django.db.models.base import ModelState
+
+        blocking = [{"code": "MISSING_RENT", "severity": "blocking", "section": "X", "message": "x", "field": "y"}]
+        lease = self._make_lease_instance(flags=blocking)
+
+        user = MagicMock()
+        user.pk = 99
+        user.email = "admin@klikk.co.za"
+        user.role = "agency_admin"
+        user.is_staff = False
+        user.is_superuser = False
+
+        # Patch save() so no DB call is made
+        with patch.object(Lease, "save"):
+            lease.record_rha_override(user, "Landlord confirmed verbal waiver")
+
+        assert lease.rha_override is not None
+        assert lease.rha_override["user_id"] == 99
+        assert lease.rha_override["reason"] == "Landlord confirmed verbal waiver"
+        assert "flags_at_override" in lease.rha_override
+        assert len(lease.rha_override["flags_at_override"]) == 1
+
+    def test_record_rha_override_persists_for_is_staff(self):
+        """Django is_staff → may also override RHA flags."""
+        from apps.leases.models import Lease
+
+        blocking = [{"code": "MISSING_RENT", "severity": "blocking", "section": "X", "message": "x", "field": "y"}]
+        lease = self._make_lease_instance(flags=blocking)
+
+        user = MagicMock()
+        user.pk = 1
+        user.email = "superuser@klikk.co.za"
+        user.role = "tenant"  # low role but is_staff=True
+        user.is_staff = True
+        user.is_superuser = False
+
+        with patch.object(Lease, "save"):
+            lease.record_rha_override(user, "Emergency bypass approved by MC")
+
+        assert lease.rha_override is not None
+        assert lease.rha_override["user_email"] == "superuser@klikk.co.za"
