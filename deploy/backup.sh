@@ -42,9 +42,11 @@ _alert_failure() {
   local subject="[Klikk Backup] FAILED on $(hostname) at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
   if [[ -n "${SLACK_WEBHOOK_URL:-}" ]]; then
+    local slack_text
+    slack_text=$':rotating_light: *Klikk backup FAILED*\n'"${msg}"
     curl -s -X POST "${SLACK_WEBHOOK_URL}" \
       -H "Content-Type: application/json" \
-      --data "{\"text\":\":rotating_light: *Klikk backup FAILED*\n${msg}\"}" \
+      --data "{\"text\":\"${slack_text}\"}" \
       || log "WARNING: Slack alert failed to send"
   fi
 
@@ -79,7 +81,7 @@ MONTH=$(date -u +%Y-%m)
 DAY_OF_MONTH=$(date -u +%d)
 
 DAILY_PREFIX="${BACKUP_S3_PREFIX}/daily"
-MONTHLY_PREFIX="${BACKUP_S3_PREFIX:-${BACKUP_S3_PREFIX}}/monthly"
+MONTHLY_PREFIX="${MONTHLY_BACKUP_PREFIX:-${BACKUP_S3_PREFIX}/monthly}"
 MEDIA_S3_PREFIX="${BACKUP_S3_PREFIX}/media"
 
 DUMP_FILE="/tmp/klikk_${DATE}.dump"

@@ -9,7 +9,7 @@ set -euo pipefail
 log() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
 MONTH=$(date -u +%Y-%m)
-MSG=":drill: *Klikk monthly restore drill due — ${MONTH}*\n\nRun the drill per \`docs/ops/backup-restore.md\` and log the result in \`docs/ops/restore-drills.md\`."
+MSG=$':drill: *Klikk monthly restore drill due — '"${MONTH}"$'*\n\nRun the drill per `docs/ops/backup-restore.md` and log the result in `docs/ops/restore-drills.md`.'
 
 if [[ -n "${SLACK_WEBHOOK_URL:-}" ]]; then
   curl -s -X POST "${SLACK_WEBHOOK_URL}" \

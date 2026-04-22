@@ -63,8 +63,7 @@ services:
     restart: unless-stopped
     env_file:
       - ../backend/.env.secrets
-    environment:
-      CRONTAB_CONTENT: "0 8 1 * * /scripts/drill-reminder.sh"
+    command: ["supercronic", "/etc/crontab.drill"]
     volumes:
       - backup_logs:/var/log/backup
     networks:
