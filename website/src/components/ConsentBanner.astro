@@ -60,21 +60,59 @@
     }
   }
 
-  // Only show if consent not yet recorded
+  /**
+   * Activate Plausible Analytics by converting the inert placeholder <script>
+   * (type="text/plain") to a live script element.
+   *
+   * The placeholder is defined in BaseLayout.astro with type="text/plain" so
+   * the browser never executes it. On consent acceptance we clone it as a real
+   * script and append it to <head>. This is the standard pattern for
+   * consent-first analytics loading without a cookie-management SDK.
+   *
+   * POPIA note: no analytics data is sent before this function runs.
+   */
+  function activatePlausible() {
+    const placeholder = document.getElementById('plausible-script-tag') as HTMLScriptElement | null;
+    // Guard: already activated (type was changed) or tag missing
+    if (!placeholder || placeholder.type !== 'text/plain') return;
+
+    const script = document.createElement('script');
+    script.src = placeholder.getAttribute('src') ?? 'https://analytics.klikk.co.za/js/script.tagged-events.js';
+    script.defer = true;
+    script.setAttribute('data-domain', placeholder.getAttribute('data-domain') ?? 'klikk.co.za');
+    script.onload = () => {
+      // Initialise the plausible() stub so custom events emitted before
+      // the script loaded are replayed from the queue.
+      const w = window as any;
+      w.plausible = w.plausible || function() {
+        (w.plausible.q = w.plausible.q || []).push(arguments);
+      };
+    };
+    document.head.appendChild(script);
+    // Remove the inert placeholder to avoid duplicate loading
+    placeholder.remove();
+  }
+
+  // Only show banner if consent not yet recorded
   const existing = getCookie(COOKIE_NAME);
   if (!existing) {
     // Slight delay so it doesn't flash on the first paint
     setTimeout(showBanner, 1200);
+  } else if (existing === 'analytics') {
+    // Previously accepted — activate Plausible immediately on page load
+    activatePlausible();
   }
 
   document.getElementById('consent-accept')?.addEventListener('click', () => {
     setCookie(COOKIE_NAME, 'analytics', COOKIE_MAX_AGE);
     hideBanner();
+    activatePlausible();
   });
 
   document.getElementById('consent-decline')?.addEventListener('click', () => {
     setCookie(COOKIE_NAME, 'essential', COOKIE_MAX_AGE);
     hideBanner();
+    // Plausible script remains inert — no analytics collected
   });
 </script>
 
