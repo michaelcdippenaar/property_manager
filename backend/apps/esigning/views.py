@@ -347,11 +347,16 @@ class ESigningTestPdfView(APIView):
     GET /api/v1/esigning/submissions/<pk>/test-pdf/
     Regenerates the signed PDF on the fly (no caching) and returns it directly.
     Staff/agent debugging tool — requires authentication.
+
+    GATED: only available when settings.ENABLE_TEST_ENDPOINTS is True.
+    Returns HTTP 404 in production (where ENABLE_TEST_ENDPOINTS defaults to False).
     """
     permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
-        from django.http import HttpResponse
+        from django.http import Http404, HttpResponse
+        if not settings.ENABLE_TEST_ENDPOINTS:
+            raise Http404
         sub = get_object_or_404(ESigningSubmission, pk=pk)
         pdf_bytes = services.generate_signed_pdf(sub)
         response = HttpResponse(pdf_bytes, content_type='application/pdf')

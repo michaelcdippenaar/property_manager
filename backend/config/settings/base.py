@@ -16,6 +16,10 @@ else:
 
 SECRET_KEY = config("SECRET_KEY", default="dev-secret-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
+
+# Gate for test/debug endpoints. Defaults to False (off in production).
+# Set ENABLE_TEST_ENDPOINTS=true in staging .env only — never in production.
+ENABLE_TEST_ENDPOINTS = config("ENABLE_TEST_ENDPOINTS", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 CSRF_TRUSTED_ORIGINS = ["http://localhost:5178", "http://127.0.0.1:5178", "http://127.0.0.1:5173", "http://localhost:5173", "http://192.168.1.176:9501"]
 

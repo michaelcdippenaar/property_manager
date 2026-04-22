@@ -27,7 +27,12 @@ urlpatterns = [
     path("api/v1/ai/", include("apps.ai.urls")),
     path("api/v1/stats/", StatsView.as_view(), name="stats"),
     path("api/v1/dashboard/portfolio/", DashboardPortfolioView.as_view(), name="dashboard-portfolio"),
-    path("api/v1/test-hub/", include("apps.test_hub.urls")),
+    # test-hub is only accessible when ENABLE_TEST_ENDPOINTS is True (never production)
+    *(
+        [path("api/v1/test-hub/", include("apps.test_hub.urls"))]
+        if settings.ENABLE_TEST_ENDPOINTS
+        else []
+    ),
     path("api/v1/market-data/", include("apps.market_data.urls")),
     path("api/v1/the-volt/", include("apps.the_volt.urls")),
     path("api/v1/legal/", include("apps.legal.urls")),
