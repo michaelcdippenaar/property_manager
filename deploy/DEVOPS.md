@@ -264,6 +264,7 @@ rm ~/.ssh/klikk_staging_deploy ~/.ssh/klikk_staging_deploy.pub
 | `DEFAULT_FROM_EMAIL` | — | `Klikk <michael.c.dippenaar@gmail.com>` | No |
 | `GOOGLE_OAUTH_CLIENT_ID` | shared | shared | No |
 | `GOOGLE_MAPS_API_KEY` | shared | shared | No |
+| `ENABLE_TEST_ENDPOINTS` | `True` | **`False`** — must be `False` in production; gates `/api/v1/test-hub/` and `ESigningTestPdfView` | No |
 
 ---
 

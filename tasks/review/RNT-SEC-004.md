@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462750411"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -23,7 +23,7 @@ Identify and gate every test/debug endpoint so they return 404 in production. Le
 - [x] Gate each one behind `settings.DEBUG` OR a `ENABLE_TEST_ENDPOINTS` flag that defaults False
 - [x] Known offenders to remove/gate: `ESigningTestPdfView`, `esigning_form_submit_test`, `esigning_native_signing_test`, `esigning_pdf_layout_compare`, `esigning_test_pdf`
 - [x] Staging env may have them on via flag; production does not
-- [ ] Deployment checklist updated: verify `ENABLE_TEST_ENDPOINTS=false` in prod env
+- [x] Deployment checklist updated: verify `ENABLE_TEST_ENDPOINTS=false` in prod env
 
 ## Files likely touched
 - `backend/config/settings.py` (ENABLE_TEST_ENDPOINTS flag)
@@ -85,3 +85,7 @@ The `test_hub` app (`/api/v1/test-hub/`) was included unconditionally in `config
 - `test_hub` remaining in `INSTALLED_APPS` is intentional and correct — only URL registration is gated.
 
 **Discovery filed:** `tasks/discoveries/2026-04-22-gotenberg-health-endpoint-recon.md` — `GotenbergHealthView` proxies Gotenberg's full `/health` JSON (including engine names and version strings) to any authenticated agent. Not a blocker for this task but worth hardening separately.
+
+### 2026-04-22 — implementer (reviewer fix)
+
+Added `ENABLE_TEST_ENDPOINTS` row to the env-vars reference table in `deploy/DEVOPS.md` (section 6, "All backend environment variables"). The row explicitly marks the prod value as `False` and explains what it gates. All acceptance criteria are now met.
