@@ -70,7 +70,7 @@ jobs:
       - name: Black format check
         run: black --check .
 
-      - name: Run pytest
+      - name: Run pytest with coverage
         env:
           DJANGO_SETTINGS_MODULE: config.settings.local
           DB_NAME: klikk_test
@@ -81,7 +81,28 @@ jobs:
           SECRET_KEY: ci-test-secret-key-not-used-in-production
           DEBUG: "True"
           ALLOWED_HOSTS: "localhost,127.0.0.1"
-        run: pytest --tb=short -q
+        run: |
+          pytest --tb=short -q \
+            --cov=apps \
+            --cov-report=term-missing \
+            --cov-report=html:htmlcov \
+            --cov-report=xml:coverage.xml
+
+      - name: Upload coverage HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-html
+          path: backend/htmlcov/
+          retention-days: 14
+
+      - name: Upload coverage XML (for external tools)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-xml
+          path: backend/coverage.xml
+          retention-days: 14
 
   # ── Admin SPA: eslint + vitest ────────────────────────────────────────────────
   admin:
