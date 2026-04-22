@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import os
 import re
 from django.http import HttpResponse
@@ -9,6 +10,8 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework import status, generics
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_html(content_html: str) -> str:
@@ -1888,12 +1891,107 @@ class ExportTemplatePDFView(APIView):
             pdf_bytes = html_to_pdf(full_html)
         except Exception as e:
             logger.error('Gotenberg PDF generation failed for template %s: %s', pk, e)
-            return Response({"error": "PDF generation failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Enqueue a background retry so the operator's work is not lost.
+            try:
+                from .models import PdfRenderJob
+                from .tasks import enqueue_pdf_render
+                job = PdfRenderJob.objects.create(
+                    template=tmpl,
+                    html_payload=full_html,
+                    requested_by=request.user,
+                )
+                enqueue_pdf_render(job.id)
+                return Response(
+                    {
+                        "queued": True,
+                        "job_id": job.id,
+                        "message": (
+                            "Preparing your document — we'll email you when ready. "
+                            "You can also check the render queue in the admin panel."
+                        ),
+                    },
+                    status=status.HTTP_202_ACCEPTED,
+                )
+            except Exception as enqueue_exc:
+                logger.exception(
+                    'Failed to enqueue PdfRenderJob for template %s: %s', pk, enqueue_exc
+                )
+            return Response(
+                {"error": "PDF generation failed and could not be queued for retry."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
         safe_name = re.sub(r'[^\w\s-]', '', tmpl.name).strip().replace(' ', '_') or 'template'
         response = HttpResponse(pdf_bytes, content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{safe_name}.pdf"'
         return response
+
+
+class PdfRenderJobListView(APIView):
+    """
+    GET  /api/v1/leases/render-jobs/          — list all jobs (admin) or own jobs (agent)
+    POST /api/v1/leases/render-jobs/{id}/retry/ — manually trigger a retry
+    """
+    permission_classes = [IsAgentOrAdmin]
+
+    def get(self, request):
+        from .models import PdfRenderJob
+        user = request.user
+        # Admins see all jobs; agents see only their own
+        if getattr(user, 'role', None) == 'admin':
+            qs = PdfRenderJob.objects.select_related('template', 'requested_by').all()
+        else:
+            qs = PdfRenderJob.objects.select_related('template', 'requested_by').filter(
+                requested_by=user
+            )
+        results = []
+        for job in qs[:100]:  # cap at 100 — not paginated for now
+            results.append({
+                'id': job.id,
+                'status': job.status,
+                'attempts': job.attempts,
+                'template_id': job.template_id,
+                'template_name': job.template.name if job.template else None,
+                'error': job.error or None,
+                'result_pdf_url': (
+                    request.build_absolute_uri(job.result_pdf.url)
+                    if job.result_pdf
+                    else None
+                ),
+                'created_at': job.created_at.isoformat(),
+                'updated_at': job.updated_at.isoformat(),
+            })
+        return Response(results)
+
+
+class PdfRenderJobRetryView(APIView):
+    """POST /api/v1/leases/render-jobs/{id}/retry/ — re-enqueue a failed job."""
+    permission_classes = [IsAgentOrAdmin]
+
+    def post(self, request, pk):
+        from .models import PdfRenderJob
+        from .tasks import enqueue_pdf_render
+        user = request.user
+        if getattr(user, 'role', None) == 'admin':
+            qs = PdfRenderJob.objects.filter(pk=pk)
+        else:
+            qs = PdfRenderJob.objects.filter(pk=pk, requested_by=user)
+        try:
+            job = qs.get()
+        except PdfRenderJob.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if job.status not in (PdfRenderJob.Status.FAILED, PdfRenderJob.Status.PENDING):
+            return Response(
+                {'error': f'Cannot retry a job with status "{job.status}".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        # Reset attempt counter so the worker tries again
+        job.attempts = 0
+        job.status = PdfRenderJob.Status.PENDING
+        job.error = ''
+        job.save(update_fields=['attempts', 'status', 'error', 'updated_at'])
+        enqueue_pdf_render(job.id)
+        return Response({'queued': True, 'job_id': job.id})
 
 
 def _sanitize_context(context: dict) -> dict:

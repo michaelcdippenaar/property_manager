@@ -1,5 +1,58 @@
 # Notifications app (`apps.notifications`)
 
+## Email template compile step
+
+The base email template lives in two files:
+
+| File | Purpose |
+|------|---------|
+| `email_templates/base.mjml` | Source of truth — edit this |
+| `email_templates/compiled/base.html` | Compiled output committed to the repo — **never edit directly** |
+
+`base.html` must be regenerated whenever `base.mjml` changes. Skipping this causes the compiled file to be stale, which means any `mj-button` or `mj-text` changes are silently lost in production.
+
+### Why we commit compiled output
+
+The Django email service renders `compiled/base.html` at runtime as a Django template (using `{% if cta_url %}`, `{% if note %}`, etc.). Committing the compiled file means the server needs no Node.js runtime. The compile step runs in development and in CI.
+
+### How to recompile
+
+```bash
+# from repo root
+make compile-emails
+```
+
+Or directly:
+
+```bash
+bash scripts/compile_email_templates.sh
+```
+
+This:
+1. Strips the Django `{% if %}` / `{% endif %}` lines (MJML can't parse them) into a temp file
+2. Runs `npx mjml` to compile to HTML
+3. Runs `scripts/patch_email_conditionals.py` to re-insert the Django conditional blocks
+4. Writes the result to `email_templates/compiled/base.html`
+
+### CI guard
+
+`make check-emails` (or `bash scripts/compile_email_templates.sh --check`) runs in:
+- GitHub Actions (`ci.yml` → `email-templates` job)
+- Pre-commit hook (runs when files under `email_templates/` are staged)
+
+It exits non-zero if:
+- `compiled/base.html` differs from a fresh compile of the current `base.mjml`
+- Any of `{% if cta_url %}`, `{% if note %}`, `{% if unsubscribe_url %}` is absent from `compiled/base.html`
+
+### Adding a new conditional block
+
+1. Add the `{% if my_var %}` / `{% endif %}` wrapper around the relevant `<mj-*>` tag in `base.mjml` (as a comment marker, it won't survive compile)
+2. Add a `<!-- BLOCK: my-block-name -->` comment above it in `base.mjml` so MJML preserves the anchor
+3. Add a patch rule to `scripts/patch_email_conditionals.py` mirroring the existing CTA/note patterns
+4. Run `make compile-emails` and commit both `base.mjml` and `compiled/base.html`
+
+
+
 Sends **email** (Django mail), **SMS**, and **WhatsApp** (Twilio when configured). Outbound email is logged in **`NotificationLog`** (Django admin → Notifications).
 
 **First-time setup:** create the log table (required before `send_test_email` or any `send_email` logging works):

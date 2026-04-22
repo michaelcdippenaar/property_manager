@@ -10,9 +10,15 @@ Usage:
     pdf_bytes = html_to_pdf(html_string)
 
 Requires GOTENBERG_URL in settings (defaults to http://localhost:3000).
+
+Resilience: 3 automatic retries with exponential backoff (1s → 2s → 4s)
+on 5xx responses or connection timeouts.  After all retries are exhausted
+the underlying exception is re-raised so callers can decide whether to
+enqueue an async fallback.
 """
 
 import logging
+import time
 
 import requests
 from django.conf import settings
@@ -22,6 +28,47 @@ logger = logging.getLogger(__name__)
 
 def _gotenberg_url():
     return getattr(settings, 'GOTENBERG_URL', 'http://localhost:3000').rstrip('/')
+
+
+# ---------------------------------------------------------------------------
+# Metrics helpers — thin wrappers around Sentry so the rest of the code
+# doesn't need to guard against sentry_sdk being absent.
+# ---------------------------------------------------------------------------
+
+def _emit_metric(name: str, value: float, unit: str = "none", tags: dict | None = None) -> None:
+    """Emit a Sentry custom metric (counter or distribution).
+
+    Silently swallows any import / SDK errors so missing Sentry never breaks
+    the happy path.
+    """
+    try:
+        import sentry_sdk
+        sentry_sdk.metrics.distribution(
+            key=name,
+            value=value,
+            unit=unit,
+            tags=tags or {},
+        )
+    except Exception:
+        pass  # metrics are best-effort
+
+
+def _increment_counter(name: str, tags: dict | None = None) -> None:
+    try:
+        import sentry_sdk
+        sentry_sdk.metrics.incr(key=name, tags=tags or {})
+    except Exception:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Core conversion
+# ---------------------------------------------------------------------------
+
+#: Number of retry attempts after the first try (total = 1 + MAX_RETRIES)
+MAX_RETRIES = 3
+#: Initial back-off delay in seconds (doubles each attempt)
+RETRY_BACKOFF_BASE = 1
 
 
 def html_to_pdf(
@@ -50,7 +97,13 @@ def html_to_pdf(
     CSS — everything must be inline.  Gotenberg injects .pageNumber and
     .totalPages CSS classes automatically.
 
-    Raises requests.HTTPError on failure.
+    Retries up to MAX_RETRIES times with exponential backoff on 5xx / timeout.
+    Raises requests.HTTPError or requests.Timeout on final failure.
+
+    Emits Sentry metrics:
+      - gotenberg.pdf.latency_ms  (distribution, milliseconds)
+      - gotenberg.pdf.success     (counter)
+      - gotenberg.pdf.failure     (counter, tags: attempt=N, reason=<class>)
     """
     url = f'{_gotenberg_url()}/forms/chromium/convert/html'
 
@@ -71,14 +124,56 @@ def html_to_pdf(
         'printBackground': str(print_background).lower(),
     }
 
-    resp = requests.post(url, files=files, data=data, timeout=timeout)
+    last_exc: Exception | None = None
+    total_start = time.monotonic()
 
-    if not resp.ok:
-        body = (resp.text or '')[:500]
-        logger.error('Gotenberg error %s: %s', resp.status_code, body)
-        resp.raise_for_status()
+    for attempt in range(1, MAX_RETRIES + 2):  # attempts 1..4
+        attempt_start = time.monotonic()
+        try:
+            resp = requests.post(url, files=files, data=data, timeout=timeout)
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            elapsed = (time.monotonic() - attempt_start) * 1000
+            logger.warning(
+                'Gotenberg request failed (attempt %d/%d, %.0f ms): %s',
+                attempt, MAX_RETRIES + 1, elapsed, exc,
+            )
+            _increment_counter(
+                'gotenberg.pdf.failure',
+                tags={'attempt': str(attempt), 'reason': type(exc).__name__},
+            )
+            last_exc = exc
+        else:
+            if resp.ok:
+                elapsed_ms = (time.monotonic() - total_start) * 1000
+                _emit_metric('gotenberg.pdf.latency_ms', elapsed_ms, unit='millisecond')
+                _increment_counter('gotenberg.pdf.success')
+                return resp.content
 
-    return resp.content
+            body = (resp.text or '')[:500]
+            logger.warning(
+                'Gotenberg HTTP %s on attempt %d/%d: %s',
+                resp.status_code, attempt, MAX_RETRIES + 1, body,
+            )
+            _increment_counter(
+                'gotenberg.pdf.failure',
+                tags={'attempt': str(attempt), 'reason': f'http_{resp.status_code}'},
+            )
+            last_exc = requests.HTTPError(
+                f'Gotenberg {resp.status_code}', response=resp
+            )
+
+        # Do not sleep after the final attempt
+        if attempt <= MAX_RETRIES:
+            delay = RETRY_BACKOFF_BASE * (2 ** (attempt - 1))  # 1, 2, 4 seconds
+            logger.info('Gotenberg retry in %ds (attempt %d of %d)', delay, attempt, MAX_RETRIES)
+            time.sleep(delay)
+
+    # All attempts exhausted
+    logger.error(
+        'Gotenberg PDF generation failed after %d attempts: %s',
+        MAX_RETRIES + 1, last_exc,
+    )
+    raise last_exc  # type: ignore[misc]
 
 
 def health_check() -> dict:

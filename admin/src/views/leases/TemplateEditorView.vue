@@ -43,8 +43,14 @@
         <div class="relative">
           <div v-if="exportMenuOpen" class="fixed inset-0 z-40" @click="exportMenuOpen = false" />
           <div class="flex items-stretch border border-gray-300 rounded-lg overflow-hidden text-xs font-medium text-gray-700">
-            <button class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 transition-colors" @click="exportPDF">
-              <Download :size="12" /> Export PDF
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              :disabled="pdfExporting"
+              @click="exportPDF"
+            >
+              <Loader2 v-if="pdfExporting" :size="12" class="animate-spin" />
+              <Download v-else :size="12" />
+              {{ pdfExporting ? 'Preparing…' : 'Export PDF' }}
             </button>
             <button class="px-1.5 py-1.5 border-l border-gray-300 hover:bg-gray-50 transition-colors" @click="exportMenuOpen = !exportMenuOpen">
               <ChevronDown :size="12" />
@@ -2600,11 +2606,33 @@ function scrollChat() {
 
 // ── Actions ───────────────────────────────────────────────────────────────
 const exportMenuOpen = ref(false)
+const pdfExporting = ref(false)
 
 function exportPDF() {
-  if (!template.value) return
+  if (!template.value || pdfExporting.value) return
+  pdfExporting.value = true
   api.get(`/leases/templates/${templateId.value}/export.pdf/`, { responseType: 'blob' })
-    .then(({ data }) => {
+    .then(({ data, status, headers }) => {
+      // 202 Accepted — Gotenberg was unavailable; job queued for background retry
+      const contentType = (headers as any)['content-type'] || ''
+      if (status === 202 || contentType.includes('application/json')) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            const json = JSON.parse(reader.result as string)
+            showToast(
+              json.message ||
+              'Preparing your document — we\'ll email you when ready.',
+              'info',
+            )
+          } catch {
+            showToast('Preparing your document — we\'ll email you when ready.', 'info')
+          }
+        }
+        reader.readAsText(data instanceof Blob ? data : new Blob([data]))
+        return
+      }
+      // 200 — PDF bytes returned directly
       const url = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
@@ -2612,7 +2640,26 @@ function exportPDF() {
       a.click()
       setTimeout(() => URL.revokeObjectURL(url), 5000)
     })
-    .catch(() => showToast('PDF export failed — save your content first'))
+    .catch((err: any) => {
+      // Axios may surface the 202 as an "error" if the Content-Type is JSON
+      const responseData = err?.response?.data
+      if (err?.response?.status === 202 && responseData) {
+        const parse = (d: any): any => {
+          if (typeof d === 'object') return d
+          try { return JSON.parse(d) } catch { return null }
+        }
+        const json = parse(responseData)
+        if (json?.queued) {
+          showToast(
+            json.message || 'Preparing your document — we\'ll email you when ready.',
+            'info',
+          )
+          return
+        }
+      }
+      showToast('PDF export failed — save your content first')
+    })
+    .finally(() => { pdfExporting.value = false })
 }
 
 function generatePreview() {

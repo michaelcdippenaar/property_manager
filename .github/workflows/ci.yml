@@ -190,6 +190,26 @@ jobs:
           fi
           echo "PASS: $mapcount .map file(s) present in dist/assets"
 
+  # ── Email templates: MJML compile + Django conditional guard (OPS-015) ───────
+  email-templates:
+    name: Email templates — compiled/base.html in sync
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Make scripts executable
+        run: chmod +x scripts/compile_email_templates.sh
+
+      - name: Compile email templates (check mode)
+        # Fails if compiled/base.html is stale or missing Django conditional blocks
+        run: make check-emails
+
   # ── Flutter mobile: analyze ───────────────────────────────────────────────────
   flutter:
     name: Flutter (analyze)

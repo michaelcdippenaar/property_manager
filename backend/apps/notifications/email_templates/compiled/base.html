@@ -159,7 +159,7 @@
                                       display: inline-block;
                                       background: #ff3d7f;
                                       color: #ffffff;
-                                      font-family: 'DM Sans', Arial, sans-serif;
+                                      font-family: &quot;DM Sans&quot;, Arial, sans-serif;
                                       font-size: 16px;
                                       font-weight: 600;
                                       line-height: 120%;
@@ -176,16 +176,16 @@
                                   </a>
                                 </td>
                               </tr>
+                      {% endif %}
                             </tbody>
                           </table>
                         </td>
                       </tr>
-                      {% endif %}
                       <!-- BLOCK: optional secondary note -->
                       {% if note %}
                       <tr>
                         <td align="left" class="klikk-subtext" style="color: #555577; font-size: 0px; padding: 10px 25px; padding-top: 20px; word-break: break-word">
-                          <div style="font-family: 'DM Sans', Arial, sans-serif; font-size: 14px; line-height: 1.6; text-align: left; color: #555577;">{{ note }}</div>
+                          <div style="font-family: &quot;DM Sans&quot;, Arial, sans-serif; font-size: 16px; line-height: 1.6; text-align: left; color: #1a1a2e">{{ note }}</div>
                         </td>
                       </tr>
                       {% endif %}

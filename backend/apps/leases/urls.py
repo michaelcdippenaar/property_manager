@@ -4,7 +4,7 @@ from rest_framework import generics, permissions
 from .views import LeaseViewSet, LeaseCalendarAPIView, InventoryTemplateViewSet
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
-from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView
+from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView, PdfRenderJobListView, PdfRenderJobRetryView
 from .builder_views import LeaseBuilderSessionCreateView, LeaseBuilderChatView, LeaseBuilderFinalizeView, LeaseBuilderDraftListView, LeaseBuilderDraftSaveView
 from .clause_views import ReusableClauseListCreateView, ReusableClauseDestroyView, ReusableClauseUseView, GenerateClauseView, ExtractClausesView
 from .models import LeaseTenant, LeaseOccupant, LeaseGuarantor
@@ -43,6 +43,9 @@ urlpatterns = [
     path("templates/<int:pk>/ai-chat/", LeaseTemplateAIChatView.as_view(), name="lease-template-ai-chat"),
     path("templates/<int:pk>/export.pdf/", ExportTemplatePDFView.as_view(), name="lease-template-export-pdf"),
     path("generate/", GenerateLeaseDocumentView.as_view(), name="lease-generate"),
+    # PDF render job queue (async retry for Gotenberg failures)
+    path("render-jobs/", PdfRenderJobListView.as_view(), name="pdf-render-jobs"),
+    path("render-jobs/<int:pk>/retry/", PdfRenderJobRetryView.as_view(), name="pdf-render-job-retry"),
     # Lease builder drafts
     path("builder/drafts/", LeaseBuilderDraftListView.as_view(), name="builder-draft-list"),
     path("builder/drafts/new/", LeaseBuilderDraftSaveView.as_view(), name="builder-draft-create"),

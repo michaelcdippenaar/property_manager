@@ -126,6 +126,7 @@ const router = createRouter({
           meta: { title: 'Build Lease' },
         },
         { path: 'leases/submit', redirect: '/leases' },
+        { path: 'leases/render-jobs', name: 'lease-render-jobs', component: () => import('../views/leases/PdfRenderJobsView.vue'), meta: { title: 'PDF Render Queue' } },
         {
           path: 'property-info',
           component: () => import('../views/properties/PropertyInfoSection.vue'),
