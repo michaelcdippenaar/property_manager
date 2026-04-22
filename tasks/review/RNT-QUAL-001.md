@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177379561081"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-22-r2
 ---
 
 ## Goal
@@ -126,3 +126,13 @@ The same fix makes the `OwnerDashboard.vue` API call safe without changing the f
 **Discovery filed:** `tasks/discoveries/2026-04-22-tenant-onboarding-welcome-redirect-durability.md` — covers the `sessionStorage` welcome-redirect issue flagged by the implementer. No action needed in this task; PM to promote if desired.
 
 **Everything else is solid:** model design, serializer auto-timestamping, signal with lazy import and `get_or_create` guard, checklist component + deposit modal, tenant `WelcomeView`, dashboard widgets, and 8 unit tests all look good and match project conventions.
+
+### 2026-04-22 — implementer (reviewer fixes)
+
+**Fix 1 — SECURITY (Owner IDOR in `TenantOnboardingViewSet.get_queryset`):**
+Added an `elif user.role == User.Role.OWNER:` branch before the `else` agent/admin branch. The new branch scopes the queryset through the `PropertyOwnership` chain (same pattern as `HasPropertyAccess` in `apps/accounts/permissions.py`): walks `user.person_profile` → `Landlord` → `PropertyOwnership` (is_current=True) → filters onboarding records to `lease__unit__property_id__in=owned_property_ids`. If `person_profile` is absent, returns `qs.none()`. Also changed the tenant role check from the bare string `"tenant"` to the `User.Role.TENANT` constant for consistency.
+
+**Fix 2 — Unused import `IsTenant`:**
+Removed `IsTenant` from the import line on line 6. Replaced with `from apps.accounts.models import User` (needed for `User.Role` constants in the queryset fix above).
+
+Smoke-check: `from apps.tenant.views import TenantOnboardingViewSet` imports cleanly with `DJANGO_SETTINGS_MODULE=config.settings.local`.

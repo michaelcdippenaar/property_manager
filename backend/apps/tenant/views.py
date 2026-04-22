@@ -3,7 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsAgentOrAdmin, IsTenant
+from apps.accounts.models import User
+from apps.accounts.permissions import IsAgentOrAdmin
 
 from .models import Tenant, TenantOnboarding, TenantUnitAssignment
 from .serializers import (
@@ -110,11 +111,23 @@ class TenantOnboardingViewSet(viewsets.ModelViewSet):
             "lease__unit__property",
         )
         user = self.request.user
-        if user.role == "tenant":
+        if user.role == User.Role.TENANT:
             # Tenant sees only their own onboarding records
             qs = qs.filter(
                 lease__primary_tenant__linked_user=user,
             )
+        elif user.role == User.Role.OWNER:
+            # Owner sees only records for properties they own
+            from apps.properties.models import Landlord, PropertyOwnership
+
+            person = getattr(user, "person_profile", None)
+            if not person:
+                return qs.none()
+            landlord_ids = Landlord.objects.filter(person=person).values_list("pk", flat=True)
+            owned_property_ids = PropertyOwnership.objects.filter(
+                landlord_id__in=landlord_ids, is_current=True
+            ).values_list("property_id", flat=True)
+            qs = qs.filter(lease__unit__property_id__in=owned_property_ids)
         else:
             # Agents/admins can filter by lease or property
             lease_id = self.request.query_params.get("lease")
