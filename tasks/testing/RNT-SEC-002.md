@@ -7,12 +7,12 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462221163"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-22
 ---
 
 ## Goal
@@ -106,3 +106,26 @@ Removed the four-line `DEFAULT_THROTTLE_CLASSES` block from `backend/config/sett
 
 **Fix 2 — `ESigningTestPdfView` locked to `IsAgentOrAdmin`.**
 Changed `permission_classes = [AllowAny]` to `permission_classes = [IsAgentOrAdmin]` on `ESigningTestPdfView` (`backend/apps/esigning/views.py:336`). `IsAgentOrAdmin` was already imported. The docstring was updated to reflect the access change. This closes the IDOR risk and the missing-throttle gap on the `/test-pdf/` endpoint since the view is now an authenticated staff-only tool.
+
+### 2026-04-22 — reviewer: review passed
+
+Both blocking fixes from round 1 verified against working tree (diff from `57c261c` to HEAD):
+
+**Fix 1 confirmed:** `DEFAULT_THROTTLE_CLASSES` block (4 lines) is absent from `backend/config/settings/base.py`. The `REST_FRAMEWORK` dict now contains only `DEFAULT_THROTTLE_RATES` with all 7 required scopes (`anon_auth`, `otp_send`, `otp_verify`, `login_hourly_user`, `invite_accept`, `public_sign_minute`, `public_sign_hourly`). No `ImproperlyConfigured` risk remains.
+
+**Fix 2 confirmed:** `ESigningTestPdfView` at `backend/apps/esigning/views.py:336` now has `permission_classes = [IsAgentOrAdmin]`. Docstring updated to reflect staff-only access. IDOR is closed.
+
+**All acceptance criteria satisfied:**
+- DRF throttle system installed and configured in `base.py` — no new dependency required.
+- All 6 `AllowAny` public signing views declare `throttle_classes = PUBLIC_SIGN_THROTTLES` (10/min + 60/hr per IP). Verified at lines 436, 522, 559, 848, 911, 1003 of `backend/apps/esigning/views.py`.
+- No `AllowAny` views found in `backend/apps/leases/views.py` — leases public-link endpoints are either absent or already authenticated; AC is satisfied by scope.
+- `AcceptInviteView` uses `[InviteAcceptThrottle]` (5/min) at `accounts/views.py:305`.
+- `LoginView` uses `[AuthAnonThrottle, LoginHourlyThrottle]` (5/min IP + 20/hr email) at `accounts/views.py:44-45`.
+- OTP endpoints covered by pre-existing `OTPSendThrottle` (3/min) and `OTPVerifyThrottle` (5/min); no new OTP surface found.
+- 429 is returned on breach; WARNING logged via `rest_framework.throttling` logger.
+- `docs/ops/rate-limits.md` documents all tiers, Redis production caveat, and test commands.
+- 15-test file at `backend/apps/test_hub/esigning/unit/test_rate_limits.py` covers scope assertions, view-class declarations, cache-key logic, and integration behaviour.
+
+**POPIA/security pass:** No PII logged. No raw SQL. No new secrets. All new public surfaces are throttled. `ESigningTestPdfView` IDOR is closed.
+
+**Non-blocking noted for tester:** The 2 DB-integration tests (`test_429_after_threshold_exceeded`, `test_different_ips_not_throttled_together`) are gated behind the pre-existing properties migration conflict (`tasks/discoveries/2026-04-22-properties-migration-conflict.md`). The 13 remaining unit tests are runnable without DB. Tester should note this and run the full battery once the migration discovery is resolved.
