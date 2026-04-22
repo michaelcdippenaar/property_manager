@@ -133,7 +133,10 @@ def _activate_lease(submission: ESigningSubmission):
     """
     When all parties have signed, transition the lease from 'pending' to 'active'.
     Only activates if the lease is currently pending — won't override other statuses.
+    No-ops silently for mandate submissions (which have no lease).
     """
+    if not submission.lease_id:
+        return
     try:
         from apps.leases.models import Lease
         lease = submission.lease
@@ -180,8 +183,13 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
     sign_path = f"/sign/{link.pk}/"
     signing_url = f"{base_url}{sign_path}" if base_url else None
 
-    prop = submission.lease.unit.property
-    doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    if submission.lease_id:
+        prop = submission.lease.unit.property
+        doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    elif submission.mandate_id:
+        doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+    else:
+        doc_title = "Document"
 
     # Email notification
     if email and signing_url:
@@ -289,8 +297,13 @@ def _notify_staff(submission: ESigningSubmission, event_type: str, data: dict):
     if not creator or not creator.email:
         return
 
-    prop = submission.lease.unit.property
-    doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    if submission.lease_id:
+        prop = submission.lease.unit.property
+        doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    elif submission.mandate_id:
+        doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+    else:
+        doc_title = "Document"
 
     submitter = data.get('submitter') or data
     signer_name = submitter.get('name') or submitter.get('email', 'A signer')
@@ -360,8 +373,13 @@ def _email_signed_copy_to_signers(submission: ESigningSubmission, data: dict):
         )
         return
 
-    prop = submission.lease.unit.property
-    doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    if submission.lease_id:
+        prop = submission.lease.unit.property
+        doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+    elif submission.mandate_id:
+        doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+    else:
+        doc_title = "Document"
 
     for signer in submission.signers or []:
         email = (signer.get('email') or '').strip()

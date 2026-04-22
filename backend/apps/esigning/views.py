@@ -115,6 +115,26 @@ class ESigningSubmissionListCreateView(ScopedESigningQuerysetMixin, ListCreateAP
 
         lease = get_object_or_404(accessible_leases_queryset(request.user), pk=lease_id)
 
+        # ── RHA compliance gate ────────────────────────────────────────── #
+        # Refresh flags so we always check against current model state.
+        from apps.leases.rha_check import run_rha_checks
+        lease.rha_flags = run_rha_checks(lease)
+        lease.save(update_fields=["rha_flags"])
+
+        try:
+            lease.assert_rha_ready()
+        except ValueError as rha_exc:
+            blocking = lease.blocking_rha_flags()
+            return Response(
+                {
+                    "error": str(rha_exc),
+                    "rha_flags": blocking,
+                    "rha_override_required": True,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        # ── End RHA gate ───────────────────────────────────────────────── #
+
         # Use native signing by default
         try:
             obj = services.create_native_submission(lease, signers, signing_mode=signing_mode)
@@ -323,9 +343,7 @@ class ESigningDownloadSignedView(APIView):
     permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
-        qs = ESigningSubmission.objects.filter(
-            lease__in=accessible_leases_queryset(request.user)
-        )
+        qs = esigning_submissions_for_user(request.user)
         obj = get_object_or_404(qs, pk=pk)
 
         if obj.status != ESigningSubmission.Status.COMPLETED:
@@ -515,7 +533,12 @@ class ESigningPublicSignDetailView(APIView):
         if error:
             return error
 
-        lease_label = f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}"
+        if sub.lease_id:
+            doc_label = f"{sub.lease.unit.property.name} — Unit {sub.lease.unit.unit_number}"
+        elif sub.mandate_id:
+            doc_label = f"Rental Mandate — {sub.mandate.property.name}"
+        else:
+            doc_label = "Document"
 
         log_esigning_event(
             sub, "document_viewed", request=request,
@@ -526,7 +549,7 @@ class ESigningPublicSignDetailView(APIView):
 
         return Response({
             "signing_backend": "native",
-            "document_title": lease_label,
+            "document_title": doc_label,
             "signer_name": signer.get("name") or "",
             "signer_email": signer.get("email") or "",
             "signer_role": signer.get("role") or "",
@@ -661,7 +684,8 @@ class ESigningPublicSubmitSignatureView(APIView):
                 import hashlib as _hashlib
                 from django.core.files.base import ContentFile
                 pdf_bytes = services.generate_signed_pdf(sub)
-                filename = f"signed_lease_{sub.pk}.pdf"
+                doc_type = "mandate" if sub.mandate_id else "lease"
+                filename = f"signed_{doc_type}_{sub.pk}.pdf"
                 sub.signed_pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
                 sub.signed_pdf_hash = _hashlib.sha256(pdf_bytes).hexdigest()
                 sub.save(update_fields=["signed_pdf_file", "signed_pdf_hash", "updated_at"])
@@ -805,8 +829,13 @@ class ESigningCreatePublicLinkView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            prop = submission.lease.unit.property
-            doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+            if submission.lease_id:
+                prop = submission.lease.unit.property
+                doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+            elif submission.mandate_id:
+                doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+            else:
+                doc_title = "Document"
             name = (signer.get("name") or "").strip()
             salutation = f"Hello {name}," if name else "Hello,"
             exp = link.expires_at.strftime("%d %b %Y")
