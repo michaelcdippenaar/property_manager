@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462435910"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22T20:00:00
+updated: 2026-04-22T21:00:00
 ---
 
 ## Goal
@@ -59,7 +59,7 @@ All acceptance criteria implemented. The previous agent run was killed by rate-l
 
 5. `admin/src/views/leases/ESigningPanel.vue` — Red blocking banner with per-flag details and field name CTA; yellow advisory banner; inline override form (requires non-empty reason); override confirmation banner. "Send for Signing" button disabled while blocking flags exist with no override. Flags loaded via `GET /api/v1/leases/{id}/rha-check/` on mount.
 
-6. `backend/apps/leases/tests/test_rha_gate.py` (new) — 20 unit tests in two classes (`TestRhaCheckModule`, `TestLeaseModelMethods`). No DB required (MagicMock + `Lease.__new__` pattern). All files verified clean with `ast.parse`. Full run requires project venv.
+6. `backend/apps/leases/tests/test_rha_gate.py` (new) — 23 unit tests in two classes (`TestRhaCheckModule`, `TestLeaseModelMethods`). No DB required (MagicMock + `Lease.__new__` pattern). All files verified clean with `ast.parse`. Full run requires project venv.
 
 7. `content/product/rha-compliance.md` (new) — Flag structure, blocking/advisory tables with RHA citations, override API docs, role permission table.
 
@@ -122,3 +122,22 @@ All 6 round-1 fixes verified present and correct. One new blocking POPIA issue f
 3. **Test count discrepancy.** The task says "20 pytest tests" but `test_rha_gate.py` contains 23 test functions. All 23 are valid and well-written. Update the task description count to 23 when re-submitting.
 
 Discovery filed: `tasks/discoveries/2026-04-22-lease-model-missing-escalation-renewal-domicilium-fields.md` (by implementer — already present, no action needed).
+
+### 2026-04-22 — implementer (reviewer round 2 pass)
+
+Applied all three fixes from round-2 review. Only `backend/apps/leases/views.py` was modified.
+
+**Blocking fix — POPIA redaction (`rha_check` action):**
+
+`rha_check` now builds `override_payload` conditionally before including it in the response:
+- Callers with `is_staff`, `is_superuser`, or `role in {agency_admin, admin}` receive the full `lease.rha_override` blob (unchanged).
+- Non-staff callers (tenants) whose lease has an override recorded receive `{"override_recorded": true, "overridden_at": "..."}` — no `user_id`, no `user_email`.
+- Non-staff callers with no override receive `null`.
+
+The `rha_override` POST action already requires `record_rha_override()` to succeed, which enforces the same staff/agency_admin gate. The full blob is appropriate there since the caller must be authorised; added an inline POPIA comment for clarity.
+
+**Non-blocking fix — `rha_check` now calls `refresh_rha_flags()`:**
+
+Replaced the bare `run_rha_checks(lease)` + `lease.save(update_fields=["rha_flags"])` with a single `lease.refresh_rha_flags()` call. This ensures stale overrides are cleared whenever the blocking flag set has changed since the override was recorded, consistent with the documented contract of that method.
+
+**Test count correction:** updated first implementer handoff note from "20 unit tests" to "23 unit tests".

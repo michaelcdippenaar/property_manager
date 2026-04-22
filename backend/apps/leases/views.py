@@ -278,20 +278,38 @@ class LeaseViewSet(viewsets.ModelViewSet):
         Refresh RHA compliance flags for this lease and return the current flag
         list split into blocking and advisory categories.
         """
-        from apps.leases.rha_check import run_rha_checks, blocking_flags, advisory_flags
+        from apps.leases.rha_check import blocking_flags, advisory_flags
 
         lease = self.get_object()
-        flags = run_rha_checks(lease)
-        # Persist the refreshed flags without invalidating any existing override
-        # (advisory-only runs should not wipe an override).
-        lease.rha_flags = flags
-        lease.save(update_fields=["rha_flags"])
+        # Use refresh_rha_flags() so that any stale override is invalidated
+        # when the blocking flag set has changed since the override was recorded.
+        flags = lease.refresh_rha_flags()
+
+        # POPIA: rha_override stores the staff member's user_id and email.
+        # Only authorised internal users may see the full blob; tenants and
+        # other non-staff callers receive a redacted summary instead.
+        _allowed_roles = {"agency_admin", "admin"}
+        _caller_is_staff = (
+            request.user.is_staff
+            or request.user.is_superuser
+            or getattr(request.user, "role", None) in _allowed_roles
+        )
+        if _caller_is_staff:
+            override_payload = lease.rha_override
+        elif lease.rha_override:
+            override_payload = {
+                "override_recorded": True,
+                "overridden_at": lease.rha_override.get("overridden_at"),
+            }
+        else:
+            override_payload = None
+
         return Response({
             "lease_id": lease.pk,
             "flags": flags,
             "blocking": blocking_flags(flags),
             "advisory": advisory_flags(flags),
-            "override": lease.rha_override,
+            "override": override_payload,
         })
 
     @action(detail=True, methods=["post"], url_path="rha-override")
@@ -314,6 +332,10 @@ class LeaseViewSet(viewsets.ModelViewSet):
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+        # POPIA: the full override blob contains staff user_id and email.
+        # Return the complete blob here — this endpoint is already restricted
+        # to authorised staff/agency_admin callers (enforced by record_rha_override),
+        # so the caller is always permitted to see the full payload.
         return Response({
             "detail": "RHA override recorded.",
             "override": lease.rha_override,
