@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214202083740465"
 created: 2026-04-22
@@ -52,3 +52,21 @@ The three ad-hoc extractors were replaced: `_get_ip` static method removed from 
 11 unit tests added to `backend/utils/tests/test_http.py`; all pass (`pytest utils/tests/test_http.py -v`). Imports smoke-checked. The "correct IPs in staging" criterion requires human verification — tester should check consent + e-signing + auth audit rows in the admin after logging in with a known IP behind Caddy.
 
 Note: `NUM_PROXIES` defaults to `1` in `get_client_ip`, matching the production topology (single Caddy reverse-proxy). If settings.py does not define `NUM_PROXIES`, the default of `1` applies automatically — no settings change is required for the standard deployment. The task acceptance criteria mentions `SECURE_PROXY_SSL_HEADER`; our implementation uses `NUM_PROXIES` and `TRUSTED_PROXY_IPS` which are more explicit for this use case. `SECURE_PROXY_SSL_HEADER` is Django's HTTPS-detection setting and is orthogonal to IP extraction.
+
+**2026-04-22 — reviewer**
+
+Review passed. Checked all five automated acceptance criteria against the diff:
+
+1. `backend/utils/http.py` — `get_client_ip(request)` implemented correctly with `NUM_PROXIES` (default 1, matching Caddy topology) and optional `TRUSTED_PROXY_IPS` allowlist. The AC mentions `SECURE_PROXY_SSL_HEADER` but that is Django's HTTPS-detection setting; `NUM_PROXIES` is the correct mechanism for IP extraction. No issue.
+2. `legal/serializers.py` — `_get_ip` static method removed; `get_client_ip(request)` used in `update_or_create` defaults. Clean.
+3. `esigning/audit.py` — inline XFF block replaced. Clean.
+4. `accounts/audit.py` — inline XFF block replaced. Clean.
+5. Unit test `test_num_proxies_0_spoofed_xff_ignored` directly covers the spoofing criterion. 11 tests total covering NUM_PROXIES 0/1/2, TRUSTED_PROXY_IPS allow/reject, fallbacks, edge cases. Test location (`backend/utils/tests/`) follows existing `test_webhook_signature.py` convention.
+
+`or ""` usage in audit helpers is safe — `GenericIPAddressField(null=True, blank=True)` converts empty string to NULL internally.
+
+Security pass: no new endpoints; no PII logged; no raw SQL; no new auth paths. The utility is pure read-only logic.
+
+Discovery filed: `tasks/discoveries/2026-04-22-xff-residual-ad-hoc-extractors.md` — three out-of-scope ad-hoc XFF extractors remain in `accounts/views.py:55`, `accounts/serializers.py:106`, and `esigning/views.py:628`. These were not in scope but should be a follow-up task.
+
+Staging criterion (last AC) deferred to tester as expected.
