@@ -253,12 +253,14 @@ class PasswordResetRequestView(APIView):
         log_auth_event("password_reset_request", request=request, user=user, metadata={"email": email})
 
         try:
-            from apps.notifications.services import send_email
-            send_email(
-                subject="Reset your Klikk password",
-                body=f"Click here to reset your password:\n{reset_url}\n\nThis link expires in 24 hours.",
+            from apps.notifications.services.email import send_template_email
+            send_template_email(
+                "password_reset",
                 to_emails=email,
-                html_body=f'<p>Click the link below to reset your password:</p><p><a href="{reset_url}">Reset Password</a></p><p>This link expires in 24 hours.</p>',
+                context={
+                    "recipient_name": user.first_name or user.email.split("@")[0],
+                    "reset_url": reset_url,
+                },
             )
         except Exception:
             pass

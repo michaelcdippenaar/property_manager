@@ -1,0 +1,87 @@
+<mjml>
+  <mj-head>
+    <mj-font name="Bricolage Grotesque" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;700&display=swap" />
+    <mj-font name="DM Sans" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&display=swap" />
+    <mj-attributes>
+      <mj-all font-family="'DM Sans', Arial, sans-serif" />
+      <mj-text font-size="16px" line-height="1.6" color="#1a1a2e" />
+      <mj-button background-color="#FF3D7F" color="#ffffff" font-family="'DM Sans', Arial, sans-serif" font-size="16px" font-weight="600" border-radius="6px" inner-padding="14px 28px" />
+      <mj-section padding="0" />
+    </mj-attributes>
+    <mj-style inline="inline">
+      .klikk-heading { font-family: 'Bricolage Grotesque', Georgia, serif; color: #2B2D6E; }
+      .klikk-subtext { color: #555577; font-size: 14px; }
+      a { color: #FF3D7F; }
+    </mj-style>
+  </mj-head>
+  <mj-body background-color="#f4f4f8">
+
+    <!-- Header banner -->
+    <mj-section background-color="#2B2D6E" padding="24px 32px">
+      <mj-column>
+        <mj-text align="left" font-family="'Bricolage Grotesque', Georgia, serif" font-size="22px" font-weight="700" color="#ffffff">
+          Klikk
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Content card -->
+    <mj-section background-color="#ffffff" padding="40px 32px 32px">
+      <mj-column>
+        <!-- BLOCK: heading -->
+        <mj-text css-class="klikk-heading" font-family="'Bricolage Grotesque', Georgia, serif" font-size="26px" font-weight="700" color="#2B2D6E" padding-bottom="8px">
+          {{ heading }}
+        </mj-text>
+
+        <!-- BLOCK: greeting -->
+        <mj-text padding-top="0">
+          Hi {{ recipient_name }},
+        </mj-text>
+
+        <!-- BLOCK: body -->
+        <mj-text>
+          {{ body_text }}
+        </mj-text>
+
+        <!-- BLOCK: optional CTA button -->
+        {% if cta_url %}
+        <mj-button href="{{ cta_url }}" align="left">
+          {{ cta_label }}
+        </mj-button>
+        {% endif %}
+
+        <!-- BLOCK: optional secondary note -->
+        {% if note %}
+        <mj-text css-class="klikk-subtext" padding-top="20px">
+          {{ note }}
+        </mj-text>
+        {% endif %}
+      </mj-column>
+    </mj-section>
+
+    <!-- Divider -->
+    <mj-section background-color="#ffffff" padding="0 32px">
+      <mj-column>
+        <mj-divider border-color="#e0e0f0" border-width="1px" />
+      </mj-column>
+    </mj-section>
+
+    <!-- Footer -->
+    <mj-section background-color="#ffffff" padding="20px 32px 32px">
+      <mj-column>
+        <mj-text css-class="klikk-subtext" font-size="12px" color="#888899" line-height="1.8">
+          You are receiving this email because you are registered on the Klikk property management platform.<br />
+          {% if unsubscribe_url %}<a href="{{ unsubscribe_url }}" style="color:#888899;">Unsubscribe</a> &nbsp;|&nbsp; {% endif %}
+          <a href="https://klikk.co.za/privacy" style="color:#888899;">Privacy Policy</a> &nbsp;|&nbsp;
+          <a href="https://klikk.co.za/terms" style="color:#888899;">Terms of Service</a>
+        </mj-text>
+        <mj-text css-class="klikk-subtext" font-size="11px" color="#aaaabc" padding-top="8px">
+          POPIA Information Officer: privacy@klikk.co.za &nbsp;|&nbsp;
+          Klikk (Pty) Ltd, South Africa<br />
+          &copy; {{ current_year }} Klikk. All rights reserved.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>
