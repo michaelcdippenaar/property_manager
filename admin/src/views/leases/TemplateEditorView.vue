@@ -2719,7 +2719,8 @@ async function activateTemplate() {
   }
 }
 
-function showToast(msg: string) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function showToast(msg: string, _type?: string) {
   fieldNotice.value = msg
   setTimeout(() => { fieldNotice.value = '' }, 2500)
 }

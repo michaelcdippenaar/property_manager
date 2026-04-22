@@ -56,4 +56,8 @@ export interface Lease {
   landlord_info: { id: number; name: string } | null
   ai_parse_result: Record<string, unknown> | null
   created_at: string
+  /** Fields returned by the import endpoint only. */
+  primary_tenant_id?: number
+  co_tenant_person_ids?: number[]
+  guarantor_person_ids?: number[]
 }

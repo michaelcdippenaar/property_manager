@@ -67,4 +67,11 @@ export interface Property {
   /** Used when the property has no units (single-unit fallback) */
   property_active_lease_info: ActiveLeaseInfo | null
   created_at: string
+  /** Agent assignment records returned by the property list endpoint. */
+  assigned_agents?: Array<{
+    id: number
+    agent_id: number
+    name: string
+    assignment_type: string
+  }>
 }

@@ -45,11 +45,12 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         output: {
           manualChunks: {
-            // TipTap editor suite is large — isolate in its own chunk loaded lazily
+            // TipTap editor suite is large — isolate in its own chunk loaded lazily.
+            // Note: @tiptap/pm has only subpath exports (no root entry), so it is
+            // excluded here — its subpaths are bundled transitively via starter-kit.
             'vendor-tiptap': [
               '@tiptap/vue-3',
               '@tiptap/starter-kit',
-              '@tiptap/pm',
             ],
             // PDF rendering (pdfjs) is only used on signing / lease pages
             'vendor-pdfjs': ['pdfjs-dist'],

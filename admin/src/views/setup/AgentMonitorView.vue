@@ -1040,8 +1040,8 @@ function formatTokens(n: number | undefined): string {
   return String(n)
 }
 
-function formatKey(key: string): string {
-  return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+function formatKey(key: string | number): string {
+  return String(key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function formatDate(iso: string): string {

@@ -801,7 +801,7 @@ const entityLabel = computed(() => {
   return 'individual'
 })
 
-const tabs = [
+const tabs: Array<{ key: TabKey; label: string; icon: any }> = [
   { key: 'details', label: 'Details', icon: FileText },
   { key: 'bank', label: 'Bank Accounts', icon: Landmark },
   { key: 'documents', label: 'Documents', icon: FileUp },

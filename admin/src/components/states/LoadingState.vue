@@ -70,7 +70,7 @@ import { computed } from 'vue'
 
 const props = withDefaults(defineProps<{
   /** Skeleton layout variant */
-  variant?: 'table' | 'cards' | 'detail'
+  variant?: 'table' | 'cards' | 'detail' | 'form'
   /** Number of skeleton rows / cards to render */
   rows?: number
   /** Show circular avatar placeholder in table rows */

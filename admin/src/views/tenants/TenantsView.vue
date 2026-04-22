@@ -107,7 +107,7 @@ const isOffline = ref(false)
 const search = ref('')
 const activeTab = ref<'all' | 'active' | 'inactive'>('all')
 
-const tabs = [
+const tabs: Array<{ key: 'all' | 'active' | 'inactive'; label: string }> = [
   { key: 'all',      label: 'All' },
   { key: 'active',   label: 'Active' },
   { key: 'inactive', label: 'Inactive' },

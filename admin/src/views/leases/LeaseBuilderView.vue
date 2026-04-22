@@ -696,6 +696,8 @@ interface LandlordInfo {
   name: string; email: string; phone: string; id_number: string; address: string
   landlord_name: string
   bank_account: { bank_name: string; account_holder: string; account_number: string; branch_code: string; account_type: string } | null
+  /** Raw backend landlord object — present when resolved from the landlords store. */
+  raw?: Record<string, any>
 }
 const landlordsStore = useLandlordsStore()
 const allLandlords = computed(() => landlordsStore.list)
@@ -904,7 +906,7 @@ const { editor: previewEditor } = useTiptapEditor({
 
 // Provide merge field values to TipTap node views (MergeFieldComponent reads via inject)
 const mergeFieldPreviewValues = computed(() => {
-  const vals = buildDocxContext() as Record<string, string>
+  const vals = buildDocxContext() as unknown as Record<string, string>
   // Filter out placeholder dashes so the component shows the chip instead
   const clean: Record<string, string> = {}
   for (const [k, v] of Object.entries(vals)) {

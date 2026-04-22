@@ -75,7 +75,7 @@
         <tbody>
           <template v-for="p in filteredProperties" :key="p.id">
             <tr
-              v-for="u in (p.units?.length ? p.units : [{ id: 0, unit_number: '—', status: p.property_active_lease_info ? 'occupied' : 'available', active_lease_info: p.property_active_lease_info ?? null }])"
+              v-for="u in (p.units?.length ? p.units : [{ id: 0, unit_number: '—', status: p.property_active_lease_info ? 'occupied' : 'available', active_lease_info: p.property_active_lease_info ?? null, open_maintenance_count: 0 }])"
               :key="`${p.id}-${u.id}`"
               class="cursor-pointer hover:bg-gray-50"
               @click="router.push(`/properties/${p.id}`)"

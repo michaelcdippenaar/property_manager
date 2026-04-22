@@ -420,8 +420,8 @@ function daysOpen(iso: string) {
 }
 
 /** "test_merge_fields" → "Merge Fields" */
-function formatSection(key: string) {
-  return key
+function formatSection(key: string | number) {
+  return String(key)
     .replace(/^test_/, '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase())

@@ -26,6 +26,8 @@ export function useToast() {
   return {
     toasts,
     show,
+    /** Alias for `show` — used by older call-sites. */
+    showToast: show,
     dismiss,
     success: (msg: string) => show(msg, 'success'),
     error: (msg: string) => show(msg, 'error', 5000),

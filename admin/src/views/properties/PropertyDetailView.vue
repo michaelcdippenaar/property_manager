@@ -1996,7 +1996,7 @@ async function saveUnitSpecs() {
   if (!activeUnit.value || !unitSpecsDirty.value) return
   savingUnitSpecs.value = true
   try {
-    await propertiesStore.updateUnit(activeUnit.value, unitSpecsForm.value)
+    await propertiesStore.updateUnit(activeUnit.value, property.value!.id, unitSpecsForm.value)
     unitSpecsSnapshot.value = JSON.stringify(unitSpecsForm.value)
     unitSpecsSaved.value = true
     clearTimeout(unitSpecsSavedTimer)
@@ -2287,13 +2287,6 @@ watch(activeSection, (sec) => {
   }
   if (sec === 'inventory' && !inventoryTemplates.value.length) {
     loadInventoryTemplates()
-  }
-  if (sec === 'suppliers' && !loadingSuppliers.value) {
-    loadSuppliers()
-  }
-  if (sec === 'agents' && !loadingAgentAssignments.value) {
-    loadAgentAssignments()
-    if (!availableAgents.value.length) loadAvailableAgents()
   }
   if (sec === 'tenants' && !loadingTenants.value) {
     loadTenantAssignments()

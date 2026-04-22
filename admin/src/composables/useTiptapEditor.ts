@@ -6,7 +6,8 @@
  *   const { editor } = useTiptapEditor({ content: '<p>Hello</p>' })
  */
 import { ref, watch, type Ref } from 'vue'
-import { useEditor, type Editor } from '@tiptap/vue-3'
+import { useEditor } from '@tiptap/vue-3'
+import type { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'

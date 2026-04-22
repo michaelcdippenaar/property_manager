@@ -832,7 +832,7 @@ async function createLease() {
       person_type: 'individual',
       full_name: primaryTenantName.value,
     })
-    await leasesStore.create({ ...newLease.value, primary_tenant: person.id })
+    await leasesStore.create({ ...newLease.value, unit: Number(newLease.value.unit), primary_tenant: person.id })
     createDialog.value = false
     toast.success('Lease created successfully')
     await loadLeases()
