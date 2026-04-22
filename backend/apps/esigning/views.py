@@ -331,9 +331,9 @@ class ESigningTestPdfView(APIView):
     """
     GET /api/v1/esigning/submissions/<pk>/test-pdf/
     Regenerates the signed PDF on the fly (no caching) and returns it directly.
-    No auth required — dev/testing only.
+    Staff/agent debugging tool — requires authentication.
     """
-    permission_classes = [AllowAny]
+    permission_classes = [IsAgentOrAdmin]
 
     def get(self, request, pk):
         from django.http import HttpResponse

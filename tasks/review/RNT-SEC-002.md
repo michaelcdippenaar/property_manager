@@ -7,12 +7,12 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462221163"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
@@ -98,3 +98,11 @@ Fix options (choose one):
 **Non-blocking observation (no fix required now):**
 
 `ESigningPublicDraftView` (line 847) and `ESigningPublicDocumentsView` (line 909) are missing `authentication_classes = []` — the three other public signing views have it. This is a pre-existing inconsistency, not introduced by this diff. Logging as discovery `tasks/discoveries/2026-04-22-esigning-public-views-missing-auth-classes.md` for the PM to schedule.
+
+### 2026-04-23 — implementer (blocking fixes applied)
+
+**Fix 1 — `DEFAULT_THROTTLE_CLASSES` removed.**
+Removed the four-line `DEFAULT_THROTTLE_CLASSES` block from `backend/config/settings/base.py`. `AnonRateThrottle` and `UserRateThrottle` require `"anon"` and `"user"` scopes in `DEFAULT_THROTTLE_RATES` which were never defined; keeping the block would have raised `ImproperlyConfigured` on every request to any unoverridden view. All rate-limit enforcement is already applied via explicit `throttle_classes` on individual views — no global default is needed.
+
+**Fix 2 — `ESigningTestPdfView` locked to `IsAgentOrAdmin`.**
+Changed `permission_classes = [AllowAny]` to `permission_classes = [IsAgentOrAdmin]` on `ESigningTestPdfView` (`backend/apps/esigning/views.py:336`). `IsAgentOrAdmin` was already imported. The docstring was updated to reflect the access change. This closes the IDOR risk and the missing-throttle gap on the `/test-pdf/` endpoint since the view is now an authenticated staff-only tool.
