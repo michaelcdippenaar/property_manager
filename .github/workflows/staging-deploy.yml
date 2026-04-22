@@ -93,18 +93,39 @@ jobs:
           cache-to: type=gha,mode=max
 
   deploy:
+    # ── Required GitHub secrets for this job ─────────────────────────────────
+    # STAGING_HOST       IP or hostname of the staging server
+    #                    Set to: 102.135.240.222  (klikk.co.za)
+    # STAGING_SSH_USER   OS user on the staging server  (e.g. mc)
+    # STAGING_SSH_KEY    Private key counterpart to a deploy key added to the
+    #                    server's ~/.ssh/authorized_keys  (Ed25519 recommended)
+    #                    Generate: ssh-keygen -t ed25519 -C "github-actions-staging"
+    # STAGING_DOMAIN     Public domain used for the health-check smoke test
+    #                    Set to: backend.klikk.co.za
+    # GHCR_PAT           GitHub PAT with read:packages scope (for docker pull on server)
+    # ─────────────────────────────────────────────────────────────────────────
     name: Deploy to staging server
     runs-on: ubuntu-latest
     needs: build-and-push
     environment: staging
 
     steps:
+      - name: Add staging host to known_hosts
+        # Runs ssh-keyscan against the server and caches the host key.
+        # This step completing without timeout confirms public reachability.
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ secrets.STAGING_HOST }}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_SSH_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          # known_hosts was pre-populated by ssh-keyscan above
           envs: IMAGE_TAG,GHCR_OWNER,GHCR_PAT
           script: |
             set -e

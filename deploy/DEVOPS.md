@@ -11,12 +11,12 @@
 | Environment | Machine | IP | Compose file | Django settings |
 |-------------|---------|-------|--------------|-----------------|
 | **development** | Local Mac | — | `docker-compose.yml` | `config.settings.local` |
-| **staging** | Ubuntu home-server | `192.168.1.235` | `deploy/docker-compose.staging.yml` | `config.settings.staging` |
+| **staging** | Ubuntu home-server | `102.135.240.222` (klikk.co.za) | `deploy/docker-compose.staging.yml` | `config.settings.staging` |
 | **production** | ISP-hosted VM | TBD | `deploy/docker-compose.prod.yml` | `config.settings.production` |
 
 SSH into staging:
 ```bash
-ssh mc@192.168.1.235    # password: pass
+ssh mc@102.135.240.222    # password: pass
 cd ~/apps/property_manager
 ```
 
@@ -136,7 +136,7 @@ EMAIL_HOST_PASSWORD=<gmail app password>
 
 ```bash
 # 1. SSH in
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 cd ~/apps/property_manager
 
 # 2. Create the secrets file (get values from Bitwarden → "Klikk → Staging secrets")
@@ -152,7 +152,7 @@ Use this when rotating an API key, changing a password, or adding a new secret v
 
 ```bash
 # Step 1 — SSH in
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 cd ~/apps/property_manager
 
 # Step 2 — Edit the secrets file
@@ -187,6 +187,44 @@ docker compose -f deploy/docker-compose.staging.yml exec backend env | grep ANTH
 
 - Staging → Secure note: `Klikk → Staging secrets`
 - Production → Secure note: `Klikk → Production secrets`
+
+---
+
+## 5a. GitHub Actions Secrets (staging deploy)
+
+The `staging-deploy.yml` workflow requires these secrets set in
+**GitHub → repo → Settings → Secrets and variables → Actions**:
+
+| Secret | Value | Notes |
+|--------|-------|-------|
+| `STAGING_HOST` | `102.135.240.222` | Public IP of the staging server (`klikk.co.za`) |
+| `STAGING_SSH_USER` | `mc` | OS user on the staging server |
+| `STAGING_SSH_KEY` | (private key content) | Ed25519 deploy key — see below |
+| `STAGING_DOMAIN` | `backend.klikk.co.za` | Used for post-deploy health-check smoke test |
+| `GHCR_PAT` | (GitHub PAT) | PAT with `read:packages` scope — for `docker pull` on server |
+
+### Generate and install the deploy key
+
+```bash
+# 1. Generate a dedicated Ed25519 key (no passphrase — it will live in GitHub Secrets)
+ssh-keygen -t ed25519 -C "github-actions-staging" -N "" -f ~/.ssh/klikk_staging_deploy
+
+# 2. Copy the public key to the server
+ssh-copy-id -i ~/.ssh/klikk_staging_deploy.pub mc@102.135.240.222
+# Or manually: cat ~/.ssh/klikk_staging_deploy.pub  — then append to server's ~/.ssh/authorized_keys
+
+# 3. Add the private key to GitHub Secrets
+#    cat ~/.ssh/klikk_staging_deploy | pbcopy
+#    GitHub → Settings → Secrets → STAGING_SSH_KEY → paste
+
+# 4. Delete the local key pair (it now lives on GitHub and the server only)
+rm ~/.ssh/klikk_staging_deploy ~/.ssh/klikk_staging_deploy.pub
+```
+
+> **Security note:** The deploy key is only used by GitHub Actions. SSH port (22)
+> on the staging server is open to the internet. If you want to further restrict access,
+> add `from="X.X.X.X"` restrictions in `authorized_keys` for the GitHub Actions IP ranges,
+> or use `iptables`/`ufw` to whitelist GitHub's IP ranges only for port 22.
 
 ---
 
@@ -234,7 +272,7 @@ docker compose -f deploy/docker-compose.staging.yml exec backend env | grep ANTH
 ### SSH into the server and go to the repo
 
 ```bash
-ssh mc@192.168.1.235       # password: pass
+ssh mc@102.135.240.222       # password: pass
 cd ~/apps/property_manager  # ALWAYS run git and make from here
 ```
 
@@ -281,7 +319,7 @@ git stash drop             # discard it (it was not supposed to be there)
 ### The full deploy loop
 
 ```
-Mac                          GitHub                  Server (192.168.1.235)
+Mac                          GitHub                  Server (102.135.240.222)
 ───                          ──────                  ──────────────────────
 1. Edit code
 2. git add <files>
@@ -461,7 +499,7 @@ Run these steps in order, top to bottom. Do not skip.
 
 ```bash
 # Step 1 — SSH into the server
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 
 # Step 2 — Clone the repo
 git clone git@github.com:michaelcdippenaar/property_manager.git ~/apps/property_manager
@@ -504,7 +542,7 @@ Run these steps after pushing new code to GitHub.
 
 ```bash
 # Step 1 — SSH in and go to the repo
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 cd ~/apps/property_manager
 
 # Step 2 — Check what is incoming
@@ -705,7 +743,7 @@ goes to `backend:8000` as before.
 ### First-time deploy (after pulling the volt code for the first time)
 
 ```bash
-ssh mc@192.168.1.235
+ssh mc@102.135.240.222
 cd ~/apps/property_manager
 
 # 1. Pull
