@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: blocked
+assigned_to: null
 depends_on: []
 asana_gid: "1214181228024983"
 created: 2026-04-22
@@ -61,3 +61,15 @@ Fix the `.gitleaks.toml` path allowlist so that unanchored regexes no longer sup
 2026-04-22 — implementer (resubmit): Confirmed `.gitleaks.toml` lines 88–94 contain all three `$`-anchored entries (`backend/\.env$`, `backend/\.env\.secrets$`, `admin/\.env$`). No code change was needed. This commit contains only the task file rename — no other files staged. The mixed-commit issue raised by the reviewer was caused by RNT-SEC-007 work being bundled in a prior commit; that work is tracked independently and is not part of this handoff.
 
 2026-04-22 — reviewer: Review passed (second pass). Commit `9ba825e` is clean — only the task file status/assignee fields updated; no code changes staged. `.gitleaks.toml` lines 88–94 confirmed: all three path allowlist entries carry a `$` end-anchor (`backend/\.env$`, `backend/\.env\.secrets$`, `admin/\.env$`). The anchors satisfy every acceptance criterion: committed variant files (`.env.development`, `.env.staging`, `.env.production`) are not covered by any allowlist entry and will be scanned normally. POPIA pass: no secrets, no PII, no new endpoints. The mixed-commit concern from the first round is resolved — this resubmit is scope-clean. Manual smoke-test (inject fake secret into `backend/.env.development`, verify gitleaks reports it) delegated to tester per the test plan.
+
+2026-04-22 — tester: Test run BLOCKED.
+
+**Test 1 (inject fake secret into `backend/.env.development`, run `gitleaks detect --source . --no-git`, must report finding): FAIL**
+
+Injected `FAKE_AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY` into `backend/.env.development`. Ran `gitleaks detect --source . --no-git`. Output: "no leaks found" (exit 0). Secret was NOT reported.
+
+Root cause identified via `--log-level debug`: gitleaks never enumerates `backend/.env.development` at all — it is completely absent from both "scanned" and "skipped" output. Investigation confirmed `backend/.env.development` is a git-tracked file (`git ls-files` returns it). The `--no-git` flag in gitleaks only scans the untracked/gitignored working tree; it does NOT scan committed, tracked files. The test plan's prescribed command is therefore incapable of detecting secrets in committed `.env.*` variant files — by design of gitleaks itself. The acceptance criterion "gitleaks scans them normally" cannot be verified with `--no-git`.
+
+**Test 2 (remove fake secret, re-run `--no-git`, must exit 0): PASS** — exits 0 on clean checkout.
+
+**Blocking issue for implementer/PM:** The test plan must be corrected. To verify that a committed file like `backend/.env.development` is scanned, the correct command is `gitleaks detect --source .` (git mode, no `--no-git` flag), which scans git history and HEAD. The `--no-git` command was carried forward from the RNT-SEC-011 smoke-test context where it was used to scan gitignored on-disk files; it is the wrong tool for verifying committed-file coverage. The implementer should update the test plan to use git-mode detection, or provide a separate check (e.g., create a test commit with a fake secret in `.env.development`, run `gitleaks detect --source .`, verify it fires, then revert). Fake secret has been removed from `backend/.env.development` as part of test cleanup.
