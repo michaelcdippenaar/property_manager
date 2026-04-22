@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200629245786"
 created: 2026-04-22
@@ -127,3 +127,12 @@ Scoping strictly to the declared build-fix files. All four acceptance criteria v
 Payments concern from prior review: RNT-QUAL-004 was independently reviewed (security IDOR fixed: `IsAgentOrAdmin` on all viewsets), approved (`c6cd0bc`), and is done (`7ed7d5a`). Security discovery `2026-04-22-payments-api-missing-role-scoping.md` was filed and addressed. No outstanding security concern attributable to this task's declared scope.
 
 No security issues in declared `admin/` build-fix files. No new endpoints. No PII logged. No raw SQL. All changes are TypeScript type fixes and build configuration.
+
+
+### 2026-04-22 — tester
+
+**Test run — all pass**
+
+- `npx vue-tsc --noEmit`: EXIT 0, zero errors. PASS
+- `npm run build` (`vue-tsc && vite build`): EXIT 0, 2299 modules transformed, built in 10.30s. PASS
+- Sourcemaps present: 156 `.map` files in `dist/assets/`. CI `admin-sourcemap-check` satisfied. PASS
