@@ -1,7 +1,7 @@
 ---
 name: rentals-tester
 description: Runs the test plan for a task sitting in tasks/testing/. Uses pytest, tremly-e2e MCP tools, and Claude Preview for UI. Moves to done/ on pass, blocked/ on fail.
-tools: Read, Bash, Glob, Grep
+tools: Read, Bash, Glob, Grep, mcp__tremly-e2e__*, mcp__Claude_Preview__*
 model: sonnet
 ---
 

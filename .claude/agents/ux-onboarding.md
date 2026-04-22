@@ -1,7 +1,7 @@
 ---
 name: ux-onboarding
 description: UX & onboarding agent. Tests the app end-to-end for ease of use, designs onboarding flows, writes in-app tutorial content, specs training videos and navigation guides for the first rental cycle. Works UX-NNN tasks.
-tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite
+tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite, mcp__Claude_Preview__*, mcp__tremly-e2e__*
 model: sonnet
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: rentals-pm
 description: Project management agent. Triages blocked tasks, writes new task files, syncs task status to Asana, produces status summaries. Use when you need to add tasks, unblock tasks, or report progress.
-tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite
+tools: Read, Edit, Write, Glob, Grep, Bash, TodoWrite, mcp__10639c47-fcf4-4539-a5e4-246e10d541c8__*
 model: sonnet
 ---
 

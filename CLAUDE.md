@@ -57,6 +57,9 @@ The bidirectional bridge between development and marketing. Read `content/README
 | `klikk-leases-tiptap-editor` | TipTap rich text editor for lease templates |
 | `klikk-leases-pdf-export` | HTML-to-PDF pipeline, merge fields, signed PDF generation |
 | `klikk-platform-gotenberg` | Gotenberg Docker PDF service, HTML/Office→PDF, merge/split/encrypt |
+| `klikk-rentals-autopilot` | Drive the v1 task queue autonomously — "work the backlog" / "run the pipeline" |
+| `klikk-ops-deployment` | Production deploy, Caddy, DNS/TLS, Django hosts/CSRF/CORS, SES email, CDN, backups |
+| `klikk-ops-observability` | Sentry (Django+Vue+Capacitor), UptimeRobot, Plausible self-hosted, status page |
 | `klikk-leases-format-template` | Format/restructure lease template HTML |
 | `klikk-leases-parse-contract` | Parse PDF/DOCX lease into template with merge fields |
 | `klikk-leases-test-battery` | Run full lease + e-signing integration test battery |
