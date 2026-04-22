@@ -7,9 +7,9 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462221163"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -67,3 +67,34 @@ dependency needed; DRF throttles already in the project).
 **Discovery:** Pre-existing conflicting migrations in `properties` app block DB tests. Logged at `tasks/discoveries/2026-04-22-properties-migration-conflict.md`. The 2 DB-integration rate-limit tests (`test_429_after_threshold_exceeded`, `test_different_ips_not_throttled_together`) cannot run until that migration conflict is resolved.
 
 **Caveat for production:** DRF throttles use locmem cache by default. Redis must be configured as the `default` cache backend for limits to hold across multiple Gunicorn workers. See `docs/ops/rate-limits.md` for the config snippet.
+
+### 2026-04-22 — reviewer: changes requested
+
+Two blocking issues must be fixed before this can move to testing.
+
+**BLOCKING — Fix 1: `DEFAULT_THROTTLE_CLASSES` missing `anon` and `user` scopes causes `ImproperlyConfigured` globally.**
+
+`backend/config/settings/base.py` lines 159–162 add:
+
+```python
+"DEFAULT_THROTTLE_CLASSES": [
+    "rest_framework.throttling.AnonRateThrottle",
+    "rest_framework.throttling.UserRateThrottle",
+],
+```
+
+`AnonRateThrottle` uses scope `"anon"` and `UserRateThrottle` uses scope `"user"`. Neither is defined in `DEFAULT_THROTTLE_RATES`. DRF's `SimpleRateThrottle.get_rate()` raises `ImproperlyConfigured("No default throttle rate set for 'anon' scope")` if the key is absent (confirmed in `.venv/lib/python3.13/site-packages/rest_framework/throttling.py`). This means every request to any view that does not explicitly override `throttle_classes` will 500 in production. That includes all authenticated views across the entire API.
+
+Fix options (choose one):
+- Option A (preferred): Remove `DEFAULT_THROTTLE_CLASSES` from `base.py` entirely. The per-view `throttle_classes` declarations already apply correctly. There is no need for a global default that covers authenticated views.
+- Option B: Keep `DEFAULT_THROTTLE_CLASSES` and add `"anon": "100/min"` and `"user": "1000/min"` (or similar generous limits) to `DEFAULT_THROTTLE_RATES` so DRF doesn't blow up. Also update `local.py`'s test override block to include the new scopes.
+
+**BLOCKING — Fix 2: `ESigningTestPdfView` is a routed, unthrottled `AllowAny` endpoint.**
+
+`backend/apps/esigning/views.py:330–344`, routed at `backend/apps/esigning/urls.py:35` as `GET /api/v1/esigning/submissions/<pk>/test-pdf/`. The view has `permission_classes = [AllowAny]`, no `authentication_classes = []`, and no `throttle_classes`. It generates a signed PDF for any submission PK without authentication — this is an IDOR risk as well as a throttle gap. This endpoint must be addressed in this task since the AC requires all public e-signing endpoints to be rate-limited. Options:
+- Add `IsAuthenticated` or `IsAgentOrAdmin` (since it's labeled dev/testing only, authenticated staff access is appropriate).
+- Or add `throttle_classes = PUBLIC_SIGN_THROTTLES` if it must remain public, and document the rationale.
+
+**Non-blocking observation (no fix required now):**
+
+`ESigningPublicDraftView` (line 847) and `ESigningPublicDocumentsView` (line 909) are missing `authentication_classes = []` — the three other public signing views have it. This is a pre-existing inconsistency, not introduced by this diff. Logging as discovery `tasks/discoveries/2026-04-22-esigning-public-views-missing-auth-classes.md` for the PM to schedule.
