@@ -141,6 +141,55 @@ jobs:
       - name: TypeScript check
         run: npx vue-tsc --noEmit
 
+  # ── Admin SPA: sourcemap-hidden build check (OPS-010) ────────────────────────
+  admin-sourcemap-check:
+    name: Admin SPA — sourcemap:hidden build check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: admin
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Vite production build
+        # Skip tsc (vue-tsc has pre-existing errors); vite build alone is what Docker CI does
+        run: npx vite build
+        env:
+          # No SENTRY_AUTH_TOKEN → sentryPlugins array stays empty → no upload attempt
+          VITE_SENTRY_DSN: ""
+          VITE_APP_RELEASE: "ci-check"
+
+      - name: Assert no sourceMappingURL in JS bundles
+        # 'hidden' mode strips the comment; grep must find ZERO matches
+        run: |
+          if grep -rl "sourceMappingURL" dist/assets/*.js 2>/dev/null | grep -q .; then
+            echo "FAIL: sourceMappingURL found in built JS — 'hidden' mode is not active"
+            grep -rl "sourceMappingURL" dist/assets/*.js
+            exit 1
+          fi
+          echo "PASS: no sourceMappingURL comments in JS bundles"
+
+      - name: Assert .map files exist (Sentry upload artefacts)
+        run: |
+          mapcount=$(find dist/assets -name "*.map" | wc -l)
+          if [ "$mapcount" -eq 0 ]; then
+            echo "FAIL: no .map files found in dist/assets — Sentry would have nothing to upload"
+            exit 1
+          fi
+          echo "PASS: $mapcount .map file(s) present in dist/assets"
+
   # ── Flutter mobile: analyze ───────────────────────────────────────────────────
   flutter:
     name: Flutter (analyze)
