@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177462435910"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22T22:00:00
+updated: 2026-04-22T21:05:00
 ---
 
 ## Goal
@@ -165,3 +165,24 @@ Verified: `record_rha_override()` raises `PermissionError` before writing if cal
 **No regressions introduced.** No other files touched.
 
 All acceptance criteria verified across the three review rounds. Passing to testing.
+
+### 2026-04-22 — tester
+
+**Test run: all checks pass.**
+
+**Automated (23 pytest tests):**
+- `pytest apps/leases/tests/test_rha_gate.py -v` — 23 passed, 0 failed, 1 warning (unrelated). Runtime 6.23s.
+
+**Manual — backend API flow (substituted for UI; frontend ESigningPanel.vue verified in code review):**
+
+1. **Blocking gate fires correctly.** Set lease 114 deposit to R30,000 (3x rent of R10,000, exceeding the 2x cap). POST to `/api/v1/esigning/submissions/` with `{lease_id: 114, signers: [...]}` returned HTTP 422 with `rha_override_required: true` and `rha_flags: [{code: "DEPOSIT_EXCEEDS_2X_RENT", severity: "blocking", ...}]`. PASS.
+
+2. **Override is audited.** POST to `/api/v1/leases/114/rha-override/` with a non-empty reason returned HTTP 200 with full override blob: `user_id`, `user_email`, `reason`, `overridden_at`, and `flags_at_override`. Staff user `mc@tremly.com` (is_staff=True) successfully recorded the override. PASS.
+
+3. **POPIA redaction verified in code.** `views.py` lines 291-305 build `override_payload` conditionally: staff/superuser/agency_admin/admin get the full blob; non-staff callers with override get `{override_recorded: true, overridden_at: ...}`; non-staff with no override get `null`. Staff caller GET to `/api/v1/leases/114/rha-check/` confirmed full blob returned including `user_email`. PASS.
+
+4. **Advisory flags only (no block) when lease is compliant.** After restoring deposit to R10,000 (1x rent), rha-check returned 0 blocking flags, 3 advisory flags (interest-bearing reminder, missing inspection events). PASS.
+
+5. **`refresh_rha_flags()` called from GET rha-check.** Verified in `views.py` line 286 — `lease.refresh_rha_flags()` is called (not bare `run_rha_checks`), ensuring stale override invalidation. PASS.
+
+Lease 114 restored to original state after testing.
