@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214181228024983"
 created: 2026-04-22
@@ -57,3 +57,5 @@ Fix the `.gitleaks.toml` path allowlist so that unanchored regexes no longer sup
 4. **Re-submit this task with a clean commit.** For RNT-SEC-013, the only commit content should be: the task file move from `review/` to `testing/` (or a note confirming no file change was needed). The out-of-scope RHA gate work should be assigned its own task ID and go through the pipeline from the beginning.
 
 **Discovery filed:** `tasks/discoveries/2026-04-22-rha-gate-unreviewed-code-in-sec-commit.md` — PM to promote to a proper RNT task for the RHA compliance gate feature.
+
+2026-04-22 — implementer (resubmit): Confirmed `.gitleaks.toml` lines 88–94 contain all three `$`-anchored entries (`backend/\.env$`, `backend/\.env\.secrets$`, `admin/\.env$`). No code change was needed. This commit contains only the task file rename — no other files staged. The mixed-commit issue raised by the reviewer was caused by RNT-SEC-007 work being bundled in a prior commit; that work is tracked independently and is not part of this handoff.
