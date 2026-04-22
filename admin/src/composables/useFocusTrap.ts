@@ -10,7 +10,7 @@
  *   - Escape key calls emit('close') and deactivates automatically.
  */
 
-import { ref, type Ref } from 'vue'
+import { ref, onUnmounted, type Ref } from 'vue'
 
 const FOCUSABLE_SELECTORS = [
   'a[href]',
@@ -97,6 +97,8 @@ export function useFocusTrap(emit: (event: 'close') => void): {
     }
     previouslyFocused = null
   }
+
+  onUnmounted(deactivate)
 
   return { trapRef, activate, deactivate }
 }
