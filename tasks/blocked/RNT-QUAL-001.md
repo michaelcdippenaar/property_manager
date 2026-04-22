@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177379561081"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r3
+updated: 2026-04-22-r4
 ---
 
 ## Goal
@@ -148,3 +148,47 @@ Smoke-check: `from apps.tenant.views import TenantOnboardingViewSet` imports cle
 3. **Tenant role check** — upgraded from bare string `"tenant"` to `User.Role.TENANT` constant, consistent with the owner constant added in the same fix.
 
 No regressions identified. `OwnerDashboard.vue` API call (`/tenant/onboarding/?page_size=10`) is now safe without any frontend change — the backend scopes the response naturally.
+
+### 2026-04-22 — tester (test run)
+
+**Automated tests** (`backend/apps/test_hub/tenant/unit/test_onboarding.py`):
+Note: the test plan path `backend/apps/tenants/tests/test_onboarding.py` is a typo (app name is `tenant` not `tenants`); ran the actual file per the implementer's caveat.
+- PASS: `TestTenantOnboardingProgress::test_zero_progress_when_all_false`
+- PASS: `TestTenantOnboardingProgress::test_full_progress_when_all_v1_true`
+- PASS: `TestTenantOnboardingProgress::test_partial_progress`
+- PASS: `TestTenantOnboardingProgress::test_v2_items_do_not_affect_progress`
+- PASS: `TestTenantOnboardingProgress::test_is_complete_false_when_partial`
+- PASS: `TestTenantOnboardingProgress::test_is_complete_true_when_all_v1_ticked`
+- PASS: `TestTenantOnboardingProgress::test_is_complete_false_when_v2_only`
+- PASS: `TestTenantOnboardingStr::test_str_contains_lease_repr`
+All 8 passed.
+
+Pre-condition: also ran `manage.py migrate` — `tenant.0002_tenant_onboarding` and all silk migrations were unapplied; applied them before API testing.
+
+**Manual UI (API layer — FAIL):**
+`GET /api/v1/tenant/onboarding/` with an empty queryset returns `{"count":0,"results":[]}` (OK). As soon as any record exists and the serializer tries to serialize an instance, the server 500s with:
+
+```
+AssertionError: It is redundant to specify `source='lease_id'` on field 'IntegerField' in
+serializer 'TenantOnboardingSerializer', because it is the same as the field name.
+Remove the `source` keyword argument.
+```
+
+Root cause: `backend/apps/tenant/serializers.py` line 91:
+```python
+lease_id = serializers.IntegerField(source="lease_id", read_only=True)
+```
+DRF raises an `AssertionError` when `fields` is accessed on any instance of `TenantOnboardingSerializer`. This crashes every GET that returns records, and also any POST that goes through this serializer. The 8 unit tests did not catch it because they only test model-level properties, not the serializer.
+
+**Impact:** The admin SPA's `TenantOnboardingView.vue`, `TenantOnboardingChecklist.vue`, dashboard widgets, and owner dashboard widget are all non-functional as soon as any onboarding record is created. The entire manual UI flow (agent sees checklist) is blocked.
+
+**Fix required:** In `backend/apps/tenant/serializers.py` line 91, change:
+```python
+lease_id = serializers.IntegerField(source="lease_id", read_only=True)
+```
+to:
+```python
+lease_id = serializers.IntegerField(read_only=True)
+```
+
+**Verdict: BLOCKED — serializer bug causes 500 on all onboarding API reads with data.**
