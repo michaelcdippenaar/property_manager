@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-22
@@ -116,3 +116,21 @@ During smoke-check the `--log-opts="--all"` run exposed 6 new findings — all t
 Smoke-check results (gitleaks 8.30.1):
 - `gitleaks detect --source . --no-git --config .gitleaks.toml` → exit code 0, 0 findings (scanned 1.23 GB)
 - `gitleaks detect --source . --log-opts="--all" --config .gitleaks.toml` → exit code 0, 0 findings (111 commits)
+
+### 2026-04-23 — rentals-reviewer
+
+Review passed.
+
+**What was checked:**
+
+1. All 8 required path exclusions from acceptance criteria are present in `.gitleaks.toml` with inline comments (lines 66–98).
+2. Round-2 specific fix: all three env regex patterns are correctly anchored with `$`:
+   - `backend/\.env$` — excludes only the gitignored bare file; leaves `backend/.env.development`, `.env.staging`, `.env.production`, `.env.example`, `.env.secrets.example` scannable.
+   - `backend/\.env\.secrets$` — excludes only the gitignored secrets file; leaves `backend/.env.secrets.example` scannable.
+   - `admin/\.env$` — excludes only the gitignored admin bare file; leaves `admin/.env.development`, `.env.development.example`, `.env.staging`, `.env.production`, `.env.production.example` scannable.
+   Confirmed against the live `.gitignore` which explicitly documents `.env` and `.env.secrets` as gitignored and the variant files as committed.
+3. Google Maps API key added to `regexes` allowlist (line 50) with comment pattern matching the Volt key entry — correctly handles historical exposure in commit `b2ed3ab` pending MC's `git filter-repo` purge.
+4. `docs/ops/secret-rotation-2026-04.md` section 2.4 updated with the `core.hooksPath` unset step, explanatory comment covering when it gets set and why unsetting is safe. This fully satisfies acceptance criterion 4.
+5. All acceptance criteria checkboxes were already marked complete by the implementer and verified as satisfied by this review.
+6. Smoke-check exit codes (0/0 findings for both `--no-git` and `--log-opts="--all"`) documented in handoff note for tester to reproduce.
+7. Security/POPIA pass: no new endpoints, no PII logged, no secrets introduced — the only secrets present are already-rotated values being suppressed until history is purged.
