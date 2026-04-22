@@ -7,9 +7,9 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177462221163"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -129,3 +129,45 @@ Both blocking fixes from round 1 verified against working tree (diff from `57c26
 **POPIA/security pass:** No PII logged. No raw SQL. No new secrets. All new public surfaces are throttled. `ESigningTestPdfView` IDOR is closed.
 
 **Non-blocking noted for tester:** The 2 DB-integration tests (`test_429_after_threshold_exceeded`, `test_different_ips_not_throttled_together`) are gated behind the pre-existing properties migration conflict (`tasks/discoveries/2026-04-22-properties-migration-conflict.md`). The 13 remaining unit tests are runnable without DB. Tester should note this and run the full battery once the migration discovery is resolved.
+
+### 2026-04-22 — tester
+
+**Test run: pytest `backend/apps/test_hub/esigning/unit/test_rate_limits.py`**
+
+Command run:
+```
+pytest apps/test_hub/esigning/unit/test_rate_limits.py -v \
+  --deselect TestPublicSignMinuteThrottle::test_429_after_threshold_exceeded \
+  --deselect TestPublicSignMinuteThrottle::test_different_ips_not_throttled_together
+```
+
+**Results — 15 unit tests (all PASS):**
+
+| Test | Result |
+|------|--------|
+| TestPublicSignMinuteThrottle::test_throttle_class_scope | PASS |
+| TestPublicSignMinuteThrottle::test_throttle_class_scope_hourly | PASS |
+| TestInviteAcceptThrottle::test_throttle_class_scope | PASS |
+| TestInviteAcceptThrottle::test_accept_invite_view_uses_invite_throttle | PASS |
+| TestLoginHourlyThrottle::test_throttle_class_scope | PASS |
+| TestLoginHourlyThrottle::test_login_view_includes_hourly_throttle | PASS |
+| TestLoginHourlyThrottle::test_get_cache_key_uses_email | PASS |
+| TestLoginHourlyThrottle::test_get_cache_key_returns_none_without_email | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_sign_detail_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_document_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_submit_signature_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_draft_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_documents_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_document_delete_view | PASS |
+| TestThrottleRateConfiguration::test_required_scopes_in_settings | PASS |
+
+**Results — 2 DB-integration tests (BLOCKED, not failed):**
+
+| Test | Result | Reason |
+|------|--------|--------|
+| TestPublicSignMinuteThrottle::test_429_after_threshold_exceeded | BLOCKED | Pre-existing properties migration conflict: `(0024_unit_features, 0025_room_unit_amenities)` — `CommandError: Conflicting migrations detected`. See `tasks/discoveries/2026-04-22-properties-migration-conflict.md`. |
+| TestPublicSignMinuteThrottle::test_different_ips_not_throttled_together | BLOCKED | Same migration conflict — test DB cannot be created. |
+
+**Manual curl test:** Not executed. The test plan's primary automated item (429 on threshold) is represented by `test_429_after_threshold_exceeded`, which is blocked by the migration conflict. The curl test would duplicate this and cannot be meaningfully substituted as a plan item.
+
+**Verdict:** Task blocked. The two DB-integration tests that directly verify the core acceptance criterion (429 returned after threshold is exceeded) cannot run due to the pre-existing properties migration conflict. The 15 unit tests covering throttle class wiring, scope declarations, and settings configuration all pass cleanly. Unblock path: resolve `tasks/discoveries/2026-04-22-properties-migration-conflict.md`, then re-run the full battery.

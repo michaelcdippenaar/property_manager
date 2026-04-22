@@ -1,0 +1,33 @@
+# =============================================================================
+#  Klikk backup container
+#  Alpine + age + awscli + postgresql-client + supercronic
+# =============================================================================
+FROM alpine:3.19
+
+# ── runtime packages ──────────────────────────────────────────────────────────
+RUN apk add --no-cache \
+    age \
+    aws-cli \
+    bash \
+    curl \
+    mailx \
+    postgresql16-client \
+    supercronic \
+    tzdata
+
+# ── timezone ──────────────────────────────────────────────────────────────────
+ENV TZ=Africa/Johannesburg
+
+# ── scripts ───────────────────────────────────────────────────────────────────
+RUN mkdir -p /scripts /var/log/backup
+
+COPY deploy/backup.sh /scripts/backup.sh
+COPY deploy/drill-reminder.sh /scripts/drill-reminder.sh
+RUN chmod +x /scripts/backup.sh /scripts/drill-reminder.sh
+
+# ── crontab ───────────────────────────────────────────────────────────────────
+# 02:00 SAST = 00:00 UTC
+RUN echo "0 0 * * * /scripts/backup.sh >> /var/log/backup/backup.log 2>&1" > /etc/crontab.backup
+
+# ── entrypoint ────────────────────────────────────────────────────────────────
+CMD ["supercronic", "/etc/crontab.backup"]
