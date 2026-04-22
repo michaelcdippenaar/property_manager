@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200406476871"
 created: 2026-04-22
@@ -57,3 +57,10 @@ Chose the server-side approach (preferred path). Changes made:
 - `tenant/src/views/home/WelcomeView.vue`: `goHome()` now fire-and-forgets `POST /auth/welcome/`, merges the response into `auth.user`, then navigates. Non-fatal catch so a network blip never strands the user.
 
 **Tests:** 5 passing integration tests in `backend/apps/test_hub/accounts/integration/test_welcome.py` covering first-call stamp, idempotency, 401 on anon, response shape, and null `seen_welcome_at` on a fresh user.
+
+### 2026-04-22 — reviewer
+Review passed. All 4 acceptance criteria satisfied.
+
+Checked: `seen_welcome_at` DateTimeField on `User` with migration (0018); `UserSerializer` exposes field; `MarkWelcomeSeenView` is `IsAuthenticated`, idempotent (`update_fields=["seen_welcome_at"]`), no raw SQL, no PII logged, no IDOR (uses `request.user` directly); router guard in `tenant/src/router/index.ts` awaits `fetchMe()` before checking field (no race on first load); `WelcomeView.goHome()` fire-and-forgets with non-fatal catch; 5 integration tests cover stamp, idempotency, 401, response shape, null-on-new-user.
+
+One discovery filed: `tasks/discoveries/2026-04-22-seen-welcome-at-writable-via-me-patch.md` — `seen_welcome_at` is not in `read_only_fields` on `UserSerializer`, allowing tenants to reset it via `PATCH /auth/me/`. Benign (own field), logged for PM to decide.
