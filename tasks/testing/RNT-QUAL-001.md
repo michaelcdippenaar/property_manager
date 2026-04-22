@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379561081"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r5
+updated: 2026-04-22-r6
 ---
 
 ## Goal
@@ -196,3 +196,17 @@ lease_id = serializers.IntegerField(read_only=True)
 ### 2026-04-22 — implementer (unblock fix)
 
 One-line fix in `backend/apps/tenant/serializers.py` line 91: removed redundant `source="lease_id"` from `lease_id = serializers.IntegerField(...)`. DRF raises `AssertionError` at field access time when `source` matches the field name; dropping it resolves the 500. All 8 unit tests still pass (`pytest backend/apps/test_hub/tenant/unit/test_onboarding.py`).
+
+### 2026-04-22 — reviewer (r3 — review passed)
+
+**Approved. Unblock fix is correct and complete.**
+
+Reviewed commit `02fb4cb` (blocked → review).
+
+Single-line change in `backend/apps/tenant/serializers.py` line 91: `source="lease_id"` removed from `TenantOnboardingSerializer.lease_id`. DRF raises `AssertionError` at field-access time when `source` equals the field name; removing it resolves the 500 on every serializer read with data — exactly the bug the tester identified.
+
+No regressions introduced: the field is still declared `read_only=True` and is listed in both `fields` and `read_only_fields` in `Meta`. All other serializer logic (timestamp stamping in `update()`, `_TIMESTAMP_MAP`, `get_*` methods) is unchanged.
+
+All prior review work stands: Owner IDOR fix (r2) is present at `views.py` lines 119–130; unused `IsTenant` import removed; `User.Role.TENANT` constant in use. Import block is clean.
+
+Scope confirmed against `content/product/features.yaml` `tenant_onboarding` feature — implementation matches v1.0 scope.
