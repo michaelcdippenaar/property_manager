@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177452385365"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -120,3 +120,17 @@ Both fixes were applied by the previous agent invocation before it was killed by
 **Fix 2 (MINOR):** `from datetime import datetime` dead import inside `LoginView.post()` is absent from `views.py` — already removed.
 
 **New tests:** `HardBlockedEnrollmentTests` class added to `test_2fa.py` with 4 tests: setup via two_fa_token, full enrollment (setup + confirm) via two_fa_token, plain access token rejected on setup, and in-grace user can use two_fa_token path. All 29 tests pass (23 original + 6 new).
+
+### 2026-04-22 — reviewer (review passed)
+
+**Review passed.**
+
+Checked commit 63facce against both required fixes:
+
+1. **Blocker fix** (`totp_views.py`): `TOTPSetupView` and `TOTPSetupConfirmView` both carry `permission_classes = [AllowAny]`. `_resolve_setup_user()` (line 137) prioritises `two_fa_token` from the request body via `_decode_two_fa_token()` — which enforces the `two_fa_pending` claim, rejecting plain access tokens — then falls back to `request.user` for Bearer-authenticated callers, and raises `ValueError` (mapped to 401) for anonymous requests. Hard-blocked users can now enroll; the endpoint is not silently open to anonymous callers.
+
+2. **Dead import fix** (`views.py`): `from datetime import datetime` is absent at line 95 and throughout `LoginView.post()`. Clean.
+
+3. **New tests** (`test_2fa.py`): 29 tests confirmed. `HardBlockedEnrollmentTests` covers all four required scenarios (setup via token, full enrollment cycle, plain access token rejected, in-grace token path). Two additional no-auth guard tests added to `TOTPSetupTests` confirm `AllowAny` does not silently open unauthenticated access.
+
+Security pass: all r1 findings still clean. No new surface.
