@@ -1,0 +1,181 @@
+---
+/**
+ * ConsentBanner — POPIA-compliant minimal consent notice
+ *
+ * South African context: POPIA s11(1)(a) allows processing for a specific
+ * purpose with consent. We only use essential analytics (no advertising
+ * cookies, no cross-site tracking). The banner offers accept / opt-out.
+ *
+ * Cookie name: klikk_consent (1 year)
+ * Values: "essential" (accepted) | "declined"
+ *
+ * The banner is hidden if the cookie is already set.
+ */
+---
+
+<div id="consent-banner" class="consent-banner" role="dialog" aria-label="Cookie and analytics consent" aria-live="polite" hidden>
+  <div class="consent-inner">
+    <div class="consent-text">
+      <strong>We use analytics to improve Klikk.</strong>
+      No advertising trackers, no cross-site profiling. Essential cookies only — required for the site to function. Analytics are opt-in, anonymous, and processed in South Africa per <a href="/legal/popia" class="consent-link">POPIA s11(1)(a)</a>.
+    </div>
+    <div class="consent-actions">
+      <button id="consent-accept" class="consent-btn consent-btn-primary" type="button">Accept analytics</button>
+      <button id="consent-decline" class="consent-btn consent-btn-ghost" type="button">Essential only</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const COOKIE_NAME = 'klikk_consent';
+  const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
+
+  function getCookie(name: string): string | null {
+    const match = document.cookie.split('; ').find(row => row.startsWith(name + '='));
+    return match ? decodeURIComponent(match.split('=')[1]) : null;
+  }
+
+  function setCookie(name: string, value: string, maxAge: number) {
+    document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; SameSite=Lax; Secure`;
+  }
+
+  function hideBanner() {
+    const banner = document.getElementById('consent-banner');
+    if (banner) {
+      banner.setAttribute('hidden', '');
+    }
+  }
+
+  function showBanner() {
+    const banner = document.getElementById('consent-banner');
+    if (banner) {
+      banner.removeAttribute('hidden');
+    }
+  }
+
+  // Only show if consent not yet recorded
+  const existing = getCookie(COOKIE_NAME);
+  if (!existing) {
+    // Slight delay so it doesn't flash on the first paint
+    setTimeout(showBanner, 1200);
+  }
+
+  document.getElementById('consent-accept')?.addEventListener('click', () => {
+    setCookie(COOKIE_NAME, 'analytics', COOKIE_MAX_AGE);
+    hideBanner();
+  });
+
+  document.getElementById('consent-decline')?.addEventListener('click', () => {
+    setCookie(COOKIE_NAME, 'essential', COOKIE_MAX_AGE);
+    hideBanner();
+  });
+</script>
+
+<style>
+  .consent-banner {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 200;
+    width: calc(100% - 48px);
+    max-width: 720px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(17, 24, 39, 0.12);
+    padding: 20px 24px;
+    animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .consent-banner[hidden] {
+    display: none;
+  }
+
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  .consent-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .consent-text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #374151;
+    flex: 1;
+  }
+
+  .consent-text strong {
+    color: #111827;
+    font-weight: 600;
+  }
+
+  .consent-link {
+    color: var(--color-navy, #2B2D6E);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .consent-actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .consent-btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .consent-btn-primary {
+    background: var(--color-navy, #2B2D6E);
+    color: white;
+  }
+
+  .consent-btn-primary:hover {
+    background: #1a1b4b;
+  }
+
+  .consent-btn-ghost {
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #e5e7eb;
+  }
+
+  .consent-btn-ghost:hover {
+    border-color: #9ca3af;
+    color: #374151;
+  }
+
+  @media (max-width: 640px) {
+    .consent-inner {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .consent-actions {
+      width: 100%;
+    }
+    .consent-btn {
+      flex: 1;
+      text-align: center;
+    }
+    .consent-banner {
+      bottom: 16px;
+      width: calc(100% - 32px);
+      padding: 16px 18px;
+    }
+  }
+</style>

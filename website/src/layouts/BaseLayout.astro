@@ -16,6 +16,7 @@
  */
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
+import ConsentBanner from '../components/ConsentBanner.astro';
 import '../styles/global.css';
 
 interface Props {
@@ -57,6 +58,76 @@ const {
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- Structured data: Organisation + SoftwareApplication + LocalBusiness (SA) -->
+  <script type="application/ld+json" set:html={JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://klikk.co.za/#org",
+        "name": "Klikk",
+        "legalName": "Klikk (Pty) Ltd",
+        "url": "https://klikk.co.za",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://klikk.co.za/og-image.png",
+          "width": 1200,
+          "height": 630
+        },
+        "contactPoint": {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "email": "hello@klikk.co.za",
+          "areaServed": "ZA",
+          "availableLanguage": "en"
+        },
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Stellenbosch",
+          "addressRegion": "Western Cape",
+          "addressCountry": "ZA"
+        }
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": "https://klikk.co.za/#app",
+        "name": "Klikk Property Management",
+        "applicationCategory": "BusinessApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "description": "AI-powered property management for South Africa. Generate RHA-compliant leases, match suppliers, e-sign documents, and manage tenants.",
+        "url": "https://klikk.co.za",
+        "publisher": { "@id": "https://klikk.co.za/#org" },
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "ZAR",
+          "description": "Free plan available — up to 5 properties with full AI features."
+        }
+      },
+      {
+        "@type": "LocalBusiness",
+        "@id": "https://klikk.co.za/#business",
+        "name": "Klikk",
+        "description": "AI-powered property management platform for South African rental agencies and private landlords.",
+        "url": "https://klikk.co.za",
+        "telephone": null,
+        "email": "hello@klikk.co.za",
+        "address": {
+          "@type": "PostalAddress",
+          "addressLocality": "Stellenbosch",
+          "addressRegion": "Western Cape",
+          "addressCountry": "ZA"
+        },
+        "areaServed": {
+          "@type": "Country",
+          "name": "South Africa"
+        },
+        "priceRange": "R0 – R4000/mo",
+        "currenciesAccepted": "ZAR"
+      }
+    ]
+  })} />
 </head>
 <body>
   <Header />
@@ -64,6 +135,7 @@ const {
     <slot />
   </main>
   <Footer />
+  <ConsentBanner />
 
   <!-- Scroll-triggered reveal animations -->
   <script>

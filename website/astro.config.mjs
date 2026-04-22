@@ -28,14 +28,9 @@ export default defineConfig({
       }),
     ],
     build: {
-      // Astro already splits per-page; manual chunks keep Vue islands lean.
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            'vendor-vue': ['vue'],
-          },
-        },
-      },
+      // Astro externalises Vue when using @astrojs/vue; manual chunks for Vue
+      // trigger a Rollup error. Split only non-externalized deps here.
+      rollupOptions: {},
     },
   },
 });
