@@ -10,7 +10,7 @@ v1_phase: "1.0"
 status: blocked
 asana_gid: "1214177379577862"
 assigned_to: null
-depends_on: []
+depends_on: [RNT-SEC-011]
 created: 2026-04-22
 updated: 2026-04-22
 ---
@@ -180,3 +180,21 @@ PASS — `.github/workflows/ci.yml` has a `gitleaks` job using `gitleaks/gitleak
 1. Expand `.gitleaks.toml` paths allowlist to include `backend/media/vault/`, `tasks/`, `admin/dist/`, `.claude/`, `Klikk Proerty Manager/` (and any other untracked local directories that exist on dev machines)
 2. Add `tasks/testing/RNT-SEC-001.md` (or the entire `tasks/` path) to the paths allowlist since task files legitimately contain audit trail values
 3. Resolve `core.hooksPath` git config conflict to allow `pre-commit install` to succeed
+
+### 2026-04-22 — rentals-pm
+
+**Triage decision: split — autonomous work extracted to RNT-SEC-011; MC-gated criteria remain here.**
+
+Tester findings split cleanly into two categories:
+
+**Category A — autonomous (moved to RNT-SEC-011):**
+- `.gitleaks.toml` allowlist too narrow — 8 path categories missing: `backend/media/vault/`, `tasks/`, `.claude/`, `admin/dist/`, `Klikk Proerty Manager/`, `backend/.env`, `admin/.env`, `backend/.secrets/`
+- `core.hooksPath` git config conflict blocks `pre-commit install` — fix is to document (and optionally script) `git config --unset-all core.hooksPath` as a prerequisite step in the runbook
+
+**Category B — MC-only (this task stays blocked):**
+- AC 2: Rotate Google Maps API key, review Google OAuth client, rotate Volt MCP owner key (requires production console access)
+- AC 3: `git filter-repo` history purge + force-push to origin (requires repo write access + team coordination)
+- AC 5: Rotate SIMPLE_JWT signing key / Django SECRET_KEY on server (requires SSH + server access)
+- AC ongoing: Enable GitHub Secret Scanning in repo Settings (requires repo admin access)
+
+**Unblock path:** RNT-SEC-011 must be completed and merged first (fixes the gitleaks scan so testing can pass). Then MC completes the manual steps in `docs/ops/secret-rotation-2026-04.md`. Once both are done, return this task to testing for re-run of all four test cases.
