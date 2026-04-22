@@ -358,3 +358,54 @@ class AgencySettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class AgencyBillingView(APIView):
+    """
+    GET  /api/v1/auth/agency/billing/
+    Returns the current tier info + quota status for the Agency Settings → Billing tab.
+    Accessible to admins and agency admins only.
+
+    PATCH /api/v1/auth/agency/billing/
+    Allows an admin to change the subscription_tier slug.
+    (v1.0: manual assignment. Stripe self-serve deferred.)
+    """
+    permission_classes = [IsAdminOrAgencyAdmin]
+
+    def _get_agency(self, request):
+        if request.user.agency_id:
+            return request.user.agency
+        return Agency.get_solo()
+
+    def get(self, request):
+        from apps.accounts.tier_service import TierService
+        agency = self._get_agency(request)
+        svc = TierService(agency)
+        return Response(svc.tier_info())
+
+    def patch(self, request):
+        """Admin assigns a tier by slug (e.g. {"subscription_tier": "pro"})."""
+        from apps.accounts.tier_service import SubscriptionTier
+        from .permissions import IsAdmin
+        # Only full admins may change tier
+        if not (request.user.role == User.Role.ADMIN or request.user.is_superuser):
+            return Response({"detail": "Forbidden."}, status=status.HTTP_403_FORBIDDEN)
+
+        agency = self._get_agency(request)
+        if not agency:
+            return Response({"detail": "No agency found."}, status=status.HTTP_404_NOT_FOUND)
+
+        tier_slug = request.data.get("subscription_tier")
+        if not tier_slug:
+            return Response({"detail": "subscription_tier is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            tier = SubscriptionTier.objects.get(slug=tier_slug)
+        except SubscriptionTier.DoesNotExist:
+            return Response({"detail": f"Unknown tier '{tier_slug}'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        agency.subscription_tier = tier
+        agency.save(update_fields=["subscription_tier"])
+        from apps.accounts.tier_service import TierService
+        svc = TierService(agency)
+        return Response(svc.tier_info())

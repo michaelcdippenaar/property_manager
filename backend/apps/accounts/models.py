@@ -6,6 +6,10 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.utils import timezone
 
+# SubscriptionTier is defined in tier_service to keep pricing logic co-located.
+# We import it here so Django migrations can discover it (same app_label="accounts").
+from apps.accounts.tier_service import SubscriptionTier  # noqa: F401  re-export
+
 
 class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
@@ -285,6 +289,10 @@ class Agency(models.Model):
     """
     Singleton agency record.  Stores the details that appear on
     mandates, leases and other generated documents.
+
+    subscription_tier is a FK to SubscriptionTier (defined in tier_service.py
+    but registered in the same app_label="accounts").  It is null by default
+    so existing agencies keep working; the billing tab lets admins assign/change it.
     """
 
     class AccountType(models.TextChoices):
@@ -360,6 +368,16 @@ class Agency(models.Model):
     # ── Branding ──
     logo = models.ImageField(upload_to="agency/", null=True, blank=True)
 
+    # ── Subscription ──
+    subscription_tier = models.ForeignKey(
+        "SubscriptionTier",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agencies",
+        help_text="Pricing tier — null means all features are accessible (backwards compat).",
+    )
+
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -384,6 +402,15 @@ class Agency(models.Model):
         if user and hasattr(user, "agency_id") and user.agency_id:
             return cls.objects.filter(pk=user.agency_id).first()
         return cls.get_solo()
+
+    def has_feature(self, slug: str) -> bool:
+        """
+        Convenience proxy: returns True when the agency's subscription tier
+        includes the named feature slug, or True when no tier is set
+        (backwards-compatible — existing agencies without a tier get full access).
+        """
+        from apps.accounts.tier_service import TierService
+        return TierService(self).has_feature(slug)
 
 
 class LoginAttempt(models.Model):

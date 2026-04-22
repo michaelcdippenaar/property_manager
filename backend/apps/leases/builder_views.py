@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.decorators import requires_feature
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -224,6 +225,7 @@ class LeaseBuilderSessionCreateView(APIView):
     """
     permission_classes = [IsAgentOrAdmin]
 
+    @requires_feature("ai_lease_generation")
     def post(self, request):
         # Resolve template — explicit ID takes priority, else fall back to active
         template_id = request.data.get("template_id")
@@ -316,6 +318,7 @@ class LeaseBuilderChatView(APIView):
     """POST /api/v1/leases/builder/sessions/{id}/message/ — send a message."""
     permission_classes = [IsAgentOrAdmin]
 
+    @requires_feature("ai_lease_generation")
     def post(self, request, pk):
         try:
             session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
@@ -405,6 +408,7 @@ class LeaseBuilderFinalizeView(APIView):
     """
     permission_classes = [IsAgentOrAdmin]
 
+    @requires_feature("ai_lease_generation")
     def post(self, request, pk):
         try:
             session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)

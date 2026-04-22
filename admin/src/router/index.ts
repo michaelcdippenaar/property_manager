@@ -143,6 +143,7 @@ const router = createRouter({
         // Admin
         { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue'), meta: { title: 'Users' } },
         { path: 'admin/agency', name: 'admin-agency', component: () => import('../views/admin/AgencySettingsView.vue'), meta: { title: 'Agency Settings' } },
+        { path: 'admin/billing', name: 'admin-billing', component: () => import('../views/admin/BillingView.vue'), meta: { title: 'Billing & Plan' } },
         // Profile
         { path: 'profile', name: 'profile', component: () => import('../views/auth/ProfileView.vue'), meta: { title: 'Profile' } },
         // Testing Portal

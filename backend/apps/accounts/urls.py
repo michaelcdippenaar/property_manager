@@ -7,7 +7,7 @@ from .views import (
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
     AcceptInviteView,
 )
-from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView, AgencyBillingView
 from .oauth_views import GoogleAuthView
 from .lookup_views import EntityLookupView
 from .totp_views import (
@@ -47,6 +47,8 @@ urlpatterns = [
     path("lookup/", EntityLookupView.as_view(), name="entity-lookup"),
     # Agency settings (singleton)
     path("agency/", AgencySettingsView.as_view(), name="agency-settings"),
+    # Agency billing / tier enforcement
+    path("agency/billing/", AgencyBillingView.as_view(), name="agency-billing"),
     # ── TOTP 2FA ──────────────────────────────────────────────────────────────
     path("2fa/status/", TOTPStatusView.as_view(), name="2fa-status"),
     path("2fa/setup/", TOTPSetupView.as_view(), name="2fa-setup"),
