@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379561081"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r2
+updated: 2026-04-22-r3
 ---
 
 ## Goal
@@ -136,3 +136,15 @@ Added an `elif user.role == User.Role.OWNER:` branch before the `else` agent/adm
 Removed `IsTenant` from the import line on line 6. Replaced with `from apps.accounts.models import User` (needed for `User.Role` constants in the queryset fix above).
 
 Smoke-check: `from apps.tenant.views import TenantOnboardingViewSet` imports cleanly with `DJANGO_SETTINGS_MODULE=config.settings.local`.
+
+### 2026-04-22 — reviewer (r2 — review passed)
+
+**Approved. Both requested fixes are correctly implemented.**
+
+1. **SECURITY fix verified** — `backend/apps/tenant/views.py` lines 119–130: the `elif user.role == User.Role.OWNER:` branch is present, correctly positioned before the `else` agent/admin branch, and the `PropertyOwnership` chain matches the established pattern in `apps/accounts/permissions.py` (`HasPropertyAccess` lines 140–143, `IsOwnerOfProperty` lines 196–202) exactly: `person_profile` → `Landlord.objects.filter(person=person)` → `PropertyOwnership.objects.filter(landlord_id__in=..., is_current=True)` → `qs.filter(lease__unit__property_id__in=...)`. The `person_profile` absent guard (`return qs.none()`) is present.
+
+2. **Unused import removed** — `IsTenant` is gone; replaced with `from apps.accounts.models import User` (required for `User.Role` constants). `IsAgentOrAdmin` retained. Import block is clean.
+
+3. **Tenant role check** — upgraded from bare string `"tenant"` to `User.Role.TENANT` constant, consistent with the owner constant added in the same fix.
+
+No regressions identified. `OwnerDashboard.vue` API call (`/tenant/onboarding/?page_size=10`) is now safe without any frontend change — the backend scopes the response naturally.
