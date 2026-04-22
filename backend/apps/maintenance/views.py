@@ -214,6 +214,38 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         mreq.status = MaintenanceRequest.Status.IN_PROGRESS
         mreq.save()
 
+        # Create SupplierJobAssignment for portal access (POPIA data-minimised snapshot).
+        # Only possible when the supplier has a linked user account.
+        from .models import SupplierJobAssignment
+        awarded_supplier = qr.supplier
+        if awarded_supplier.linked_user_id:
+            prop = mreq.unit.property
+            # Build a plain address string from whatever address data exists.
+            addr_parts = [prop.address]
+            if prop.city:
+                addr_parts.append(prop.city)
+            if prop.province:
+                addr_parts.append(prop.province)
+            property_address = ", ".join(filter(None, addr_parts)) or "Address not provided"
+
+            tenant_name = ""
+            tenant_phone = ""
+            if mreq.tenant:
+                tenant_name = mreq.tenant.get_full_name() or mreq.tenant.email
+                tenant_phone = getattr(mreq.tenant, "phone", "") or ""
+
+            SupplierJobAssignment.objects.get_or_create(
+                supplier=awarded_supplier.linked_user,
+                maintenance_request=mreq,
+                defaults={
+                    "property_address": property_address,
+                    "tenant_contact_name": tenant_name,
+                    "tenant_contact_phone": tenant_phone,
+                    "scope_of_work": mreq.description or mreq.title,
+                    "assigned_by": request.user,
+                },
+            )
+
         return Response(JobDispatchSerializer(jd).data)
 
 

@@ -1,13 +1,15 @@
 """Tests for MaintenanceRequestViewSet, activity, dispatch, skills, agent questions."""
 import pytest
+from decimal import Decimal
 from unittest import mock
 
 from django.urls import reverse
 from django.utils import timezone
 
 from apps.maintenance.models import (
-    AgentQuestion, JobDispatch, JobQuoteRequest, MaintenanceActivity,
-    MaintenanceRequest, MaintenanceSkill, Supplier, SupplierTrade,
+    AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest, MaintenanceActivity,
+    MaintenanceRequest, MaintenanceSkill, Supplier, SupplierJobAssignment, SupplierProperty,
+    SupplierTrade,
 )
 from apps.test_hub.base.test_case import TremlyAPITestCase
 
@@ -259,3 +261,264 @@ class AgentQuestionViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.question.refresh_from_db()
         self.assertEqual(self.question.status, "dismissed")
+
+
+class SupplierMatchingTests(TremlyAPITestCase):
+    """Unit tests for the 5-factor rank_suppliers algorithm."""
+
+    def setUp(self):
+        from apps.maintenance.matching import rank_suppliers
+        self.rank_suppliers = rank_suppliers
+
+        self.agent = self.create_agent()
+        # Property without geo — matching falls back to 15pts proximity for all suppliers
+        self.prop = self.create_property(agent=self.agent)
+        self.unit = self.create_unit(property_obj=self.prop)
+        self.mr = self.create_maintenance_request(unit=self.unit, category="plumbing")
+
+        # Supplier A — plumber, preferred, rated 4.5 (should win: skills 25 + pref 20 + rating ~9)
+        self.s_preferred = self.create_supplier(
+            name="Preferred Plumber",
+            phone="0821111111",
+            rating=Decimal("4.5"),
+        )
+        SupplierTrade.objects.create(supplier=self.s_preferred, trade="plumbing")
+        SupplierProperty.objects.create(
+            supplier=self.s_preferred, property=self.prop, is_preferred=True,
+        )
+
+        # Supplier B — electrician, no preference, lower rating
+        self.s_electrical = self.create_supplier(
+            name="Electrical Guy",
+            phone="0822222222",
+            rating=Decimal("3.0"),
+        )
+        SupplierTrade.objects.create(supplier=self.s_electrical, trade="electrical")
+
+    def test_preferred_plumber_ranks_first(self):
+        results = self.rank_suppliers(self.mr)
+        self.assertGreater(len(results), 0)
+        self.assertEqual(results[0]["supplier_id"], self.s_preferred.id)
+
+    def test_result_has_all_expected_keys(self):
+        results = self.rank_suppliers(self.mr)
+        first = results[0]
+        for key in ("supplier_id", "supplier_name", "supplier_phone", "trades", "score", "reasons"):
+            self.assertIn(key, first)
+
+    def test_scores_are_bounded_0_to_100(self):
+        results = self.rank_suppliers(self.mr)
+        for r in results:
+            self.assertGreaterEqual(r["score"], 0)
+            self.assertLessEqual(r["score"], 100)
+
+    def test_non_matching_trade_scores_lower_than_matching(self):
+        results = self.rank_suppliers(self.mr)
+        preferred_score = next(r["score"] for r in results if r["supplier_id"] == self.s_preferred.id)
+        electrical_score = next(r["score"] for r in results if r["supplier_id"] == self.s_electrical.id)
+        self.assertGreater(preferred_score, electrical_score)
+
+    def test_top_n_limit_respected(self):
+        # Create 15 extra suppliers
+        for i in range(15):
+            s = self.create_supplier(name=f"Extra {i}", phone=f"082{i:07d}")
+            SupplierTrade.objects.create(supplier=s, trade="plumbing")
+        results = self.rank_suppliers(self.mr, top_n=10)
+        self.assertEqual(len(results), 10)
+
+    def test_supplier_with_no_geo_gets_fallback_proximity(self):
+        # When either property or supplier lacks geo, rank_suppliers returns no_geo=True
+        results = self.rank_suppliers(self.mr)
+        for r in results:
+            self.assertTrue(r["reasons"]["proximity"].get("no_geo", False))
+
+    def test_price_history_affects_score(self):
+        # Give s_preferred a quote history (cheap)
+        jd = JobDispatch.objects.create(maintenance_request=self.mr, dispatched_by=self.agent)
+        qr = JobQuoteRequest.objects.create(dispatch=jd, supplier=self.s_preferred)
+        JobQuote.objects.create(quote_request=qr, amount=Decimal("500.00"))
+        # Give s_electrical an expensive quote history
+        qr2 = JobQuoteRequest.objects.create(dispatch=jd, supplier=self.s_electrical)
+        JobQuote.objects.create(quote_request=qr2, amount=Decimal("5000.00"))
+
+        results = self.rank_suppliers(self.mr)
+        preferred_result = next(r for r in results if r["supplier_id"] == self.s_preferred.id)
+        electrical_result = next(r for r in results if r["supplier_id"] == self.s_electrical.id)
+        # Preferred has lower price — its price score should be higher
+        self.assertGreater(
+            preferred_result["reasons"]["price"]["score"],
+            electrical_result["reasons"]["price"]["score"],
+        )
+
+
+class SupplierNoLoginPortalTests(TremlyAPITestCase):
+    """Token-based supplier portal — no login required (SupplierQuoteView)."""
+
+    def setUp(self):
+        self.agent = self.create_agent()
+        self.prop = self.create_property(agent=self.agent)
+        self.unit = self.create_unit(property_obj=self.prop)
+        self.mr = self.create_maintenance_request(unit=self.unit)
+        self.supplier = self.create_supplier()
+        self.jd = JobDispatch.objects.create(
+            maintenance_request=self.mr, dispatched_by=self.agent, status="sent",
+        )
+        self.qr = JobQuoteRequest.objects.create(dispatch=self.jd, supplier=self.supplier)
+
+    def test_supplier_can_view_job_via_token(self):
+        resp = self.client.get(reverse("supplier-quote", args=[self.qr.token]))
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("job_title", resp.data)
+
+    def test_viewing_marks_quote_request_as_viewed(self):
+        self.client.get(reverse("supplier-quote", args=[self.qr.token]))
+        self.qr.refresh_from_db()
+        self.assertEqual(self.qr.status, "viewed")
+        self.assertIsNotNone(self.qr.viewed_at)
+
+    def test_supplier_can_submit_quote(self):
+        resp = self.client.post(
+            reverse("supplier-quote", args=[self.qr.token]),
+            {"amount": "1500.00", "description": "Fix leaking tap", "estimated_days": 1},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.qr.refresh_from_db()
+        self.assertEqual(self.qr.status, "quoted")
+
+    def test_second_quote_submission_rejected(self):
+        self.client.post(
+            reverse("supplier-quote", args=[self.qr.token]),
+            {"amount": "1500.00", "description": "Fix leaking tap"},
+            format="json",
+        )
+        resp = self.client.post(
+            reverse("supplier-quote", args=[self.qr.token]),
+            {"amount": "2000.00", "description": "Second attempt"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_supplier_can_decline_job(self):
+        resp = self.client.post(reverse("supplier-quote-decline", args=[self.qr.token]))
+        self.assertEqual(resp.status_code, 200)
+        self.qr.refresh_from_db()
+        self.assertEqual(self.qr.status, "declined")
+
+    def test_cannot_quote_on_awarded_job(self):
+        self.qr.status = JobQuoteRequest.Status.AWARDED
+        self.qr.save()
+        resp = self.client.post(
+            reverse("supplier-quote", args=[self.qr.token]),
+            {"amount": "1500.00"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_dispatch_status_updates_to_quoting_on_first_quote(self):
+        self.client.post(
+            reverse("supplier-quote", args=[self.qr.token]),
+            {"amount": "1500.00", "description": "Fix leaking tap"},
+            format="json",
+        )
+        self.jd.refresh_from_db()
+        self.assertEqual(self.jd.status, "quoting")
+
+    def test_invalid_token_returns_404(self):
+        import uuid
+        fake_token = uuid.uuid4()
+        resp = self.client.get(reverse("supplier-quote", args=[fake_token]))
+        self.assertEqual(resp.status_code, 404)
+
+
+class SupplierJobAssignmentTests(TremlyAPITestCase):
+    """dispatch_award creates SupplierJobAssignment when supplier has linked_user."""
+
+    def setUp(self):
+        self.agent = self.create_agent()
+        self.tenant = self.create_tenant(email="tenant-sja@test.com")
+        self.prop = self.create_property(agent=self.agent)
+        self.unit = self.create_unit(property_obj=self.prop)
+        self.mr = self.create_maintenance_request(unit=self.unit, tenant=self.tenant)
+
+        self.supplier_user = self.create_supplier_user(email="sup-linked@test.com")
+        self.supplier = self.create_supplier(
+            name="Linked Supplier",
+            phone="0823333333",
+            linked_user=self.supplier_user,
+        )
+        self.jd = JobDispatch.objects.create(
+            maintenance_request=self.mr, dispatched_by=self.agent, status="sent",
+        )
+        self.qr = JobQuoteRequest.objects.create(
+            dispatch=self.jd, supplier=self.supplier, status="quoted",
+        )
+
+    def test_award_creates_supplier_job_assignment(self):
+        self.authenticate(self.agent)
+        resp = self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": self.qr.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        assignment = SupplierJobAssignment.objects.filter(
+            supplier=self.supplier_user,
+            maintenance_request=self.mr,
+        ).first()
+        self.assertIsNotNone(assignment)
+        self.assertEqual(assignment.status, SupplierJobAssignment.Status.ASSIGNED)
+
+    def test_award_assignment_copies_property_address(self):
+        self.authenticate(self.agent)
+        self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": self.qr.pk},
+            format="json",
+        )
+        assignment = SupplierJobAssignment.objects.get(
+            supplier=self.supplier_user, maintenance_request=self.mr,
+        )
+        self.assertIn(self.prop.city, assignment.property_address)
+
+    def test_award_without_linked_user_skips_assignment(self):
+        """Supplier without a linked user account — no SupplierJobAssignment created."""
+        unlinked_supplier = self.create_supplier(
+            name="Unlinked Supplier", phone="0824444444",
+        )
+        qr2 = JobQuoteRequest.objects.create(
+            dispatch=self.jd, supplier=unlinked_supplier, status="quoted",
+        )
+        self.authenticate(self.agent)
+        resp = self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": qr2.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(
+            SupplierJobAssignment.objects.filter(maintenance_request=self.mr).exists()
+        )
+
+    def test_double_award_is_idempotent(self):
+        """Awarding the same job twice does not duplicate the assignment."""
+        self.authenticate(self.agent)
+        self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": self.qr.pk},
+            format="json",
+        )
+        # Re-open and try to re-award (simulate edge case)
+        self.qr.status = JobQuoteRequest.Status.QUOTED
+        self.qr.save()
+        self.jd.status = JobDispatch.Status.SENT
+        self.jd.save()
+        self.client.post(
+            reverse("maintenance-dispatch-award", args=[self.mr.pk]),
+            {"quote_request_id": self.qr.pk},
+            format="json",
+        )
+        count = SupplierJobAssignment.objects.filter(
+            supplier=self.supplier_user, maintenance_request=self.mr,
+        ).count()
+        self.assertEqual(count, 1)
