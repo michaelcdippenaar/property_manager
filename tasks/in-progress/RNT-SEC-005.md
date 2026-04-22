@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177141074053"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -86,3 +86,50 @@ returns a bool; callers are responsible for the HTTP response. This matches the 
 used by all major webhook verification libraries. `docs/ops/webhooks.md` shows the
 correct view-level pattern. No existing view needed patching since there are no
 production webhook endpoints in v1.
+
+### 2026-04-22 — reviewer: changes requested
+
+Three issues require fixes before this can move to testing.
+
+**1. `_verify_signature` reads an undeclared, non-standard setting name**
+
+`backend/apps/esigning/webhooks.py` line 35 reads `settings.DOCUSEAL_WEBHOOK_SECRET`
+and `settings.DOCUSEAL_WEBHOOK_HEADER_NAME`. These names:
+
+- Are DocuSeal legacy names (DocuSeal was removed in full per project memory).
+- Do not follow the `WEBHOOK_SECRET_<NAME>` pattern mandated by acceptance criterion 3
+  and implemented in `backend/config/settings/base.py`.
+- Are not declared in `settings/base.py` — an operator configuring `WEBHOOK_SECRET_ESIGNING`
+  would get no verification because `_verify_signature` looks for a different variable.
+- Are not mentioned in `docs/ops/webhooks.md`.
+
+Fix: rename both settings reads to `settings.WEBHOOK_SECRET_ESIGNING` (for the secret)
+and remove the `DOCUSEAL_WEBHOOK_HEADER_NAME` static-token path (or rename to
+`WEBHOOK_HEADER_ESIGNING` and document it). Update the docstring and the existing
+esigning unit tests accordingly. This is a functional bug — misconfiguration silently
+bypasses verification.
+
+**2. Module docstring in `webhook_signature.py` advertises a non-existent function**
+
+`backend/utils/webhook_signature.py` lines 6–10 show a usage example that imports
+`reject_if_invalid`:
+
+    from utils.webhook_signature import verify_hmac_signature, reject_if_invalid
+
+That function is never defined in the file. Any developer who follows this docstring
+will get an `ImportError`. Either implement the helper (a one-liner returning
+`Response({"detail": "Invalid signature."}, status=401)`) or remove it from the
+example and replace with the explicit pattern shown lower in `docs/ops/webhooks.md`.
+
+**3. Dead mock block in `test_reads_named_secret_from_settings`**
+
+`backend/utils/tests/test_webhook_signature.py` lines 150–152:
+
+    with patch("utils.webhook_signature.get_webhook_secret") as mock_fn:
+        # Inline test — patch Django settings directly
+        pass
+
+This patches `get_webhook_secret` with a MagicMock, discards the mock immediately,
+and the real function is called below as if the `with` block never ran. The block is
+misleading dead code. Remove it entirely — the real-settings assertion below it is
+the correct test.
