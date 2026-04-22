@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214218083783108"
 created: 2026-04-22
@@ -46,3 +46,7 @@ Added a new test class `MaintenanceDispatchTenantForbiddenTests` in `backend/app
 - `test_tenant_cannot_dispatch_award` — expects 403
 
 Syntax verified on both files. Full pytest suite requires project venv (PyCharm-managed); shell environment lacked `daphne`/`decouple` etc. — tester should run `cd backend && pytest apps/test_hub/maintenance/ -v` inside the project venv.
+
+### 2026-04-22 — reviewer
+
+Review passed. Checked: (1) `get_permissions()` override in `backend/apps/maintenance/views.py` lines 45–52 correctly gates `dispatch_award`, `dispatch_send`, and `job_dispatch` POST behind `IsAgentOrAdmin`; GET on `job_dispatch` stays at `IsAuthenticated` as required. (2) `IsAgentOrAdmin` was already imported at line 9 — no new import needed. (3) Class-level `permission_classes = [IsAuthenticated]` at line 39 is untouched, preserving tenant read access via `super().get_permissions()` fallback. (4) Four tests added in `MaintenanceDispatchTenantForbiddenTests` cover all three forbidden POST actions plus the one permitted GET; URL reverse names (`maintenance-job-dispatch`, `maintenance-dispatch-send`, `maintenance-dispatch-award`) match pre-existing test usage in the same file confirming they resolve. (5) POPIA/security pass: no PII logged, no raw SQL, no new endpoints; fix closes the auth bypass. No discoveries.
