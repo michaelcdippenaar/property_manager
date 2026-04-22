@@ -3,15 +3,17 @@
 
     <!-- Navy hero -->
     <div class="login-hero">
-      <div class="logo-mark"><span>K</span></div>
+      <div class="logo-mark">
+        <span class="logo-wordmark">Klikk<span class="logo-dot">.</span></span>
+        <span class="role-pill">AGENT</span>
+      </div>
       <h1 class="login-title">Welcome back</h1>
       <p class="login-sub">Sign in to your agent account</p>
     </div>
 
-    <!-- Form sheet -->
-    <div class="login-sheet">
+    <!-- ── Sign-in form ── -->
+    <div v-if="!showReset" class="login-sheet">
 
-      <!-- iOS-style input card -->
       <div class="list-section">
         <div class="list-row">
           <span class="row-label">Email</span>
@@ -35,24 +37,20 @@
             class="row-input"
             @keyup.enter="handleLogin"
           />
-          <button class="eye-btn" @click="showPassword = !showPassword" type="button" :aria-label="showPassword ? 'Hide password' : 'Show password'">
+          <button class="eye-btn" type="button" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword">
             <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
           </button>
         </div>
       </div>
 
-      <!-- Error -->
       <p v-if="error" class="error-msg">{{ error }}</p>
 
-      <!-- Sign in button -->
-      <button
-        class="btn-primary klikk-btn-primary"
-        :disabled="loading"
-        @click="handleLogin"
-      >
+      <button class="btn-primary" :disabled="loading" @click="handleLogin">
         <q-spinner-dots v-if="loading" color="white" size="20px" />
         <span v-else>Sign In</span>
       </button>
+
+      <button class="btn-link" @click="showReset = true">Forgot password?</button>
 
       <!-- Divider -->
       <div v-if="googleConfigured" class="divider">
@@ -64,28 +62,86 @@
 
     </div>
 
-    <p class="footer-text">Klikk Property Management &copy; {{ new Date().getFullYear() }}</p>
+    <!-- ── Reset password ── -->
+    <div v-else class="login-sheet">
+
+      <p class="reset-hint">Enter your email and we'll send a reset link.</p>
+
+      <div class="list-section">
+        <div class="list-row">
+          <span class="row-label">Email</span>
+          <input
+            v-model="resetEmail"
+            type="email"
+            placeholder="your@email.com"
+            autocomplete="email"
+            class="row-input"
+            @keyup.enter="handleReset"
+          />
+        </div>
+      </div>
+
+      <p v-if="resetError" class="error-msg">{{ resetError }}</p>
+      <p v-if="resetSent" class="success-msg">Reset link sent — check your inbox.</p>
+
+      <button class="btn-primary" :disabled="resetLoading || resetSent" @click="handleReset">
+        <q-spinner-dots v-if="resetLoading" color="white" size="20px" />
+        <span v-else>Send Reset Link</span>
+      </button>
+
+      <button class="btn-link" @click="showReset = false; resetSent = false; resetError = ''">
+        Back to sign in
+      </button>
+
+    </div>
+
+    <!-- Backend server badge -->
+    <div class="server-badge">
+      <span class="server-dot" />
+      {{ apiHost }}
+    </div>
 
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useGoogleAuth } from '../composables/useGoogleAuth'
+import { api } from '../boot/axios'
 
 const router = useRouter()
 const auth   = useAuthStore()
 const { renderGoogleButton, waitForCredential, isConfigured: googleConfigured } = useGoogleAuth()
 
-const email              = ref('')
-const password           = ref('')
-const showPassword       = ref(false)
-const loading            = ref(false)
-const error              = ref('')
+// ── Sign-in state ──────────────────────────────────────────────────────────
+const email       = ref(import.meta.env.DEV ? 'mc@tremly.com' : '')
+const password    = ref(import.meta.env.DEV ? 'Number55dip' : '')
+const showPassword = ref(false)
+const loading     = ref(false)
+const error       = ref('')
 const passwordRef        = ref<HTMLInputElement | null>(null)
 const googleBtnContainer = ref<HTMLElement | null>(null)
+
+// ── Reset password state ───────────────────────────────────────────────────
+const showReset   = ref(false)
+const resetEmail  = ref(import.meta.env.DEV ? 'mc@tremly.com' : '')
+const resetLoading = ref(false)
+const resetError  = ref('')
+const resetSent   = ref(false)
+
+// ── Backend indicator ──────────────────────────────────────────────────────
+const apiHost = computed(() => {
+  try {
+    const url = new URL(api.defaults.baseURL as string)
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1'
+      ? `localhost:${url.port || 80}`
+      : url.hostname
+  } catch {
+    return api.defaults.baseURL as string
+  }
+})
 
 function focusPassword() {
   passwordRef.value?.focus()
@@ -106,6 +162,26 @@ async function handleLogin() {
     error.value = axiosErr.response?.data?.detail || 'Invalid credentials. Please try again.'
   } finally {
     loading.value = false
+  }
+}
+
+async function handleReset() {
+  if (!resetEmail.value.trim()) {
+    resetError.value = 'Please enter your email.'
+    return
+  }
+  resetError.value   = ''
+  resetLoading.value = true
+  try {
+    await api.post('/auth/password-reset/', { email: resetEmail.value.trim() })
+    resetSent.value = true
+  } catch (err: unknown) {
+    const axiosErr = err as { response?: { data?: { detail?: string; email?: string[] } } }
+    resetError.value = axiosErr.response?.data?.detail
+      || axiosErr.response?.data?.email?.[0]
+      || 'Failed to send reset link. Please try again.'
+  } finally {
+    resetLoading.value = false
   }
 }
 
@@ -130,10 +206,10 @@ onMounted(async () => {
 </script>
 
 <style scoped lang="scss">
-$navy: $primary;   // use global SCSS token from quasar.variables.scss
+$navy: $primary;
 
 .login-page {
-  min-height: 100dvh;   // dvh prevents layout jump on iOS Safari
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background: $surface;
@@ -143,48 +219,66 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
 /* ── Hero ── */
 .login-hero {
   background: linear-gradient(160deg, $navy 0%, #1A1B44 100%);
-  padding: calc(56px + env(safe-area-inset-top, 0px)) 24px 40px;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) 24px 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
 }
 
 .logo-mark {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.12);
-  border: 1.5px solid rgba(255,255,255,0.2);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 24px;
+}
 
-  span {
-    font-size: 36px;
-    font-weight: 800;
-    color: white;
-    line-height: 1;
-  }
+.logo-wordmark {
+  font-size: 44px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.logo-dot { color: #FF3D7F; }
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 61, 127, 0.15);
+  border: 1px solid rgba(255, 61, 127, 0.30);
+  color: #FF3D7F;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
 
 .login-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: white;
-  margin: 0 0 4px;
+  margin: 0 0 6px;
 }
 
 .login-sub {
   font-size: 14px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.72);
   margin: 0;
 }
 
 /* ── Sheet ── */
 .login-sheet {
   flex: 1;
-  padding: 28px 16px 24px;
+  background: $surface;
+  border-radius: 28px 28px 0 0;
+  margin-top: -32px;
+  padding: 32px 20px 16px;
+  box-shadow: 0 -6px 32px rgba(0,0,0,0.10);
 }
 
 /* ── iOS list section ── */
@@ -204,9 +298,7 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   min-height: 52px;
   background: white;
 
-  & + .list-row {
-    border-top: 0.5px solid rgba(0,0,0,0.08);
-  }
+  & + .list-row { border-top: 0.5px solid rgba(0,0,0,0.08); }
 }
 
 .row-label {
@@ -235,9 +327,11 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   cursor: pointer;
   display: flex;
   align-items: center;
+  min-width: 44px;
+  min-height: 44px;
 }
 
-/* ── Error ── */
+/* ── Messages ── */
 .error-msg {
   font-size: 13px;
   color: $negative;
@@ -246,7 +340,21 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   padding: 0 8px;
 }
 
-/* ── Primary button — mirrors admin .btn-primary ── */
+.success-msg {
+  font-size: 13px;
+  color: $positive;
+  text-align: center;
+  margin: 0 0 12px;
+}
+
+.reset-hint {
+  font-size: 14px;
+  color: var(--klikk-text-secondary);
+  text-align: center;
+  margin: 0 0 20px;
+}
+
+/* ── Primary button ── */
 .btn-primary {
   width: 100%;
   padding: 16px;
@@ -274,6 +382,21 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
+/* ── Text link button ── */
+.btn-link {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--klikk-text-secondary);
+  font-weight: 500;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+}
+
 /* ── Divider ── */
 .divider {
   display: flex;
@@ -297,12 +420,24 @@ $navy: $primary;   // use global SCSS token from quasar.variables.scss
   justify-content: center;
 }
 
-/* ── Footer ── */
-.footer-text {
-  text-align: center;
-  font-size: 12px;
-  color: var(--klikk-text-muted);
-  padding: 16px 0 calc(16px + env(safe-area-inset-bottom, 0px));
-  margin: 0;
+/* ── Backend server badge ── */
+.server-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--klikk-text-faint);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 10px 0 calc(12px + env(safe-area-inset-bottom, 0px));
+  letter-spacing: 0.02em;
+}
+
+.server-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: $positive;
+  flex-shrink: 0;
 }
 </style>

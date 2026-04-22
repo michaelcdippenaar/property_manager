@@ -463,6 +463,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch, inject } from 'vue'
 import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 import { getProperty, listViewings, listLeases, type Property, type PropertyViewing, type AgentLease } from '../services/api'
 import { useMaintenanceStore } from '../stores/maintenance'
 import { usePlatform } from '../composables/usePlatform'
@@ -477,6 +478,7 @@ import { useAuthStore } from '../stores/auth'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const $q = useQuasar()
 const { isIos } = usePlatform()
 const mStore = useMaintenanceStore()
 const authStore = useAuthStore()
@@ -604,7 +606,8 @@ onMounted(async () => {
     // Connect list WebSocket for real-time maintenance updates
     mStore.connectListSocket()
   } catch {
-    // API errors handled by axios interceptor (401 redirect etc.)
+    $q.notify({ type: 'negative', message: 'Failed to load property.', icon: 'error' })
+    void router.back()
   } finally {
     loading.value         = false
     loadingViewings.value = false
@@ -634,8 +637,8 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 50px);
-  max-height: calc(100vh - 50px);
+  height: calc(100dvh - 44px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 44px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow: hidden;
 }
 

@@ -3,22 +3,30 @@
 File-based task queue for shipping **Klikk Rentals v1** to market.
 Each task is a markdown file with frontmatter. Folder = status. Handoffs are `git mv` + commit.
 
-## Scope — three streams
+## Scope — six streams
 
-Launching a product isn't just shipping code. This queue runs three streams in parallel:
+Launching a product isn't just shipping code. This queue runs six streams in parallel:
 
 | Prefix | Stream | Owner agents |
 |--------|--------|--------------|
-| `RNT-NNN` | **Rentals code** — hardening the 13 BUILT features for market | `rentals-implementer` → `rentals-reviewer` → `rentals-tester` |
-| `GTM-NNN` | **Go-to-market** — target market, positioning, marketing content, launch campaigns | `gtm-marketer` → `rentals-reviewer` |
+| `RNT-NNN` / `RNT-SEC-NNN` / `RNT-QUAL-NNN` | **Rentals code** — hardening the 13 BUILT features; security/compliance fixes; quality & edge-cases | `rentals-implementer` → `rentals-reviewer` → `rentals-tester` |
+| `GTM-NNN` | **Go-to-market** — target market, positioning, marketing content, launch campaigns, measurement | `gtm-marketer` → `rentals-reviewer` |
 | `UX-NNN` | **UX & onboarding** — app ease-of-use audits, first-run flows, tutorial videos, in-app guides, help content | `ux-onboarding` → `rentals-reviewer` |
+| `OPS-NNN` | **Ops & launch readiness** — CI/CD, observability, backups, secrets management, domain + email, legal pages, tier enforcement | `rentals-implementer` → `rentals-reviewer` → `rentals-tester` |
+| `QA-NNN` | **QA & testing** — backend regression, FE E2E, mobile smoke matrix, RBAC matrix, a11y, perf, website QA, design-token audit | `rentals-tester` (or a qa-lead agent where we add one) → `rentals-reviewer` |
+| `MIL-NNN` | **Milestones** — cross-stream launch gates (e.g. "first-client onboarding readiness") | `rentals-pm` |
 
-All three streams use the same folders, the same workflow, and the same commit discipline. The `rentals-pm` agent triages blockers and syncs to Asana across all three.
+All streams use the same folders, the same workflow, and the same commit discipline. The `rentals-pm` agent triages blockers and syncs to Asana across all streams.
+
+**Substream prefixes** (e.g. `RNT-SEC-001`, `RNT-QUAL-001`) group related tasks for readability — they remain part of the `rentals` stream for routing/ownership.
 
 **v1.0 scope (this project):**
-- RNT: hardening pass on 13 BUILT rentals features
-- GTM: target market → positioning → launch content → campaign plan
+- RNT: hardening pass on 13 BUILT rentals features (RNT-NNN), security/compliance fixes (RNT-SEC-NNN), quality + edge cases (RNT-QUAL-NNN)
+- GTM: target market → positioning → launch content → campaign plan → measurement
 - UX: audit all core flows → first-rental-cycle onboarding → training videos + guides
+- OPS: CI/CD, Sentry, backups, domain/email/HTTPS, legal pages, secrets vault, uptime alerting, tier enforcement
+- QA: backend regression baseline, E2E golden paths, mobile smoke matrix, RBAC matrix, a11y WCAG 2.1 AA, perf budget, website QA, design-token audit
+- MIL: single launch gate (`MIL-001`) that blocks on all the above before first-client onboarding
 
 **v2 (not in scope here):** 7 PLANNED features — tenant screening, vacancy advertising, notice management, inspections (incoming + outgoing), deposit management, deposit refund.
 
@@ -56,11 +64,16 @@ backlog → in-progress → review → testing → done
 
 ## Task IDs
 
-- `RNT-NNN` — zero-padded, monotonic
-- `GTM-NNN` — zero-padded, monotonic
-- `UX-NNN` — zero-padded, monotonic
+Zero-padded, monotonic per prefix. Reserve the next free ID before creating a task.
 
-Reserve the next free ID (per prefix) when creating a new task.
+- `RNT-NNN` — rentals code (hardening, feature work)
+- `RNT-SEC-NNN` — rentals security/compliance substream
+- `RNT-QUAL-NNN` — rentals quality & edge-case substream
+- `GTM-NNN` — go-to-market
+- `UX-NNN` — UX & onboarding
+- `OPS-NNN` — ops & launch readiness
+- `QA-NNN` — QA & testing
+- `MIL-NNN` — cross-stream milestones / launch gates
 
 ## Asana sync
 

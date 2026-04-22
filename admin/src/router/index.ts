@@ -132,6 +132,7 @@ const router = createRouter({
         { path: 'testing/issues', name: 'TestingIssues', component: () => import('../views/testing/TestingIssuesView.vue'), meta: { title: 'Test Issues' } },
         { path: 'testing/runs', name: 'TestingRuns', component: () => import('../views/testing/TestingRunsView.vue'), meta: { title: 'Test Runs' } },
         { path: 'testing/selfcheck', name: 'TestingSelfCheck', component: () => import('../views/testing/TestingSelfCheckView.vue'), meta: { title: 'Self Check' } },
+        { path: 'admin/devops', name: 'admin-devops', component: () => import('../views/admin/DevOpsView.vue'), meta: { title: 'DevOps' } },
       ],
     },
 

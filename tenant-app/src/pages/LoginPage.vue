@@ -3,7 +3,10 @@
 
     <!-- Navy hero -->
     <div class="login-hero">
-      <div class="logo-mark"><span>K</span></div>
+      <div class="logo-mark">
+        <span class="logo-wordmark">Klikk<span class="logo-dot">.</span></span>
+        <span class="role-pill">TENANT</span>
+      </div>
       <h1 class="login-title">Welcome back</h1>
       <p class="login-sub">Sign in to your tenant account</p>
     </div>
@@ -11,114 +14,60 @@
     <!-- Form sheet -->
     <div class="login-sheet">
 
-      <!-- Toggle: Email / Phone -->
-      <div class="mode-toggle q-mb-md">
-        <button
-          class="toggle-btn"
-          :class="{ 'toggle-btn--active': mode === 'email' }"
-          @click="mode = 'email'"
-        >Email</button>
-        <button
-          class="toggle-btn"
-          :class="{ 'toggle-btn--active': mode === 'phone' }"
-          @click="mode = 'phone'"
-        >Phone</button>
+      <div class="list-section">
+        <div class="list-row">
+          <span class="row-label">Email</span>
+          <input
+            v-model="email"
+            type="email"
+            placeholder="your@email.com"
+            autocomplete="email"
+            class="row-input"
+            @keyup.enter="focusPassword"
+          />
+        </div>
+        <div class="list-row">
+          <span class="row-label">Password</span>
+          <input
+            ref="passwordRef"
+            v-model="password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="••••••••"
+            autocomplete="current-password"
+            class="row-input"
+            @keyup.enter="handleEmailLogin"
+          />
+          <button class="eye-btn" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword" type="button">
+            <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
+          </button>
+        </div>
       </div>
 
-      <!-- ── Email / Password ─────────────────────────────────── -->
-      <template v-if="mode === 'email'">
-        <div class="list-section">
-          <div class="list-row">
-            <span class="row-label">Email</span>
-            <input
-              v-model="email"
-              type="email"
-              placeholder="your@email.com"
-              autocomplete="email"
-              class="row-input"
-              @keyup.enter="focusPassword"
-            />
-          </div>
-          <div class="list-row">
-            <span class="row-label">Password</span>
-            <input
-              ref="passwordRef"
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              class="row-input"
-              @keyup.enter="handleEmailLogin"
-            />
-            <button class="eye-btn" :aria-label="showPassword ? 'Hide password' : 'Show password'" @click="showPassword = !showPassword" type="button">
-              <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" size="18px" color="grey-5" />
-            </button>
-          </div>
-        </div>
+      <p v-if="error" class="error-msg">{{ error }}</p>
 
-        <p v-if="error" class="error-msg">{{ error }}</p>
+      <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleEmailLogin">
+        <q-spinner-dots v-if="loading" color="white" size="20px" />
+        <span v-else>Sign In</span>
+      </button>
 
-        <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleEmailLogin">
-          <q-spinner-dots v-if="loading" color="white" size="20px" />
-          <span v-else>Sign In</span>
-        </button>
-      </template>
+      <!-- Biometric -->
+      <button
+        v-if="biometric.isAvailable.value && biometric.hasCredentials.value"
+        class="btn-biometric"
+        :aria-label="`Sign in with ${biometric.biometryLabel()}`"
+        @click="handleBiometricLogin"
+      >
+        <q-icon :name="biometricIcon" size="22px" />
+        <span>Sign in with {{ biometric.biometryLabel() }}</span>
+      </button>
 
-      <!-- ── Phone / OTP ──────────────────────────────────────── -->
-      <template v-else>
-        <template v-if="!otpSent">
-          <div class="list-section">
-            <div class="list-row">
-              <span class="row-label">Phone</span>
-              <input
-                v-model="phone"
-                type="tel"
-                placeholder="+27 82 123 4567"
-                autocomplete="tel"
-                class="row-input"
-                @keyup.enter="handleRequestOtp"
-              />
-            </div>
-          </div>
+      <!-- Divider -->
+      <div v-if="googleConfigured" class="divider">
+        <span>or continue with</span>
+      </div>
 
-          <p v-if="error" class="error-msg">{{ error }}</p>
-
-          <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleRequestOtp">
-            <q-spinner-dots v-if="loading" color="white" size="20px" />
-            <span v-else>Send OTP</span>
-          </button>
-        </template>
-
-        <template v-else>
-          <div class="list-section">
-            <div class="list-row">
-              <span class="row-label">OTP</span>
-              <input
-                v-model="otpCode"
-                type="text"
-                inputmode="numeric"
-                maxlength="6"
-                placeholder="123456"
-                autocomplete="one-time-code"
-                class="row-input"
-                @keyup.enter="handleVerifyOtp"
-              />
-            </div>
-          </div>
-
-          <p class="otp-info">Code sent to {{ phone }}</p>
-          <p v-if="error" class="error-msg">{{ error }}</p>
-
-          <button class="btn-primary klikk-btn-primary" :disabled="loading" @click="handleVerifyOtp">
-            <q-spinner-dots v-if="loading" color="white" size="20px" />
-            <span v-else>Verify & Sign In</span>
-          </button>
-
-          <button class="btn-link" @click="otpSent = false; otpCode = ''; error = ''">
-            Use different number
-          </button>
-        </template>
-      </template>
+      <!-- Google -->
+      <div v-if="googleConfigured" ref="googleBtnContainer" class="google-wrap" />
 
     </div>
 
@@ -128,25 +77,36 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useGoogleAuth } from '../composables/useGoogleAuth'
+import { useBiometric } from '../composables/useBiometric'
+import { BiometryType } from 'capacitor-native-biometric'
 
 const router = useRouter()
 const auth   = useAuthStore()
+const { renderGoogleButton, waitForCredential, isConfigured: googleConfigured } = useGoogleAuth()
+const biometric = useBiometric()
 
-const mode         = ref<'email' | 'phone'>('email')
-const email        = ref('')
-const password     = ref('')
-const showPassword = ref(false)
-const phone        = ref('')
-const otpCode      = ref('')
-const otpSent      = ref(false)
-const loading      = ref(false)
-const error        = ref('')
-const passwordRef  = ref<HTMLInputElement | null>(null)
+const email              = ref('')
+const password           = ref('')
+const showPassword       = ref(false)
+const loading            = ref(false)
+const error              = ref('')
+const passwordRef        = ref<HTMLInputElement | null>(null)
+const googleBtnContainer = ref<HTMLElement | null>(null)
 
 const currentYear = computed(() => new Date().getFullYear())
+
+// Icon name for the active biometry type
+const biometricIcon = computed(() => {
+  switch (biometric.biometryType.value) {
+    case BiometryType.FACE_ID:
+    case BiometryType.FACE_AUTHENTICATION: return 'face'
+    default:                               return 'fingerprint'
+  }
+})
 
 function focusPassword() {
   passwordRef.value?.focus()
@@ -161,6 +121,8 @@ async function handleEmailLogin() {
   loading.value = true
   try {
     await auth.login(email.value.trim(), password.value)
+    // Save for future biometric login
+    await biometric.saveCredentials(email.value.trim(), password.value)
     await router.replace('/dashboard')
   } catch (err: unknown) {
     const axiosErr = err as { response?: { data?: { detail?: string } } }
@@ -170,41 +132,44 @@ async function handleEmailLogin() {
   }
 }
 
-async function handleRequestOtp() {
-  if (!phone.value.trim()) {
-    error.value = 'Please enter your phone number.'
-    return
-  }
+async function handleBiometricLogin() {
   error.value   = ''
   loading.value = true
   try {
-    await auth.requestOtp(phone.value.trim())
-    otpSent.value = true
+    const { username, password: storedPassword } = await biometric.authenticate()
+    await auth.login(username, storedPassword)
+    await router.replace('/dashboard')
   } catch (err: unknown) {
-    const axiosErr = err as { response?: { data?: { detail?: string } } }
-    error.value = axiosErr.response?.data?.detail || 'Failed to send OTP. Please try again.'
+    const msg = (err as Error)?.message || ''
+    // User cancelled — don't show an error
+    if (!msg.includes('cancel') && !msg.includes('Cancel')) {
+      error.value = 'Biometric sign-in failed. Please use your password.'
+    }
   } finally {
     loading.value = false
   }
 }
 
-async function handleVerifyOtp() {
-  if (!otpCode.value.trim()) {
-    error.value = 'Please enter the OTP code.'
-    return
-  }
-  error.value   = ''
-  loading.value = true
-  try {
-    await auth.verifyOtp(phone.value.trim(), otpCode.value.trim())
-    await router.replace('/dashboard')
-  } catch (err: unknown) {
-    const axiosErr = err as { response?: { data?: { detail?: string } } }
-    error.value = axiosErr.response?.data?.detail || 'Invalid OTP. Please try again.'
-  } finally {
-    loading.value = false
-  }
-}
+onMounted(async () => {
+  await biometric.checkAvailability()
+
+  if (!googleConfigured || !googleBtnContainer.value) return
+  const credentialPromise = waitForCredential()
+  await renderGoogleButton(googleBtnContainer.value)
+  credentialPromise.then(async (credential) => {
+    error.value   = ''
+    loading.value = true
+    try {
+      await auth.loginWithGoogle(credential)
+      await router.replace('/dashboard')
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { error?: string; detail?: string } } }
+      error.value = axiosErr.response?.data?.error || axiosErr.response?.data?.detail || 'Google sign-in failed.'
+    } finally {
+      loading.value = false
+    }
+  }).catch(() => {})
+})
 </script>
 
 <style scoped lang="scss">
@@ -220,47 +185,67 @@ $navy: $primary;
 
 .login-hero {
   background: linear-gradient(160deg, $navy 0%, #1A1B44 100%);
-  padding: calc(56px + env(safe-area-inset-top, 0px)) 24px 40px;
+  padding: calc(64px + env(safe-area-inset-top, 0px)) 24px 52px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
 }
 
 .logo-mark {
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
-  background: rgba(255,255,255,0.12);
-  border: 1.5px solid rgba(255,255,255,0.2);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  margin-bottom: 16px;
+  gap: 10px;
+  margin-bottom: 24px;
+}
 
-  span {
-    font-size: 36px;
-    font-weight: 800;
-    color: white;
-    line-height: 1;
-  }
+.logo-wordmark {
+  font-size: 44px;
+  font-weight: 800;
+  color: white;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.logo-dot {
+  color: #FF3D7F;
+}
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(255, 61, 127, 0.15);
+  border: 1px solid rgba(255, 61, 127, 0.30);
+  color: #FF3D7F;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
 
 .login-title {
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: white;
-  margin: 0 0 4px;
+  margin: 0 0 6px;
 }
 
 .login-sub {
   font-size: 14px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.72);
   margin: 0;
 }
 
 .login-sheet {
   flex: 1;
-  padding: 28px 16px 24px;
+  background: $surface;
+  border-radius: 28px 28px 0 0;
+  margin-top: -32px;
+  padding: 32px 20px 24px;
+  box-shadow: 0 -6px 32px rgba(0,0,0,0.10);
 }
 
 .mode-toggle {
@@ -392,6 +377,50 @@ $navy: $primary;
   background: none;
   border: none;
   cursor: pointer;
+}
+
+/* ── Biometric button ── */
+.btn-biometric {
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  background: transparent;
+  border: 1.5px solid var(--klikk-border-strong);
+  border-radius: var(--klikk-radius-btn);
+  color: var(--klikk-text-primary);
+  font-size: 15px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s, opacity 0.15s;
+
+  &:active { opacity: 0.7; }
+}
+
+/* ── Divider ── */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--klikk-text-muted);
+  font-size: 13px;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 0.5px;
+    background: var(--klikk-border);
+  }
+}
+
+/* ── Google button ── */
+.google-wrap {
+  display: flex;
+  justify-content: center;
 }
 
 .footer-text {

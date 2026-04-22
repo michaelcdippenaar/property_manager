@@ -158,6 +158,7 @@
             <div
               v-if="openDropdown === 'user'"
               class="absolute right-0 top-full w-56 z-50 origin-top-right pt-1"
+              @click.stop
             >
             <div class="bg-white border border-gray-200 rounded-xl shadow-xl py-1">
               <!-- Profile -->
@@ -365,7 +366,7 @@ import {
   LogOut, BookOpen, Info, ChevronDown,
   Activity, ShieldCheck, User, FlaskConical, Settings, Menu, X,
   LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText,
-  FileSignature, Calendar, Sparkles, Truck, HelpCircle,
+  FileSignature, Calendar, Sparkles, Truck, HelpCircle, Terminal,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -462,6 +463,7 @@ const dashboardLabel = computed(() => {
 
 const developerItems = [
   { to: '/testing', icon: FlaskConical, label: 'Testing Portal' },
+  { to: '/admin/devops', icon: Terminal, label: 'DevOps Console' },
 ]
 
 const propertyInfoSubItems = [

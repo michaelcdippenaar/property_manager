@@ -55,6 +55,10 @@ class Unit(models.Model):
     rent_amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.AVAILABLE)
     floor = models.PositiveSmallIntegerField(null=True, blank=True)
+    features = models.JSONField(
+        default=list, blank=True,
+        help_text="Amenity tags e.g. ['braai', 'pool', 'garage', 'pet_friendly', 'garden']"
+    )
     ad_description = models.TextField(blank=True, help_text="Advertising copy used in rental listings")
     amenities = models.JSONField(default=list, blank=True, help_text="List of amenity strings, e.g. ['Pool', 'Garden', 'Braai area']")
 

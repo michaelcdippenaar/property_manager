@@ -35,6 +35,12 @@ export const useAuthStore = defineStore('auth', () => {
     await fetchMe()
   }
 
+  async function loginWithGoogle(credential: string) {
+    const { data } = await api.post('/auth/google/', { credential })
+    _setTokens(data.access, data.refresh)
+    user.value = data.user
+  }
+
   async function requestOtp(phone: string) {
     await api.post('/auth/otp/send/', { phone })
   }
@@ -76,6 +82,7 @@ export const useAuthStore = defineStore('auth', () => {
     user,
     isAuthenticated,
     login,
+    loginWithGoogle,
     requestOtp,
     verifyOtp,
     logout,

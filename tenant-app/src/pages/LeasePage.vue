@@ -30,7 +30,7 @@
           <q-card v-if="needsSigning" flat class="q-mb-md" @click="$router.push('/signing')">
             <q-item clickable v-ripple>
               <q-item-section avatar>
-                <q-avatar color="secondary" text-color="white" size="40px">
+                <q-avatar color="primary" text-color="white" size="40px">
                   <q-icon name="draw" />
                 </q-avatar>
               </q-item-section>

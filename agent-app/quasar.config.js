@@ -12,6 +12,7 @@ module.exports = configure(function (/* ctx */) {
       'axios',
       'capacitor',
       'auth-guard',
+      'errorLogger',
     ],
 
     css: [
@@ -41,14 +42,15 @@ module.exports = configure(function (/* ctx */) {
 
     devServer: {
       open: false,
+      port: 5176,
     },
 
     framework: {
       config: {
         brand: {
           primary:   '#2B2D6E',
-          secondary: '#0D9488',   // was #FF3D7F pink
-          accent:    '#0D9488',
+          secondary: '#FF3D7F',
+          accent:    '#FF3D7F',
           dark:      '#1A1B44',
           positive:  '#21BA45',
           negative:  '#DB2828',

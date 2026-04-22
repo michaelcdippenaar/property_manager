@@ -17,7 +17,7 @@ else:
 SECRET_KEY = config("SECRET_KEY", default="dev-secret-key")
 DEBUG = config("DEBUG", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5178", "http://127.0.0.1:5178"]
+CSRF_TRUSTED_ORIGINS = ["http://localhost:5178", "http://127.0.0.1:5178", "http://127.0.0.1:5173", "http://localhost:5173", "http://192.168.1.176:9501"]
 
 DJANGO_APPS = [
     "daphne",
@@ -133,6 +133,11 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Upload limits — Django defaults are 2.5 MB (memory) / 2.5 MB (POST body).
+# Lease PDFs and DOCX files can be larger, so raise to 20 MB.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024   # 20 MB
+FILE_UPLOAD_MAX_MEMORY_SIZE = 20 * 1024 * 1024    # 20 MB
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {
@@ -209,6 +214,14 @@ RAG_EMBEDDING_MODEL = config(
 # The Volt — personal data sovereignty vault RAG collections
 VOLT_DOCUMENTS_COLLECTION = "volt_documents"
 VOLT_ENTITIES_COLLECTION = "volt_entities"
+
+# The Volt — Weaviate Cloud backend (optional; falls back to ChromaDB when unset)
+#   - VOLT_VECTOR_BACKEND: "chroma" (default) or "weaviate"
+#   - WEAVIATE_URL: https://<cluster>.weaviate.cloud  (REST endpoint from WCS console)
+#   - WEAVIATE_API_KEY: admin API key from WCS console → Security → API Keys
+VOLT_VECTOR_BACKEND = config("VOLT_VECTOR_BACKEND", default="chroma")
+WEAVIATE_URL = config("WEAVIATE_URL", default="")
+WEAVIATE_API_KEY = config("WEAVIATE_API_KEY", default="")
 
 # Tenant AI chat attachments (multipart uploads)
 TENANT_AI_MAX_IMAGE_BYTES = config(

@@ -7,9 +7,9 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.the_volt.owners.models import VaultOwner
-from .models import VaultEntity, EntityRelationship
+from .models import VaultEntity, EntityRelationship, RelationshipTypeCatalogue
 from .query_service import VaultQueryService
-from .serializers import VaultEntitySerializer, EntityRelationshipSerializer
+from .serializers import VaultEntitySerializer, EntityRelationshipSerializer, RelationshipTypeCatalogueSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +148,7 @@ class EntityRelationshipViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return EntityRelationship.objects.filter(
             vault__user=self.request.user
-        ).select_related("from_entity", "to_entity", "vault")
+        ).select_related("from_entity", "to_entity", "vault", "relationship_type")
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
@@ -158,3 +158,27 @@ class EntityRelationshipViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         owner = VaultOwner.get_or_create_for_user(self.request.user)
         serializer.save(vault=owner)
+
+
+class RelationshipTypeCatalogueViewSet(viewsets.ModelViewSet):
+    """CRUD for relationship types.
+
+    System types (is_system=True) cannot be deleted — returns 403.
+    All authenticated users can read; create/update/delete requires auth.
+    AI agents use POST to create new types when they encounter an unlisted relationship.
+    """
+    serializer_class = RelationshipTypeCatalogueSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ["get", "post", "put", "patch", "delete", "head", "options"]
+
+    def get_queryset(self):
+        qs = RelationshipTypeCatalogue.objects.all()
+        if self.request.query_params.get("active_only", "true").lower() != "false":
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_destroy(self, instance):
+        if instance.is_system:
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied("System relationship types cannot be deleted.")
+        instance.delete()

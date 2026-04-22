@@ -623,6 +623,11 @@ def _default_unit_for_user(user):
     We prefer an ACTIVE lease, but fall back to PENDING or the most recent lease.
     This prevents maintenance tickets from silently failing for tenants whose
     lease is not yet marked ACTIVE in the database.
+
+    Auto-link fallback: if no lease is found via Person.linked_user (invite flow),
+    try matching by email. This handles tenants who self-registered rather than
+    accepting a formal invite — their Person record exists with the right email
+    but linked_user was never set.
     """
     qs = get_tenant_leases(user).select_related("unit").order_by("-start_date")
 
@@ -633,6 +638,30 @@ def _default_unit_for_user(user):
         lease = qs.first()
     if lease and lease.unit_id:
         return lease.unit
+
+    # Email-based fallback: find a Person by email and auto-link them.
+    # This covers tenants who registered without going through the invite flow.
+    if user.email:
+        try:
+            from apps.tenant.models import Person  # local import to avoid circular
+            person = Person.objects.filter(
+                email__iexact=user.email,
+                linked_user__isnull=True,
+            ).first()
+            if person:
+                person.linked_user = user
+                person.save(update_fields=["linked_user"])
+                # Retry lease lookup now that the link is established
+                qs2 = get_tenant_leases(user).select_related("unit").order_by("-start_date")
+                lease2 = (
+                    qs2.filter(status=Lease.Status.ACTIVE).first()
+                    or qs2.filter(status=Lease.Status.PENDING).first()
+                    or qs2.first()
+                )
+                if lease2 and lease2.unit_id:
+                    return lease2.unit
+        except Exception:
+            pass
 
     # Final fallback: TenantIntelligence (if present) may already have unit_ref.
     try:

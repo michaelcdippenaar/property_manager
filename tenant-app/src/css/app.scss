@@ -1,4 +1,5 @@
 // ─── Global styles ────────────────────────────────────────────────────────────
+@use 'sass:color';
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 // Match admin's 15px base (admin/src/assets/main.css body font-size).
@@ -353,19 +354,19 @@ body:not(.platform-ios) {
 
 // ─── Maintenance status badge colours ────────────────────────────────────────
 
-.status-open        { background: rgba($info, 0.15);      color: darken($info, 20%); }
-.status-in_progress { background: rgba($warning, 0.15);   color: darken($warning, 20%); }
-.status-resolved    { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+.status-open        { background: rgba($info, 0.15);      color: color.scale($info, $lightness: -20%); }
+.status-in_progress { background: rgba($warning, 0.15);   color: color.scale($warning, $lightness: -20%); }
+.status-resolved    { background: rgba($positive, 0.15);  color: color.scale($positive, $lightness: -15%); }
 .status-closed      { background: rgba(#9e9e9e, 0.15);   color: #616161; }
-.status-pending     { background: rgba($warning, 0.12);   color: darken($warning, 15%); }
-.status-completed   { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
-.status-declined    { background: rgba($negative, 0.12);  color: darken($negative, 10%); }
-.status-active      { background: rgba($positive, 0.15);  color: darken($positive, 15%); }
+.status-pending     { background: rgba($warning, 0.12);   color: color.scale($warning, $lightness: -15%); }
+.status-completed   { background: rgba($positive, 0.15);  color: color.scale($positive, $lightness: -15%); }
+.status-declined    { background: rgba($negative, 0.12);  color: color.scale($negative, $lightness: -10%); }
+.status-active      { background: rgba($positive, 0.15);  color: color.scale($positive, $lightness: -15%); }
 
 // Priority badge colours
-.priority-urgent { background: rgba($negative, 0.12);  color: darken($negative, 10%); }
-.priority-high   { background: rgba($warning, 0.15);   color: darken($warning, 20%); }
-.priority-medium { background: rgba($info, 0.15);      color: darken($info, 20%); }
+.priority-urgent { background: rgba($negative, 0.12);  color: color.scale($negative, $lightness: -10%); }
+.priority-high   { background: rgba($warning, 0.15);   color: color.scale($warning, $lightness: -20%); }
+.priority-medium { background: rgba($info, 0.15);      color: color.scale($info, $lightness: -20%); }
 .priority-low    { background: rgba(#9e9e9e, 0.12);   color: #616161; }
 
 // Typing indicator bounce animation

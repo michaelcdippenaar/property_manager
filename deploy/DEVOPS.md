@@ -812,7 +812,110 @@ print(raw)   # update Bitwarden + claude.ai connector
 
 ---
 
-## 15. Security Notes
+## 15. Capacitor Mobile Apps (tenant-app & agent-app)
+
+The two Quasar + Capacitor apps are **not** deployed as Docker services — they are
+built and distributed as native iOS / Android apps via TestFlight and Google Play.
+
+### Apps
+
+| App | Directory | Bundle ID | API env var |
+|-----|-----------|-----------|-------------|
+| Klikk Tenant | `tenant-app/` | `za.co.klikk.tenant` | `API_URL` |
+| Klikk Agent | `agent-app/` | `za.co.klikk.agentapp` | `API_URL` |
+
+### Environment files
+
+Both apps use `process.env.API_URL`. The correct file is loaded via `NODE_ENV`:
+
+| File | `NODE_ENV` | API target |
+|------|-----------|------------|
+| `.env.development` | `development` (default) | `http://localhost:8000/api/v1` |
+| `.env.staging` | `staging` | `https://backend.klikk.co.za/api/v1` |
+| `.env.production` | `production` | `https://backend.klikk.co.za/api/v1` |
+
+> `agent-app` has all three env files. `tenant-app` only has `.env.development` —
+> create `.env.staging` and `.env.production` as needed (see below).
+
+Create `tenant-app/.env.staging`:
+```bash
+echo "API_URL=https://backend.klikk.co.za/api/v1" > tenant-app/.env.staging
+```
+
+### Run locally against staging backend
+
+Both apps must be run from their own directory. Open two terminal tabs:
+
+```bash
+# Terminal 1 — tenant-app on iOS Simulator (staging API)
+cd tenant-app
+NODE_ENV=staging quasar dev -m capacitor -T ios
+
+# Terminal 2 — agent-app on Android Emulator (staging API)
+cd agent-app
+NODE_ENV=staging quasar dev -m capacitor -T android
+```
+
+**Physical device:** plug in via USB, trust the Mac on the device, then select your
+device in Xcode (iOS) or Android Studio (Android). Both devices must be on the same
+WiFi as your Mac for live reload to work (Quasar sets the dev server to your LAN IP).
+
+### Build for TestFlight (iOS)
+
+```bash
+# 1. Build the production web bundle pointing at staging
+cd tenant-app   # or agent-app
+NODE_ENV=staging quasar build -m capacitor -T ios
+
+# 2. Open Xcode
+open src-capacitor/ios/App/App.xcworkspace
+
+# 3. In Xcode:
+#    - Target: Any iOS Device (arm64)  ← NOT a simulator
+#    - General → bump Build number     ← must be unique per upload
+#    - Signing & Capabilities → set your Apple Developer Team
+#    - Bundle ID: za.co.klikk.tenant (or za.co.klikk.agentapp)
+
+# 4. Archive
+#    Product → Archive
+
+# 5. Distribute
+#    Organizer → select archive → Distribute App → TestFlight & App Store → Upload
+```
+
+Apple processes the build in 5–30 min. Add testers in App Store Connect →
+**TestFlight** tab. Internal testers (up to 100) are available immediately with no
+review. External testers require Beta App Review (~1 day).
+
+### Build for Google Play (Android)
+
+```bash
+cd tenant-app   # or agent-app
+NODE_ENV=staging quasar build -m capacitor -T android
+
+# Open Android Studio
+npx cap open android
+
+# In Android Studio:
+# Build → Generate Signed Bundle / APK → Android App Bundle
+# Use your keystore, set version code (must increment each upload)
+# Upload the .aab to Google Play Console → Internal testing track
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| App hits `localhost:8000` instead of staging | Check `◇ injected env (N)` — if N=0, `.env.staging` is empty or dotenv not installed (`npm install dotenv --legacy-peer-deps`) |
+| `pod install` fails with "no space left on device" | `rm -rf ~/Library/Developer/Xcode/DerivedData/*` then `pod cache clean --all` |
+| Blank screen on physical device | Device and Mac must be on same WiFi for live reload; check LAN IP Quasar reported |
+| Xcode won't archive — target is greyed out | Switch device target from Simulator to **Any iOS Device (arm64)** |
+| TestFlight upload rejected | Bump the **Build number** in Xcode — duplicate build numbers are rejected |
+| `@capacitor/app` peer dep conflict | `npm install @capacitor/app@^6.0.0 --legacy-peer-deps` (must match `@capacitor/core` major version) |
+
+---
+
+## 16. Security Notes
 
 | Topic | Detail |
 |-------|--------|

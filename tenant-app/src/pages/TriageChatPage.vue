@@ -108,6 +108,27 @@
           </q-banner>
         </div>
 
+        <!-- Fallback: AI identified issue but couldn't create ticket (no linked unit) -->
+        <div v-else-if="reportSuggested" class="q-px-sm q-pb-xs">
+          <q-banner dense rounded class="bg-warning text-white">
+            <template #avatar>
+              <q-icon name="warning" />
+            </template>
+            <div class="text-body2 text-weight-medium q-mb-xs">We couldn't auto-log this repair</div>
+            <div class="text-caption q-mb-sm" style="opacity: 0.9">Your account isn't linked to a unit yet. Contact your property manager to link your account, or submit the form below.</div>
+            <q-btn
+              dense
+              unelevated
+              no-caps
+              label="Report manually"
+              color="white"
+              text-color="warning"
+              size="sm"
+              @click="openManualReport"
+            />
+          </q-banner>
+        </div>
+
         <!-- Composer -->
         <div class="composer-bar q-pa-sm">
           <input ref="fileInput" type="file" accept="image/*" capture="environment" style="display: none" @change="onPhotoSelected" />
@@ -158,6 +179,7 @@ const messages = ref<(ConversationMessage & { role: string })[]>([])
 const newMessage = ref('')
 const waitingForAi = ref(false)
 const linkedTicketId = ref<number | null>(null)
+const reportSuggested = ref(false)
 const conversationTitle = ref('New Request')
 const scrollAnchor = ref<HTMLElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
@@ -252,6 +274,7 @@ async function sendMessage() {
     // Check if a maintenance ticket was created
     if (data.maintenance_request && !linkedTicketId.value) {
       linkedTicketId.value = data.maintenance_request.id
+      reportSuggested.value = false
       messages.value.push({
         id: Date.now() + 1,
         role: 'system',
@@ -260,6 +283,8 @@ async function sendMessage() {
         attachment_kind: '',
         created_at: new Date().toISOString(),
       })
+    } else if (data.maintenance_report_suggested && !linkedTicketId.value) {
+      reportSuggested.value = true
     }
   } catch {
     $q.notify({ type: 'negative', message: 'Failed to send message. Please try again.' })
@@ -280,6 +305,19 @@ function goToTicket() {
   if (linkedTicketId.value) {
     router.push(`/repairs/ticket/${linkedTicketId.value}`)
   }
+}
+
+function openManualReport() {
+  // Navigate to repairs page — tenant can use the FAB there to start a new request
+  // or contact their property manager directly
+  $q.dialog({
+    title: 'Contact your property manager',
+    message: 'Your account isn\'t linked to a unit yet. Please ask your property manager to link your account so repairs can be logged automatically. In the meantime, contact them directly to report this issue.',
+    ok: { label: 'Go to Repairs', color: 'primary', unelevated: true },
+    cancel: { label: 'Stay here', flat: true },
+  }).onOk(() => {
+    router.push('/repairs')
+  })
 }
 
 // ── Scroll ──────────────────────────────────────────────────────────────────

@@ -31,27 +31,39 @@
         :title="`${m.label} — ${fmtDate(m.date)}`"
       />
     </div>
-    <div class="flex items-center justify-between mt-1 text-micro text-gray-400 tracking-wide">
+    <!-- Compact: single line with key numbers -->
+    <div v-if="compact" class="flex items-center justify-between mt-1 text-[10px] tabular-nums text-gray-400">
       <span>{{ fmtDate(start) }}</span>
       <span v-if="successorLeaseId" class="text-success-600 font-medium">Renewal drafted</span>
-      <span>{{ fmtDate(end) }}</span>
-    </div>
-    <div
-      v-if="daysElapsed !== null"
-      class="flex items-center justify-between mt-0.5 text-micro font-semibold tabular-nums"
-    >
-      <span class="text-gray-500">Day {{ daysElapsed }} / {{ totalDays }}</span>
-      <span v-if="daysToNotice !== null" :class="noticeTextColor">
-        {{ daysToNotice > 0
-          ? `${daysToNotice}d to notice`
-          : daysToNotice === 0
-            ? 'Notice opens today'
-            : `Notice overdue ${Math.abs(daysToNotice)}d` }}
-      </span>
-      <span :class="daysRemaining < 30 ? 'text-danger-500' : daysRemaining < 60 ? 'text-warning-600' : 'text-gray-500'">
+      <span v-else-if="daysElapsed !== null" class="font-medium" :class="daysRemaining < 30 ? 'text-danger-500' : daysRemaining < 60 ? 'text-warning-600' : 'text-gray-500'">
         {{ daysRemaining >= 0 ? `${daysRemaining}d left` : `${Math.abs(daysRemaining)}d overdue` }}
       </span>
+      <span>{{ fmtDate(end) }}</span>
     </div>
+    <!-- Full: two rows with all details -->
+    <template v-else>
+      <div class="flex items-center justify-between mt-1 text-micro text-gray-400 tracking-wide">
+        <span>{{ fmtDate(start) }}</span>
+        <span v-if="successorLeaseId" class="text-success-600 font-medium">Renewal drafted</span>
+        <span>{{ fmtDate(end) }}</span>
+      </div>
+      <div
+        v-if="daysElapsed !== null"
+        class="flex items-center justify-between mt-0.5 text-micro font-semibold tabular-nums"
+      >
+        <span class="text-gray-500">Day {{ daysElapsed }} / {{ totalDays }}</span>
+        <span v-if="daysToNotice !== null" :class="noticeTextColor">
+          {{ daysToNotice > 0
+            ? `${daysToNotice}d to notice`
+            : daysToNotice === 0
+              ? 'Notice opens today'
+              : `Notice overdue ${Math.abs(daysToNotice)}d` }}
+        </span>
+        <span :class="daysRemaining < 30 ? 'text-danger-500' : daysRemaining < 60 ? 'text-warning-600' : 'text-gray-500'">
+          {{ daysRemaining >= 0 ? `${daysRemaining}d left` : `${Math.abs(daysRemaining)}d overdue` }}
+        </span>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -70,6 +82,7 @@ const props = defineProps<{
   noticePeriodDays: number
   milestones?: TimelineMilestone[]
   successorLeaseId?: number | null
+  compact?: boolean
 }>()
 
 function toDate(s: string | null | undefined): Date | null {

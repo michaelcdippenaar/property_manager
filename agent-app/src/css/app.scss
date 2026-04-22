@@ -317,7 +317,7 @@ body:not(.platform-ios) {
 
   .empty-state-sub {
     font-size: 12px;
-    color: var(--klikk-text-faint);
+    color: var(--klikk-text-secondary);
     margin-top: 4px;
   }
 
@@ -390,4 +390,9 @@ body:not(.platform-ios) {
 :focus-visible {
   outline: 2px solid var(--q-primary);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  .typing-dot { animation: none !important; }
 }

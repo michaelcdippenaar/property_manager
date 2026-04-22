@@ -34,7 +34,7 @@
       <q-list separator>
         <q-item clickable v-ripple @click="$router.push('/signing')">
           <q-item-section avatar>
-            <q-icon name="draw" color="secondary" />
+            <q-icon name="draw" color="primary" />
           </q-item-section>
           <q-item-section>
             <q-item-label>Lease &amp; Signing</q-item-label>

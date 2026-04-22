@@ -10,7 +10,7 @@
       <template #avatar>
         <q-icon :name="statusIcon(viewing.status)" />
       </template>
-      <span class="text-weight-semibold text-capitalize">{{ viewing.status }}</span>
+      <span class="text-weight-semibold">{{ fmtLabel(viewing.status) }}</span>
       <span class="text-caption q-ml-sm">— {{ formatDateTime(viewing.scheduled_at) }}</span>
     </q-banner>
 
@@ -144,7 +144,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewing, updateViewing, type PropertyViewing, type Person } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { formatDateTime, statusIcon } from '../utils/formatters'
+import { formatDateTime, statusIcon, fmtLabel } from '../utils/formatters'
 import { SPINNER_SIZE_PAGE, AVATAR_PROFILE, formatZAR } from '../utils/designTokens'
 
 const props  = defineProps<{ id: number }>()

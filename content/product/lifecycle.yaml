@@ -9,87 +9,114 @@
 # Status is resolved from features.yaml — never duplicated here.
 # ═══════════════════════════════════════════════════════════════
 
-# ── KLIKK RENTALS — 15 stages, one platform ────────────────
+# ── KLIKK RENTALS — 15 stages, 4 phases, circular lifecycle ──
+#
+# The lifecycle is CIRCULAR: stage 14 (Notice) loops back to stage 1.
+# Stages 1–7 happen while the previous tenant still occupies.
+# Stages 8–11 are the overnight turnaround (move-out PM → move-in AM).
+# Stages 12–14 are active tenancy (12 months).
+# Stage 15 is closeout (deposit refund).
+#
+# Contract period: 1 Dec → 30 Nov (12-month fixed-term)
+# Notice period: 2 months (marketing starts on notice date)
 
 rental_lifecycle:
-  - step: 0
-    title: Mandate
-    description: "Owner and agent digitally sign the rental mandate before the property is listed or managed"
-    feature_ref: rental_mandate_signing
+  # ── Phase A: Pre-Tenancy (during previous tenant's notice period) ──
 
   - step: 1
-    title: Advertise
-    description: "List vacancies on Property24 and Private Property"
-    feature_ref: property_advertising
+    phase: pre_tenancy
+    title: Notice
+    description: "Tenant or landlord gives 2-month written notice — triggers marketing"
+    feature_ref: notice_management
 
   - step: 2
-    title: Viewing
-    description: "Schedule and confirm property viewings"
-    feature_ref: property_viewings
+    phase: pre_tenancy
+    title: Market
+    description: "List vacancy on Property24, Private Property, social media"
+    feature_ref: property_advertising
 
   - step: 3
+    phase: pre_tenancy
+    title: Viewings
+    description: "Schedule and conduct property viewings while previous tenant occupies"
+    feature_ref: property_viewings
+
+  - step: 4
+    phase: pre_tenancy
     title: Screen
     description: "AI scores applicants on credit, criminal, ID, employment, and rental history"
     feature_ref: tenant_screening
 
-  - step: 4
-    title: Contract
-    description: "AI generates RHA-compliant lease in minutes"
+  - step: 5
+    phase: pre_tenancy
+    title: Lease
+    description: "AI generates RHA-compliant lease, e-sign from any device"
     feature_ref: ai_lease_generation
 
-  - step: 5
-    title: Sign
-    description: "E-sign from any device, no account needed"
-    feature_ref: native_esigning
-
   - step: 6
-    title: Onboard
-    description: "Welcome pack, app invite, utility setup"
-    feature_ref: tenant_onboarding
-
-  - step: 7
-    title: Deposit
-    description: "Collect and invest in interest-bearing trust"
-    feature_ref: deposit_management
-
-  - step: 8
-    title: Inspect
-    description: "Incoming inspection with photo evidence"
-    feature_ref: incoming_inspection
-
-  - step: 9
-    title: Live
-    description: "Tenant app for issues, chat and lease access"
-    feature_ref: tenant_mobile_app
-
-  - step: 10
-    title: Pay Rent
-    description: "Payment references, tracking and receipts"
+    phase: pre_tenancy
+    title: Invoicing
+    description: "Configure recurring rent schedule, escalation, payment method"
     feature_ref: rent_tracking
 
-  - step: 11
-    title: Maintain
-    description: "AI triage, supplier matching, dispatch"
-    feature_ref: supplier_matching
+  - step: 7
+    phase: pre_tenancy
+    title: Deposit
+    description: "Collect deposit + first month; lodge in interest-bearing account (interest accrues from lodging day)"
+    feature_ref: deposit_management
 
-  - step: 12
-    title: Renew
-    description: "Auto-remind, negotiate, generate renewal"
-    feature_ref: lease_renewal
+  # ── Phase B: Turnaround (overnight — move-out PM to move-in AM) ──
 
-  - step: 13
-    title: Notice
-    description: "Notice period management and timeline"
-    feature_ref: notice_management
-
-  - step: 14
-    title: Out-Inspect
-    description: "Compare condition to incoming inspection"
+  - step: 8
+    phase: turnaround
+    title: Move-Out
+    description: "Joint outgoing inspection, photos, signed report, keys returned"
     feature_ref: outgoing_inspection
 
+  - step: 9
+    phase: turnaround
+    title: Repairs
+    description: "Overnight contractors work from snag list — clean, paint, fix"
+    feature_ref: supplier_matching
+
+  - step: 10
+    phase: turnaround
+    title: Move-In
+    description: "Joint incoming inspection with photo evidence, signed report"
+    feature_ref: incoming_inspection
+
+  - step: 11
+    phase: turnaround
+    title: Onboard
+    description: "Keys, utilities transfer, welcome pack, tenant portal setup"
+    feature_ref: tenant_onboarding
+
+  # ── Phase C: Active Tenancy (12 months) ──
+
+  - step: 12
+    phase: active_tenancy
+    title: Rent
+    description: "Monthly invoices, payment tracking, receipts on request"
+    feature_ref: rent_tracking
+
+  - step: 13
+    phase: active_tenancy
+    title: Maintain
+    description: "AI triage, supplier matching, dispatch, tenant app tickets"
+    feature_ref: supplier_matching
+
+  - step: 14
+    phase: active_tenancy
+    title: Renew / Notice
+    description: "Renewal notification at 80 biz days; renew, month-to-month, or vacate → loops to stage 1"
+    feature_ref: lease_renewal
+
+  # ── Phase D: Closeout ──
+
   - step: 15
+    phase: closeout
     title: Refund
-    description: "Calculate deductions, refund within 14 days"
+    description: "Itemised deposit refund with all accrued interest within 7/14/21 days"
     feature_ref: deposit_refund
 
 # ── KLIKK REAL ESTATE — Selling made simple ─────────────────

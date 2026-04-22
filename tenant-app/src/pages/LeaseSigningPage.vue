@@ -78,7 +78,7 @@
                 <q-btn
                   v-if="myPendingSigner(sub)"
                   label="Sign Now"
-                  color="secondary"
+                  color="primary"
                   no-caps
                   class="full-width q-mt-md"
                   @click="openSigning(sub)"

@@ -12,6 +12,7 @@ class EntityType(models.TextChoices):
     ASSET = "asset", "Asset"
 
 
+# Legacy — use RelationshipTypeCatalogue for new code
 class RelationshipType(models.TextChoices):
     DIRECTOR_OF = "director_of", "Director of"
     TRUSTEE_OF = "trustee_of", "Trustee of"
@@ -125,6 +126,78 @@ class VaultEntity(models.Model):
         return f"{self.get_entity_type_display()}: {self.name}"
 
 
+class RelationshipTypeCatalogue(models.Model):
+    """Data-driven catalogue of relationship types between VaultEntity nodes.
+
+    Replaces the static RelationshipType TextChoices. New types are created via
+    the API (human or AI) rather than code changes. System types (is_system=True)
+    are seeded by migrations and cannot be deleted via the API.
+
+    valid_from_entity_types / valid_to_entity_types constrain which entity types
+    are allowed on each end — enforced in EntityRelationshipSerializer.validate().
+
+    metadata_schema hints to the client / AI what optional metadata to collect
+    (e.g. share_pct for shareholder_of, effective_date for most types).
+    """
+
+    code = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Stable machine code, e.g. 'director_of', 'leases_from'",
+    )
+    label = models.CharField(max_length=255, help_text="Forward label: 'Director of'")
+    inverse_label = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="Reverse label for UI: 'Has Director'",
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Plain-English explanation of what this relationship means",
+    )
+
+    valid_from_entity_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Entity type codes allowed as source node. Empty = any.",
+    )
+    valid_to_entity_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Entity type codes allowed as target node. Empty = any.",
+    )
+
+    metadata_schema = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Hints for metadata fields: {field_key: {type, label, required}}",
+    )
+
+    regulatory_reference = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text="e.g. 'FICA s.21 beneficial ownership', 'Companies Act s.69'",
+    )
+
+    is_system = models.BooleanField(
+        default=False,
+        help_text="True = seeded by migration; cannot be deleted via API",
+    )
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "label"]
+        verbose_name = "Relationship Type (Catalogue)"
+        verbose_name_plural = "Relationship Type Catalogue"
+
+    def __str__(self):
+        return f"{self.label} ({self.code})"
+
+
 class EntityRelationship(models.Model):
     """A directed graph edge between two VaultEntity nodes in the same vault.
 
@@ -151,7 +224,12 @@ class EntityRelationship(models.Model):
         on_delete=models.CASCADE,
         related_name="incoming_relationships",
     )
-    relationship_type = models.CharField(max_length=40, choices=RelationshipType.choices)
+    relationship_type = models.ForeignKey(
+        RelationshipTypeCatalogue,
+        on_delete=models.PROTECT,
+        related_name="relationships",
+        help_text="References RelationshipTypeCatalogue — create the type first if it doesn't exist",
+    )
     metadata = models.JSONField(
         default=dict,
         blank=True,
@@ -167,7 +245,7 @@ class EntityRelationship(models.Model):
         unique_together = [("from_entity", "to_entity", "relationship_type")]
 
     def __str__(self):
-        return f"{self.from_entity.name} → {self.get_relationship_type_display()} → {self.to_entity.name}"
+        return f"{self.from_entity.name} → {self.relationship_type.label} → {self.to_entity.name}"
 
 
 class FieldVerificationStatus(models.TextChoices):

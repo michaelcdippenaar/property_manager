@@ -126,7 +126,7 @@
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-badge :color="statusColor(v.status)" :label="v.status" />
+                <q-badge :color="statusColor(v.status)" :label="fmtLabel(v.status)" />
               </q-item-section>
             </q-item>
           </q-list>
@@ -153,7 +153,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewingsCalendar, listLeases, type PropertyViewing, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { statusColor, statusDotColor, formatTime } from '../utils/formatters'
+import { statusColor, statusDotColor, formatTime, fmtLabel } from '../utils/formatters'
 import { SPINNER_SIZE_INLINE, AVATAR_LIST } from '../utils/designTokens'
 
 const router = useRouter()

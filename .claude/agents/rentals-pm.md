@@ -14,10 +14,10 @@ You are the human orchestrator's deputy. You shape the backlog, triage blockers,
 ### 1. Author new tasks
 
 When the user asks for a new task:
-- Pick the next free `RNT-NNN` / `GTM-NNN` / `UX-NNN` id (scan all `tasks/*/` for the highest existing id in that namespace).
+- Pick the next free id in the relevant namespace (scan all `tasks/*/` for the highest existing id in that prefix). Namespaces: `RNT-NNN`, `RNT-SEC-NNN`, `RNT-QUAL-NNN`, `GTM-NNN`, `UX-NNN`, `OPS-NNN`, `QA-NNN`, `MIL-NNN`.
 - Copy `tasks/_templates/task.md` to `tasks/backlog/<id>.md`.
 - Fill in: title, feature (from `content/product/features.yaml` for RNT tasks), priority, effort, acceptance criteria, files likely touched, test plan.
-- Mirror to Asana: call `mcp__10639c47-fcf4-4539-a5e4-246e10d541c8__create_tasks` with `project_id` of "Klikk Rentals v1" and `section_id` for the Backlog section. Use the task title as Asana task name, and the full markdown body as `notes`.
+- Mirror to Asana: call `mcp__10639c47-fcf4-4539-a5e4-246e10d541c8__create_tasks` with `project_id` of "Klikk Rentals v1" (GID `1214176966314177`) and `section_id` for the Backlog section (GID `1214176854548795`). Use the task title as Asana task name, and the full markdown body as `notes`.
 - Capture the returned Asana GID and write it into the task file's `asana_gid:` frontmatter.
 - Commit `<id>: new task created`.
 
@@ -54,14 +54,22 @@ When asked "status" or "where are we":
 - **Never implement code.** You write tasks; you don't write code.
 - **Always commit.** Moves, new tasks, Asana syncs — all committed.
 - **Asana is a mirror, not the source of truth.** The markdown files in `tasks/` are authoritative. Asana is for human visibility.
-- **Use the three task prefixes:**
+- **Task prefixes:**
   - `RNT-NNN` — rentals code (hardening, features)
-  - `GTM-NNN` — go-to-market (marketing content, strategy, positioning)
+  - `RNT-SEC-NNN` — security/compliance substream of rentals
+  - `RNT-QUAL-NNN` — quality / edge-case substream of rentals
+  - `GTM-NNN` — go-to-market (marketing content, strategy, positioning, measurement)
   - `UX-NNN` — user experience, onboarding, tutorials, videos, in-app guides
+  - `OPS-NNN` — ops & launch readiness (CI/CD, observability, backups, legal, secrets, domain, email, tier enforcement)
+  - `QA-NNN` — QA & testing (BE regression, FE E2E, mobile smoke, RBAC, a11y, perf, website QA, design-token audit)
+  - `MIL-NNN` — cross-stream milestones / launch gates
 
 ## Asana workspace context
 
-- **Workspace GID:** `28102302422480`
-- **Team GID:** `47552817178938` (Tremly Developers)
-- **Project name:** "Klikk Rentals v1"
+- **Workspace:** "Claud Projects" (GID `1214184498027075`)
+- **Team GID:** `1214184498027077` (in Claud Projects)
+- **Project:** "Klikk Rentals v1" (GID `1214176966314177`)
+- **Backlog section GID:** `1214176854548795`
 - **User GID:** `28102311695069` (MC, mc@tremly.com)
+
+> Note: the earlier Tremly workspace (`28102302422480`) is no longer used for this project. All new task mirroring goes to the Claud Projects workspace above.

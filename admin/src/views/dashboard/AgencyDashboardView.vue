@@ -362,7 +362,7 @@ const stats = computed(() => [
   {
     label: 'Properties',
     value: statsData.value.total_properties ?? 0,
-    sub: `${statsData.value.active_leases ?? 0} active lease${(statsData.value.active_leases ?? 0) !== 1 ? 's' : ''}`,
+    sub: `${statsData.value.total_units ?? 0} unit${(statsData.value.total_units ?? 0) !== 1 ? 's' : ''} total`,
     icon: Building2, bg: 'bg-navy/10', iconColor: 'text-navy', href: '/properties',
   },
   {

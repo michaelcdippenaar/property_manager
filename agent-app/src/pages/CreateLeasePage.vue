@@ -43,7 +43,7 @@
             label="Lease start date *"
             outlined
             :rounded="isIos"
-            :rules="[v => !!v || 'Required']"
+            :rules="[RULES.required]"
             readonly
           >
             <template #prepend><q-icon name="calendar_today" color="primary" /></template>
@@ -66,7 +66,7 @@
             label="Lease end date *"
             outlined
             :rounded="isIos"
-            :rules="[v => !!v || 'Required', v => v > form.start_date || 'Must be after start date']"
+            :rules="[RULES.required, v => v > form.start_date || 'Must be after start date']"
             readonly
           >
             <template #prepend><q-icon name="event_busy" color="primary" /></template>
@@ -91,7 +91,7 @@
             outlined
             :rounded="isIos"
             prefix="R"
-            :rules="[v => !!v && Number(v) > 0 || 'Enter a valid amount']"
+            :rules="[RULES.positiveNumber]"
           >
             <template #prepend><q-icon name="payments" color="primary" /></template>
           </q-input>
@@ -104,7 +104,7 @@
             outlined
             :rounded="isIos"
             prefix="R"
-            :rules="[v => !!v && Number(v) > 0 || 'Enter a valid amount']"
+            :rules="[RULES.positiveNumber]"
             :hint="`Typically 1-2 months rent (R${oneMonthRent})`"
           >
             <template #prepend><q-icon name="account_balance" color="primary" /></template>
@@ -174,7 +174,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { getViewing, convertViewingToLease, listUnits, type PropertyViewing, type Unit } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { SPINNER_SIZE_PAGE, formatZAR } from '../utils/designTokens'
+import { SPINNER_SIZE_PAGE, formatZAR, RULES } from '../utils/designTokens'
 
 const props  = defineProps<{ viewingId: number }>()
 const router = useRouter()

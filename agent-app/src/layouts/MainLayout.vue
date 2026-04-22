@@ -14,6 +14,7 @@
           round
           :icon="backIcon"
           :color="isIos ? 'primary' : 'white'"
+          aria-label="Go back"
           @click="router.back()"
         />
 
@@ -23,14 +24,23 @@
           {{ pageTitle || route.meta.title || 'Klikk Agent' }}
         </q-toolbar-title>
 
-        <!-- Agency logo placeholder -->
-        <q-avatar v-if="!route.meta.showBackBtn" size="32px" color="white" text-color="primary">
-          <span class="text-weight-bold logo-initials">KA</span>
-        </q-avatar>
+        <!-- Profile avatar (opens settings) -->
+        <q-btn
+          v-if="!route.meta.showBackBtn"
+          flat
+          round
+          dense
+          aria-label="Profile"
+          @click="router.push('/settings')"
+        >
+          <q-avatar size="32px" color="primary" text-color="white">
+            <span class="text-weight-bold logo-initials">{{ profileInitials }}</span>
+          </q-avatar>
+        </q-btn>
       </q-toolbar>
     </q-header>
 
-    <!-- ── Android FAB (book viewing) ──────────────────────────────────────── -->
+    <!-- ── Android FAB (quick action) ──────────────────────────────────────── -->
     <q-page-sticky
       v-if="isAndroid && route.meta.showFab !== false"
       position="bottom-right"
@@ -40,8 +50,8 @@
         fab
         icon="add"
         color="secondary"
-        @click="router.push('/viewings/new')"
-        aria-label="Book viewing"
+        @click="handleFab"
+        aria-label="Quick action"
       />
     </q-page-sticky>
 
@@ -78,39 +88,74 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, provide, shallowRef } from 'vue'
+import { ref, computed, watch, provide, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlatform } from '../composables/usePlatform'
+import { useAuthStore } from '../stores/auth'
 
 const route  = useRoute()
 const router = useRouter()
+const auth   = useAuthStore()
 const { isIos, isAndroid, enterTransition, leaveTransition, backIcon, headerClass } = usePlatform()
 
 // Allow child pages to override the header title
 const pageTitle = shallowRef<string | null>(null)
 provide('setPageTitle', (title: string | null) => { pageTitle.value = title })
 
+const profileInitials = computed(() => {
+  const u = auth.user
+  const f = u?.first_name?.[0] ?? ''
+  const l = u?.last_name?.[0] ?? ''
+  return (f + l).toUpperCase() || 'KA'
+})
+
 const tabs = [
-  { name: 'dashboard',  label: 'Dashboard',  icon: 'bar_chart',   path: '/dashboard'  },
-  { name: 'properties', label: 'Properties', icon: 'home',         path: '/properties' },
-  { name: 'leases',     label: 'Leases',     icon: 'description',  path: '/leases'     },
-  { name: 'settings',   label: 'Settings',   icon: 'settings',     path: '/settings'   },
+  { name: 'today',    label: 'Today',    icon: 'today',       path: '/today'    },
+  { name: 'pipeline', label: 'Pipeline', icon: 'insights',    path: '/pipeline' },
+  { name: 'people',   label: 'People',   icon: 'groups',      path: '/people'   },
+  { name: 'inbox',    label: 'Inbox',    icon: 'inbox',       path: '/inbox'    },
 ]
 
-const activeTab = ref<string>('properties')
+const activeTab = ref<string>('today')
+
+// Map descendant routes to their parent tab so deep links keep the right tab highlighted.
+const tabForRoute: Record<string, string> = {
+  today:                'today',
+  pipeline:             'pipeline',
+  people:               'people',
+  inbox:                'inbox',
+  // Existing sub-routes map under Pipeline
+  dashboard:            'today',
+  viewings:             'pipeline',
+  'viewing-detail':     'pipeline',
+  'book-viewing':       'pipeline',
+  'create-lease':       'pipeline',
+  calendar:             'pipeline',
+  leases:               'pipeline',
+  properties:           'pipeline',
+  'property-detail':    'pipeline',
+  'create-direct-lease': 'pipeline',
+  maintenance:          'inbox',
+}
 
 watch(
   () => route.name,
   (name) => {
     pageTitle.value = null
-    if (name === 'dashboard')                                                   activeTab.value = 'dashboard'
-    else if (name === 'leases')                                                 activeTab.value = 'leases'
-    else if (name === 'settings')                                               activeTab.value = 'settings'
-    else if (name === 'properties' || name === 'property-detail'
-          || name === 'create-direct-lease' || name === 'calendar')             activeTab.value = 'properties'
+    const key = String(name ?? '')
+    activeTab.value = tabForRoute[key] ?? 'today'
   },
   { immediate: true },
 )
+
+function handleFab() {
+  // Context-aware quick action: viewings from Pipeline, otherwise book a viewing
+  if (activeTab.value === 'inbox') {
+    router.push('/viewings/new')
+  } else {
+    router.push('/viewings/new')
+  }
+}
 </script>
 
 <style lang="scss">

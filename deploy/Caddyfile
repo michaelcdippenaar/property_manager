@@ -58,8 +58,14 @@ backend.klikk.co.za {
     }
   }
   
-  # Main Django API proxy
-  reverse_proxy backend:8000
+  # Main Django API proxy — generous timeouts for AI endpoints
+  # (parse-document, ai-chat, builder sessions can take 60-120s)
+  reverse_proxy backend:8000 {
+    transport http {
+      read_timeout 180s
+      write_timeout 180s
+    }
+  }
 }
 
 # Agent mobile web (Quasar SPA)

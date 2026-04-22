@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from apps.the_volt.owners.views import VaultOwnerMeView
-from apps.the_volt.entities.views import VaultEntityViewSet, EntityRelationshipViewSet
+from apps.the_volt.entities.views import VaultEntityViewSet, EntityRelationshipViewSet, RelationshipTypeCatalogueViewSet
 from apps.the_volt.documents.views import VaultDocumentViewSet
 from apps.the_volt.schemas.views import EntitySchemaViewSet
 from apps.the_volt.gateway.views import (
@@ -19,6 +19,7 @@ from apps.the_volt.gateway.views import (
 router = DefaultRouter()
 router.register("entities", VaultEntityViewSet, basename="vault-entity")
 router.register("relationships", EntityRelationshipViewSet, basename="vault-relationship")
+router.register("relationship-types", RelationshipTypeCatalogueViewSet, basename="vault-relationship-type")
 router.register("documents", VaultDocumentViewSet, basename="vault-document")
 router.register("schemas", EntitySchemaViewSet, basename="vault-schema")
 

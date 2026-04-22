@@ -26,7 +26,7 @@
             outlined
             :rounded="isIos"
             :loading="loadingProps"
-            :rules="[v => !!v || 'Select a property']"
+            :rules="[RULES.requiredSelect]"
             @update:model-value="onPropertyChange"
           >
             <template #prepend>
@@ -64,7 +64,7 @@
             label="Viewing date *"
             outlined
             :rounded="isIos"
-            :rules="[v => !!v || 'Select a date']"
+            :rules="[RULES.requiredSelect]"
             readonly
           >
             <template #prepend>
@@ -89,7 +89,7 @@
             label="Viewing time *"
             outlined
             :rounded="isIos"
-            :rules="[v => !!v || 'Select a time']"
+            :rules="[RULES.requiredSelect]"
             readonly
           >
             <template #prepend>
@@ -169,7 +169,7 @@
                 label="First name *"
                 outlined
                 :rounded="isIos"
-                :rules="[v => !!v || 'Required']"
+                :rules="[RULES.required]"
               />
             </div>
             <div class="col-6">
@@ -178,7 +178,7 @@
                 label="Last name *"
                 outlined
                 :rounded="isIos"
-                :rules="[v => !!v || 'Required']"
+                :rules="[RULES.required]"
               />
             </div>
           </div>
@@ -272,7 +272,7 @@ import {
   type Property, type Unit,
 } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { formatZAR } from '../utils/designTokens'
+import { formatZAR, RULES } from '../utils/designTokens'
 
 const props = defineProps<{
   prePropertyId?: number

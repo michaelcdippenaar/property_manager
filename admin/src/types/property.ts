@@ -34,6 +34,7 @@ export interface Unit {
   floor_size_m2: string | number | null
   rent_amount: string
   status: UnitStatus
+  features: string[]
   ad_description: string
   active_lease_info: ActiveLeaseInfo | null
   open_maintenance_count: number

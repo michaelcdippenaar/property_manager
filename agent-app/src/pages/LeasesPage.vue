@@ -70,8 +70,8 @@
                 </div>
                 <q-badge
                   :color="leaseStatusColor(lease.status)"
-                  :label="lease.status"
-                  class="q-ml-sm text-capitalize"
+                  :label="fmtLabel(lease.status)"
+                  class="q-ml-sm"
                 />
               </div>
 
@@ -117,7 +117,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { listLeases, type AgentLease } from '../services/api'
 import { usePlatform } from '../composables/usePlatform'
-import { leaseStatusColor, formatDate, daysRemaining } from '../utils/formatters'
+import { leaseStatusColor, formatDate, daysRemaining, fmtLabel } from '../utils/formatters'
 import { SPINNER_SIZE_PAGE, EMPTY_ICON_SIZE, formatZAR } from '../utils/designTokens'
 
 const $q = useQuasar()

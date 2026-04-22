@@ -40,7 +40,31 @@ export default route(function (/* { store, ssrContext } */) {
         children: [
           {
             path: '',
-            redirect: '/dashboard',
+            redirect: '/today',
+          },
+          {
+            path: 'today',
+            name: 'today',
+            component: () => import('../pages/TodayPage.vue'),
+            meta: { title: 'Today', showFab: false },
+          },
+          {
+            path: 'pipeline',
+            name: 'pipeline',
+            component: () => import('../pages/PipelinePage.vue'),
+            meta: { title: 'Pipeline', showFab: true },
+          },
+          {
+            path: 'people',
+            name: 'people',
+            component: () => import('../pages/PeoplePage.vue'),
+            meta: { title: 'People', showFab: false },
+          },
+          {
+            path: 'inbox',
+            name: 'inbox',
+            component: () => import('../pages/InboxPage.vue'),
+            meta: { title: 'Inbox', showFab: false },
           },
           {
             path: 'dashboard',
@@ -69,6 +93,12 @@ export default route(function (/* { store, ssrContext } */) {
             meta: { title: 'Create Lease', showBackBtn: true, showFab: false },
           },
           {
+            path: 'viewings',
+            name: 'viewings',
+            component: () => import('../pages/ViewingsPage.vue'),
+            meta: { title: 'Viewings', showFab: true },
+          },
+          {
             path: 'leases',
             name: 'leases',
             component: () => import('../pages/LeasesPage.vue'),
@@ -79,6 +109,12 @@ export default route(function (/* { store, ssrContext } */) {
             name: 'calendar',
             component: () => import('../pages/ViewingCalendarPage.vue'),
             meta: { title: 'Calendar', showFab: true },
+          },
+          {
+            path: 'maintenance',
+            name: 'maintenance',
+            component: () => import('../pages/MaintenancePage.vue'),
+            meta: { title: 'Maintenance', showFab: false },
           },
           {
             path: 'settings',

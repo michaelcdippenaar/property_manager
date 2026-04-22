@@ -1,7 +1,7 @@
 from django.contrib import admin, messages
 
 from apps.the_volt.owners.models import VaultOwner, VaultOwnerAPIKey
-from apps.the_volt.entities.models import VaultEntity, EntityRelationship  # noqa: F401
+from apps.the_volt.entities.models import VaultEntity, EntityRelationship, RelationshipTypeCatalogue  # noqa: F401
 from apps.the_volt.documents.models import (
     VaultDocument,
     DocumentVersion,
@@ -116,6 +116,14 @@ class DataCheckoutAdmin(admin.ModelAdmin):
         "checkout_token", "entities_shared", "documents_shared",
         "data_hash", "package_signature", "checked_out_at",
     ]
+
+
+@admin.register(RelationshipTypeCatalogue)
+class RelationshipTypeCatalogueAdmin(admin.ModelAdmin):
+    list_display = ["code", "label", "inverse_label", "is_system", "is_active", "sort_order"]
+    list_filter = ["is_system", "is_active"]
+    search_fields = ["code", "label", "regulatory_reference"]
+    readonly_fields = ["is_system", "created_at", "updated_at"]
 
 
 @admin.register(DocumentTypeCatalogue)
