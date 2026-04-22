@@ -7,9 +7,9 @@ lifecycle_stage: 8
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177379561081"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -75,3 +75,54 @@ The task description says "backend models are built" but no `TenantOnboarding` m
 - The redirect guard uses `sessionStorage` (per-tab, not per-user). If a tenant dismisses the welcome screen in one tab and opens a new tab, they'll be redirected again. A more durable approach would be a `seen_welcome` flag on the backend user model, but that's out-of-scope for this task. Consider a discovery if this needs hardening.
 - The task says "Lease transitions to `active`" as a criteria for completing onboarding — this is already wired via the existing lease signals (`sync_unit_status`). The `TenantOnboarding.is_complete` flag is computed but does NOT itself trigger a lease status transition (the lease is already active by the time onboarding is created). This is the correct behavior per the task description.
 - The `backend/apps/tenants/tests/test_onboarding.py` path in the task has a typo — the app is `tenant` (no `s`). Tests are at `backend/apps/test_hub/tenant/unit/test_onboarding.py`.
+
+### 2026-04-22 — reviewer (changes requested)
+
+Two fixes required before this can be approved. Fix 1 is a security issue (blocking). Fix 2 is a minor cleanup.
+
+**1. SECURITY — Owner role gets unscoped access to all onboarding records (IDOR)**
+
+`backend/apps/tenant/views.py` — `TenantOnboardingViewSet.get_queryset()` (lines 107–126).
+
+The `get_queryset` branch reads:
+
+```python
+if user.role == "tenant":
+    qs = qs.filter(lease__primary_tenant__linked_user=user)
+else:
+    # Agents/admins can filter by lease or property
+    ...
+```
+
+The `else` branch catches every non-tenant role — including `owner`. An owner-portal user who calls `GET /api/v1/tenant/onboarding/` with no query params receives every onboarding record in the database. They can also `GET /api/v1/tenant/onboarding/<id>/` for any lease they don't own.
+
+Owner-portal `OwnerDashboard.vue` (`admin/src/views/owner/OwnerDashboard.vue`) calls exactly this endpoint without a property filter:
+
+```js
+api.get('/tenant/onboarding/?page_size=10')
+```
+
+Fix: add an owner scope branch in `get_queryset` using the same `PropertyOwnership` chain used in `HasPropertyAccess` and `IsOwnerOfProperty`. Something like:
+
+```python
+if user.role == User.Role.OWNER:
+    from apps.properties.models import PropertyOwnership, Landlord
+    person = getattr(user, 'person_profile', None)
+    if not person:
+        return qs.none()
+    landlord_ids = Landlord.objects.filter(person=person).values_list('pk', flat=True)
+    owned_property_ids = PropertyOwnership.objects.filter(
+        landlord_id__in=landlord_ids, is_current=True
+    ).values_list('property_id', flat=True)
+    qs = qs.filter(lease__unit__property_id__in=owned_property_ids)
+```
+
+The same fix makes the `OwnerDashboard.vue` API call safe without changing the frontend, because the backend will now naturally return only that owner's records.
+
+**2. MINOR — Unused import `IsTenant` in `backend/apps/tenant/views.py` line 6**
+
+`IsTenant` is imported but never referenced — `get_permissions()` uses `IsAuthenticated()` directly for the read branch. Remove the import to keep the file clean and avoid misleading future readers about the intended permission design.
+
+**Discovery filed:** `tasks/discoveries/2026-04-22-tenant-onboarding-welcome-redirect-durability.md` — covers the `sessionStorage` welcome-redirect issue flagged by the implementer. No action needed in this task; PM to promote if desired.
+
+**Everything else is solid:** model design, serializer auto-timestamping, signal with lazy import and `get_or_create` guard, checklist component + deposit modal, tenant `WelcomeView`, dashboard widgets, and 8 unit tests all look good and match project conventions.
