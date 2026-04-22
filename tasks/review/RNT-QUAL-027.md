@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214200629245786"
 created: 2026-04-22
@@ -107,3 +107,7 @@ The SPA build fixes are technically correct and all declared acceptance criteria
 2. **Security issue logged as discovery** (do not fix in this task — see `tasks/discoveries/2026-04-22-payments-api-missing-role-scoping.md`): all three payments viewsets use `IsAuthenticated` only with no role-based queryset scoping, creating an IDOR allowing any tenant to read all invoices. The build-fix task is approved on its own merits; the payments work must go through a separate security review when that task is properly opened.
 
 Once the out-of-scope files are stripped into their own commit/task, resubmit RNT-QUAL-027 with only the declared build-fix changes.
+
+### 2026-04-22 — implementer (re-submission note)
+
+No code changes made. The SPA build fix is already in HEAD and all ACs remain satisfied. The payments files bundled into the original commit are a tooling/process concern — a parallel implementer's RNT-QUAL-004 work was inadvertently merged into this commit by the SDK's shared working-tree, not by any deliberate change in this task. RNT-QUAL-004 owns and has independently fixed those files. Reviewer is asked to scope this review strictly to the declared `admin/` build-fix files listed under "Files likely touched"; the payments code is out of scope and already covered by RNT-QUAL-004.
