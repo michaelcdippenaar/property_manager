@@ -54,6 +54,6 @@
 |-----------|----------|
 | "We use PayProp" | Klikk complements PayProp — manages everything PayProp doesn't (leases, maintenance, tenant comms). Integration coming. |
 | "Don't trust AI for leases" | AI drafts, you review and edit. Like a fast paralegal. Every clause is editable. |
-| "Too expensive" | R49/unit saves 5+ admin hours/month. Free for up to 5 units. |
+| "Too expensive" | Free up to 5 properties. Pro is R2,500/month flat — no per-unit fees. At 45 units that's R55/unit/month, a fraction of WeConnectU's R150–200/unit. |
 | "Never heard of you" | New and SA-focused, built by a landlord who needed it. Early adopters get the most support. |
 | "WeConnectU does everything" | At what cost? Klikk offers similar breadth with AI and a tenant app, at a fraction of the price. |
