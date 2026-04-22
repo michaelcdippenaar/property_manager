@@ -7,12 +7,12 @@ lifecycle_stage: 6
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177452426023"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22 (review → testing by reviewer)
+updated: 2026-04-22 (testing → blocked by tester)
 ---
 
 ## Goal
@@ -109,3 +109,13 @@ Checked all five acceptance criteria:
 **Security/POPIA pass:** both new endpoints have `permission_classes = [IsAgentOrAdmin]`. Non-admin path scopes queries to `requested_by=user` — no IDOR. HTML payload stored in DB is per-user. No PII logged; error strings come from Gotenberg response body (not user data). No raw SQL.
 
 13 tests in `test_pdf_resilience.py` cover retry count, timeout, exhaustion, backoff doubling, no-sleep on success, Sentry counters, worker DONE/FAILED/retry-on-second-attempt, 202 fallback, and 200 happy path.
+
+### 2026-04-22 — tester
+
+**Test run**
+
+- **Automated:** `pytest backend/apps/leases/tests/test_pdf_resilience.py --no-cov` — 13/13 PASSED (all retry, backoff, Sentry metric, 202 fallback, worker DONE/FAILED/retry tests pass).
+
+- **Manual:** CANNOT EXECUTE — requires stopping and restarting the Gotenberg Docker container (staging/server access). Per tester rules, no server/container access is permitted in this environment. The manual UI smoke test (stop Gotenberg → generate lease → observe "we'll email you" toast → restart → worker completes) has not been run.
+
+**Verdict:** BLOCKED — manual test plan step cannot be executed by the automated tester. Needs a human operator with access to the Docker environment to complete the manual verification step.
