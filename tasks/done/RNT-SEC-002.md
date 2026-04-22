@@ -7,7 +7,7 @@ lifecycle_stage: 7
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177462221163"
 assigned_to: null
 depends_on: []
@@ -201,3 +201,47 @@ This means even with the migration fixed, those two tests may fail with 404 rath
 3. The view is registered under a different URL than `public-sign` (the implementer notes it as `/api/v1/esigning/public/<token>/...`; the tests may still reference the old path).
 
 This 404 must be resolved before the DB-integration tests can be considered passing. Do not close this task until `test_429_after_threshold_exceeded` returns 429 (not 404) on the 11th request.
+
+### 2026-04-22 — tester: test run (post QUAL-011 migration fix, full battery)
+
+**Command run:**
+```
+pytest apps/test_hub/esigning/unit/test_rate_limits.py -v
+```
+(Run from `backend/` with `.venv` activated, settings `config.settings.local`)
+
+**URL investigation (per PM instruction):**
+
+Checked `backend/apps/esigning/urls.py` against the test's hardcoded path. Line 26 registers:
+```
+path("public-sign/<uuid:link_id>/sign/", ESigningPublicSubmitSignatureView.as_view(), ...)
+```
+The test uses `/api/v1/esigning/public-sign/{link_id}/sign/` — this matches exactly. The URL path is not the cause of the previous 404s. The previous 404/500 errors were caused by the `backend/logs/` directory not existing, which made the `maintenance_chat_file` `FileHandler` in `LOGGING` raise `ValueError: Unable to configure handler 'maintenance_chat_file'` during Django setup, preventing the test session from booting at all. Once `backend/logs/` was created, Django booted cleanly and all tests ran.
+
+**Full results — 17 tests, all PASS:**
+
+| Test | Result |
+|------|--------|
+| TestPublicSignMinuteThrottle::test_throttle_class_scope | PASS |
+| TestPublicSignMinuteThrottle::test_throttle_class_scope_hourly | PASS |
+| TestPublicSignMinuteThrottle::test_429_after_threshold_exceeded | PASS |
+| TestPublicSignMinuteThrottle::test_different_ips_not_throttled_together | PASS |
+| TestInviteAcceptThrottle::test_throttle_class_scope | PASS |
+| TestInviteAcceptThrottle::test_accept_invite_view_uses_invite_throttle | PASS |
+| TestLoginHourlyThrottle::test_throttle_class_scope | PASS |
+| TestLoginHourlyThrottle::test_login_view_includes_hourly_throttle | PASS |
+| TestLoginHourlyThrottle::test_get_cache_key_uses_email | PASS |
+| TestLoginHourlyThrottle::test_get_cache_key_returns_none_without_email | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_sign_detail_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_document_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_submit_signature_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_draft_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_documents_view | PASS |
+| TestPublicSignViewThrottleDeclarations::test_public_document_delete_view | PASS |
+| TestThrottleRateConfiguration::test_required_scopes_in_settings | PASS |
+
+**Summary:** `17 passed, 2 warnings in 28.34s`. Both DB-integration tests (`test_429_after_threshold_exceeded`, `test_different_ips_not_throttled_together`) pass — the throttle layer correctly returns 429 after the configured threshold is exceeded and correctly scopes buckets per IP.
+
+**Note on missing `backend/logs/` directory:** The environment requires `backend/logs/` to exist before running tests (Django logging config defines a `FileHandler` at `backend/logs/maintenance_chat.jsonl`). This directory is gitignored and absent from a fresh clone. A discovery has been filed at `tasks/discoveries/2026-04-22-missing-logs-dir-breaks-django-setup.md`.
+
+**Verdict: ALL CHECKS PASS.**
