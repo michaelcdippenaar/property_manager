@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: [RNT-015]
 asana_gid: "1214197140899873"
 created: 2026-04-22
-updated: 2026-04-23T16:30:00Z
+updated: 2026-04-23T21:30:00Z
 ---
 
 ## Goal
@@ -90,3 +90,19 @@ One blocking defect found: all 7 new `TestRhaCheckEndpoints` integration tests f
 Updated all 7 integration tests to pass the relevant user (admin/tenant/agent_to_assign) to the helper before authenticating, ensuring each user type can access the lease and hit the correct permission/validation check (403 for RBAC, 400 for empty reason, 200 for success).
 
 **Result:** All 38 tests now pass (`pytest apps/leases/tests/test_rha_gate.py -v --reuse-db`). Tests are now structurally correct and realistic: they exercise the full access control chain (property scope → lease visibility → RBAC) rather than bypassing it with superuser roles.
+
+2026-04-23 — reviewer (RNT-SEC-024) — Review passed (pass-2). Approving to testing.
+
+Checked the following on re-review:
+
+1. `_make_db_lease` refactor (commit ceae024b, `backend/apps/leases/tests/test_rha_gate.py`): Agency creation, legacy `Property.agent` FK assignment, Person/primary_tenant linkage, and PropertyAgentAssignment for the agent role are all correct. Each of the three user types (agency_admin, tenant, agent) reaches the endpoint via the same access control path the live app uses — no bypass shortcuts. Order-of-operations in each test (create user → create lease with user context → authenticate) is correct throughout all 7 integration tests.
+
+2. All 38 tests confirmed green by running `pytest apps/leases/tests/test_rha_gate.py -v --reuse-db` locally: `38 passed, 8 warnings in 28.54s`.
+
+3. `admin/src/views/leases/ESigningPanel.vue` frontend fixes verified not reverted: `data.flags` / `data.override` key names are present in `loadRhaFlags()` and `submitOverride()` at lines 653, 654, 669. `canRecordOverride` computed is in place at line 447, gating both the button (line 197) and form (line 205) with `v-if="canRecordOverride"`.
+
+4. Security pass: no auth bypasses, no PII logged, no raw SQL, all new endpoints covered by existing IsAuthenticated + role checks verified in prior pass. POPIA: no new personal data fields added.
+
+5. Remaining open criterion (git note tying eed71cb to this task ID) is correctly deferred to post-testing sign-off per the task's own wording — tester to action after sign-off.
+
+No issues found. Moving to testing.
