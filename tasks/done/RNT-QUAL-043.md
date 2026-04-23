@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214230978588997"
 created: 2026-04-23
@@ -44,3 +44,5 @@ Cache the `matching_leases.count()` result in `ingest_bank_payment` to eliminate
 2026-04-23 rentals-implementer: Added `lease_count = matching_leases.count()` on line 412 and replaced both `.count()` call sites in the guard condition and reason string with the cached variable. Pure query-reduction — no logic change. All 46 reconciliation edge-case tests pass (17s, 0 failures).
 
 2026-04-23 rentals-reviewer: Review passed. Checked: (1) single `.count()` assignment on line 412 — correct; (2) both call sites in guard and reason string replaced with `lease_count` — correct; (3) no logic change, no new SQL, no auth surface, no PII impact; (4) all four acceptance criteria satisfied. Approve to testing.
+
+2026-04-23 rentals-tester: Test run — `cd backend && pytest apps/payments/tests/ -v` — 94 passed, 0 failed, 26 warnings (36.14s). All checks pass.

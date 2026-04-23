@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214218083690104"
 created: 2026-04-22
@@ -72,3 +72,8 @@ Applied all four reviewer-requested surgical fixes:
 **2026-04-23 — reviewer: Review passed**
 
 Re-review pass confirmed all four requested fixes are present and correct in the diff (esigning.md:76, esigning.md:129, esigning.md:153, ESIGNING.md:51). Independent grep of both files returns zero DocuSeal references. grep on text/source files across the entire backend/ tree for DOCUSEAL_WEBHOOK_SECRET returns zero matches. All four ACs satisfied. No auth surfaces, PII, or security concerns — pure documentation change. Approved for testing.
+
+**2026-04-23 — tester**
+
+Test run: `grep -r "DOCUSEAL_WEBHOOK_SECRET" backend/ --exclude=*.sqlite3 --exclude-dir=rag_chroma` → zero matches (exit 1). PASS.
+All ACs satisfied. Moving to done.

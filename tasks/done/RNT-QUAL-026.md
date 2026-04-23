@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214197286171511"
 created: 2026-04-22
@@ -42,3 +42,8 @@ Backport the `@patch("time.sleep")` decorator to `test_hub/esigning/unit/test_go
 2026-04-23 — Audit of `test_gotenberg.py` confirmed the `@patch("apps.esigning.gotenberg.time.sleep")` decorator was already present on `test_raises_on_http_error` (lines 60-61). All other `TestHtmlToPdf` tests set `mock_response.ok = True` so they never reach the retry/sleep path — no additional patching needed. Ran `pytest apps/test_hub/esigning/unit/test_gotenberg.py --no-cov` locally: 10 passed in 0.05s, well within the 2-second threshold. No code changes required; task was already in the correct state.
 
 2026-04-23 — Review passed. Independently verified: `@patch("apps.esigning.gotenberg.time.sleep")` present at lines 60-61 of `backend/apps/test_hub/esigning/unit/test_gotenberg.py`; all other `TestHtmlToPdf` tests use `ok=True` and bypass the retry path. Ran test suite locally: 10 passed in 0.07s. All four acceptance criteria satisfied. No code changes, no security surface, no POPIA concerns. Approved.
+
+2026-04-23 Test run — rentals-tester
+- `pytest apps/test_hub/esigning/unit/test_gotenberg.py -v --tb=short --no-cov`: 10 passed in 0.06s (PASS)
+- Runtime 0.06s < 2s threshold (PASS)
+- All acceptance criteria verified. Moving to done/.

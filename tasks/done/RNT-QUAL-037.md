@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214227795383434"
 created: 2026-04-23
@@ -40,3 +40,8 @@ Make `SubmissionCreateTests::test_create_with_multiple_signers` pass with 201 by
 2026-04-23 — implementer: Root cause was not serializer validation but the RHA compliance gate in the view. The view calls `run_rha_checks(lease)` and raises 422 if blocking flags exist. Test leases created without `primary_tenant` always trigger `MISSING_PRIMARY_TENANT` (blocking). Fixed by adding `primary_tenant=self.create_person(...)` in the `setUp` of `SubmissionCreateTests` (test_esigning_full.py). The same pattern was found in `ESigningListCreateTests` and `SequentialSigningTests` in test_esigning.py — those were also already failing with 422; fixed as an in-scope sub-issue since the change is identical and trivial (<5 min). Full esigning suite: 237 passed, 3 xfailed, 0 failures. No production code changed — fix is test infrastructure only.
 
 2026-04-23 — reviewer: Review passed. Verified root cause (RHA gate blocks on missing primary_tenant_id — rha_check.py:66-72, severity=blocking). create_lease() already accepted primary_tenant as a first-class parameter (test_case.py:145). Fix is test-infrastructure only — identical 3-line setUp change across SubmissionCreateTests (test_esigning_full.py), ESigningListCreateTests, and SequentialSigningTests (test_esigning.py). No production code modified. In-scope extension to other two classes justified and low-risk. All AC met. No security or POPIA surface. Promoted to testing.
+
+2026-04-23 — rentals-tester: Test run.
+- `test_create_with_multiple_signers` — PASS (201 returned)
+- Full esigning suite (`apps/test_hub/esigning/`) — PASS (237 passed, 3 xfailed, 0 failures)
+All acceptance criteria met. No regressions.

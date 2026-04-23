@@ -7,12 +7,12 @@ lifecycle_stage: 1
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177379658607"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22-r3
+updated: 2026-04-22-r4
 ---
 
 ## Goal
@@ -123,3 +123,19 @@ Checked:
 - Import line updated to include `MandateRenewSerializer` alongside `RentalMandateSerializer`.
 - All other items confirmed clean in the first-round review remain unchanged in this diff (auth/IDOR scoping, migration 0027, expire command, terminate action, MandateTab.vue, PropertyDetailPage.vue, 24-test coverage).
 - Discovery filed: `tasks/discoveries/2026-04-22-mandate-renew-notes-not-inherited.md` — `notes` defaults to `""` instead of `mandate.notes` on renewal when omitted; pre-existing behaviour, out of scope for this re-work, P2.
+
+### 2026-04-22 — tester
+
+**Test run**
+
+- **Automated:** `pytest backend/apps/properties/tests/test_mandate_lifecycle.py` — PASS (24/24 in 27.48s)
+  - MandateTypesCoverageTest::test_all_mandate_types_can_be_created_and_activated — PASS
+  - MandateExclusivityTest (3 tests) — PASS
+  - LimitedDurationMandateTest (4 tests: expire command, dry-run, end-date not yet expired, 30/14/7-day reminders) — PASS
+  - MandateMultiOwnerSigningTest (2 tests) — PASS
+  - MandateTerminationTest (6 tests: normal, reason required, non-active blocked, active-lease guard + override, all 4 types) — PASS
+  - MandateRenewalTest (8 tests: active/expired/terminated sources, 3-level chain, draft blocked, type inherited, start_date override, all 4 types) — PASS
+
+- **Manual (staging):** BLOCKED — manual test plan step requires creating mandates end-to-end in a running environment (staging server + DB). Server/staging/docker access is outside the tester agent's scope. The manual step cannot be executed.
+
+**Verdict: BLOCKED** — automated suite green; manual staging walkthrough requires human execution or a local-server test environment the tester agent cannot access.

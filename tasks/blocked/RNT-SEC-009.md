@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: blocked
 asana_gid: "1214177462239447"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -94,3 +94,13 @@ Security/POPIA pass — no new endpoints introduced; no PII logged; no ORM queri
 Minor non-blocking note: `_csp_directives()` reads `settings.*` on every request. Values are constants per deployment so caching in `__init__` would be a marginal throughput improvement. Not a correctness or security issue; filed as a note only.
 
 Discovery for `unsafe-inline` removal already promoted to `tasks/backlog/RNT-SEC-023.md` — no new discovery to file.
+
+### 2026-04-22 — tester
+
+**Test run**
+
+- Automated: `pytest backend/config/tests/test_security_headers.py` — PASS (29/29 passed, 1 warning, 8.64 s)
+- Manual: `curl -I https://app.klikk.co.za` — SKIP (live production server access prohibited in this test run)
+- Manual: Mozilla Observatory scan (grade ≥ B) — SKIP (live production server access prohibited in this test run)
+
+**Result: BLOCKED** — automated suite passes; manual live-server checks (`curl -I https://app.klikk.co.za` + Mozilla Observatory scan) cannot be executed per tester constraints. A human must run these two checks against the production URL and confirm grade ≥ B to close the task.

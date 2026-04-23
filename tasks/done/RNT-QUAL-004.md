@@ -7,9 +7,9 @@ lifecycle_stage: 10
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177452054690"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-22
@@ -107,3 +107,22 @@ Checked all three required security fixes from the previous cycle against `backe
 3. **Viewset base restriction** — `RentInvoiceViewSet` is `RetrieveModelMixin + ListModelMixin + GenericViewSet` (no create/update/destroy). `UnmatchedPaymentViewSet` is `CreateModelMixin + RetrieveModelMixin + ListModelMixin + GenericViewSet` (no update/destroy). `RentPaymentViewSet` remains `RetrieveModelMixin + GenericViewSet`.
 
 All six acceptance criteria remain satisfied by models, reconciliation engine, and 23 tests. POPIA pass: no PII in audit log, all ORM writes parameterised, no raw SQL, `@transaction.atomic` on mutations. No new security issues introduced. Advancing to testing.
+
+### 2026-04-22 — Test run (rentals-tester)
+
+**Automated:** `pytest backend/apps/payments/tests/test_reconciliation_edges.py`
+
+- TestPartialPayment::test_partial_payment_audit_log_created — PASS
+- TestPartialPayment::test_partial_payment_balance_remaining — PASS
+- TestPartialPayment::test_partial_payment_status — PASS
+- TestOverpayment::test_credit_carries_forward_to_next_invoice — PASS
+- TestOverpayment::test_overpayment_balance_remaining_is_negative — PASS
+- TestOverpayment::test_overpayment_status — PASS
+- TestOverpayment::test_overpayment_tenant_in_credit_flag — PASS
+- TestPaymentReversal::test_double_reversal_raises — PASS
+- TestPaymentReversal::test_reversal_audit_log — PASS
+- TestPaymentReversal::test_reversal_marks_payment_reversed — PASS
+- TestPaymentReversal::test_reversal_reverts_invoice_to_unpaid — PASS
+- (remaining 12 tests) — all PASS
+
+**Result:** 23 passed, 1 warning in 24.92s. All edge cases covered. Advancing to done.
