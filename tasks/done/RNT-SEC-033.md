@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214223123663001"
 created: 2026-04-23
@@ -50,3 +50,11 @@ Eliminate the three remaining raw `X-Forwarded-For` reads in `accounts` and `esi
   Smoke check: 80 tests pass, 3 xfailed — all accounts/esigning unit+integration suites green.
 
 2026-04-23 — rentals-reviewer: Review passed. Checked: (1) all three raw XFF reads removed — LoginView._get_client_ip private method deleted, serializers.py _record_consent inlined extractor gone, esigning/views.py line 627 block replaced; (2) get_client_ip utility in backend/utils/http.py is proxy-aware (NUM_PROXIES setting, TRUSTED_PROXY_IPS allowlist, falls back to REMOTE_ADDR); (3) grep confirms zero remaining raw XFF extractions in backend/apps/ outside test fixture META dicts and the_volt/gateway/views.py (Vault33, out of scope); (4) test renamed and assertion updated to reflect correct proxy-aware behaviour (ips[-2] with NUM_PROXIES=1), not the old spoofable leftmost-entry logic; (5) no secrets, PII logging, or SQL issues introduced. No POPIA concerns. Approved.
+
+2026-04-23 — rentals-tester: Test run.
+  1. grep check: `HTTP_X_FORWARDED_FOR` in `backend/apps/` — only hits are test fixture META dicts and `the_volt/gateway/views.py` (Vault33, out of scope). PASS.
+  2. pytest `apps/test_hub/accounts/ apps/test_hub/esigning/` — 520 passed, 3 xfailed, 2 failed.
+     Failed tests: `test_register_default_role_is_admin` (AssertionError: 'owner' != 'admin') and `test_first_registered_user_is_admin` (AssertionError: 'agency_admin' != User.Role.ADMIN).
+     Confirmed pre-existing: both tests fail identically on the commit before RNT-SEC-033 (git stash verified). These failures are unrelated to XFF extraction; they concern user role assignment logic.
+     Filed discovery: `tasks/discoveries/2026-04-23-register-role-assertion-mismatch.md`.
+  All XFF-specific tests (audit, consent, esigning) pass. Task criteria met.
