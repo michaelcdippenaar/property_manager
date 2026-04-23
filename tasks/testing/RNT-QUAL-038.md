@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214229778497908"
 created: 2026-04-23
@@ -49,3 +49,11 @@ Realign `test_municipal_bill_view.py` with the current view behaviour so all 10 
 4. Happy path tests (image, pdf, fenced JSON x2): `_fake_claude_response` returned a mock with `content[0].text`, but `call_claude_with_tools` iterates looking for `block.type == "tool_use"` and found none → 502. Replaced `_fake_claude_response` with `_fake_tool_use_response(payload: dict)` that sets `block.type = "tool_use"` and `block.input = payload`. The two fenced-JSON tests were obsolete (view never parses text) — replaced with `test_extracted_payload_includes_confidence_scores` and `test_tool_choice_is_forced_in_api_call`.
 
 All 11 tests now pass. No regressions — the 4 already-passing auth/config tests unchanged.
+
+2026-04-23 — rentals-reviewer: Review passed. Checked all 5 acceptance criteria:
+1. Allowlist guard in `municipal_bill_view.py` lines 136-140 correctly returns 400 for non-image/non-PDF before `encode_file` is called — fixes the 502→400 regression.
+2. Assertion update to `assertIn("Claude API failed after", ...)` matches `call_claude_with_tools` retry wrapper pattern confirmed in `extraction_utils.py` line 401.
+3. `test_claude_no_tool_use_block_returns_502` correctly mocks a text-only response via `_fake_no_tool_use_response()` and asserts `"no tool_use block"` in detail.
+4. Happy path image + PDF tests updated to use `_fake_tool_use_response()` — consistent with `tool_use`-based flow.
+5. All 11 tests pass locally (confirmed by running the suite — `11 passed, 12 warnings in 22.39s`).
+Security pass: endpoint retains `IsAuthenticated` + `IsAgentOrAdmin` permissions, no PII logged, no raw SQL, file input validated before use. The dead `file_block is None` guard is left in place as a defensive fallback — acceptable. No scope creep, no regressions detected.
