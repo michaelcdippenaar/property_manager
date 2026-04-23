@@ -151,6 +151,12 @@ class TremlyAPITestCase(APITestCase):
             "monthly_rent": Decimal("5000.00"),
             "deposit": Decimal("10000.00"),
             "status": "active",
+            # RHA s5(3) required fields — keep defaults non-empty so the RHA gate
+            # passes in tests that are not specifically testing RHA validation.
+            "notice_period_days": 30,
+            "escalation_clause": "Rent escalates annually in line with CPI.",
+            "renewal_clause": "Lease renews on mutual written agreement.",
+            "domicilium_address": "123 Test St, Cape Town, 8001",
         }
         defaults.update(kwargs)
         return Lease.objects.create(unit=unit, primary_tenant=primary_tenant, **defaults)
