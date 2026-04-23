@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: blocked
+assigned_to: null
 depends_on: [RNT-015]
 asana_gid: "1214197140899873"
 created: 2026-04-22
-updated: 2026-04-23T21:30:00Z
+updated: 2026-04-23T21:35:00Z
 ---
 
 ## Goal
@@ -106,3 +106,35 @@ Checked the following on re-review:
 5. Remaining open criterion (git note tying eed71cb to this task ID) is correctly deferred to post-testing sign-off per the task's own wording — tester to action after sign-off.
 
 No issues found. Moving to testing.
+
+2026-04-23 — tester (RNT-SEC-024) — Test run BLOCKED by regression.
+
+**Automated test execution:**
+- Ran: `pytest apps/leases/tests/test_rha_gate.py -v`
+- Result: **BLOCKED** — all 7 integration tests in `TestRhaCheckEndpoints` fail at lease creation time
+
+**Failure details:**
+All test failures trace to the same root cause: `AttributeError: 'Lease' object has no attribute 'unit_label'` in `backend/apps/notifications/push_signals.py:89`. The `on_lease_status_change` signal handler (wired on lease save) calls `instance.unit_label`, which does not exist on the Lease model.
+
+Introduced by commit 188e628d (RNT-QUAL-007: implement → review).
+
+**Failure output (all 7 TestRhaCheckEndpoints tests):**
+```
+E   AttributeError: 'Lease' object has no attribute 'unit_label'
+```
+Stack trace shows the error originates in the signal dispatch chain:
+1. `tc.create_lease()` → `Lease.objects.create()`
+2. Django ORM calls `post_save.send()`
+3. Signal handler `on_lease_status_change()` at `push_signals.py:89` references non-existent attribute
+
+Unit model __str__ returns `"{self.property.name} — Unit {self.unit_number}"`, so the fix is straightforward (replace `instance.unit_label` with `str(instance.unit)`), but this is outside the scope of RNT-SEC-024.
+
+**Discovery filed:**
+`tasks/discoveries/2026-04-23-unit-label-missing-on-lease.md` — regression in RNT-QUAL-007 blocking all Lease creation tests.
+
+**Remaining test plan items not executed:**
+- Manual UI tests (rhaOverride role checks) — blocked by inability to create test leases
+- `python manage.py migrate --run-syncdb` on clean DB — would succeed (migration is syntactically sound), but blocking to confirm via passing lease tests
+
+**Conclusion:**
+Cannot proceed with RNT-SEC-024 testing until the RNT-QUAL-007 regression is fixed.

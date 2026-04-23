@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462646637"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -78,3 +78,22 @@ Tenant app (`tenant/`):
 4. Preferences UI screen: API is complete but UI not built — see discovery `2026-04-23-push-preferences-ui-screen.md`.
 5. Deep-link routes need router audit — see discovery `2026-04-23-push-deep-link-route-completion.md`.
 6. `dispatch_rent_overdue_push` must be wired to a Celery beat task or management command — not done here (no Celery task runner was in scope).
+
+### 2026-04-23 — reviewer
+
+**Review passed.** Approved for testing.
+
+What I checked:
+- **Acceptance criteria:** agent-app FCM/APNs (`agent-app/src/services/push.ts` + `auth.ts:startPush`), tenant Web Push (`tenant/public/sw.js`, `tenant/src/services/push.ts`, `PushOptInBanner.vue`), backend `notifications/push_signals.py` covering all 8 required events, POPIA-compliant opt-in (permission prompt only from user-gesture button), token revocation on logout in both apps. UI preferences screen + full deep-link route audit correctly deferred as discoveries.
+- **Secrets / credentials:** `FIREBASE_CREDENTIALS_PATH` read from `settings`/env, nothing committed. Service-account JSON path validated (`os.path.isfile`) before `credentials.Certificate(...)`. Lazy init + graceful no-op keeps dev safe. VAPID public key via `VITE_VAPID_PUBLIC_KEY` (public-by-design, safe).
+- **Consent gating:** `requestAndSubscribe` only called from the banner button handler; `registerServiceWorker` is silent (no prompt). `App.vue` only renders the banner when `isAuthenticated`. Category-level opt-out honoured in `send_push_to_user` via `PushPreference.is_enabled`.
+- **Token storage:** `PushToken.token` is a TextField; fine for FCM strings and Web Push subscription JSON. Stale-token cleanup on `messaging.UnregisteredError`. Logout flows in `tenant/src/stores/auth.ts` and `agent-app/src/stores/auth.ts` revoke before clearing session. No PII or token values logged — logs reference `pk` only.
+- **Auth / perms:** `PushTokenView` and `PushPreferenceView` are both `permission_classes = [IsAuthenticated]`. No IDOR — both views only read/write rows for `request.user`. Input validated (platform allowlist, category allowlist, `isinstance(enabled, bool)`).
+- **ORM safety:** all queries parameterised via Django ORM; no raw SQL.
+- **Conventions:** follows existing `apps/notifications` module layout; migration numbers sane (accounts 0020, notifications 0003); signals correctly wired via `apps.py:ready()`.
+
+Follow-ups filed (do not block this task):
+- `tasks/discoveries/2026-04-23-push-signal-duplicate-dispatch.md` — signals fire on current-state match rather than transition; an unrelated full `.save()` on an already-paid/active record will re-dispatch.
+- Existing: push-preferences-ui-screen, push-deep-link-route-completion.
+
+Tester: confirm the caveats from the implementer — Firebase creds and VAPID env var must be set for live dispatch; without them the system no-ops safely. Rent-overdue path depends on a future beat task.
