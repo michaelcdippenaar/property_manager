@@ -7,22 +7,22 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: [RNT-SEC-031]
 asana_gid: "1214221444384630"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
 Register `ReconciliationQueue.vue` and `InvoiceDetail.vue` in the admin SPA router so agents can navigate to the payments UI.
 
 ## Acceptance criteria
-- [ ] `/payments/` route added to `admin/src/router/index.ts`, renders `ReconciliationQueue.vue`, guarded to agent/admin roles
-- [ ] `/payments/invoices/:id` route added, renders `InvoiceDetail.vue`
-- [ ] Both routes appear in the admin sidebar nav under a Financials or Payments section
-- [ ] Nav guard prevents tenant-role users from accessing the routes
+- [x] `/payments/` route added to `admin/src/router/index.ts`, renders `ReconciliationQueue.vue`, guarded to agent/admin roles
+- [x] `/payments/invoices/:id` route added, renders `InvoiceDetail.vue`
+- [x] Both routes appear in the admin sidebar nav under a Financials or Payments section
+- [x] Nav guard prevents tenant-role users from accessing the routes
 - [ ] Manual smoke: navigate to `/payments/` → reconciliation queue renders; click an invoice → detail view loads
 
 ## Files likely touched
@@ -41,3 +41,5 @@ Register `ReconciliationQueue.vue` and `InvoiceDetail.vue` in the admin SPA rout
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-22 — Promoted from discovery `2026-04-22-payments-missing-vue-router-wiring.md` found during RNT-QUAL-004 review. Depends on RNT-SEC-031 (role-scoped API) being merged first so the wired UI only exposes appropriately scoped data.
+
+2026-04-23 — Implemented by rentals-implementer. Two child routes added under the existing AppLayout parent at `/payments` (ReconciliationQueue.vue) and `/payments/invoices/:id` (InvoiceDetail.vue). Both child routes carry `meta.roles` restricted to agent/admin/agency_admin/estate_agent/managing_agent/accountant — the nav guard already uses `to.meta.roles` with child-overrides-parent semantics so viewer and tenant roles are redirected. A "Financials" dropdown section added to `primaryNav` in AppLayout.vue (conditionally rendered via `canSeePayments` computed, same role list) containing the Reconciliation Queue entry; the `Banknote` icon imported from lucide-vue-next. Build (`npm run build`) passes in 8.4 s with no new errors. Manual smoke (actual navigate + click) is left for the tester.

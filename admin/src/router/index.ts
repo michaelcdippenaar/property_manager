@@ -142,6 +142,20 @@ const router = createRouter({
         { path: 'unit-tenant-info', redirect: '/property-info/unit-info' },
         { path: 'skills', redirect: '/property-info/skills' },
         // Admin
+        // Payments / Financials — agent, admin, agency_admin, accountant only (not viewer, not tenant)
+        {
+          path: 'payments',
+          name: 'payments',
+          component: () => import('../views/payments/ReconciliationQueue.vue'),
+          meta: { title: 'Reconciliation Queue', roles: ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant'] },
+        },
+        {
+          path: 'payments/invoices/:id',
+          name: 'invoice-detail',
+          component: () => import('../views/payments/InvoiceDetail.vue'),
+          meta: { title: 'Invoice', roles: ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant'] },
+        },
+        // Admin
         { path: 'admin/users', name: 'admin-users', component: () => import('../views/admin/UsersView.vue'), meta: { title: 'Users' } },
         { path: 'admin/agency', name: 'admin-agency', component: () => import('../views/admin/AgencySettingsView.vue'), meta: { title: 'Agency Settings' } },
         { path: 'admin/billing', name: 'admin-billing', component: () => import('../views/admin/BillingView.vue'), meta: { title: 'Billing & Plan' } },

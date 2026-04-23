@@ -367,6 +367,7 @@ import {
   Activity, ShieldCheck, User, FlaskConical, Settings, Menu, X,
   LayoutDashboard, Building2, Users, UserCheck, Wrench, FileText,
   FileSignature, Calendar, Sparkles, Truck, HelpCircle, Terminal,
+  Banknote,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -409,6 +410,14 @@ const maintenanceSubItems: NavItem[] = [
   { to: '/maintenance/suppliers', icon: Truck,      label: 'Suppliers', description: 'Service providers and vendors' },
 ]
 
+const financialsSubItems: NavItem[] = [
+  { to: '/payments', icon: Banknote, label: 'Reconciliation Queue', description: 'Match unmatched deposits to invoices' },
+]
+
+// Roles allowed to see the Payments/Financials nav section
+const paymentsRoles = ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant']
+const canSeePayments = computed(() => paymentsRoles.includes(auth.user?.role ?? ''))
+
 interface NavSection {
   key: string
   label: string
@@ -417,26 +426,37 @@ interface NavSection {
   footer?: { to: string; icon: Component; label: string }
 }
 
-const primaryNav = computed<NavSection[]>(() => [
-  {
-    key: 'entities',
-    label: 'Entities',
-    sublabel: 'Who and what you manage',
-    items: entityNavItems,
-  },
-  {
-    key: 'leases',
-    label: 'Leases',
-    sublabel: 'Contracts and their lifecycle',
-    items: leaseSubItems,
-  },
-  {
-    key: 'maintenance',
-    label: 'Maintenance',
-    sublabel: 'Jobs, questions and trades',
-    items: maintenanceSubItems,
-  },
-])
+const primaryNav = computed<NavSection[]>(() => {
+  const sections: NavSection[] = [
+    {
+      key: 'entities',
+      label: 'Entities',
+      sublabel: 'Who and what you manage',
+      items: entityNavItems,
+    },
+    {
+      key: 'leases',
+      label: 'Leases',
+      sublabel: 'Contracts and their lifecycle',
+      items: leaseSubItems,
+    },
+    {
+      key: 'maintenance',
+      label: 'Maintenance',
+      sublabel: 'Jobs, questions and trades',
+      items: maintenanceSubItems,
+    },
+  ]
+  if (canSeePayments.value) {
+    sections.push({
+      key: 'financials',
+      label: 'Financials',
+      sublabel: 'Invoices, payments and reconciliation',
+      items: financialsSubItems,
+    })
+  }
+  return sections
+})
 
 // ── User menu items (under avatar dropdown) ───────────────────────────────────
 const adminItems = computed(() => {
