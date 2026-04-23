@@ -16,14 +16,14 @@ updated: 2026-04-22
 ---
 
 ## Goal
-Today a Gotenberg outage breaks every lease/PDF flow with a 500. Add retries with backoff and a graceful user-facing message + async retry queue so an operator doesn't lose their work.
+The Gotenberg client already has 3-retry exponential backoff (1s → 2s → 4s). What is missing: when all retries are exhausted the caller raises uncaught, hitting the user as a 500. Add a Celery async fallback, a graceful UI pending state, and admin visibility into pending render jobs.
 
 ## Acceptance criteria
-- [ ] Gotenberg client: 3 retries with exponential backoff (1s → 2s → 4s) for 5xx / timeout
-- [ ] On final failure: lease render task enqueued to Celery for retry in 5 min (up to 3 retries)
+- [x] ~~Gotenberg client: 3 retries with exponential backoff (1s → 2s → 4s) for 5xx / timeout~~ DONE — `apps/esigning/gotenberg.py` line 14, `MAX_RETRIES` logic lines 68–168
+- [ ] On final Gotenberg failure: lease render task enqueued to Celery for retry in 5 min (up to 3 retries)
 - [ ] UI: if render fails synchronously, show "Preparing your document — we'll email you when ready" instead of red error
 - [ ] Operator sees pending render jobs in admin with retry CTA
-- [ ] Metrics: Gotenberg success rate counter + p95 latency exposed to Sentry/monitoring
+- [ ] Metrics: Gotenberg success rate counter + p95 latency already partially present (`_emit_metric` in gotenberg.py) — ensure counter is emitted on final failure path
 
 ## Files likely touched
 - `backend/apps/leases/pdf_service.py` (or equivalent Gotenberg client)
@@ -38,3 +38,4 @@ Today a Gotenberg outage breaks every lease/PDF flow with a 500. Add retries wit
 - Stop Gotenberg container → try to generate lease → UI shows "we'll email you" not a 500 → restart Gotenberg → Celery retry succeeds
 
 ## Handoff notes
+2026-04-23: Dedup sweep — backoff AC already delivered in `apps/esigning/gotenberg.py`. Remaining scope: Celery async fallback on final failure, UI graceful degradation, and admin pending render queue. Task kept; scope narrowed above.
