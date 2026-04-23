@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200629050472"
 created: 2026-04-22
-updated: 2026-04-23 (re-review)
+updated: 2026-04-23 (re-review approved)
 ---
 
 ## Goal
@@ -61,3 +61,7 @@ No other issues found. The `.gitkeep`, `makedirs` placement in `base.py`, and `.
 **2026-04-23 — implementer (re-review fix)**
 
 Ran `git rm --cached backend/logs/maintenance_chat.jsonl backend/logs/agent_test_history.jsonl` to remove both files from the index. `git ls-files backend/logs/` now shows only `.gitkeep`. The files remain on disk and are now properly ignored by the `backend/logs/*.jsonl` rule added in the original commit. POPIA risk resolved — tenant chat data will no longer be baked into future commits.
+
+**2026-04-23 — reviewer: Review passed (re-review)**
+
+Checked: `git ls-files backend/logs/` returns only `.gitkeep` — both `maintenance_chat.jsonl` and `agent_test_history.jsonl` are removed from the index. `.gitignore` rule `backend/logs/*.jsonl` is in place and now effective. `os.makedirs` in `base.py` covers the only `FileHandler` path (`MAINTENANCE_CHAT_LOG`). All four acceptance criteria satisfied. POPIA concern resolved. No auth, IDOR, or input-validation surface in this change.
