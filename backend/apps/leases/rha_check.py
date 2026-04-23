@@ -114,12 +114,42 @@ def _check_mandatory_terms(lease: "Lease", flags: list):
               message="Lease end date must be after the start date.",
               field="end_date")
 
-    # Escalation provision, renewal terms, and domicilium (RHA s5(3)(f)–(g)):
-    # The Lease model has no dedicated fields for escalation clause text,
-    # renewal clause text, or domicilium address.  These are expected to live
-    # inside the signed lease document itself (HTML/PDF via LeaseTemplate).
-    # Until the model grows those fields they cannot be checked here; they are
-    # intentionally skipped.  Track as a discovery: out-of-scope model gap.
+    # Escalation provision (RHA s5(3)(f))
+    if not getattr(lease, "escalation_clause", None):
+        _flag(flags,
+              code="MISSING_ESCALATION_CLAUSE",
+              section="RHA s5(3)(f)",
+              severity="blocking",
+              message=(
+                  "Escalation clause is missing. The lease must specify the basis on which "
+                  "rent will be increased (e.g. CPI-linked or fixed percentage) as required "
+                  "by RHA s5(3)(f)."
+              ),
+              field="escalation_clause")
+
+    # Renewal terms (RHA s5(3)(f))
+    if not getattr(lease, "renewal_clause", None):
+        _flag(flags,
+              code="MISSING_RENEWAL_CLAUSE",
+              section="RHA s5(3)(f)",
+              severity="blocking",
+              message=(
+                  "Renewal clause is missing. The lease must describe the renewal terms or "
+                  "options available at expiry as required by RHA s5(3)(f)."
+              ),
+              field="renewal_clause")
+
+    # Domicilium address (RHA s5(3))
+    if not getattr(lease, "domicilium_address", None):
+        _flag(flags,
+              code="MISSING_DOMICILIUM",
+              section="RHA s5(3)",
+              severity="blocking",
+              message=(
+                  "Domicilium address (domicilium citandi et executandi) is missing. "
+                  "The lease must record the tenant's address for formal legal notices."
+              ),
+              field="domicilium_address")
 
     # Notice period
     if not lease.notice_period_days or lease.notice_period_days < 1:

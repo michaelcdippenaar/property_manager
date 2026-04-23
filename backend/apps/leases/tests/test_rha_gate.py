@@ -313,3 +313,155 @@ class TestLeaseModelMethods:
 
         assert lease.rha_override is not None
         assert lease.rha_override["user_email"] == "superuser@klikk.co.za"
+
+
+# ── RNT-015: escalation_clause / renewal_clause / domicilium_address ──── #
+
+class TestRhaMandatoryClauseFields:
+    """
+    Tests for RNT-015 — the three new RHA s5(3) mandatory clause fields.
+    All tests are unit-level (no DB required).
+    """
+
+    def _make_lease(self, **overrides):
+        """
+        Build a fully-populated Lease mock that passes all RHA checks by default.
+        All three new clause fields are pre-populated; pass empty string to trigger flags.
+        """
+        from apps.leases.models import LeaseEvent
+
+        lease = MagicMock()
+        lease.pk = 1
+        lease.primary_tenant_id = 1
+        lease.unit_id = 1
+        lease.monthly_rent = Decimal("10000.00")
+        lease.deposit = Decimal("10000.00")
+        lease.start_date = date(2026, 1, 1)
+        lease.end_date = date(2026, 12, 31)
+        lease.notice_period_days = 30
+        lease.rha_flags = []
+        lease.rha_override = None
+
+        # Populate the three new clause fields
+        lease.escalation_clause = "Rent shall escalate annually at CPI + 2%."
+        lease.renewal_clause = "Tenant may renew for a further 12-month period with 60 days written notice."
+        lease.domicilium_address = "123 Test Street, Stellenbosch, 7600"
+
+        # events queryset mock: return both inspection types
+        events_qs = MagicMock()
+        events_qs.values_list.return_value = [
+            LeaseEvent.EventType.INSPECTION_IN,
+            LeaseEvent.EventType.INSPECTION_OUT,
+        ]
+        lease.events = events_qs
+
+        for key, value in overrides.items():
+            setattr(lease, key, value)
+
+        return lease
+
+    # (a) All three blocking codes fire when the fields are empty ----------
+
+    def test_missing_escalation_clause_is_blocking(self):
+        """Empty escalation_clause → MISSING_ESCALATION_CLAUSE blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(escalation_clause="")
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_ESCALATION_CLAUSE" in codes
+
+    def test_missing_renewal_clause_is_blocking(self):
+        """Empty renewal_clause → MISSING_RENEWAL_CLAUSE blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(renewal_clause="")
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_RENEWAL_CLAUSE" in codes
+
+    def test_missing_domicilium_is_blocking(self):
+        """Empty domicilium_address → MISSING_DOMICILIUM blocking flag."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(domicilium_address="")
+        flags = run_rha_checks(lease)
+        codes = [f["code"] for f in flags if f["severity"] == "blocking"]
+        assert "MISSING_DOMICILIUM" in codes
+
+    def test_all_three_blocking_codes_fire_on_empty_lease(self):
+        """All three fields empty → all three blocking codes present."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(
+            escalation_clause="",
+            renewal_clause="",
+            domicilium_address="",
+        )
+        flags = run_rha_checks(lease)
+        blocking_codes = {f["code"] for f in flags if f["severity"] == "blocking"}
+        assert "MISSING_ESCALATION_CLAUSE" in blocking_codes
+        assert "MISSING_RENEWAL_CLAUSE" in blocking_codes
+        assert "MISSING_DOMICILIUM" in blocking_codes
+
+    # (b) No new flags fire when all three are populated -------------------
+
+    def test_no_new_clause_flags_when_all_three_populated(self):
+        """All three fields populated → none of the three new blocking codes fire."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease()
+        flags = run_rha_checks(lease)
+        blocking_codes = {f["code"] for f in flags if f["severity"] == "blocking"}
+        assert "MISSING_ESCALATION_CLAUSE" not in blocking_codes
+        assert "MISSING_RENEWAL_CLAUSE" not in blocking_codes
+        assert "MISSING_DOMICILIUM" not in blocking_codes
+
+    def test_fully_populated_lease_has_zero_blocking_flags(self):
+        """Fully-populated lease (including three new fields) → zero blocking flags."""
+        from apps.leases.rha_check import run_rha_checks, blocking_flags
+        lease = self._make_lease()
+        flags = run_rha_checks(lease)
+        assert len(blocking_flags(flags)) == 0
+
+    # (c) Migration smoke-test: new fields default to empty string ---------
+
+    def test_new_fields_default_to_empty_string(self):
+        """
+        Smoke-test that the three new model fields carry a default of "" (empty string).
+        This ensures existing lease records are not broken by the migration.
+        """
+        from apps.leases.models import Lease
+        from django.db.models.base import ModelState
+
+        # Construct a bare Lease instance without saving to DB
+        lease = Lease.__new__(Lease)
+        lease._state = ModelState()
+
+        # Simulate what the DB would return for pre-existing rows:
+        # fields with default="" should produce empty strings, not raise AttributeError
+        for field_name in ("escalation_clause", "renewal_clause", "domicilium_address"):
+            field = Lease._meta.get_field(field_name)
+            # The field's default must be empty string (falsy), not None
+            default_value = field.default() if callable(field.default) else field.default
+            assert default_value == "", (
+                f"{field_name}.default should be '' (empty string), got {default_value!r}"
+            )
+            assert field.blank is True, f"{field_name}.blank should be True"
+
+    def test_flag_structure_for_new_codes(self):
+        """Each new blocking flag must carry the required keys and correct section."""
+        from apps.leases.rha_check import run_rha_checks
+        lease = self._make_lease(
+            escalation_clause="",
+            renewal_clause="",
+            domicilium_address="",
+        )
+        flags = run_rha_checks(lease)
+        new_codes = {
+            "MISSING_ESCALATION_CLAUSE",
+            "MISSING_RENEWAL_CLAUSE",
+            "MISSING_DOMICILIUM",
+        }
+        new_flags = [f for f in flags if f["code"] in new_codes]
+        assert len(new_flags) == 3, "Expected exactly 3 new blocking flags"
+        for flag in new_flags:
+            for key in ("code", "section", "severity", "message", "field"):
+                assert key in flag, f"Flag missing key '{key}': {flag}"
+            assert flag["severity"] == "blocking"
+            assert "RHA" in flag["section"]

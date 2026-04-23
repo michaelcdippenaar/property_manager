@@ -50,6 +50,23 @@ class Lease(models.Model):
     # Human-readable lease reference, e.g. L-202601-0001 (auto-generated on import)
     lease_number = models.CharField(max_length=50, blank=True)
 
+    # RHA s5(3) mandatory clause fields
+    escalation_clause = models.TextField(
+        blank=True,
+        default="",
+        help_text="RHA s5(3)(f): describes the annual rent escalation provision (e.g. CPI-linked or fixed %)",
+    )
+    renewal_clause = models.TextField(
+        blank=True,
+        default="",
+        help_text="RHA s5(3)(f): describes renewal terms and options at lease expiry",
+    )
+    domicilium_address = models.TextField(
+        blank=True,
+        default="",
+        help_text="RHA s5(3): domicilium citandi et executandi — address for formal legal notices to the tenant",
+    )
+
     # Payment terms
     rent_due_day = models.PositiveSmallIntegerField(default=1, help_text="Day of month rent is due (1–28)")
     payment_reference = models.CharField(max_length=100, blank=True)
