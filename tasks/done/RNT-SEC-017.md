@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-22
@@ -55,3 +55,11 @@ Promoted from discovery: `2026-04-22-totp-accountant-viewer-roles.md` (RNT-SEC-0
 5. No regressions flagged — implementer reports all 37 2FA suite tests pass.
 
 Review passed.
+
+**2026-04-23 — tester**
+- Ran: `cd backend && pytest apps/test_hub/accounts/ -k totp -v`
+- Result: 28 passed, 274 deselected in 30.03s (0 failures, 0 errors)
+- All 8 `AccountantViewerTOTPGateTests` tests pass: accountant/viewer in-grace, past-grace hard-block, enrolled two_fa_token, and full TOTP verify flows
+- No regressions: all pre-existing `LoginTwoFAGateTests` and `TOTPVerifyTests` / `TOTPSetupTests` continue to pass
+- Manual UI gate testing skipped per task instructions (local pytest only; no live server access)
+- All checks pass.
