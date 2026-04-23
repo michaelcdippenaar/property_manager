@@ -35,13 +35,17 @@ Nonce:
   dev server continues to work.
 
 Path-based exemptions:
-  ``/admin/`` and ``/api/`` paths receive a relaxed policy that re-adds
-  ``'unsafe-inline'`` to ``script-src``.  Django Admin and DRF's browsable API
-  both render inline ``<script>`` blocks that cannot easily be nonce-stamped
-  without full template overrides.  Since these paths are staff-only and
-  low-volume this is an acceptable compensating control for v1 (documented risk,
-  CTO sign-off required before v2 hardening).  The SPA and all JSON API
-  responses still use the strict nonce policy.
+  ``/admin/`` paths receive a relaxed policy that re-adds ``'unsafe-inline'``
+  to ``script-src``.  Django Admin renders inline ``<script>`` blocks that
+  cannot easily be nonce-stamped without full template overrides.  Since this
+  path is staff-only and low-volume this is an acceptable compensating control
+  for v1 (documented risk, CTO sign-off required before v2 hardening).  The SPA
+  and all JSON API responses (both /api/ JSON endpoints and DRF browsable HTML
+  when it renders) use the strict nonce policy.
+
+  DRF's BrowsableAPIRenderer is disabled in production (see
+  config/settings/base.py:168-177), so /api/ paths only serve JSON and stay
+  under the strict CSP.  Dev/staging can enable it for debugging.
 """
 
 from __future__ import annotations
@@ -176,10 +180,12 @@ class SecurityHeadersMiddleware:
             settings, "SECURITY_HEADERS_CSP_REPORT_ONLY", True
         )
 
-    # Paths that receive the relaxed (unsafe-inline) policy because Django Admin
-    # and DRF browsable API render inline <script> blocks we cannot easily nonce.
+    # Paths that receive the relaxed (unsafe-inline) policy because they render
+    # inline <script> blocks we cannot easily nonce without full template overrides.
     # Matching is prefix-based (startswith).  Staff-only; low XSS exposure.
-    _EXEMPT_PREFIXES = ("/admin/", "/api/")
+    # /api/ is no longer exempt because BrowsableAPIRenderer is disabled in
+    # production, so all /api/ responses are JSON and stay under strict CSP.
+    _EXEMPT_PREFIXES = ("/admin/",)
 
     def __call__(self, request):
         # Generate a fresh nonce for this request cycle.

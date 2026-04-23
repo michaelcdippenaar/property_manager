@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: L
 v1_phase: "1.1"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214195407615213"
 created: 2026-04-22
-updated: 2026-04-24T19:30:00Z
+updated: 2026-04-24T20:45:00Z
 ---
 
 ## Goal
@@ -123,3 +123,26 @@ Out-of-scope (for the promoted discovery, not this ticket):
 - The Django Admin carve-out is still a documented risk item for v2 (nonce stamping on admin templates via context processor). The implementer already flagged this in the module docstring; no action needed here.
 
 Once #1 is narrowed, please re-submit with `pytest backend/config/tests/test_security_headers.py -v` output confirming all tests still pass plus a new assertion that `/api/v1/<anything>/` JSON response keeps the strict policy.
+
+2026-04-24 (implementer, pass 2 fix): Addressed reviewer's required fix via option (b): disabled `BrowsableAPIRenderer` in production.
+
+**Changes:**
+
+**`backend/config/settings/base.py:168-177`**
+- Added `DEFAULT_RENDERER_CLASSES` to `REST_FRAMEWORK`. In production (`DEBUG=False`), only `JSONRenderer` is enabled — removes the BrowsableAPIRenderer's inline `<script>` blocks. In dev/staging (`DEBUG=True`), both `BrowsableAPIRenderer` and `JSONRenderer` are enabled for debugging convenience. Comment documents the RNT-SEC-023 rationale.
+
+**`backend/config/middleware/security_headers.py:37-48, 185-190`**
+- Removed `/api/` from `_EXEMPT_PREFIXES` (now only contains `("/admin/",)`).
+- Updated module docstring to clarify: DRF's BrowsableAPIRenderer is disabled in production so /api/ paths only serve JSON and stay under the strict CSP. Dev/staging can enable it for debugging.
+
+**`backend/config/tests/test_security_headers.py:388-407`**
+- Replaced two `/api/` exemption tests (`test_api_path_has_unsafe_inline`, corrected assertion in `test_api_path_no_strict_dynamic`) with a single stricter test: `test_api_path_json_no_unsafe_inline()` which verifies `/api/v1/leases/` with `debug=False` does NOT contain `'unsafe-inline'` in `script-src` — confirming API JSON responses stay under strict CSP.
+- Added explanatory comment block noting this is RNT-SEC-023 pass 2 fix: API carve-out was too broad; now only narrowed to `/admin/` paths that legitimately need unsafe-inline.
+
+**Test results:**
+```
+pytest backend/config/tests/test_security_headers.py -v
+======================== 52 passed, 1 warning in 8.99s =========================
+```
+
+All tests pass. Main API surface (`/api/v1/leases/`, etc.) now keeps strict `script-src 'self' 'nonce-XXX'` in production; only `/admin/` staff paths get the `'unsafe-inline'` carve-out per v1 risk acceptance (CTO sign-off required for v2 hardening).

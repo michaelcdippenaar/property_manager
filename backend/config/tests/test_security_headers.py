@@ -385,17 +385,23 @@ class TestCSPPathExemption:
         csp = response["Content-Security-Policy-Report-Only"]
         assert "'nonce-" in csp
 
-    # --- /api/ exemption ---
+    # --- /api/ paths use strict policy (no longer exempt) ---
+    # RNT-SEC-023 pass 2: /api/ carve-out was too broad.  BrowsableAPIRenderer
+    # is now disabled in production, so /api/ paths only serve JSON and do not
+    # need the unsafe-inline compensation.  This keeps the main API surface under
+    # the strict CSP.
 
-    def test_api_path_has_unsafe_inline(self):
-        response = self._invoke("/api/v1/")
+    def test_api_path_json_no_unsafe_inline(self):
+        """API JSON endpoints must NOT have 'unsafe-inline' in production."""
+        response = self._invoke("/api/v1/leases/", debug=False)
         script_src = self._script_src(response)
-        assert "'unsafe-inline'" in script_src, (
-            "/api/ must include 'unsafe-inline' for DRF browsable API inline scripts"
+        assert "'unsafe-inline'" not in script_src, (
+            "/api/ JSON responses must use strict nonce policy "
+            "(BrowsableAPIRenderer disabled in prod)"
         )
 
     def test_api_path_no_strict_dynamic(self):
-        response = self._invoke("/api/v1/leases/")
+        response = self._invoke("/api/v1/leases/", debug=False)
         script_src = self._script_src(response)
         assert "'strict-dynamic'" not in script_src
 

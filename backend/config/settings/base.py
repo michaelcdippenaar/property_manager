@@ -165,6 +165,18 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    # RNT-SEC-023: In production (DEBUG=False), disable BrowsableAPIRenderer to remove
+    # inline <script> blocks from the browsable API. This allows JSON API responses to
+    # stay under the strict nonce-only CSP without needing a path-based /api/ carve-out.
+    # Dev/staging can keep BrowsableAPIRenderer for debugging.
+    "DEFAULT_RENDERER_CLASSES": (
+        ["rest_framework.renderers.JSONRenderer"]
+        if not DEBUG
+        else [
+            "rest_framework.renderers.BrowsableAPIRenderer",
+            "rest_framework.renderers.JSONRenderer",
+        ]
+    ),
     "DEFAULT_THROTTLE_RATES": {
         # Auth endpoints (login, register, Google OAuth, password reset)
         "anon_auth": "5/min",
