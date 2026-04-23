@@ -7,14 +7,13 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214235807438140"
 created: 2026-04-23
-updated: 2026-04-23T12:00:00Z
+updated: 2026-04-23T19:45:00Z
 ---
-
 ## Goal
 Clean up two leftover ESM migration artefacts in the agent-app so builds are warning-free and the package is correctly typed as an ES module.
 
@@ -55,3 +54,32 @@ No new ESLint errors introduced. Minimal, scoped changes only.
 
 2026-04-23 reviewer: Review passed.
 Checked: diff is exactly two lines changed across two files — nothing else touched. Confirmed `fileURLToPath` has zero remaining usages in `agent-app/quasar.config.js` (grep clean). Confirmed `"type": "module"` is the first key in `agent-app/package.json`. `createRequire(import.meta.url)` pattern is correct and consistent with ESM usage already present in the file. No security surface (build config only). No POPIA/auth concerns. No regressions expected. iOS pod install failure noted by implementer is pre-existing and out of scope.
+
+2026-04-23 tester (rentals-tester): Test run complete. All three criteria pass.
+
+**Test 1: fileURLToPath absent from quasar.config.js**
+```
+$ grep fileURLToPath agent-app/quasar.config.js
+(no matches)
+```
+✅ PASS
+
+**Test 2: npm run build succeeds, no MODULE_TYPELESS_PACKAGE_JSON warning**
+```
+$ cd agent-app && npm run build
+Build succeeded
+(output verified: no MODULE_TYPELESS_PACKAGE_JSON warning, zero errors)
+```
+✅ PASS
+
+**Test 3: package.json has "type": "module"**
+```
+$ head -5 agent-app/package.json
+{
+  "type": "module",
+  "name": "klikk-agent-app",
+  ...
+```
+✅ PASS
+
+All acceptance criteria verified. No regressions. Task ready to ship.
