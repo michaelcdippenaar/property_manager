@@ -105,7 +105,7 @@
           </div>
           <div>
             <label class="label">SA ID / Passport</label>
-            <input v-model="form.representative_id_number" class="input font-mono" />
+            <input v-model="form.representative_id_number" class="input font-mono" data-clarity-mask="True" />
           </div>
           <div>
             <label class="label">Phone</label>
@@ -133,7 +133,7 @@
           </div>
           <div>
             <label class="label">Account number</label>
-            <input v-model="form.bank_details.account_number" class="input font-mono" />
+            <input v-model="form.bank_details.account_number" class="input font-mono" data-clarity-mask="True" />
           </div>
           <div>
             <label class="label">Account type</label>

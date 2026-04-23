@@ -119,6 +119,7 @@
             :src="pdfUrl"
             class="flex-1 w-full"
             style="border:none;"
+            data-clarity-mask="True"
           />
         </div>
 

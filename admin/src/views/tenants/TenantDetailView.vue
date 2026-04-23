@@ -72,7 +72,7 @@
               </div>
               <div>
                 <label class="label">SA ID / Passport number</label>
-                <input v-model="local.id_number" class="input font-mono" />
+                <input v-model="local.id_number" class="input font-mono" data-clarity-mask="True" />
               </div>
               <div>
                 <label class="label">Date of birth</label>
