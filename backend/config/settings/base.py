@@ -314,6 +314,19 @@ LOGGING = {
     },
 }
 
+# ── OTP Service ───────────────────────────────────────────────────────────────
+# Channel-abstracted OTP for registration, password-reset, sensitive-change flows.
+# OTP_CHANNELS: ordered list of channels — first-working wins.
+#   "email"  — delivered via Django email backend (console in dev, SES in prod)
+#   "sms"    — stub pending WinSMS/Panacea onboarding
+OTP_CHANNELS = ["email"]
+# TTL in seconds for each issued OTP code (default 5 min).
+OTP_CODE_TTL_SECONDS = 300
+# Max failed verify attempts before the code is locked (requires new code).
+OTP_MAX_ATTEMPTS = 3
+# Max OTP codes a user may request in a rolling 1-hour window.
+OTP_MAX_ISSUES_PER_HOUR = 5
+
 # Passwordless signing page (admin SPA /sign/<uuid>/) — full URL for SMS/email if set
 ESIGNING_PUBLIC_LINK_EXPIRY_DAYS = config("ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", default=14, cast=int)
 SIGNING_PUBLIC_APP_BASE_URL = config("SIGNING_PUBLIC_APP_BASE_URL", default="").strip().rstrip("/")

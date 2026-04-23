@@ -8,6 +8,10 @@ from django.utils import timezone
 
 # SubscriptionTier is defined in tier_service to keep pricing logic co-located.
 # We import it here so Django migrations can discover it (same app_label="accounts").
+
+# OTP v1 service models — imported here so Django migrations discover them under
+# the "accounts" app label.  See apps/accounts/otp/ for the full implementation.
+from apps.accounts.otp.models import OTPCodeV1, OTPAuditLog  # noqa: F401
 from apps.accounts.tier_service import SubscriptionTier  # noqa: F401  re-export
 
 
@@ -197,6 +201,12 @@ class PersonDocument(models.Model):
 
 
 class OTPCode(models.Model):
+    """
+    Legacy OTP placeholder — plaintext code stored (pre-v1 stub).
+    Kept for backward-compatibility with old OTP views.
+    Superseded by OTPCodeV1 in apps/accounts/otp/models.py (hashed, purpose-scoped).
+    Do not use in new code — use OTPService instead.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="otp_codes")
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
