@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462321308"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -66,3 +66,34 @@ Suppliers today have a thin surface — make it good enough that they actually u
 - Agent-side invoice approval (the `AgentInvoiceApprovalView`) is backend-ready but no Vue component was built for the agent dashboard — that's a separate UX task (the task only asked for the approval *flow*, not an agent UI). A discovery note is warranted but the backend wire is there.
 - `SupplierJobSerializer` now prefetches `invoice` via `prefetch_related("quote", "invoice")` in both list and detail views — check query count under load.
 - The `isActive('/invoices')` check in `SupplierLayout` will also match `/invoices/xxx` sub-paths (same pattern as existing `/jobs`, `/calendar`, `/profile`).
+
+### 2026-04-23 — reviewer: changes requested
+
+Two mandatory fixes before this can go to testing.
+
+**Fix 1 — File upload: no size or MIME-type validation (security)**
+
+`SupplierInvoiceSubmitSerializer` (`backend/apps/maintenance/supplier_serializers.py`, class `SupplierInvoiceSubmitSerializer`, field `invoice_file`) has no `validate_invoice_file` method and no `validators` on the model's `FileField`. Same gap for the `photo` field in `SupplierJobStatusUpdateView` (`backend/apps/maintenance/supplier_views.py`, line where `photo = request.FILES.get("photo")` is accepted). An authenticated supplier can upload files of arbitrary type or size through both endpoints.
+
+Required: add a `validate_invoice_file` method to `SupplierInvoiceSubmitSerializer` that (a) rejects MIME types outside `application/pdf` and `image/*` and (b) rejects files larger than a reasonable cap (suggest 10 MB). Add the same checks (inline in the view or via a shared validator) for the status-update `photo` field (images only, same size cap). A custom DRF `FileField` subclass or a standalone validator function is fine — just needs to be called before `save()`.
+
+**Fix 2 — State machine: `reject` action has no status guard**
+
+`AgentInvoiceApprovalView.post()` (`backend/apps/maintenance/views.py`, `elif action_name == "reject":` branch) writes `status=REJECTED` with no check on the current invoice status. An agent can call `action=reject` on an invoice that is already `approved` or `paid`, which corrupts the status trail and overwrites `reviewed_by`.
+
+Required: add the same style of guard that `approve` and `paid` already have:
+```python
+if invoice.status != SupplierInvoice.Status.PENDING:
+    return Response({"detail": "Only pending invoices can be rejected"}, status=status.HTTP_400_BAD_REQUEST)
+```
+
+No other blocking issues found. The following checked out:
+- Migration 0016: `CreateModel` only, fully reversible.
+- IDOR on invoice submission: `_get_qr` filters `.get(id=pk, supplier=supplier)` — correct.
+- `AgentInvoiceApprovalView` permission: `IsAgentOrAdmin` confirmed.
+- `approve` and `paid` transitions: guards are correct.
+- Frontend job and invoice scoping: both hit supplier-scoped backend endpoints.
+- POPIA/PII: activity log messages contain only job amounts and `display_name`, not raw personal data.
+- ORM usage: no raw SQL.
+
+Note: `pytest apps/maintenance/ -xvs` could not be executed (test DB locked by another session). Please ensure the suite is green before resubmitting. No new tests were added for `SupplierInvoice`, `SupplierInvoiceView`, or `AgentInvoiceApprovalView`. Consider adding at least a smoke test for each once the two fixes above are in.
