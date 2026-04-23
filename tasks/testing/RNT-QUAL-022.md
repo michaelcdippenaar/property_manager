@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214195382944651"
 created: 2026-04-22
@@ -47,3 +47,6 @@ Prevent the `ValueError: Unable to configure handler 'maintenance_chat_file'` st
 - No manual steps are required, so criterion 4 (document manual steps) is satisfied trivially — there are none.
 
 No code changes were needed in this task. Reviewer: verify the above commit is in main and criteria pass.
+
+
+2026-04-23: Review passed. Verified commit 9c3f5896 is in main: backend/logs/.gitkeep tracked, os.makedirs at backend/config/settings/base.py:272 creates dir before LOGGING config is applied, backend/logs/*.jsonl in .gitignore line 37. All 4 acceptance criteria satisfied without code changes in this task. No security/POPIA concerns (logging config only, no new endpoints or user input). Handing off to tester.
