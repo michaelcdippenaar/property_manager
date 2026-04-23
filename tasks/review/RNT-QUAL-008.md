@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462321308"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -97,3 +97,25 @@ No other blocking issues found. The following checked out:
 - ORM usage: no raw SQL.
 
 Note: `pytest apps/maintenance/ -xvs` could not be executed (test DB locked by another session). Please ensure the suite is green before resubmitting. No new tests were added for `SupplierInvoice`, `SupplierInvoiceView`, or `AgentInvoiceApprovalView`. Consider adding at least a smoke test for each once the two fixes above are in.
+
+### 2026-04-24 — implementer (reviewer fixes pass 2)
+
+**Fix 1 — File upload validation:**
+
+- `backend/apps/maintenance/supplier_serializers.py` — added `_validate_file()` helper (shared, module-level) that checks MIME type against `application/pdf` and `image/*` prefixes, and rejects files larger than 10 MB. Added `validate_invoice_file` method to `SupplierInvoiceSubmitSerializer` that delegates to this helper (PDF + images allowed).
+- `backend/apps/maintenance/supplier_views.py` — imported `_validate_file`; in `SupplierJobStatusUpdateView.post()`, after `photo = request.FILES.get("photo")`, added an inline guard that calls `_validate_file(photo, allow_pdf=False, allow_images=True)` and returns a 400 with the validation message if it raises.
+
+**Fix 2 — Reject action status guard:**
+
+- `backend/apps/maintenance/views.py` — in `AgentInvoiceApprovalView.post()`, `elif action_name == "reject":` branch, added guard before state mutation: returns 400 `"Only pending invoices can be rejected"` if `invoice.status != SupplierInvoice.Status.PENDING`.
+
+**Tests:**
+
+- `backend/apps/maintenance/tests/test_supplier_invoice.py` — new file with 15 integration tests covering:
+  - approve: pending succeeds, non-pending returns 400
+  - reject: pending succeeds, approved/paid returns 400 (Fix 2 guard), missing reason returns 400
+  - paid: approved succeeds, non-approved returns 400
+  - invoice_file: PDF accepted, image accepted, wrong MIME rejected, oversized rejected
+  - status-update photo: non-image MIME rejected, image accepted
+
+`pytest apps/maintenance/ -xvs` — **35 passed** (all maintenance tests, including 15 new). Coverage warnings are pre-existing (stale `.coverage` file, unrelated to this task).
