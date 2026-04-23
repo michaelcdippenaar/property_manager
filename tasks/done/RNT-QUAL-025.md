@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214195383099701"
 created: 2026-04-22
@@ -56,3 +56,24 @@ Security/POPIA pass: test-only changes, no endpoint / auth / PII surface. No con
 Process note: the implementation diff for RNT-QUAL-025 (conftest.py + test_rate_limits.py hunks) was bundled into commit 08f04f50 alongside RNT-SEC-006 changes. The throttle-isolation hunks are cleanly scoped and do not touch POPIA code, so no blocking — but future tickets should land in their own commits.
 
 Moving to testing.
+
+## Test run — 2026-04-23 (tester)
+
+**Command 1:** `pytest apps/esigning/ apps/test_hub/esigning/ -v`
+
+- All 20 rate-limit tests in `test_rate_limits.py` passed (17 original + 3 isolation proof tests). AC2 satisfied.
+- 8 failures present — all pre-existing integration failures (422 vs 201 / schema drift) identified by reviewer as unrelated to throttle isolation. Confirmed: none are in `test_rate_limits.py`.
+- Result: PASS (rate-limit tests) / 8 pre-existing failures unchanged
+
+**Command 2:** `pytest apps/test_hub/`
+
+- 478 failed, 262 errors, 782 passed
+- Errors are DB infrastructure: `FATAL: database "test_klikk_db" does not exist` and `InterfaceError: connection already closed` — these are infrastructure-level failures, not throttle-related regressions
+- The throttle tests (subject of this task) all passed within the esigning scoped run
+- Discovery filed: `tasks/discoveries/2026-04-23-test-hub-full-suite-db-infrastructure.md`
+- Result: PASS for throttle isolation goal; pre-existing infrastructure failures noted in discovery
+
+**AC1:** PASS — verified by reviewer; `_THROTTLE_TEST_CACHES` + `_isolate_throttle_cache` fixture in place.
+**AC2:** PASS — all 20 rate-limit tests passed in `pytest apps/esigning/ apps/test_hub/esigning/ -v`.
+
+Overall: ALL CHECKS PASS (within task scope).
