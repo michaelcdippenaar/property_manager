@@ -30,17 +30,29 @@
  * See docs/marketing/attribution-dashboard.md for the full funnel definition.
  */
 
-declare global {
-  interface Window {
-    plausible?: (eventName: string, options?: PlausibleOptions) => void & {
-      q?: Array<[string, PlausibleOptions | undefined]>
-    }
-  }
-}
+import type { Router } from 'vue-router'
 
 interface PlausibleOptions {
   props?: Record<string, string | boolean | number>
   callback?: () => void
+  u?: string
+}
+
+/**
+ * Callable interface with a drain queue attached to the function object.
+ * Using `& { q?: ... }` on the return type of a function signature is
+ * incorrect — the intersection applies to `void`, not the function.
+ * A named interface avoids that pitfall.
+ */
+interface PlausibleFn {
+  (eventName: string, options?: PlausibleOptions): void
+  q?: Array<[string, PlausibleOptions | undefined]>
+}
+
+declare global {
+  interface Window {
+    plausible?: PlausibleFn
+  }
 }
 
 /** Named conversion events — add to this union as new goals are defined */
@@ -87,27 +99,37 @@ export function initPlausible(): void {
   // the real function and replay anything buffered in .q on load.
   if (!window.plausible) {
     const queue: Array<[string, PlausibleOptions | undefined]> = []
-    const stub = function (name: string, options?: PlausibleOptions) {
+    const stub: PlausibleFn = function (name: string, options?: PlausibleOptions) {
       queue.push([name, options])
-    } as typeof window.plausible & { q: typeof queue }
-    stub!.q = queue
+    }
+    stub.q = queue
     window.plausible = stub
   }
 
-  // Inject the script tag. Uses the self-hosted Plausible instance at
-  // analytics.klikk.co.za. The 'outbound-links' and 'custom-events'
-  // extensions are bundled in the standard plausible.js build.
+  // Inject the script tag. Uses script.manual.js from the self-hosted
+  // Plausible instance at analytics.klikk.co.za.
+  //
+  // The manual build suppresses the automatic initial pageview AND the
+  // built-in pushState/popstate listener. Without this, every SPA
+  // navigation would be double-counted: once by the pushState listener and
+  // once by the router.afterEach hook in setupPlausibleRouterHook().
+  //
+  // Verified: analytics.klikk.co.za/js/script.manual.js returns HTTP 200.
   const script = document.createElement('script')
   script.defer = true
   script.setAttribute('data-domain', domain)
-  script.src = 'https://analytics.klikk.co.za/js/script.js'
+  script.src = 'https://analytics.klikk.co.za/js/script.manual.js'
   document.head.appendChild(script)
 }
 
 /**
  * Wire up a Vue Router afterEach hook so Plausible receives a pageview on
- * every SPA route change (required for SPAs — the script's built-in
- * history-based tracking does not fire on pushState without this call).
+ * every SPA route change.
+ *
+ * Because we load script.manual.js this hook is the *only* source of
+ * pageview events — the manual build has no automatic pushState listener.
+ * The current URL is passed explicitly via { u } to avoid mis-attribution
+ * in hash-mode or when a base-path is configured.
  *
  * Call once from main.ts, after router is created:
  *
@@ -115,13 +137,13 @@ export function initPlausible(): void {
  *   import { setupPlausibleRouterHook } from '@/plugins/plausible'
  *   setupPlausibleRouterHook(router)
  */
-export function setupPlausibleRouterHook(router: { afterEach: (fn: () => void) => void }): void {
+export function setupPlausibleRouterHook(router: Router): void {
   const domain = import.meta.env.VITE_PLAUSIBLE_DOMAIN as string | undefined
   if (!domain) return
 
   router.afterEach(() => {
     if (typeof window.plausible === 'function') {
-      window.plausible('pageview')
+      window.plausible('pageview', { u: window.location.href })
     }
   })
 }
