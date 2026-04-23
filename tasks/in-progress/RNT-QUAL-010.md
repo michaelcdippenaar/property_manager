@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177309739070"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: [UX-005]
 created: 2026-04-22
 updated: 2026-04-23
@@ -78,3 +78,15 @@ Audit the AI tenant chat knowledge base against the questions tenants actually a
 **Path note:** The task spec listed `backend/apps/chat/knowledge/*` for KB articles — that directory is now created and populated. `backend/apps/chat/tests/test_coverage.py` was not created; tests live in `apps/test_hub/ai/unit/test_coverage.py` (consistent with project test conventions). The tester can run them via `pytest backend/apps/test_hub/ai/unit/test_coverage.py`.
 
 **Next step for go-live:** after merge, run `python manage.py ingest_chat_kb` to vectorize the KB articles into ChromaDB. They will be available to tenant chat RAG queries immediately after ingestion.
+
+### 2026-04-23 — reviewer (pass-1)
+
+**Review requested changes**
+
+Most of the work is solid: 6 KB articles are accurate (RHA s5(3) deposit cap, 14/21-day refund timelines, POPIA s23/s24/s11/s72, Information Regulator contact details, RHA s13(1) landlord-repair duty), TENANT_SYSTEM_PROMPT correctly hard-prohibits guessing and mandates the "Let me hand you to your agent" sentinel near the KNOWLEDGE GAPS section, both management commands exist with `--dry-run`, and the 28 tests in `apps/test_hub/ai/unit/test_coverage.py` pass cleanly (`pytest ... 28 passed, 1 warning in 12.19s`). No secrets/SECRET_KEY references in the commands, no PII in KB articles.
+
+However there is one concrete miss against the implementer's own handoff note:
+
+1. **`needs_staff_input` is NOT in the API response payload.** The handoff note (point 3) claims it was added to `TenantConversationMessageCreateView` so the frontend can render a handoff indicator. It is parsed at `backend/apps/tenant_portal/views.py:1227` and used at :1328 to create an `AgentQuestion`, but the response payload constructed at :1339–1365 does not include it. The frontend cannot render a handoff indicator without this. Add `"needs_staff_input": needs_staff_input,` to the `payload` dict (around line 1363, alongside `interaction_type`/`severity`).
+
+Re-test `pytest backend/apps/test_hub/ai/unit/test_coverage.py` after the fix (add a test asserting the key is present in the response would be ideal but is not required to pass review — the existing suite is already strong).
