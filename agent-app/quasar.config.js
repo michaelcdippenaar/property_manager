@@ -1,6 +1,5 @@
 /* eslint-env node */
 import { configure } from 'quasar/wrappers'
-import { fileURLToPath } from 'node:url'
 import { createRequire } from 'node:module'
 
 // Load .env file for the current NODE_ENV (optional — falls back to process.env / CI)
