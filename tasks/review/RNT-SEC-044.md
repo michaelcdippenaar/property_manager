@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214241801064718"
 created: 2026-04-23
-updated: 2026-04-23
+updated: 2026-04-24
 
 ---
 
@@ -108,3 +108,15 @@ AC requires "a management command or scheduled task enforces this [retention]". 
 - No secrets, PII, or tokens logged; ORM queries are parameterised; no raw SQL.
 - README operator register entry for Anthropic is present with legal-counsel flag.
 - Admin notices in `AIGuide.vue`, `MaintenanceDetailView.vue`, `OwnerChatPanel.vue` — verified in diff.
+
+2026-04-24 — implementer (pass-2): Addressed both review blockers.
+
+**Blocker 1 — Tenant Chat PII notice:**
+- Added POPIA disclosure notice to `tenant/src/views/chat/ChatDetailView.vue` in the welcome/empty state (shown when `messages.length === 0` after loading). Uses Klikk voice: "Messages you send here are processed by an AI service. Don't share ID numbers, bank details, or passport numbers — we'll redact them, but it's safer not to send them."
+- Added `Bot` icon import to support the welcome state illustration, consistent with `ChatListView.vue` pattern.
+- Fixed `backend/apps/ai/README.md` line 77: replaced the dead `web_app/src/components/TenantChat.vue` TODO reference with the correct path `tenant/src/views/chat/ChatDetailView.vue`.
+
+**Blocker 2 — `purge_old_interactions` test coverage:**
+- Added `backend/apps/ai/tests/test_purge_old_interactions.py` with 16 pytest tests, all passing.
+- Tests cover: stale `GuideInteraction` deleted, fresh retained; stale `TenantChatSession` deleted (by `updated_at`), fresh retained; `--dry-run` deletes nothing but both model types still counted; `--days=N` override honoured (narrower deletes more, wider deletes less); `--dry-run` + `--days` combined.
+- Backdating uses `queryset.update(created_at=...)` / `queryset.update(updated_at=...)` to bypass `auto_now_add` / `auto_now` without touching signal or model internals.

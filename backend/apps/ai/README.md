@@ -74,5 +74,5 @@ All chat surfaces display the notice:
 before the first message is sent.  This satisfies POPIA s18 notification requirements.
 
 - AI Guide: `admin/src/components/AIGuide.vue` — notice in welcome state
-- Tenant Chat: `web_app/src/components/TenantChat.vue` — notice shown on session open (TODO: implement in web_app once scaffolded; see task note in RNT-SEC-044)
+- Tenant Chat: `tenant/src/views/chat/ChatDetailView.vue` — notice shown in welcome/empty state before first message
 - Agent Assist: `admin/src/views/maintenance/MaintenanceDetailView.vue` — notice in chat header

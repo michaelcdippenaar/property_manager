@@ -8,6 +8,22 @@
         <Loader2 :size="28" class="text-navy/30 animate-spin" />
       </div>
 
+      <!-- Welcome / empty state with POPIA disclosure -->
+      <div v-else-if="messages.length === 0" class="flex flex-col items-center justify-center pt-16 px-6 text-center">
+        <div class="w-14 h-14 bg-navy/5 rounded-2xl flex items-center justify-center mb-4">
+          <Bot :size="26" class="text-navy/40" />
+        </div>
+        <p class="font-semibold text-gray-700 mb-1">Hi, I'm your AI assistant</p>
+        <p class="text-sm text-gray-400 leading-relaxed mb-4">
+          Ask me anything about your rental — maintenance, payments, your lease, or general queries.
+        </p>
+        <div class="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 max-w-xs">
+          <p class="text-xs text-gray-500 leading-relaxed">
+            Messages you send here are processed by an AI service. Don't share ID numbers, bank details, or passport numbers — we'll redact them, but it's safer not to send them.
+          </p>
+        </div>
+      </div>
+
       <template v-for="msg in messages" :key="msg.id">
         <!-- System / skill info card -->
         <div v-if="msg.type === 'skills'" class="mx-2">
@@ -85,7 +101,7 @@
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Loader2, Paperclip, Send } from 'lucide-vue-next'
+import { Bot, Loader2, Paperclip, Send } from 'lucide-vue-next'
 import AppHeader from '../../components/AppHeader.vue'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
