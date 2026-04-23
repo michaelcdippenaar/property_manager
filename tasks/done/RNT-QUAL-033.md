@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
+status: done
 assigned_to: null
 depends_on: []
 asana_gid: "1214200406476871"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 
 ---
 
@@ -89,3 +89,37 @@ Unblocked during reconciliation pass. The original blocking reason (no tenant SP
 - 5/5 automated tests pass (`test_welcome.py`).
 - Frontend router guard updated to use `auth.user?.seen_welcome_at` check.
 Moved from blocked → testing. Remaining: manual smoke — log in as new tenant → dismiss welcome → open new tab → confirm welcome screen does not reappear.
+
+### 2026-04-23 — tester
+
+**Test run: 2026-04-23**
+
+Tenant SPA confirmed running at `http://localhost:5175/` (node process PID 20656, `tenant/` directory, vite dev server).
+
+Automated — `pytest apps/test_hub/accounts/ -k welcome` (re-run):
+- test_first_call_stamps_seen_welcome_at: PASS
+- test_idempotent_second_call_does_not_overwrite: PASS
+- test_new_user_seen_welcome_at_is_null: PASS
+- test_response_includes_user_profile: PASS
+- test_unauthenticated_returns_401: PASS
+- Result: 5/5 PASS
+
+Manual — welcome screen flow (API-driven against running tenant SPA backend, `demo_tenant@klikk.app`):
+
+Step 1 — Confirm new-tenant state (seen_welcome_at = null):
+- GET /auth/me/ → `seen_welcome_at: null`, `role: tenant` — PASS (welcome redirect fires)
+
+Step 2 — Dismiss welcome screen (goHome() fires POST /auth/welcome/):
+- POST /auth/welcome/ → HTTP 200, `seen_welcome_at: "2026-04-23T14:40:17.925405+02:00"` — PASS (timestamp stamped)
+
+Step 3 — New tab / page refresh simulation (router guard re-fetches profile):
+- GET /auth/me/ → `seen_welcome_at: "2026-04-23T14:40:17.925405+02:00"` (non-null) — PASS (welcome redirect suppressed)
+
+Step 4 — Idempotency (second POST /auth/welcome/):
+- POST /auth/welcome/ (2nd call) → same timestamp `2026-04-23T14:40:17.925405+02:00` — PASS (not overwritten)
+
+Router guard code verified: `tenant/src/router/index.ts` line 139 checks `auth.user?.role === 'tenant' && !auth.user?.seen_welcome_at` before redirecting to welcome — correct.
+
+WelcomeView `goHome()` verified: POSTs to `/auth/welcome/`, merges response into `auth.user`, then navigates — correct.
+
+All 4 acceptance criteria confirmed satisfied. All checks pass.
