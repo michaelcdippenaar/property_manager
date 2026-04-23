@@ -28,3 +28,7 @@ A regulator or data subject may expect a PDF they can read without a JSON viewer
 ## Why I didn't fix it in the current task
 
 Requires Gotenberg integration (a separate service). Adding it in this task would significantly expand the diff and is not strictly required for POPIA compliance — the JSON data fully satisfies s23. Flagging for PM to schedule as a v1.1 polish item.
+
+## PM decision
+
+2026-04-23: Deferred — won't fix for v1. JSON export fully satisfies POPIA s23; PDF cover sheet is a polish item. Implementer's recommendation accepted. Re-raise in v1.1 backlog.
