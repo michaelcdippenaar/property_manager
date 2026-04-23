@@ -95,7 +95,13 @@
             <button class="menu-item" @click="menuOpen = false; showImportWizard = true">
               <Upload :size="15" class="text-gray-400" /> Import old lease
             </button>
-            <button class="menu-item" @click="handleAdvertise">
+            <!-- Advertise unit: hidden while vacancy-advertising is PLANNED in features.yaml.
+                 When the feature ships, remove the v-if and update features.yaml status to BUILT. -->
+            <button
+              v-if="!isPlanned('vacancy-advertising')"
+              class="menu-item"
+              @click="handleAdvertise"
+            >
               <Megaphone :size="15" class="text-gray-400" /> Advertise unit
             </button>
             <button class="menu-item" @click="handleGenerateLease">
@@ -1688,6 +1694,7 @@ import { useLeasesStore } from '../../stores/leases'
 import { useOwnershipsStore } from '../../stores/ownerships'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
+import { useFeatureFlags } from '../../composables/useFeatureFlags'
 import { extractApiError } from '../../utils/api-errors'
 import Breadcrumb from '../../components/Breadcrumb.vue'
 import BaseModal from '../../components/BaseModal.vue'
@@ -1714,6 +1721,7 @@ const route  = useRoute()
 const router = useRouter()
 const auth   = useAuthStore()
 const toast  = useToast()
+const { isPlanned } = useFeatureFlags()
 const propertiesStore = usePropertiesStore()
 const leasesStore = useLeasesStore()
 const ownershipsStore = useOwnershipsStore()
