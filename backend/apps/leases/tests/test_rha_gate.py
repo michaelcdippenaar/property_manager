@@ -492,13 +492,57 @@ class TestRhaCheckEndpoints:
     4. agency_admin can record a valid override.
     """
 
-    def _make_db_lease(self, tc, *, with_blocking_flag=False):
-        """Create a minimal DB lease suitable for endpoint testing."""
+    def _make_db_lease(self, tc, *, with_blocking_flag=False, admin=None, tenant=None, agent_to_assign=None):
+        """Create a minimal DB lease suitable for endpoint testing.
+
+        If admin is provided, it will be assigned to the same agency as the lease's agent
+        so it can access the lease (agency_admin scopes to properties managed by
+        agents in their agency).
+
+        If tenant is provided, it will be set as the primary_tenant so they can
+        access the lease (tenants see leases where they're linked as primary/co/occupant).
+
+        If agent_to_assign is provided, they will be assigned to the same property as
+        the lease so they can see it (agents see properties where they're assigned).
+        """
         from datetime import date, timedelta
         from decimal import Decimal
+        from apps.accounts.models import Agency, Person
+        from apps.properties.models import PropertyAgentAssignment
 
-        agent = tc.create_agent(email="rha-agent@test.com")
-        unit = tc.create_unit()
+        # Create an agency for the lease's agent and admin
+        agency = Agency.objects.create(
+            name="Test RHA Agency",
+            account_type=Agency.AccountType.AGENCY,
+        )
+
+        lease_agent = tc.create_agent(email="rha-agent@test.com", agency=agency)
+        if admin:
+            admin.agency = agency
+            admin.save()
+
+        # Create property with the lease's agent assigned
+        prop = tc.create_property(agent=lease_agent)
+
+        # If a test agent is provided, also assign them to the property
+        if agent_to_assign:
+            PropertyAgentAssignment.objects.create(
+                property=prop,
+                agent=agent_to_assign,
+                status="active",
+                assignment_type="managing",
+            )
+
+        unit = tc.create_unit(property_obj=prop)
+
+        # If a tenant was provided, create a Person linked to them and set as primary_tenant
+        primary_tenant_person = None
+        if tenant:
+            primary_tenant_person = Person.objects.create(
+                full_name=f"Test Tenant {tenant.email}",
+                linked_user=tenant,
+            )
+
         kwargs = {
             "start_date": date.today(),
             "end_date": date.today() + timedelta(days=365),
@@ -513,14 +557,14 @@ class TestRhaCheckEndpoints:
         if with_blocking_flag:
             # Introduce a blocking flag: rent = 0
             kwargs["monthly_rent"] = Decimal("0.00")
-        return tc.create_lease(unit=unit, **kwargs)
+        return tc.create_lease(unit=unit, primary_tenant=primary_tenant_person, **kwargs)
 
     def test_rha_check_response_keys(self, tremly, api_client):
         """GET rha-check must return flags/blocking/advisory/override keys."""
-        lease = self._make_db_lease(tremly)
         admin = tremly.create_user(
             email="admin-rha@test.com", role="agency_admin"
         )
+        lease = self._make_db_lease(tremly, admin=admin)
         api_client.force_authenticate(user=admin)
         resp = api_client.get(f"/api/v1/leases/{lease.pk}/rha-check/")
         assert resp.status_code == 200
@@ -542,10 +586,10 @@ class TestRhaCheckEndpoints:
 
     def test_rha_check_returns_blocking_for_incomplete_lease(self, tremly, api_client):
         """rha-check on a lease with zero rent returns at least one blocking flag."""
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
         admin = tremly.create_user(
             email="admin-blocking@test.com", role="agency_admin"
         )
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, admin=admin)
         api_client.force_authenticate(user=admin)
         resp = api_client.get(f"/api/v1/leases/{lease.pk}/rha-check/")
         assert resp.status_code == 200
@@ -554,8 +598,8 @@ class TestRhaCheckEndpoints:
 
     def test_rha_override_tenant_is_rejected(self, tremly, api_client):
         """Tenant-role user → POST rha-override must return 403."""
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
         tenant = tremly.create_tenant(email="tenant-override@test.com")
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, tenant=tenant)
         api_client.force_authenticate(user=tenant)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",
@@ -568,8 +612,8 @@ class TestRhaCheckEndpoints:
 
     def test_rha_override_agent_is_rejected(self, tremly, api_client):
         """Agent (non-admin) role → POST rha-override must return 403."""
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
         agent = tremly.create_agent(email="agent-override@test.com")
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, agent_to_assign=agent)
         api_client.force_authenticate(user=agent)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",
@@ -582,10 +626,10 @@ class TestRhaCheckEndpoints:
 
     def test_rha_override_empty_reason_rejected(self, tremly, api_client):
         """agency_admin with empty reason → 400."""
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
         admin = tremly.create_user(
             email="admin-empty-reason@test.com", role="agency_admin"
         )
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, admin=admin)
         api_client.force_authenticate(user=admin)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",
@@ -598,13 +642,12 @@ class TestRhaCheckEndpoints:
         """agency_admin with blocking flags and a valid reason → 200, override recorded."""
         from decimal import Decimal
 
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
-        # Run a check first so rha_flags is populated
-        lease.refresh_rha_flags()
-
         admin = tremly.create_user(
             email="admin-override-ok@test.com", role="agency_admin"
         )
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, admin=admin)
+        # Run a check first so rha_flags is populated
+        lease.refresh_rha_flags()
         api_client.force_authenticate(user=admin)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",
@@ -625,12 +668,11 @@ class TestRhaCheckEndpoints:
         This test pins the contract that the Vue submitOverride() function relies on
         (fixed in RNT-SEC-024 — eed71cb shipped with the wrong key name).
         """
-        lease = self._make_db_lease(tremly, with_blocking_flag=True)
-        lease.refresh_rha_flags()
-
         admin = tremly.create_user(
             email="admin-key-check@test.com", role="agency_admin"
         )
+        lease = self._make_db_lease(tremly, with_blocking_flag=True, admin=admin)
+        lease.refresh_rha_flags()
         api_client.force_authenticate(user=admin)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",

@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: [RNT-015]
 asana_gid: "1214197140899873"
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-23T16:30:00Z
 ---
 
 ## Goal
@@ -76,3 +76,17 @@ One blocking defect found: all 7 new `TestRhaCheckEndpoints` integration tests f
 1. `backend/apps/leases/tests/test_rha_gate.py`, `TestRhaCheckEndpoints._make_db_lease` (approx line 495): Grant the calling user access to the unit's property so `get_accessible_property_ids` returns the right property ID. The simplest approach is to pass the `admin` user into `_make_db_lease` and call the appropriate access-grant helper on the tremly fixture before returning the lease. Alternatively, use `create_user(role="admin")` (superuser/ADMIN role bypasses the property filter at `views.py:55-56`) — but only if that matches what the tests are actually trying to assert; prefer the access-grant approach to keep the tests realistic.
 
 2. After the fix, run `pytest apps/leases/tests/test_rha_gate.py -v --reuse-db` and confirm all 38 tests pass before re-submitting.
+
+2026-04-23 — implementer (RNT-SEC-024) — test fix delivered.
+
+**Issue:** All 7 integration tests in `TestRhaCheckEndpoints` were failing with HTTP 404 because `agency_admin` users had no property access. `get_accessible_property_ids()` requires `agency_admin` to be in the same agency as agents assigned to properties (either legacy `Property.agent` FK or `PropertyAgentAssignment`). The tests created fresh `agency_admin` users with no agency affiliation.
+
+**Fix implemented:** Refactored `_make_db_lease()` helper to handle property access setup for three user types:
+
+1. **agency_admin**: Created a shared Agency, assigned the lease's agent and the test admin to it. The agent is set on the property via legacy FK, making the property visible to all users in that agency.
+2. **tenant**: Created a Person linked to the tenant and set as primary_tenant on the lease. Tenants access via `get_tenant_leases()` (primary/co/occupant link), independent of property scope.
+3. **agent**: Created PropertyAgentAssignment to assign the test agent to the property. Agents access via assigned properties (legacy FK or assignment).
+
+Updated all 7 integration tests to pass the relevant user (admin/tenant/agent_to_assign) to the helper before authenticating, ensuring each user type can access the lease and hit the correct permission/validation check (403 for RBAC, 400 for empty reason, 200 for success).
+
+**Result:** All 38 tests now pass (`pytest apps/leases/tests/test_rha_gate.py -v --reuse-db`). Tests are now structurally correct and realistic: they exercise the full access control chain (property scope → lease visibility → RBAC) rather than bypassing it with superuser roles.
