@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214227879702322"
 created: 2026-04-22
@@ -45,3 +45,7 @@ The signing completion logic lives in `complete_native_signer()` in `backend/app
 Fix applied: added `.select_related("lease__unit__property", "mandate__property", "created_by")` to the re-fetch. Had to use `select_for_update(of=("self",))` instead of plain `select_for_update()` — PostgreSQL rejects `FOR UPDATE` on the nullable side of outer joins that `select_related` emits for nullable FK paths (`lease` and `mandate` are both nullable on `ESigningSubmission`).
 
 Two new `assertNumQueries(0)` tests added to `backend/apps/test_hub/esigning/integration/test_select_related_queries.py` in class `TestCompleteNativeSignerSelectRelated`, covering both the mandate path and the lease path. Full esigning suite: 245 passed, 3 xfailed, 0 failures.
+
+**2026-04-23 — reviewer**
+
+Review passed. Checked: AC1 — `.select_related("lease__unit__property", "mandate__property", "created_by")` is present at `services.py:736`; AC2 — two `assertNumQueries(0)` tests in `TestCompleteNativeSignerSelectRelated` cover mandate and lease paths, and the returned `submission` object is the re-fetched, lock-held instance so the 0-query assertions are valid; AC3 — no logic changes outside the queryset construction, no regression risk. `select_for_update(of=("self",))` usage is correct for nullable outer-join paths on PostgreSQL. Security pass: no new endpoints, no raw SQL, no PII logged, no auth surface changed.
