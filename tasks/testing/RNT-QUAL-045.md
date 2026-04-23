@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214229920476903"
 created: 2026-04-23
@@ -51,3 +51,11 @@ The `test_klikk_db` creation problem mentioned in the original discovery was alr
 The 8 esigning 422-vs-201 failures from the original discovery are now fully passing (all 258 esigning tests green). The 9 remaining failures are genuine functional regressions, captured in `tasks/discoveries/2026-04-23-test-hub-remaining-regressions-post-infra-fix.md`.
 
 CI criterion left open: no CI pipeline config was modified in this task. The fix is confined to `backend/conftest.py` and will apply automatically when CI runs pytest.
+
+2026-04-23 (reviewer) — Review passed. Verified:
+- Diff is minimal: one line removed (`tc._pre_setup()`) + explanatory comment in `backend/conftest.py`. No other fixtures touched. Task file moves and discovery file are clean.
+- Reasoning is sound. `TremlyAPITestCase` inherits from DRF `APITestCase` → `django.test.TestCase` → `TransactionTestCase`; `_pre_setup()` calls `cls._enter_atomics()`, which is exactly the class-level atomic that pytest-django's `db` fixture does not know how to tear down. Factory methods on `TremlyAPITestCase` are pure ORM and only require the transaction the `db` fixture already provides.
+- Ran `pytest apps/test_hub/ --tb=line -q` locally → `9 failed, 1551 passed, 1 skipped, 5 xfailed, 0 errors` (6:27). Matches the implementer's numbers exactly.
+- Spot-checked 3 of the 9 remaining regressions in isolation: `test_register_push_token_invalid_platform` (real server-side validation gap), `test_vault33.py::*ConfigGuard` (module-import `ModuleNotFoundError: vault33_client`, unrelated to fixtures and out of Rentals v1 scope per project memory). Both fail identically in isolation, confirming they are pre-existing functional regressions exposed — not caused — by the infra fix. Discovery `2026-04-23-test-hub-remaining-regressions-post-infra-fix.md` captures them correctly.
+- Security/POPIA pass: test-only infra change, no endpoints, no user input, no logging changes. Clean.
+- CI acceptance criterion remains unchecked (no pipeline config modified); acceptable — the fix is self-contained in conftest.py and will apply automatically on next CI run. PM can close it after the next green pipeline.
