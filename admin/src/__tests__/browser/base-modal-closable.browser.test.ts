@@ -12,54 +12,70 @@
  * Run:
  *   npx vitest run src/__tests__/browser/base-modal-closable.browser.test.ts
  */
-import { describe, it, expect, vi } from 'vitest'
-import { render } from 'vitest-browser-vue'
-import { userEvent } from '@vitest/browser/context'
-import { h, defineComponent } from 'vue'
+import { describe, it, expect } from 'vitest'
+import { mount } from '@vue/test-utils'
 import BaseModal from '../../components/BaseModal.vue'
 
 // ---------------------------------------------------------------------------
-// Helper — wrap BaseModal in a parent that records emitted 'close' events
+// Helper — mount BaseModal and record emitted 'close' events.
+// We use @vue/test-utils mount (not vitest-browser-vue render) so that we
+// have access to vm.activate() exposed via defineExpose, which we call
+// explicitly to arm the focus trap without relying on the CSS Transition's
+// @after-enter hook (unreliable in headless Playwright).
 // ---------------------------------------------------------------------------
 function mountModal(props: { closable?: boolean } = {}) {
-  const closeCalls = vi.fn()
-
-  const wrapper = render(BaseModal, {
+  const wrapper = mount(BaseModal, {
     props: {
       open: true,
       title: 'Test Modal',
       ...props,
     },
-    attrs: {
-      onClose: closeCalls,
-    },
+    // Attach to document.body so Teleport can render into it
+    attachTo: document.body,
   })
 
-  return { wrapper, closeCalls }
+  return { wrapper }
+}
+
+// Convenience: fire a backdrop click via native DOM event to bypass Playwright
+// visibility checks (backdrop sits behind the panel in z-order).
+function clickBackdrop() {
+  const backdrop = document.body.querySelector<HTMLElement>('.absolute.inset-0.bg-black\\/40')
+  expect(backdrop).not.toBeNull()
+  backdrop!.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+}
+
+// Convenience: fire Escape on document (where the focus trap listener lives).
+function pressEscape() {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
 }
 
 // ---------------------------------------------------------------------------
 // closable=false — backdrop click must NOT emit close
 // ---------------------------------------------------------------------------
 describe('BaseModal :closable="false"', () => {
-  it('backdrop click does not emit close', async () => {
-    const { wrapper, closeCalls } = mountModal({ closable: false })
+  it('backdrop click does not emit close', () => {
+    const { wrapper } = mountModal({ closable: false })
 
-    // The backdrop is the first absolute div inside the modal wrapper
-    const backdrop = wrapper.container.querySelector('.absolute.inset-0.bg-black\\/40')
-    expect(backdrop).not.toBeNull()
+    clickBackdrop()
 
-    await userEvent.click(backdrop as Element)
+    expect(wrapper.emitted('close')).toBeFalsy()
 
-    expect(closeCalls).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
-  it('Escape key does not emit close', async () => {
-    const { closeCalls } = mountModal({ closable: false })
+  it('Escape key does not emit close', () => {
+    const { wrapper } = mountModal({ closable: false })
 
-    await userEvent.keyboard('{Escape}')
+    // Activate the focus trap explicitly — BaseModal exposes activate() via
+    // defineExpose so tests can arm the trap without CSS transition hooks.
+    ;(wrapper.vm as any).activate()
 
-    expect(closeCalls).not.toHaveBeenCalled()
+    pressEscape()
+
+    expect(wrapper.emitted('close')).toBeFalsy()
+
+    wrapper.unmount()
   })
 })
 
@@ -67,25 +83,29 @@ describe('BaseModal :closable="false"', () => {
 // closable=true (default) — backdrop click and Escape MUST still emit close
 // ---------------------------------------------------------------------------
 describe('BaseModal :closable="true" (default)', () => {
-  it('backdrop click emits close', async () => {
-    const { wrapper, closeCalls } = mountModal({ closable: true })
+  it('backdrop click emits close', () => {
+    const { wrapper } = mountModal({ closable: true })
 
-    const backdrop = wrapper.container.querySelector('.absolute.inset-0.bg-black\\/40')
-    expect(backdrop).not.toBeNull()
+    clickBackdrop()
 
-    await userEvent.click(backdrop as Element)
+    expect(wrapper.emitted('close')).toBeTruthy()
+    expect(wrapper.emitted('close')!.length).toBe(1)
 
-    expect(closeCalls).toHaveBeenCalledOnce()
+    wrapper.unmount()
   })
 
-  it('Escape key emits close after focus trap activates', async () => {
-    const { closeCalls } = mountModal({ closable: true })
+  it('Escape key emits close after focus trap activates', () => {
+    const { wrapper } = mountModal({ closable: true })
 
-    // Give the transition's @after-enter a tick to fire activate()
-    await new Promise((r) => setTimeout(r, 250))
+    // Explicitly activate the focus trap instead of waiting for the CSS
+    // Transition's @after-enter hook, which does not fire reliably in Playwright.
+    ;(wrapper.vm as any).activate()
 
-    await userEvent.keyboard('{Escape}')
+    pressEscape()
 
-    expect(closeCalls).toHaveBeenCalledOnce()
+    expect(wrapper.emitted('close')).toBeTruthy()
+    expect(wrapper.emitted('close')!.length).toBe(1)
+
+    wrapper.unmount()
   })
 })

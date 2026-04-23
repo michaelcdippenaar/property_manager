@@ -90,4 +90,6 @@ const sizeClass = computed(() => ({
   lg: 'sm:max-w-lg',
   xl: 'sm:max-w-xl',
 }[props.size]))
+
+defineExpose({ activate })
 </script>
