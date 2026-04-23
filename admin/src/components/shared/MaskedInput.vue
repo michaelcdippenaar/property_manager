@@ -18,13 +18,14 @@
  *
  * Use wherever v-model binds to a PII field name listed in piiFields.ts:
  *   id_number, account_number, branch_code, trust_account_number,
- *   representative_id_number, passport
+ *   trust_branch_code, representative_id_number, passport
  *
  * Usage:
  *   <MaskedInput v-model="form.id_number" class="input font-mono" />
  *
  * Any extra attributes (class, type, placeholder, disabled, …) are forwarded
- * via $attrs (inheritAttrs: false is NOT set here — default pass-through applies).
+ * via $attrs. inheritAttrs: false is set so that $attrs are applied only at the
+ * explicit v-bind above — prevents double-application on the root element.
  */
 defineOptions({ inheritAttrs: false })
 

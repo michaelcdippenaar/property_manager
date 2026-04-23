@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214229920415908"
 created: 2026-04-23
-updated: 2026-04-23
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -34,7 +34,7 @@ Introduce a `MaskedInput.vue` wrapper (or `v-mask-pii` directive) that enforces 
   - `admin/src/views/leases/LeaseBuilderView.vue` — already uses h() render fn with data-clarity-mask; no v-model on PII
   - `admin/src/views/leases/ImportLeaseWizard.vue` — already uses h() render fn with data-clarity-mask; no v-model on PII
 - [x] Grep-based CI check script `admin/scripts/check-pii-masking.sh` wired into `.github/workflows/ci.yml` admin job
-- [ ] No regression: all affected views render correctly in dev mode; no new console errors
+- [x] No regression: all affected views render correctly in dev mode; no new console errors
 
 ## Files likely touched
 - `admin/src/components/shared/MaskedInput.vue` (new)
@@ -91,3 +91,19 @@ Other checks passed:
 - vue-tsc: one pre-existing error in `focus-trap-keyboard.browser.test.ts` (predates this task, noted by implementer) — not blocking.
 - CI step placed before type-check in admin job.
 - Filed discovery: `tasks/discoveries/2026-04-23-landlord-tab-pii-not-migrated-to-masked-input.md` (LandlordTab.vue three bare inputs — functionally masked today but not on wrapper pattern; out of scope for this task).
+
+2026-04-23 (implementer follow-up) — Fixed reviewer bounce (2 items):
+
+1. **Added `trust_branch_code` to both canonical sources:**
+   - `admin/src/composables/piiFields.ts` line 21 — now 7 fields total.
+   - `admin/scripts/check-pii-masking.sh` line 35 — PII_FIELDS array synced.
+   - Also updated MaskedInput.vue comment (line 20) to list all 7 fields for reference.
+
+2. **Fixed misleading comment in `admin/src/components/shared/MaskedInput.vue` lines 27–28:**
+   - Old: "inheritAttrs: false is NOT set here — default pass-through applies"
+   - New: "inheritAttrs: false is set so that $attrs are applied only at the explicit v-bind above — prevents double-application on the root element."
+   - Comment now accurately reflects the code on line 30.
+
+3. **Verified CI check passes:**
+   - `cd admin && bash scripts/check-pii-masking.sh` → exit 0
+   - All 7 PII fields now guarded against bare input usage.

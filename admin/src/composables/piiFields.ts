@@ -18,6 +18,7 @@ export const PII_FIELD_NAMES = [
   'account_number',
   'branch_code',
   'trust_account_number',
+  'trust_branch_code',
   'representative_id_number',
   'passport',
 ] as const
