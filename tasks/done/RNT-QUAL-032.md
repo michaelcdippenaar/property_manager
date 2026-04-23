@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200406255598"
 created: 2026-04-22
@@ -59,3 +59,17 @@ Checked:
 5. No conflicts with `backend/apps/test_hub/esigning/conftest.py` — that file has no cache or throttle fixtures.
 6. Discovery `tasks/discoveries/2026-04-23-esigning-integration-test-422.md` is correctly filed and out of scope for this task.
 7. Security/POPIA — test-only change, no production code touched, no auth/PII concerns.
+
+### Test run 2026-04-23 — tester
+
+**Automated:** `pytest apps/esigning/ apps/test_hub/esigning/ -v` × 3 consecutive runs
+
+- Run 1: 17/17 rate-limit tests PASS (229 passed total, 8 pre-existing 422 failures in test_esigning.py/test_esigning_full.py — already filed as discovery `tasks/discoveries/2026-04-23-esigning-integration-test-422.md`, out of scope)
+- Run 2: 17/17 rate-limit tests PASS (same 8 pre-existing failures)
+- Run 3: 17/17 rate-limit tests PASS (same 8 pre-existing failures)
+
+AC1 — `_THROTTLE_TEST_CACHES` with `LOCATION: "throttle-tests"` confirmed in test file. PASS
+AC2 — All 17 rate-limit tests pass across full suite. PASS
+AC3 — Consistent across 3 consecutive runs. PASS
+
+**All checks pass.**
