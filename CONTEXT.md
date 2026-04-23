@@ -306,7 +306,7 @@ Ready for SMS/WhatsApp integration (Twilio). When a dispatch is sent, each suppl
 
 ## Key Integrations
 - **Claude AI** — Lease PDF parsing, maintenance triage, staff assistant
-- **DocuSeal** — E-signing (backend complete, UI in progress)
+- **Native e-signing** — Gotenberg PDF generation + `signed_pdf_file` + `ESigningPublicLink` (signer_role token links). DocuSeal removed April 2026.
 - **Google Maps** — Address geocoding, supplier proximity matching
 - **openpyxl** — Excel import for bulk supplier creation
 - **Twilio** (planned) — SMS/WhatsApp notifications for supplier dispatch

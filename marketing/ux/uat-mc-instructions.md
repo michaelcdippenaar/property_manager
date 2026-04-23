@@ -25,7 +25,7 @@ Load the following before the tester sits down — this prevents dead time durin
 | Unit | None yet (tester will add it) |
 | Tenant profile | None yet |
 | Lease template | At least one template available in the lease builder |
-| E-sign flow | DocuSeal / native signing working on staging |
+| E-sign flow | Native signing working on staging (Gotenberg + signer_role public links) |
 | Maintenance categories | At least "Plumbing", "Electrical", "General" seeded |
 
 If anything in the above list is missing, fix it before the session — do not ask the tester to work around gaps.
