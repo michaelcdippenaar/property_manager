@@ -101,7 +101,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Check, X, Clock, FileText } from 'lucide-vue-next'
 import { Capacitor } from '@capacitor/core'
 import AppHeader from '../../components/AppHeader.vue'
@@ -112,6 +112,7 @@ import { useSigningStatus } from '../../composables/useSigningStatus'
 
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 const lease = ref<any>(null)
 const submissions = ref<any[]>([])
 const loading = ref(true)
@@ -182,9 +183,10 @@ onMounted(async () => {
     loading.value = false
   }
 
-  // Show banner if redirected back from signing tab with ?signed=1
+  // Show banner if redirected back from signing tab with ?signed=1, then strip the param
   if (route.query.signed === '1') {
     showSignedBanner.value = true
+    router.replace({ query: { ...route.query, signed: undefined } })
   }
 })
 

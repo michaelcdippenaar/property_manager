@@ -24,15 +24,33 @@ import api from '../api'
 const POLL_INTERVAL = 5_000   // 5 seconds
 const POLL_MAX_ATTEMPTS = 24  // 2 minutes max
 
+/** Returns true if the given origin is an allowed signing page origin. */
+function isAllowedSigningOrigin(origin: string): boolean {
+  try {
+    const hostname = new URL(origin).hostname
+    return (
+      hostname === 'localhost' ||
+      hostname === '127.0.0.1' ||
+      hostname.endsWith('.tremly.co.za') ||
+      hostname === 'tremly.co.za'
+    )
+  } catch {
+    return false
+  }
+}
+
 export function useSigningStatus() {
   const signedAt = ref<string | null>(null)  // ISO timestamp set when signing detected
   let pollTimer: ReturnType<typeof setInterval> | null = null
   let pollAttempts = 0
   let _leaseId: number | null = null
   let _signerEmail: string | null = null
+  // Handle for the Capacitor Browser listener (scoped — avoids removeAllListeners)
+  let _browserHandle: { remove: () => void } | null = null
 
   // Message listener for web postMessage signal
   function onMessage(event: MessageEvent) {
+    if (!isAllowedSigningOrigin(event.origin)) return
     if (event.data?.type === 'klikk_lease_signed') {
       _markSigned()
     }
@@ -67,10 +85,11 @@ export function useSigningStatus() {
     pollAttempts = 0
 
     if (Capacitor.isNativePlatform()) {
-      // On native, rely on browserFinished event
+      // On native, rely on browserFinished event.
+      // Store the handle so stopSigningWatch removes only this listener.
       try {
         const { Browser } = await import('@capacitor/browser')
-        Browser.addListener('browserFinished', async () => {
+        _browserHandle = await Browser.addListener('browserFinished', async () => {
           // Tab closed — check status once (user may have signed before closing)
           await _checkSubmissionStatus()
         })
@@ -96,11 +115,10 @@ export function useSigningStatus() {
       pollTimer = null
     }
     window.removeEventListener('message', onMessage)
-    // Remove Capacitor listener on native
-    if (Capacitor.isNativePlatform()) {
-      import('@capacitor/browser').then(({ Browser }) => {
-        Browser.removeAllListeners().catch(() => {})
-      }).catch(() => {})
+    // Remove only our own Capacitor listener — never clobber unrelated handlers
+    if (_browserHandle) {
+      try { _browserHandle.remove() } catch { /* ignore */ }
+      _browserHandle = null
     }
   }
 

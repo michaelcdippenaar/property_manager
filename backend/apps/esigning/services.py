@@ -449,13 +449,17 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             '', html_body, flags=re.DOTALL,
         )
 
-        # ── Convert legacy signature-block spans to DocuSeal native tags ─
+        # ── Convert legacy signature-block spans/divs to native tags ────
         # Templates saved before the renderHTML change used:
         #   <span data-type="signature-block" data-field-name="X" data-field-type="signature"
         #         data-signer-role="landlord" ...>{{X}}</span>
-        # Convert these to DocuSeal tags: <signature-field>, <initials-field>, <date-field>
+        # Template 57 and other older templates use <div> instead of <span>.
+        # Convert both to native tags: <signature-field>, <initials-field>, <date-field>
+        #
+        # Regex groups: \1 = element name (span|div), \2 = attribute string.
+        # The backreference \1 in the closing tag prevents cross-element leakage.
         def _convert_legacy_signing_span(m: re.Match) -> str:
-            attrs_str = m.group(1)
+            attrs_str = m.group(2)  # group(1) is element name, group(2) is attrs
             field_type = re.search(r'data-field-type="([^"]+)"', attrs_str)
             field_name = re.search(r'data-field-name="([^"]+)"', attrs_str)
             signer_role = re.search(r'data-signer-role="([^"]+)"', attrs_str)
@@ -480,7 +484,7 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
                     f'style="display:inline-block;{dims};margin:4px 6px;vertical-align:middle;"> </{tag}>')
 
         html_body = re.sub(
-            r'<span([^>]+data-type="signature-block"[^>]*)>.*?</span>',
+            r'<(span|div)([^>]+data-type="signature-block"[^>]*)>.*?</\1>',
             _convert_legacy_signing_span, html_body, flags=re.DOTALL,
         )
 

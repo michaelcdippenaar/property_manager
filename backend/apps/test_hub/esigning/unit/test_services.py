@@ -135,6 +135,62 @@ class TestExtractSignerFields:
         assert len(tenant_fields) == 1 and tenant_fields[0]['fieldName'] == 't_sig'
         assert len(landlord_fields) == 1 and landlord_fields[0]['fieldName'] == 'll_sig'
 
+    def test_div_signature_block_converted(self):
+        """_convert_legacy_signing_span must handle <div data-type="signature-block"> elements.
+
+        Template 57 stores signature blocks as <div> not <span>.  The regex at
+        services.py must match both element names so that extract_signer_fields
+        returns fields for submissions built from those templates.
+        """
+        import re
+        from apps.esigning.services import _HTML_ROLE_CANONICAL
+
+        # Replicate the exact regex + callback from generate_lease_html so we can
+        # exercise it without a DB-backed Lease fixture.
+        def _convert(m: re.Match) -> str:
+            attrs_str = m.group(2)
+            field_type = re.search(r'data-field-type="([^"]+)"', attrs_str)
+            field_name = re.search(r'data-field-name="([^"]+)"', attrs_str)
+            signer_role = re.search(r'data-signer-role="([^"]+)"', attrs_str)
+            ftype = field_type.group(1) if field_type else 'signature'
+            fname = field_name.group(1) if field_name else ''
+            role = signer_role.group(1) if signer_role else 'landlord'
+            role = _HTML_ROLE_CANONICAL.get(role.lower(), role)
+            tag_map = {'signature': 'signature-field', 'initials': 'initials-field', 'date': 'date-field'}
+            tag = tag_map.get(ftype, 'signature-field')
+            dims = {'signature': 'width:200px;height:60px', 'initials': 'width:100px;height:40px',
+                    'date': 'width:120px;height:24px'}.get(ftype, 'width:200px;height:60px')
+            fmt = ' format="drawn_or_typed"' if ftype == 'signature' else ''
+            return (f'<{tag} name="{fname}" role="{role}" required="true"{fmt} '
+                    f'style="display:inline-block;{dims};margin:4px 6px;vertical-align:middle;"> </{tag}>')
+
+        # Simulate template 57 HTML with <div> signature blocks
+        raw_html = (
+            '<div data-type="signature-block" data-field-name="tenant_sig" '
+            'data-field-type="signature" data-signer-role="tenant">{{tenant_sig}}</div>'
+            '<div data-type="signature-block" data-field-name="tenant_init" '
+            'data-field-type="initials" data-signer-role="tenant">{{tenant_init}}</div>'
+        )
+        converted = re.sub(
+            r'<(span|div)([^>]+data-type="signature-block"[^>]*)>.*?</\1>',
+            _convert, raw_html, flags=re.DOTALL,
+        )
+
+        assert '<signature-field' in converted, "signature-field tag not produced from <div> block"
+        assert '<initials-field' in converted, "initials-field tag not produced from <div> block"
+        assert 'role="tenant_1"' in converted, "tenant alias not normalised to tenant_1"
+        assert 'name="tenant_sig"' in converted
+        assert 'name="tenant_init"' in converted
+        # Originals must be gone
+        assert 'data-type="signature-block"' not in converted
+
+        # Round-trip: extract_signer_fields must now find both fields for tenant_1 signer
+        from apps.esigning.services import extract_signer_fields
+        fields = extract_signer_fields(converted, 'tenant_1')
+        assert len(fields) == 2, (
+            f"Expected 2 fields for tenant_1 after <div> conversion, got {len(fields)}"
+        )
+
     @pytest.mark.red
     def test_extract_editable_merge_fields_returns_field_names(self):
         """RED: extract_editable_merge_fields() extracts field names from HTML template.
