@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214237326400634"
 created: 2026-04-23
-updated: 2026-04-23T15:30:00
+updated: 2026-04-23T16:00:00
 ---
 
 ## Goal
@@ -58,3 +58,13 @@ Restore the esigning integration test suite to a green baseline by fixing the Pr
 **Result**: `pytest apps/esigning/ apps/test_hub/esigning/ -v` → 248 passed, 3 xfailed, 0 failures, 0 errors.
 
 2026-04-23 (reviewer): Review passed. Checked: (1) `create_lease` factory defaults in `backend/apps/test_hub/base/test_case.py` lines 154–159 are sensible non-empty RHA placeholders (30-day notice, CPI escalation, mutual renewal, SA domicilium); `defaults.update(kwargs)` preserves per-test override, so RHA-specific tests can still exercise failure paths. (2) No production code change — diff is test helper + two migrations only. (3) Both migrations (`audit/0003`, `legal/0002`) are Django 5.2.13 auto-generated `RenameIndex` output — filenames and header confirm `makemigrations`, no hand edits. (4) No stray files in diff. No security/POPIA concerns (no endpoints, no logging). Handing off to tester.
+
+### Test run — 2026-04-23
+
+**Command:** `cd backend && pytest apps/esigning/ apps/test_hub/esigning/ -v --tb=short`
+
+| Test | Result |
+|------|--------|
+| `pytest apps/esigning/ apps/test_hub/esigning/ -v` | PASS |
+
+**Summary:** 248 passed, 3 xfailed, 0 failures, 0 errors (67.17s). All acceptance criteria confirmed green.
