@@ -1,0 +1,240 @@
+{
+  "main": {
+    "id": "27fdbf247f6636bc",
+    "type": "split",
+    "children": [
+      {
+        "id": "8e7431314279d49f",
+        "type": "tabs",
+        "dimension": 61.76470588235295,
+        "children": [
+          {
+            "id": "da07d8771634e9d5",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3073db349b71a73",
+        "type": "tabs",
+        "dimension": 38.23529411764706,
+        "children": [
+          {
+            "id": "090074609e1f6dcf",
+            "type": "leaf",
+            "state": {
+              "type": "empty",
+              "state": {},
+              "icon": "lucide-file",
+              "title": "New tab"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "cbc3a10a3c91f070",
+    "type": "split",
+    "children": [
+      {
+        "id": "2d3231fd7a3345fe",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "51d82998366d04ba",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "a89eaae41a07d96e",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "db0ac2a8738d9456",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "2596c94effed8cfb",
+    "type": "split",
+    "children": [
+      {
+        "id": "009ac2f6c8f0ee21",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c292600fd595bd57",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "Untitled.base",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks for Untitled"
+            }
+          },
+          {
+            "id": "3086d6e9a66745bf",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "Untitled.base",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links from Untitled"
+            }
+          },
+          {
+            "id": "c5546bab4e9fd375",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "9dc62c0ce865f021",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "79a53ed880f92738",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "Untitled.base",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline of Untitled"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "51d82998366d04ba",
+  "lastOpenFiles": [
+    "property manager/sales-pipeline.md",
+    "Opportunities/killed/sms-aggregator-clickatell-competitor.md",
+    "Opportunities/killed",
+    "Opportunities/industries/sa-whatsapp-bsp-sme.md",
+    "Opportunities/industries",
+    "Opportunities/README.md",
+    "Opportunities",
+    "vault33/clients/auditfirms.md",
+    "vault33/clients",
+    "Projects/Property_Manager/flow_tenant.md",
+    "Projects/Property_Manager/flow_supplier.md",
+    "Projects/Property_Manager/flow_owner.md",
+    "Projects/Property_Manager/flow_obligations_and_consequences.md",
+    "Projects/Property_Manager/flow_dependencies.md",
+    "Projects/Property_Manager/flow_agent.md",
+    "Projects/Property_Manager/flow_1year_5roles.md",
+    "Projects/Volt33/master_chat_18 Apr 13h23.md",
+    "Projects/Volt33/app-overview.md",
+    "Untitled 1.base",
+    "Projects/vault33/Autonomous build 2026-04-18 — compliance officer + webhooks + SDK.md",
+    "Projects/vault33/Verify oracle + revocation — design note.md",
+    "projects/vault33/Verify oracle + revocation — design note.md",
+    "Projects/vault33/Lifecycle of a raw-JSON package.md",
+    "projects/vault33/Lifecycle of a raw-JSON package.md",
+    "Projects/vault33",
+    "projects/vault33",
+    "vault33/How Vault33 works — end to end.md",
+    "vault33",
+    "Projects/Volt33",
+    "2026-04-18.md",
+    "property manager/life_cycle/01-lifecycle-15-stages.md",
+    "dev_ops_control_panel/overview.md",
+    "Untitled.base",
+    "Untitled.canvas",
+    "Projects/Property_Manager/Agent/web_app_layout.md",
+    "Projects/Property_Manager/Agent/vault33.md",
+    "Projects/Property_Manager/Agent/messaging.md"
+  ]
+}
