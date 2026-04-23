@@ -13,7 +13,7 @@ anthropic>=0.40.0
 pypdf>=4.0
 requests>=2.31.0
 # SMS — OTP delivery
-twilio>=9.0.0
+twilio>=9.10.5
 # Push notifications
 firebase-admin>=6.5.0
 # DOCX template rendering (jinja2-based merge fields for lease generation)
