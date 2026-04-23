@@ -409,14 +409,15 @@ def ingest_bank_payment(
         status=Lease.Status.ACTIVE,
     )
 
-    if matching_leases.count() != 1:
+    lease_count = matching_leases.count()
+    if lease_count != 1:
         um = UnmatchedPayment.objects.create(
             amount=amount,
             payment_date=payment_date,
             reference=reference,
             payer_name=payer_name,
         )
-        reason = "no_match" if matching_leases.count() == 0 else "ambiguous_match"
+        reason = "no_match" if lease_count == 0 else "ambiguous_match"
         _log(
             PaymentAuditLog.EntityType.UNMATCHED,
             um.pk,
