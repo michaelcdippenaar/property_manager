@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214221203782966"
 created: 2026-04-23
-updated: 2026-04-23T15:00:00
+updated: 2026-04-23T18:00:00
 ---
 
 ## Goal
@@ -70,3 +70,14 @@ Test results: `TestMaintenanceRBAC` 13/13 passed + `TestOwnerReadOnly` 6/6 passe
 2026-04-23 rentals-reviewer: Review passed (round 2).
 
 Checked: dead `_WRITE_ACTIONS` constant removed from `MaintenanceRequestViewSet`; `update`/`partial_update`/`destroy` branch now correctly returns `[IsAgentOrAdmin()]`; `create` retains `IsTenantOrAgent` preserving tenant POST access; `LeaseViewSet` uses `_WRITE_ACTIONS` via `get_permissions()` correctly covering all four mutating actions; two new `TestOwnerReadOnly` tests assert strict 403 for owner PATCH and POST on maintenance; no raw SQL, no PII logged, all queries parameterised via ORM; POPIA pass clean. All five acceptance criteria satisfied with no regressions reported.
+
+2026-04-23 rentals-tester: Test run.
+
+- `pytest tests/integration/test_rbac_matrix.py -k "owner" -v` → 35 passed, 0 failed (181s)
+  - `TestOwnerReadOnly::test_owner_cannot_patch_lease` PASS
+  - `TestOwnerReadOnly::test_owner_cannot_delete_maintenance_request` PASS
+  - `TestOwnerReadOnly::test_owner_cannot_patch_maintenance_request` PASS
+  - `TestOwnerReadOnly::test_owner_cannot_post_maintenance_request` PASS
+  - All other owner endpoint matrix tests PASS
+- `pytest apps/leases/tests/ apps/maintenance/tests/ -v` → 47 passed in combined run; 5 ERRORs on `test_pdf_resilience.py` were DB teardown collisions (concurrent test session held the test DB), not code failures. Confirmed by re-running `apps/leases/tests/test_pdf_resilience.py` in isolation: 13 passed, 0 errors. `apps/maintenance/tests/` in isolation: 16 passed, 0 errors.
+- All 5 acceptance criteria verified by test results.
