@@ -69,10 +69,20 @@ def tremly(db):
         def test_foo(tremly):
             agent = tremly.agent()
             tenant = tremly.tenant()
+
+    NOTE: We deliberately do NOT call tc._pre_setup() here.
+    _pre_setup() is a classmethod that calls cls._enter_atomics(), opening
+    an extra Django-TestCase-level atomic transaction on top of pytest-django's
+    own `db` fixture transaction. Because _post_teardown() is never called
+    (pytest doesn't know about it), those class-level atomics leak across tests,
+    leaving the underlying psycopg2 connection in a closed/broken state for
+    subsequent tests (psycopg2.InterfaceError: connection already closed).
+
+    The factory methods on TremlyAPITestCase are plain ORM calls; they only
+    need an active DB transaction, which the `db` fixture already provides.
     """
     from apps.test_hub.base.test_case import TremlyAPITestCase
     tc = TremlyAPITestCase()
-    tc._pre_setup()  # initialise DB state
     return tc
 
 
