@@ -4,6 +4,10 @@ Tests for N+1 query elimination via select_related in the esigning signing flow.
 RNT-QUAL-029: _resolve_link must pre-fetch lease__unit__property AND
 mandate__property in a single query so that _notify_staff and
 _email_signed_copy_to_signers never issue extra queries.
+
+RNT-QUAL-014: complete_native_signer() must also pre-join related objects on its
+select_for_update re-fetch so the helper functions fired after signing completion
+never trigger additional per-call DB queries.
 """
 import uuid
 from datetime import timedelta
@@ -143,3 +147,140 @@ class TestResolveLinkselectRelatedLease(TremlyAPITestCase):
             prop_name = sub.lease.unit.property.name
 
         self.assertEqual(prop_name, "Lease Property")
+
+
+# ── RNT-QUAL-014: complete_native_signer select_related ──────────────────────
+
+
+class TestCompleteNativeSignerSelectRelated(TremlyAPITestCase):
+    """
+    complete_native_signer() re-fetches ESigningSubmission with select_for_update.
+    After the fix it must also join lease__unit__property and mandate__property so
+    the helper functions (_notify_staff, _email_signed_copy_to_signers) that access
+    those relations do not fire additional SQL queries.
+    """
+
+    def _make_mandate_submission(self):
+        """Create a mandate + submission + minimal document content for signing."""
+        import hashlib
+        from apps.properties.models import RentalMandate
+
+        agent = self.create_agent(email="agent-cns-srq@test.com")
+        prop = self.create_property(agent=agent, name="CNS Mandate Property")
+        mandate = RentalMandate.objects.create(
+            property=prop,
+            mandate_type=RentalMandate.MandateType.FULL_MANAGEMENT,
+            exclusivity=RentalMandate.Exclusivity.SOLE,
+            commission_rate="8.00",
+            commission_period=RentalMandate.CommissionPeriod.MONTHLY,
+            start_date=timezone.now().date(),
+        )
+        doc_html = "<p>Mandate document</p>"
+        doc_hash = hashlib.sha256(doc_html.encode()).hexdigest()
+        submission = ESigningSubmission.objects.create(
+            mandate=mandate,
+            status=ESigningSubmission.Status.PENDING,
+            signing_mode=ESigningSubmission.SigningMode.SEQUENTIAL,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            signers=[
+                {
+                    "id": 1,
+                    "name": "Owner",
+                    "email": "owner@cns-test.com",
+                    "role": "landlord",
+                    "status": "sent",
+                    "order": 0,
+                }
+            ],
+            document_html=doc_html,
+            document_hash=doc_hash,
+            created_by=agent,
+        )
+        return submission, prop
+
+    def test_complete_native_signer_mandate_no_extra_query_for_property(self):
+        """
+        After complete_native_signer() returns, accessing sub.mandate.property must
+        NOT fire an extra SQL query (already joined via select_related in the
+        select_for_update re-fetch).
+        """
+        from apps.esigning.services import complete_native_signer
+
+        submission, prop = self._make_mandate_submission()
+
+        signed_fields = [
+            {"fieldName": "signature_landlord", "fieldType": "signature", "imageData": "data:image/png;base64,AA=="}
+        ]
+        audit_data = {
+            "ip_address": "127.0.0.1",
+            "user_agent": "test",
+            "consent_given_at": timezone.now().isoformat(),
+        }
+
+        updated_sub, all_completed = complete_native_signer(
+            submission, "landlord", signed_fields, audit_data
+        )
+
+        self.assertTrue(all_completed)
+
+        # Accessing mandate.property must not trigger an additional SELECT.
+        with self.assertNumQueries(0):
+            prop_name = updated_sub.mandate.property.name
+
+        self.assertEqual(prop_name, "CNS Mandate Property")
+
+    def test_complete_native_signer_lease_no_extra_query_for_property(self):
+        """
+        After complete_native_signer() returns, accessing sub.lease.unit.property
+        must NOT fire extra SQL queries.
+        """
+        import hashlib
+        from apps.esigning.services import complete_native_signer
+
+        agent = self.create_agent(email="agent-cns-lease-srq@test.com")
+        prop = self.create_property(agent=agent, name="CNS Lease Property")
+        unit = self.create_unit(property_obj=prop)
+        lease = self.create_lease(unit=unit, status="pending")
+
+        doc_html = "<p>Lease document</p>"
+        doc_hash = hashlib.sha256(doc_html.encode()).hexdigest()
+        submission = ESigningSubmission.objects.create(
+            lease=lease,
+            status=ESigningSubmission.Status.PENDING,
+            signing_mode=ESigningSubmission.SigningMode.SEQUENTIAL,
+            signing_backend=ESigningSubmission.SigningBackend.NATIVE,
+            signers=[
+                {
+                    "id": 1,
+                    "name": "Tenant",
+                    "email": "tenant@cns-test.com",
+                    "role": "tenant",
+                    "status": "sent",
+                    "order": 0,
+                }
+            ],
+            document_html=doc_html,
+            document_hash=doc_hash,
+            created_by=agent,
+        )
+
+        signed_fields = [
+            {"fieldName": "signature_tenant", "fieldType": "signature", "imageData": "data:image/png;base64,AA=="}
+        ]
+        audit_data = {
+            "ip_address": "127.0.0.1",
+            "user_agent": "test",
+            "consent_given_at": timezone.now().isoformat(),
+        }
+
+        updated_sub, all_completed = complete_native_signer(
+            submission, "tenant", signed_fields, audit_data
+        )
+
+        self.assertTrue(all_completed)
+
+        # Accessing lease.unit.property must not trigger additional SELECTs.
+        with self.assertNumQueries(0):
+            prop_name = updated_sub.lease.unit.property.name
+
+        self.assertEqual(prop_name, "CNS Lease Property")

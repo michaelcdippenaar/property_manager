@@ -726,8 +726,17 @@ def complete_native_signer(submission, signer_role: str, signed_fields: list, au
     """
     from apps.esigning.models import ESigningSubmission
 
-    # Re-fetch with lock
-    submission = ESigningSubmission.objects.select_for_update().get(pk=submission.pk)
+    # Re-fetch with lock, pre-joining related objects so _notify_staff /
+    # _email_signed_copy_to_signers never issue extra per-call DB queries.
+    # select_for_update(of=("self",)) locks only the ESigningSubmission row;
+    # without `of=` PostgreSQL rejects FOR UPDATE on nullable outer joins that
+    # select_related emits for the lease / mandate FK paths.
+    submission = (
+        ESigningSubmission.objects
+        .select_related("lease__unit__property", "mandate__property", "created_by")
+        .select_for_update(of=("self",))
+        .get(pk=submission.pk)
+    )
 
     # Verify document integrity
     current_hash = hashlib.sha256(submission.document_html.encode()).hexdigest()
