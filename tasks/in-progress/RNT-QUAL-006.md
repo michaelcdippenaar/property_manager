@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462887240"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -60,3 +60,31 @@ Modified files:
 - Cache TTL is 300 s. If the reviewer wants a different TTL it's a one-liner in `dashboard_service.py`.
 - Activity feed is computed fresh on every request (no cache). Event timestamps use `Property.start_date` / `MaintenanceRequest.created_at` etc. — for leases we use `start_date` as a proxy for "signed date" because there is no separate `signed_at` field.
 - The signal invalidation requires the `Property.owner` FK to be populated OR a current `PropertyOwnership` row; if neither exists the bust is silently skipped (data is stale until TTL expires). This mirrors the existing `owner_views.py` scoping.
+
+### 2026-04-23 — reviewer (changes requested)
+
+**Review result: send back — 2 missing tests**
+
+All 18 existing tests pass (`pytest apps/properties/tests/test_dashboard_cache.py -xvs`). Architecture, security, and scoping are sound. Two specific gaps must be fixed before approval.
+
+**Required fixes:**
+
+1. **Missing signal-invalidation test for `RentalMandate`.**
+   `backend/apps/properties/tests/test_dashboard_cache.py` covers rent-payment, lease, and maintenance cache busts (lines 117–155) but has no `test_mandate_save_invalidates_cache` method. The file's own docstring header line 11 promises "Cache is invalidated when a RentalMandate is saved" — this test does not exist. The `_on_mandate_saved` handler in `dashboard_signals.py` is untested. Add a test that:
+   - calls `get_dashboard_stats(self.person.pk)` to warm the cache,
+   - creates or saves a `RentalMandate` linked to `self.prop`,
+   - asserts `cache.get(_cache_key(self.person.pk))` is `None`.
+
+2. **Missing activity-feed event test for `mandate_signed`.**
+   `OwnerActivityFeedContentTest` covers `lease_signed`, `maintenance_opened`, and `rent_received` but has no test for `mandate_signed` events. `get_activity_feed()` has a full mandate-event branch (lines 244–266 of `dashboard_service.py`) that is never exercised by the test suite. Add a test that creates an active `RentalMandate` on `self.prop` and asserts `"mandate_signed" in [e["event_type"] for e in get_activity_feed(self.person.pk)]`.
+
+**What was verified (no action needed):**
+
+- Cache key `owner_dashboard:<person_pk>` is scoped to person — no cross-owner leakage possible.
+- Both `OwnerDashboardView` and `OwnerActivityFeedView` derive `person_pk` from `request.user.person_profile`, matching pre-existing `OwnerPropertiesView` pattern.
+- `IsOwnerOrStaff` permission present on both new views — same as pre-existing dashboard endpoint.
+- Signal `dispatch_uid` strings are unique and prevent duplicate registration.
+- `_owner_pk_for_property` correctly walks `PropertyOwnership → Landlord → Landlord.person` (OneToOneField to Person), consistent with how `Property.owner` FK targets `Person`.
+- `invalidate_owner_dashboard` is idempotent (`cache.delete` on a missing key is a no-op).
+- Vue: no new npm dependencies, all icons from existing `lucide-vue-next`, TypeScript interfaces added for `DashboardStats` / `ActivityEvent`.
+- `features.yaml` `owner_dashboard` entry is `status: BUILT` — accurate.
