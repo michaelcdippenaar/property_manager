@@ -231,6 +231,27 @@ class CanManageTenants(BasePermission):
         )
 
 
+class IsTenantOrAgent(BasePermission):
+    """
+    Grants access to tenants and all agent-variant roles (including admin).
+    Explicitly excludes suppliers, owners, and other non-creating roles.
+
+    POPIA note: suppliers are limited to job-dispatch interactions only;
+    they must not create or inject maintenance requests on behalf of tenants.
+    """
+    ALLOWED_ROLES = (
+        User.Role.TENANT,
+        User.Role.AGENT, User.Role.ESTATE_AGENT,
+        User.Role.MANAGING_AGENT, User.Role.AGENCY_ADMIN, User.Role.ADMIN,
+    )
+
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and request.user.role in self.ALLOWED_ROLES
+        )
+
+
 class ReadOnly(BasePermission):
     """Allow only safe (read-only) HTTP methods."""
     def has_permission(self, request, view):

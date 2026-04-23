@@ -782,20 +782,39 @@ class TestMaintenanceRBAC:
             403,
         )
 
-    def test_supplier_create_maintenance_is_documented(self, world):
-        """MaintenanceRequestViewSet.create uses IsAuthenticated only — suppliers
-        can technically POST a new request. This test documents the current behaviour.
-        A future RNT-SEC task should add role-based write protection.
-        See discovery: 2026-04-23-supplier-can-create-maintenance-request.md"""
+    def test_supplier_cannot_create_maintenance_request(self, world):
+        """Suppliers must receive 403 when attempting to POST a maintenance request.
+        Suppliers interact only with jobs dispatched to them via the supplier portal
+        (POPIA data-minimisation). RNT-SEC-036."""
         c = _client_for(world["supplier"])
         resp = c.post("/api/v1/maintenance/", {
             "title": "Supplier Injected", "description": "x",
             "unit": world["unit_a"].pk, "priority": "low",
         }, format="json")
-        # Acceptable current states: 201 (gap — supplier created it), 400 (validation),
-        # 403 (if role guard is added).
-        assert resp.status_code in (201, 400, 403), (
-            f"Unexpected status from supplier creating maintenance request: {resp.status_code}"
+        assert resp.status_code == 403, (
+            f"Supplier POST /api/v1/maintenance/ must return 403, got {resp.status_code}"
+        )
+
+    def test_tenant_can_create_maintenance_request(self, world):
+        """Tenants may POST their own maintenance requests (IsTenantOrAgent guard)."""
+        c = _client_for(world["tenant_a"])
+        resp = c.post("/api/v1/maintenance/", {
+            "title": "Dripping tap", "description": "Kitchen tap drips constantly.",
+            "unit": world["unit_a"].pk, "priority": "low",
+        }, format="json")
+        assert resp.status_code == 201, (
+            f"Tenant POST /api/v1/maintenance/ must return 201, got {resp.status_code}"
+        )
+
+    def test_agent_can_create_maintenance_request(self, world):
+        """Agents may POST maintenance requests on behalf of tenants (IsTenantOrAgent guard)."""
+        c = _client_for(world["agent_a"])
+        resp = c.post("/api/v1/maintenance/", {
+            "title": "Broken geyser", "description": "Geyser not heating.",
+            "unit": world["unit_a"].pk, "priority": "high",
+        }, format="json")
+        assert resp.status_code == 201, (
+            f"Agent POST /api/v1/maintenance/ must return 201, got {resp.status_code}"
         )
 
 

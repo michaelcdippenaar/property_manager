@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.permissions import IsAgentOrAdmin, IsTenantOrAgent
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -35,6 +35,16 @@ from .serializers import (
 
 
 class MaintenanceRequestViewSet(viewsets.ModelViewSet):
+    """
+    CRUD endpoint for maintenance requests.
+
+    Role-based write guards (POPIA compliance):
+    - Suppliers may only interact with jobs dispatched to them via the supplier
+      portal; they must never create or inject maintenance requests on behalf of
+      tenants.  Only tenants and agent-variant roles (including admin) may POST
+      new requests.
+    """
+
     serializer_class = MaintenanceRequestSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status", "priority", "unit", "supplier"]
@@ -46,6 +56,10 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
 
     def get_permissions(self):
+        if self.action == "create":
+            # Suppliers must not create maintenance requests — they interact only
+            # with jobs dispatched to them (POPIA data-minimisation principle).
+            return [IsTenantOrAgent()]
         if self.action in self._AGENT_ONLY_ACTIONS:
             # job_dispatch handles both GET (read) and POST (mutate).
             # Only lock down the mutating POST; GET stays IsAuthenticated.
