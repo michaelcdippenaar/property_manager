@@ -6,7 +6,7 @@ from .views import (
     PropertyGroupViewSet, PropertyOwnershipViewSet, PropertyValuationViewSet,
     PropertyViewSet, RoomViewSet, UnitInfoViewSet, UnitViewSet,
 )
-from .owner_views import OwnerDashboardView, OwnerPropertiesView
+from .owner_views import OwnerActivityFeedView, OwnerDashboardView, OwnerPropertiesView
 from .classify_view import LandlordClassifyView, LandlordClassifyRegistrationView
 from .chat_view import LandlordChatView
 from .municipal_bill_view import ParseMunicipalBillView
@@ -33,6 +33,7 @@ router.register("", PropertyViewSet, basename="property")
 
 owner_urls = [
     path("dashboard/", OwnerDashboardView.as_view(), name="owner-dashboard"),
+    path("activity/", OwnerActivityFeedView.as_view(), name="owner-activity"),
     path("properties/", OwnerPropertiesView.as_view(), name="owner-properties"),
 ]
 

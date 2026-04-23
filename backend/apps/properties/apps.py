@@ -7,3 +7,5 @@ class PropertiesConfig(AppConfig):
 
     def ready(self):
         from . import signals  # noqa: F401
+        from .dashboard_signals import register as register_dashboard_signals
+        register_dashboard_signals()
