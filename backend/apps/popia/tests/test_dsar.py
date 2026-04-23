@@ -288,6 +288,44 @@ class TestDSARQueueView:
 
 @pytest.mark.django_db
 class TestDSARReviewView:
+    def test_get_review_creates_audit_event(self, admin_client, admin_user, tenant):
+        """GET /api/v1/popia/dsar-queue/<id>/review/ emits popia.dsar_review_opened audit event."""
+        from apps.audit.models import AuditEvent
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        # Check that the audit event was created with the correct action
+        event = AuditEvent.objects.filter(action="popia.dsar_review_opened").first()
+        assert event is not None
+        assert event.actor == admin_user
+        # Verify payload includes dsar_id, request_type, retention_flags_computed
+        assert event.after_snapshot["dsar_id"] == dsar.pk
+        assert event.after_snapshot["request_type"] == "rtbf"
+        assert event.after_snapshot["retention_flags_computed"] is True
+
+    def test_get_review_sar_audit_event_no_retention_flags(self, admin_client, admin_user, tenant):
+        """GET /api/v1/popia/dsar-queue/<id>/review/ for SAR has retention_flags_computed=False."""
+        from apps.audit.models import AuditEvent
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.SAR,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        event = AuditEvent.objects.filter(action="popia.dsar_review_opened").first()
+        assert event is not None
+        assert event.actor == admin_user
+        assert event.after_snapshot["request_type"] == "sar"
+        # For SAR, retention_flags_computed should be False (no retention checks for SAR)
+        assert event.after_snapshot["retention_flags_computed"] is False
+
     def test_tenant_cannot_review(self, tenant_client, tenant):
         dsar = DSARRequest.objects.create(
             requester=tenant,

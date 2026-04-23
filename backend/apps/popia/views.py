@@ -397,8 +397,22 @@ class DSARReviewView(APIView):
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         retention_flags = None
+        retention_flags_computed = False
         if dsar.request_type == DSARRequest.RequestType.RTBF and dsar.requester:
             retention_flags = _build_retention_flags(dsar.requester)
+            retention_flags_computed = True
+
+        _log_audit(
+            "popia.dsar_review_opened",
+            request.user,
+            f"DSARRequest #{dsar.pk}",
+            {
+                "dsar_id": dsar.pk,
+                "request_type": dsar.request_type,
+                "retention_flags_computed": retention_flags_computed,
+            },
+            request,
+        )
 
         return Response({
             "dsar_request": DSARRequestSerializer(dsar).data,
