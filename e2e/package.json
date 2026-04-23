@@ -1,0 +1,18 @@
+{
+  "name": "klikk-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright E2E test suite for Klikk Admin SPA",
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "playwright test --project=local",
+    "test:staging": "playwright test --project=staging",
+    "test:golden": "playwright test agent-golden-path.spec.ts --project=staging",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}

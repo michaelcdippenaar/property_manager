@@ -1,0 +1,98 @@
+name: E2E — Agent Golden Path
+
+# ─── When to run ──────────────────────────────────────────────────────────────
+#
+#  1. Nightly at 02:00 SAST (00:00 UTC) against staging
+#  2. After every successful staging deploy (called via workflow_call)
+#  3. On-demand via workflow_dispatch
+#
+on:
+  schedule:
+    - cron: "0 0 * * *" # 02:00 SAST daily
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: false
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - local
+  workflow_call:
+    # Triggered by staging-deploy.yml after a successful deploy
+    inputs:
+      image_tag:
+        required: false
+        type: string
+        description: "Deployed image tag (informational only)"
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Agent Golden Path E2E
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Node + dependencies ───────────────────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Playwright + dependencies
+        working-directory: e2e
+        run: |
+          npm init -y
+          npm install --save-dev @playwright/test typescript tsx
+          npx playwright install --with-deps chromium
+
+      # ── Run the suite ─────────────────────────────────────────────────────
+      - name: Run agent golden path E2E
+        working-directory: e2e
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          E2E_API_URL: ${{ secrets.E2E_API_URL }}
+          E2E_ADMIN_EMAIL: ${{ secrets.E2E_ADMIN_EMAIL }}
+          E2E_ADMIN_PASSWORD: ${{ secrets.E2E_ADMIN_PASSWORD }}
+        run: |
+          npx playwright test agent-golden-path.spec.ts \
+            --project=staging \
+            --reporter=html,line \
+            --output=test-results
+
+      # ── Artefacts ─────────────────────────────────────────────────────────
+      - name: Upload Playwright HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: e2e/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results (screenshots + video)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-${{ github.run_id }}
+          path: e2e/test-results/
+          retention-days: 14
+
+      # ── Notify on failure ─────────────────────────────────────────────────
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "failure" ]; then
+            echo "## E2E Golden Path FAILED" >> "$GITHUB_STEP_SUMMARY"
+            echo "See artefacts for screenshots and video." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## E2E Golden Path PASSED" >> "$GITHUB_STEP_SUMMARY"
+            echo "All 9 lifecycle steps green." >> "$GITHUB_STEP_SUMMARY"
+          fi
