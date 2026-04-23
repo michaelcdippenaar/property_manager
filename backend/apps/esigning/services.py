@@ -444,6 +444,18 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             fname = field_name.group(1) if field_name else ''
             role = signer_role.group(1) if signer_role else 'landlord'
 
+            # Normalise short-form aliases to canonical tiptap role names so
+            # extract_signer_fields (which receives the tiptap role, e.g. "tenant_1")
+            # can match them without needing a reverse lookup at query time.
+            _legacy_role_alias = {
+                'tenant': 'tenant_1',
+                'landlord': 'landlord_1',
+                'lessor': 'landlord_1',
+                'co-tenant': 'tenant_2',
+                'cotenant': 'tenant_2',
+            }
+            role = _legacy_role_alias.get(role.lower(), role)
+
             tag_map = {'signature': 'signature-field', 'initials': 'initials-field', 'date': 'date-field'}
             tag = tag_map.get(ftype, 'signature-field')
 
@@ -595,7 +607,22 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
 
 
 def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
-    """Extract signing field metadata from HTML for a specific signer role."""
+    """Extract signing field metadata from HTML for a specific signer role.
+
+    Handles legacy short-form role aliases in the HTML (e.g. ``role="tenant"``)
+    by expanding them to their canonical tiptap counterparts before comparison.
+    This covers templates where the HTML was saved before the normalisation in
+    ``_convert_legacy_signing_span`` was introduced.
+    """
+    # Map legacy/short HTML role values to canonical tiptap role names.
+    _html_role_aliases = {
+        'tenant': 'tenant_1',
+        'landlord': 'landlord_1',
+        'lessor': 'landlord_1',
+        'co-tenant': 'tenant_2',
+        'cotenant': 'tenant_2',
+    }
+
     fields = []
     for m in re.finditer(r'<(signature|initials|date|signedat)-field\b([^>]*)>', html):
         tag_type = m.group(1)
@@ -604,12 +631,14 @@ def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
         name_m = re.search(r'name="([^"]+)"', attrs)
         role_m = re.search(r'role="([^"]+)"', attrs)
         name = name_m.group(1) if name_m else ''
-        role = role_m.group(1) if role_m else ''
-        if role.lower() == signer_role.lower():
+        raw_role = role_m.group(1) if role_m else ''
+        # Normalise legacy alias to canonical before comparing with signer_role.
+        canonical_role = _html_role_aliases.get(raw_role.lower(), raw_role.lower())
+        if canonical_role == signer_role.lower():
             fields.append({
                 'fieldName': name,
                 'fieldType': field_type,
-                'signerRole': role,
+                'signerRole': raw_role,
             })
     return fields
 

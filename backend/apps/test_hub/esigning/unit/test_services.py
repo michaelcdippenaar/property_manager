@@ -51,6 +51,69 @@ class TestDeduplicateFieldNames:
         assert 'name="ll_init"' in result
         assert 'name="ll_init_2"' in result
 
+class TestExtractSignerFields:
+    """extract_signer_fields(): finds signing fields in rendered HTML."""
+
+    def test_explicit_tenant_1_role_matched(self):
+        """Fields with role="tenant_1" are returned when querying tenant_1."""
+        from apps.esigning.services import extract_signer_fields
+        html = (
+            '<signature-field name="sig_t1" role="tenant_1" required="true" '
+            'format="drawn_or_typed" style="display:inline-block;width:200px;height:60px"> </signature-field>'
+        )
+        fields = extract_signer_fields(html, 'tenant_1')
+        assert len(fields) == 1
+        assert fields[0]['fieldName'] == 'sig_t1'
+
+    def test_extract_signer_fields_tenant_alias(self):
+        """Signer record has role=tenant_1 but HTML uses legacy role="tenant".
+
+        extract_signer_fields must treat "tenant" as an alias for "tenant_1"
+        so that templates saved before role normalisation are still usable.
+        """
+        from apps.esigning.services import extract_signer_fields
+        # HTML produced by legacy templates that stored data-signer-role="tenant"
+        html = (
+            '<signature-field name="tenant_sig" role="tenant" required="true" '
+            'format="drawn_or_typed" style="display:inline-block;width:200px;height:60px"> </signature-field>'
+            '<initials-field name="tenant_init" role="tenant" required="true" '
+            'style="display:inline-block;width:100px;height:40px"> </initials-field>'
+        )
+        # The signer record carries the canonical tiptap role "tenant_1"
+        fields = extract_signer_fields(html, 'tenant_1')
+        assert len(fields) == 2, (
+            "Expected 2 fields (signature + initials) for tenant_1 signer "
+            "when HTML uses legacy role='tenant'"
+        )
+        field_names = {f['fieldName'] for f in fields}
+        assert 'tenant_sig' in field_names
+        assert 'tenant_init' in field_names
+
+    def test_landlord_alias_matched(self):
+        """Legacy role="landlord" in HTML matches signer_role="landlord_1"."""
+        from apps.esigning.services import extract_signer_fields
+        html = (
+            '<signature-field name="ll_sig" role="landlord" required="true" '
+            'format="drawn_or_typed" style="display:inline-block;width:200px;height:60px"> </signature-field>'
+        )
+        fields = extract_signer_fields(html, 'landlord_1')
+        assert len(fields) == 1
+        assert fields[0]['fieldName'] == 'll_sig'
+
+    def test_no_cross_role_contamination(self):
+        """Fields for tenant must not appear when querying landlord_1."""
+        from apps.esigning.services import extract_signer_fields
+        html = (
+            '<signature-field name="t_sig" role="tenant_1" required="true" '
+            'format="drawn_or_typed" style="display:inline-block;"> </signature-field>'
+            '<signature-field name="ll_sig" role="landlord_1" required="true" '
+            'format="drawn_or_typed" style="display:inline-block;"> </signature-field>'
+        )
+        tenant_fields = extract_signer_fields(html, 'tenant_1')
+        landlord_fields = extract_signer_fields(html, 'landlord_1')
+        assert len(tenant_fields) == 1 and tenant_fields[0]['fieldName'] == 't_sig'
+        assert len(landlord_fields) == 1 and landlord_fields[0]['fieldName'] == 'll_sig'
+
     @pytest.mark.red
     def test_extract_editable_merge_fields_returns_field_names(self):
         """RED: extract_editable_merge_fields() extracts field names from HTML template.
