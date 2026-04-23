@@ -264,6 +264,11 @@ MAINTENANCE_CHAT_LOG = config(
     "MAINTENANCE_CHAT_LOG", default=str(BASE_DIR / "logs" / "maintenance_chat.jsonl")
 )
 
+# Ensure the logs directory exists before Django configures FileHandlers.
+# This handles fresh checkouts, CI containers, and any environment where
+# backend/logs/ was not created by git (e.g. shallow clone without .gitkeep).
+os.makedirs(os.path.dirname(MAINTENANCE_CHAT_LOG), exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
