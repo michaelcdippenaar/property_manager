@@ -90,6 +90,117 @@ class LoginTwoFAGateTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 400)
 
 
+# ── ACCOUNTANT / VIEWER TOTP gate tests ───────────────────────────────────────
+
+class AccountantViewerTOTPGateTests(TremlyAPITestCase):
+    """
+    RNT-SEC-017: ACCOUNTANT and VIEWER must be subject to the same TOTP gate as
+    other privileged roles (ADMIN, AGENT, OWNER, etc.).
+    """
+
+    # ---- ACCOUNTANT without TOTP enrolled (in-grace) ----
+
+    def test_accountant_login_not_enrolled_in_grace_gets_access_and_enroll_flag(self):
+        user = self.create_user(email="acc_new@test.com", password="pass12345", role="accountant")
+        resp = self.client.post(reverse("auth-login"), {"email": "acc_new@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+        self.assertFalse(resp.data.get("two_fa_required", False))
+
+    # ---- ACCOUNTANT past grace: hard-blocked ----
+
+    def test_accountant_login_not_enrolled_past_grace_hard_blocked(self):
+        user = self.create_user(email="acc_late@test.com", password="pass12345", role="accountant")
+        past_deadline = timezone.now() - timedelta(days=1)
+        UserTOTP.objects.create(user=user, secret="", grace_deadline=past_deadline)
+
+        resp = self.client.post(reverse("auth-login"), {"email": "acc_late@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn("access", resp.data)
+        self.assertTrue(resp.data.get("two_fa_hard_blocked"))
+        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+
+    # ---- ACCOUNTANT fully enrolled: gets two_fa_token, not full tokens yet ----
+
+    def test_accountant_login_enrolled_returns_two_fa_token(self):
+        user = self.create_user(email="acc_ok@test.com", password="pass12345", role="accountant")
+        _enroll_user(user)
+
+        resp = self.client.post(reverse("auth-login"), {"email": "acc_ok@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data.get("two_fa_required"))
+        self.assertIn("two_fa_token", resp.data)
+        self.assertNotIn("access", resp.data)
+
+    # ---- ACCOUNTANT completes TOTP verify → full tokens ----
+
+    def test_accountant_totp_verify_issues_full_tokens(self):
+        user = self.create_user(email="acc_verify@test.com", password="pass12345", role="accountant")
+        totp_rec, _ = _enroll_user(user)
+
+        login_resp = self.client.post(reverse("auth-login"), {"email": "acc_verify@test.com", "password": "pass12345"})
+        two_fa_token = login_resp.data.get("two_fa_token")
+        self.assertIsNotNone(two_fa_token)
+
+        code = _current_code(totp_rec)
+        resp = self.client.post(reverse("2fa-verify"), {"two_fa_token": two_fa_token, "totp_code": code})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+
+    # ---- VIEWER without TOTP enrolled (in-grace) ----
+
+    def test_viewer_login_not_enrolled_in_grace_gets_access_and_enroll_flag(self):
+        user = self.create_user(email="view_new@test.com", password="pass12345", role="viewer")
+        resp = self.client.post(reverse("auth-login"), {"email": "view_new@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+        self.assertFalse(resp.data.get("two_fa_required", False))
+
+    # ---- VIEWER past grace: hard-blocked ----
+
+    def test_viewer_login_not_enrolled_past_grace_hard_blocked(self):
+        user = self.create_user(email="view_late@test.com", password="pass12345", role="viewer")
+        past_deadline = timezone.now() - timedelta(days=1)
+        UserTOTP.objects.create(user=user, secret="", grace_deadline=past_deadline)
+
+        resp = self.client.post(reverse("auth-login"), {"email": "view_late@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn("access", resp.data)
+        self.assertTrue(resp.data.get("two_fa_hard_blocked"))
+        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+
+    # ---- VIEWER fully enrolled: gets two_fa_token ----
+
+    def test_viewer_login_enrolled_returns_two_fa_token(self):
+        user = self.create_user(email="view_ok@test.com", password="pass12345", role="viewer")
+        _enroll_user(user)
+
+        resp = self.client.post(reverse("auth-login"), {"email": "view_ok@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data.get("two_fa_required"))
+        self.assertIn("two_fa_token", resp.data)
+        self.assertNotIn("access", resp.data)
+
+    # ---- VIEWER completes TOTP verify → full tokens ----
+
+    def test_viewer_totp_verify_issues_full_tokens(self):
+        user = self.create_user(email="view_verify@test.com", password="pass12345", role="viewer")
+        totp_rec, _ = _enroll_user(user)
+
+        login_resp = self.client.post(reverse("auth-login"), {"email": "view_verify@test.com", "password": "pass12345"})
+        two_fa_token = login_resp.data.get("two_fa_token")
+        self.assertIsNotNone(two_fa_token)
+
+        code = _current_code(totp_rec)
+        resp = self.client.post(reverse("2fa-verify"), {"two_fa_token": two_fa_token, "totp_code": code})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertIn("refresh", resp.data)
+
+
 # ── TOTP verify tests ─────────────────────────────────────────────────────────
 
 class TOTPVerifyTests(TremlyAPITestCase):

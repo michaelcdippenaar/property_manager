@@ -443,6 +443,8 @@ TOTP_REQUIRED_ROLES = {
     User.Role.MANAGING_AGENT,
     User.Role.ESTATE_AGENT,
     User.Role.OWNER,
+    User.Role.ACCOUNTANT,
+    User.Role.VIEWER,
 }
 
 # Grace period before a required-2FA user is hard-blocked (days).
