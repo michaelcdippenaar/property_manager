@@ -342,8 +342,12 @@
       </div>
     </main>
 
-    <!-- AI assistant FAB -->
+    <!-- AI Guide widget (feature-flagged via VITE_ENABLE_AI_GUIDE) -->
+    <AIGuide portal-role="agent" />
+
+    <!-- Fallback static FAB shown only when AI guide is disabled -->
     <RouterLink
+      v-if="!aiGuideEnabled"
       to="/property-info/agent"
       class="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 rounded-full bg-navy shadow-lg shadow-navy/25 flex items-center justify-center text-white hover:bg-navy-dark hover:shadow-xl hover:scale-105 active:scale-95 transition-all"
       aria-label="Ask AI assistant"
@@ -362,6 +366,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import api from '../api'
 import ToastContainer from './ToastContainer.vue'
+import AIGuide from './AIGuide.vue'
+import { AI_GUIDE_ENABLED as aiGuideEnabled } from '../composables/useAIGuide'
 import {
   LogOut, BookOpen, Info, ChevronDown,
   Activity, ShieldCheck, User, FlaskConical, Settings, Menu, X,

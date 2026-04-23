@@ -67,6 +67,9 @@
         <RouterView />
       </div>
     </main>
+
+    <!-- AI Guide widget (feature-flagged via VITE_ENABLE_AI_GUIDE) -->
+    <AIGuide portal-role="owner" />
   </div>
 </template>
 
@@ -75,6 +78,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { LayoutDashboard, Building2, FileText, LogOut, Menu, X } from 'lucide-vue-next'
+import AIGuide from './AIGuide.vue'
 
 const route = useRoute()
 const router = useRouter()
