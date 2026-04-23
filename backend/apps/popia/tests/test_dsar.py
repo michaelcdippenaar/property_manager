@@ -642,3 +642,223 @@ class TestExportScope:
                     assert data[0]["purpose"] == "login"
             finally:
                 settings.MEDIA_ROOT = original_media
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RTBF retention flags guardrail (RNT-SEC-041)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_property_and_unit():
+    """Helper: create a minimal Property + Unit for lease FK requirements."""
+    from apps.accounts.models import Person
+    from apps.properties.models import Property, Unit
+
+    owner_person = Person.objects.create(full_name="Test Owner")
+    prop = Property.objects.create(
+        owner=owner_person,
+        name="Test Property",
+        property_type="apartment",
+        address="1 Test St",
+        city="Cape Town",
+        province="Western Cape",
+        postal_code="8001",
+    )
+    unit = Unit.objects.create(
+        property=prop,
+        unit_number="1",
+        rent_amount="10000.00",
+    )
+    return unit
+
+
+@pytest.mark.django_db
+class TestRTBFRetentionFlags:
+    """
+    Tests for the GET /api/v1/popia/dsar-queue/<id>/review/ endpoint
+    that surfaces retention flags before the operator approves an RTBF.
+    Tagged rtbf so they are reachable via: pytest -k rtbf
+    """
+
+    def test_rtbf_review_get_returns_retention_flags_no_lease(self, admin_client, tenant):
+        """Flags are both False when tenant has no linked Person / lease."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "retention_flags" in data
+        flags = data["retention_flags"]
+        assert flags["has_active_lease"] is False
+        assert flags["has_outstanding_payments"] is False
+
+    def test_rtbf_review_get_returns_dsar_request(self, admin_client, tenant):
+        """GET response also includes the serialised dsar_request."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "dsar_request" in data
+        assert data["dsar_request"]["id"] == dsar.pk
+
+    def test_sar_review_get_returns_null_retention_flags(self, admin_client, tenant):
+        """For SAR requests, retention_flags should be null (not applicable)."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.SAR,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["retention_flags"] is None
+
+    def test_rtbf_review_flags_active_lease(self, admin_client, tenant):
+        """has_active_lease is True when tenant has a linked Person on an ACTIVE lease."""
+        from datetime import date
+        from apps.accounts.models import Person
+        from apps.leases.models import Lease
+
+        unit = _make_property_and_unit()
+
+        # Link a Person to the tenant user
+        person = Person.objects.create(
+            linked_user=tenant,
+            full_name=f"{tenant.first_name} {tenant.last_name}",
+        )
+
+        Lease.objects.create(
+            unit=unit,
+            primary_tenant=person,
+            status=Lease.Status.ACTIVE,
+            start_date=date(2025, 1, 1),
+            end_date=date(2026, 12, 31),
+            monthly_rent="10000.00",
+        )
+
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        flags = resp.json()["retention_flags"]
+        assert flags["has_active_lease"] is True
+        assert flags["has_outstanding_payments"] is False
+
+    def test_rtbf_review_flags_outstanding_payments(self, admin_client, tenant):
+        """has_outstanding_payments is True when tenant has unpaid invoices."""
+        from datetime import date
+        from apps.accounts.models import Person
+        from apps.leases.models import Lease
+        from apps.payments.models import RentInvoice
+
+        unit = _make_property_and_unit()
+
+        person = Person.objects.create(
+            linked_user=tenant,
+            full_name=f"{tenant.first_name} {tenant.last_name}",
+        )
+
+        lease = Lease.objects.create(
+            unit=unit,
+            primary_tenant=person,
+            status=Lease.Status.ACTIVE,
+            start_date=date(2025, 1, 1),
+            end_date=date(2026, 12, 31),
+            monthly_rent="10000.00",
+        )
+
+        RentInvoice.objects.create(
+            lease=lease,
+            period_start=date(2026, 3, 1),
+            period_end=date(2026, 3, 31),
+            amount_due="10000.00",
+            due_date=date(2026, 3, 3),
+            status=RentInvoice.Status.UNPAID,
+        )
+
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 200
+        flags = resp.json()["retention_flags"]
+        assert flags["has_outstanding_payments"] is True
+
+    def test_rtbf_approve_response_includes_retention_flags(self, admin_client, tenant):
+        """POST approve for RTBF should include retention_flags in the response."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.post(
+            f"/api/v1/popia/dsar-queue/{dsar.pk}/review/",
+            {"action": "approve"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # retention_flags key must be present (value is dict or null depending on person profile)
+        assert "retention_flags" in data
+
+    def test_tenant_cannot_access_review_get(self, tenant_client, tenant):
+        """Tenant must not be able to GET the review detail endpoint."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = tenant_client.get(f"/api/v1/popia/dsar-queue/{dsar.pk}/review/")
+        assert resp.status_code == 403
+
+    def test_rtbf_approve_can_proceed_despite_active_lease_flag(self, admin_client, tenant):
+        """Operator CAN approve even when has_active_lease flag is set — guardrail not a block."""
+        from datetime import date
+        from apps.accounts.models import Person
+        from apps.leases.models import Lease
+
+        unit = _make_property_and_unit()
+        person = Person.objects.create(
+            linked_user=tenant,
+            full_name=f"{tenant.first_name} {tenant.last_name}",
+        )
+        Lease.objects.create(
+            unit=unit,
+            primary_tenant=person,
+            status=Lease.Status.ACTIVE,
+            start_date=date(2025, 1, 1),
+            end_date=date(2026, 12, 31),
+            monthly_rent="10000.00",
+        )
+
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.RTBF,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.post(
+            f"/api/v1/popia/dsar-queue/{dsar.pk}/review/",
+            {"action": "approve"},
+        )
+        # Must succeed — approval is not blocked by retention flags
+        assert resp.status_code == 200
+        tenant.refresh_from_db()
+        assert "deleted.klikk.co.za" in tenant.email

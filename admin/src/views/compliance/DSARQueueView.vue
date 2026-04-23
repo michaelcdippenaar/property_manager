@@ -158,13 +158,45 @@
           </div>
         </div>
 
+        <!-- Retention flags — shown as soon as modal opens for RTBF -->
+        <div
+          v-if="reviewTarget.request_type === 'rtbf' && loadingFlags"
+          class="flex items-center gap-2 text-sm text-gray-400"
+        >
+          <Loader2 :size="14" class="animate-spin" />
+          Checking retention flags...
+        </div>
+
+        <div
+          v-if="reviewTarget.request_type === 'rtbf' && retentionFlags && (retentionFlags.has_active_lease || retentionFlags.has_outstanding_payments)"
+          class="bg-amber-50 border border-amber-200 rounded-lg p-3 space-y-1"
+        >
+          <p class="text-sm font-semibold text-amber-800 flex items-center gap-1.5">
+            <AlertTriangle :size="15" />
+            Retention flags — review before approving
+          </p>
+          <ul class="text-sm text-amber-700 list-disc list-inside space-y-0.5">
+            <li v-if="retentionFlags.has_active_lease">
+              This user has an <strong>active lease</strong> — erasure may affect ongoing tenancy obligations.
+            </li>
+            <li v-if="retentionFlags.has_outstanding_payments">
+              This user has <strong>outstanding payments</strong> — unpaid invoices exist on their lease(s).
+            </li>
+          </ul>
+          <p class="text-xs text-amber-600 mt-1">
+            You can still approve — this is a guardrail, not a block. Consider denying with a retention reason instead.
+          </p>
+        </div>
+
+        <!-- Erasure confirmation warning (shown after first Approve click) -->
         <div
           v-if="reviewTarget.request_type === 'rtbf' && reviewForm.action === 'approve'"
           class="bg-danger-50 border border-danger-200 rounded-lg p-3 text-sm text-danger-700"
         >
-          <strong>Warning:</strong> Approving this erasure request will immediately anonymise
-          the user's account (name, email, phone, ID number). Lease and payment records are
-          preserved per FICA/RHA/SARS retention rules. This action cannot be undone.
+          <strong>Confirm erasure:</strong> Approving will immediately anonymise the user's account
+          (name, email, phone, ID number). Lease and payment records are preserved per
+          FICA/RHA/SARS retention rules. This action cannot be undone.
+          Click <strong>Approve</strong> again to confirm.
         </div>
 
         <div class="flex gap-2 pt-2">
@@ -270,6 +302,11 @@ interface DSARRequest {
   completed_at: string | null
 }
 
+interface RetentionFlags {
+  has_active_lease: boolean
+  has_outstanding_payments: boolean
+}
+
 const requests = ref<DSARRequest[]>([])
 const loading = ref(false)
 const statusFilter = ref('')
@@ -278,6 +315,8 @@ const typeFilter = ref('')
 const reviewTarget = ref<DSARRequest | null>(null)
 const detailTarget = ref<DSARRequest | null>(null)
 const saving = ref(false)
+const retentionFlags = ref<RetentionFlags | null>(null)
+const loadingFlags = ref(false)
 
 const reviewForm = ref({
   action: '' as 'approve' | 'deny' | '',
@@ -306,9 +345,22 @@ function canReview(r: DSARRequest): boolean {
   return r.status === 'pending' || r.status === 'in_review'
 }
 
-function openReview(r: DSARRequest) {
+async function openReview(r: DSARRequest) {
   reviewTarget.value = r
   reviewForm.value = { action: '', operator_notes: '', denial_reason: '' }
+  retentionFlags.value = null
+
+  if (r.request_type === 'rtbf') {
+    loadingFlags.value = true
+    try {
+      const { data } = await api.get(`/popia/dsar-queue/${r.id}/review/`)
+      retentionFlags.value = data.retention_flags ?? null
+    } catch {
+      // Non-fatal: proceed without flags
+    } finally {
+      loadingFlags.value = false
+    }
+  }
 }
 
 function openDetail(r: DSARRequest) {

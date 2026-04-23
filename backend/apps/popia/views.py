@@ -324,11 +324,60 @@ class DSARQueueView(APIView):
         return Response(DSARRequestSerializer(qs, many=True).data)
 
 
+def _build_retention_flags(user) -> dict:
+    """
+    Return a dict of retention flags for the given user.
+
+    Checks:
+      - has_active_lease: a Person linked to this user is the primary_tenant on any
+        ACTIVE lease.
+      - has_outstanding_payments: any of those leases have invoices in UNPAID or
+        PARTIALLY_PAID status.
+
+    These flags are informational only — they do NOT block erasure.  They surface
+    RHA / FICA risk to the operator so they can make an informed decision.
+    """
+    from apps.leases.models import Lease
+    from apps.payments.models import RentInvoice
+
+    # Resolve to Person via the reverse OneToOne (Person.linked_user → related_name="person_profile")
+    try:
+        person = user.person_profile
+    except Exception:
+        person = None
+
+    if person is None:
+        return {"has_active_lease": False, "has_outstanding_payments": False}
+
+    has_active_lease = Lease.objects.filter(
+        primary_tenant=person,
+        status=Lease.Status.ACTIVE,
+    ).exists()
+
+    has_outstanding_payments = RentInvoice.objects.filter(
+        lease__primary_tenant=person,
+        status__in=[
+            RentInvoice.Status.UNPAID,
+            RentInvoice.Status.PARTIALLY_PAID,
+        ],
+    ).exists()
+
+    return {
+        "has_active_lease": has_active_lease,
+        "has_outstanding_payments": has_outstanding_payments,
+    }
+
+
 class DSARReviewView(APIView):
     """
-    POST /api/v1/popia/dsar-queue/<id>/review/
+    GET  /api/v1/popia/dsar-queue/<id>/review/  — fetch request detail + retention_flags
+    POST /api/v1/popia/dsar-queue/<id>/review/  — approve or deny
 
-    Approve or deny a DSAR request.
+    GET returns the DSAR request serialised data plus a `retention_flags` object:
+      { "has_active_lease": bool, "has_outstanding_payments": bool }
+    Flags are only computed for RTBF requests (meaningless for SAR).
+
+    POST Approve or deny a DSAR request.
 
     For SAR approvals: creates the ExportJob and queues the export in the
         background.  The data subject receives an email when the ZIP is ready.
@@ -340,6 +389,21 @@ class DSARReviewView(APIView):
     For denials: marks denied and notifies the data subject.
     """
     permission_classes = [IsAuthenticated, IsAdminOrAgencyAdmin]
+
+    def get(self, request, pk: int):
+        try:
+            dsar = DSARRequest.objects.select_related("requester").get(pk=pk)
+        except DSARRequest.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        retention_flags = None
+        if dsar.request_type == DSARRequest.RequestType.RTBF and dsar.requester:
+            retention_flags = _build_retention_flags(dsar.requester)
+
+        return Response({
+            "dsar_request": DSARRequestSerializer(dsar).data,
+            "retention_flags": retention_flags,
+        })
 
     def post(self, request, pk: int):
         try:
@@ -362,6 +426,11 @@ class DSARReviewView(APIView):
         dsar.operator_notes = ser.validated_data.get("operator_notes", "")
 
         if action == "approve":
+            # Compute retention flags before erasure (requester may be anonymised after)
+            retention_flags = None
+            if dsar.request_type == DSARRequest.RequestType.RTBF and dsar.requester:
+                retention_flags = _build_retention_flags(dsar.requester)
+
             dsar.status = DSARRequest.Status.APPROVED
             dsar.save(update_fields=["status", "reviewed_by", "reviewed_at", "operator_notes", "updated_at"])
 
@@ -391,6 +460,7 @@ class DSARReviewView(APIView):
                 {
                     "detail": "Request approved.",
                     "dsar_request": DSARRequestSerializer(dsar).data,
+                    "retention_flags": retention_flags,
                 }
             )
 
