@@ -27,6 +27,16 @@ repos:
         pass_filenames: false
         files: "^backend/apps/notifications/email_templates/"
 
+  # ── Hardcoded credentials in LoginPage forms (RNT-SEC-045) ──────────────────
+  - repo: local
+    hooks:
+      - id: check-hardcoded-credentials
+        name: "hardcoded-credentials: block hardcoded credentials"
+        language: script
+        entry: scripts/check_hardcoded_credentials.sh
+        files: "\\.(vue|ts|tsx)$"
+        pass_filenames: false
+
   # ── Trailing whitespace / file hygiene ─────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

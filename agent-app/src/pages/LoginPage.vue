@@ -116,8 +116,11 @@ const auth   = useAuthStore()
 const { renderGoogleButton, waitForCredential, isConfigured: googleConfigured } = useGoogleAuth()
 
 // ── Sign-in state ──────────────────────────────────────────────────────────
-const email       = ref(import.meta.env.DEV ? 'mc@tremly.com' : '')
-const password    = ref(import.meta.env.DEV ? 'Number55dip' : '')
+// Pre-fill dev credentials only if both DEV mode AND env vars are set (opt-in pattern)
+const devEmail = import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_EMAIL || '') : ''
+const devPassword = import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_PASSWORD || '') : ''
+const email       = ref(devEmail)
+const password    = ref(devPassword)
 const showPassword = ref(false)
 const loading     = ref(false)
 const error       = ref('')
@@ -126,7 +129,7 @@ const googleBtnContainer = ref<HTMLElement | null>(null)
 
 // ── Reset password state ───────────────────────────────────────────────────
 const showReset   = ref(false)
-const resetEmail  = ref(import.meta.env.DEV ? 'mc@tremly.com' : '')
+const resetEmail  = ref(devEmail)
 const resetLoading = ref(false)
 const resetError  = ref('')
 const resetSent   = ref(false)
