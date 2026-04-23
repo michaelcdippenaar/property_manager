@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214197286171511"
 created: 2026-04-22
@@ -40,3 +40,5 @@ Backport the `@patch("time.sleep")` decorator to `test_hub/esigning/unit/test_go
 2026-04-22 — Promoted from discovery `2026-04-22-gotenberg-test-hub-sleep-regression.md` found during RNT-QUAL-002 review. The fix was applied to `backend/apps/leases/tests/test_pdf_resilience.py` but not backported to the test_hub counterpart. Simple patch decorator addition only — no logic changes needed.
 
 2026-04-23 — Audit of `test_gotenberg.py` confirmed the `@patch("apps.esigning.gotenberg.time.sleep")` decorator was already present on `test_raises_on_http_error` (lines 60-61). All other `TestHtmlToPdf` tests set `mock_response.ok = True` so they never reach the retry/sleep path — no additional patching needed. Ran `pytest apps/test_hub/esigning/unit/test_gotenberg.py --no-cov` locally: 10 passed in 0.05s, well within the 2-second threshold. No code changes required; task was already in the correct state.
+
+2026-04-23 — Review passed. Independently verified: `@patch("apps.esigning.gotenberg.time.sleep")` present at lines 60-61 of `backend/apps/test_hub/esigning/unit/test_gotenberg.py`; all other `TestHtmlToPdf` tests use `ok=True` and bypass the retry path. Ran test suite locally: 10 passed in 0.07s. All four acceptance criteria satisfied. No code changes, no security surface, no POPIA concerns. Approved.
