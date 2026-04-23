@@ -29,7 +29,7 @@ User = get_user_model()
 
 logger = logging.getLogger(__name__)
 
-GUIDE_MODEL = "claude-3-5-haiku-20241022"
+GUIDE_MODEL = "claude-haiku-4-5"
 MESSAGE_MAX_LENGTH = 2000
 
 SYSTEM_PROMPT = """\
