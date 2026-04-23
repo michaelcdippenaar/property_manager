@@ -171,9 +171,11 @@ class TestDataExportRequestView:
         assert resp.status_code == 201
         data = resp.json()
         assert "dsar_request" in data
-        assert "export_job" in data
         assert data["dsar_request"]["request_type"] == "sar"
-        assert data["dsar_request"]["status"] == "in_review"
+        # SAR now starts as PENDING (requires operator approval before export runs)
+        assert data["dsar_request"]["status"] == "pending"
+        # No export_job at submission time — created on approval
+        assert "export_job" not in data
 
     def test_duplicate_pending_export_returns_200(self, tenant_client, tenant):
         # First request
@@ -402,13 +404,66 @@ class TestDSARReviewView:
 # Download endpoint
 # ─────────────────────────────────────────────────────────────────────────────
 
+@pytest.fixture
+def second_tenant(db):
+    return User.objects.create_user(
+        email="tenant2@test.co.za",
+        password="pass1234!",
+        role=User.Role.TENANT,
+        first_name="Other",
+        last_name="Tenant",
+    )
+
+
+@pytest.fixture
+def second_tenant_client(second_tenant):
+    c = APIClient()
+    c.force_authenticate(user=second_tenant)
+    return c
+
+
+def _make_completed_job(tenant, tmp_path):
+    """Helper: create a completed ExportJob with a real zip file."""
+    import zipfile as zf
+    from django.conf import settings
+    from pathlib import Path
+
+    dsar = DSARRequest.objects.create(
+        requester=tenant,
+        requester_email=tenant.email,
+        request_type=DSARRequest.RequestType.SAR,
+        status=DSARRequest.Status.COMPLETED,
+    )
+    # Write a minimal zip to MEDIA_ROOT so FileResponse can stream it
+    exports_dir = Path(settings.MEDIA_ROOT) / "popia_exports"
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    zip_path = exports_dir / f"test_{dsar.pk}.zip"
+    with zf.ZipFile(zip_path, "w") as z:
+        z.writestr("README.txt", "test export")
+    rel_path = f"popia_exports/test_{dsar.pk}.zip"
+
+    job = ExportJob.objects.create(
+        dsar_request=dsar,
+        status=ExportJob.JobStatus.COMPLETED,
+        archive_path=rel_path,
+    )
+    return job
+
+
 @pytest.mark.django_db
 class TestExportDownloadView:
-    def test_invalid_token_returns_404(self, anon_client):
+    # ── Original tests updated for new auth requirement ───────────────────────
+
+    def test_unauthenticated_invalid_token_returns_401(self, anon_client):
+        """Download endpoint now requires authentication (Blocker 1)."""
         resp = anon_client.get("/api/v1/popia/download/not-a-real-token/")
+        assert resp.status_code == 401
+
+    def test_invalid_token_authenticated_returns_404(self, tenant_client):
+        resp = tenant_client.get("/api/v1/popia/download/not-a-real-token/")
         assert resp.status_code == 404
 
-    def test_expired_token_returns_404(self, anon_client, tenant):
+    def test_expired_token_returns_404(self, tenant_client, tenant):
         from datetime import timedelta
         dsar = DSARRequest.objects.create(
             requester=tenant,
@@ -423,5 +478,167 @@ class TestExportDownloadView:
             archive_path="popia_exports/fake.zip",
             expires_at=past,
         )
-        resp = anon_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        resp = tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
         assert resp.status_code == 404
+
+    # ── Blocker 1: token must be bound to authenticated data subject ──────────
+
+    def test_different_user_with_valid_token_gets_403(
+        self, second_tenant_client, tenant, tmp_path
+    ):
+        """A valid token presented by a DIFFERENT authenticated user must be rejected."""
+        job = _make_completed_job(tenant, tmp_path)
+        resp = second_tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        assert resp.status_code == 403
+
+    def test_owner_can_download_own_export(self, tenant_client, tenant, tmp_path):
+        """The data subject can download their own export when authenticated."""
+        job = _make_completed_job(tenant, tmp_path)
+        resp = tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        assert resp.status_code == 200
+
+    # ── Blocker 2: single-use enforcement ─────────────────────────────────────
+
+    def test_consumed_token_returns_410(self, tenant_client, tenant, tmp_path):
+        """A token that has already been used returns 410 Gone (single-use)."""
+        job = _make_completed_job(tenant, tmp_path)
+        # First download — succeeds and marks CONSUMED
+        resp1 = tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        assert resp1.status_code == 200
+        job.refresh_from_db()
+        assert job.status == ExportJob.JobStatus.CONSUMED
+
+        # Second download — must fail
+        resp2 = tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        assert resp2.status_code == 410
+
+    def test_download_marks_job_consumed(self, tenant_client, tenant, tmp_path):
+        """Job status transitions to CONSUMED after successful download."""
+        job = _make_completed_job(tenant, tmp_path)
+        assert job.status == ExportJob.JobStatus.COMPLETED
+        tenant_client.get(f"/api/v1/popia/download/{job.download_token}/")
+        job.refresh_from_db()
+        assert job.status == ExportJob.JobStatus.CONSUMED
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Blocker 4: SAR now requires operator approval before export runs
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestSARRequiresApproval:
+    def test_sar_submission_does_not_auto_run_export(self, tenant_client, tenant):
+        """SAR submission must NOT queue an ExportJob — operator must approve first."""
+        resp = tenant_client.post("/api/v1/popia/data-export/", {})
+        assert resp.status_code == 201
+        dsar_id = resp.json()["dsar_request"]["id"]
+        dsar = DSARRequest.objects.get(pk=dsar_id)
+        # Status should be pending, not in_review with a job already running
+        assert dsar.status == DSARRequest.Status.PENDING
+        # No ExportJob should exist yet
+        assert not ExportJob.objects.filter(dsar_request=dsar).exists()
+
+    def test_sar_submission_creates_pending_not_in_review(self, tenant_client):
+        """SAR must start as PENDING so it enters the operator queue."""
+        resp = tenant_client.post("/api/v1/popia/data-export/", {})
+        assert resp.status_code == 201
+        assert resp.json()["dsar_request"]["status"] == "pending"
+
+    def test_admin_approve_sar_creates_export_job(self, admin_client, tenant):
+        """Approving a SAR via the operator queue must trigger the export."""
+        dsar = DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.SAR,
+            status=DSARRequest.Status.PENDING,
+        )
+        resp = admin_client.post(
+            f"/api/v1/popia/dsar-queue/{dsar.pk}/review/",
+            {"action": "approve"},
+        )
+        assert resp.status_code == 200
+        # ExportJob must now exist (the async thread may or may not have completed,
+        # but the job row must be present)
+        assert ExportJob.objects.filter(dsar_request=dsar).exists()
+
+    def test_duplicate_pending_sar_includes_approved_status(self, tenant_client, tenant):
+        """
+        If a SAR is already APPROVED (export running), tenant must not be able
+        to open a second one.
+        """
+        DSARRequest.objects.create(
+            requester=tenant,
+            requester_email=tenant.email,
+            request_type=DSARRequest.RequestType.SAR,
+            status=DSARRequest.Status.APPROVED,
+        )
+        resp = tenant_client.post("/api/v1/popia/data-export/", {})
+        assert resp.status_code == 200
+        assert "already have a pending" in resp.json()["detail"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Blocker 3: Export scope — OTP records included
+# ─────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+class TestExportScope:
+    def test_otp_audit_logs_included_in_export(self, tenant):
+        """OTPAuditLog rows for the user are included in the export ZIP."""
+        import zipfile as zf
+        from apps.accounts.models import OTPAuditLog
+        from apps.popia.services.export_service import build_export_zip
+
+        OTPAuditLog.objects.create(
+            user=tenant,
+            purpose="login",
+            event_type="sent",
+            channel="sms",
+        )
+        import tempfile, os
+        from django.conf import settings
+        with tempfile.TemporaryDirectory() as tmp:
+            original_media = settings.MEDIA_ROOT
+            settings.MEDIA_ROOT = tmp
+            try:
+                zip_path = build_export_zip(tenant, job_id=9999)
+                with zf.ZipFile(zip_path) as z:
+                    names = z.namelist()
+                    assert "otp_audit.json" in names
+                    import json
+                    data = json.loads(z.read("otp_audit.json"))
+                    assert len(data) == 1
+                    assert data[0]["purpose"] == "login"
+            finally:
+                settings.MEDIA_ROOT = original_media
+
+    def test_otp_code_records_included_in_export(self, tenant):
+        """OTPCodeV1 rows (without code_hash) are included in the export ZIP."""
+        import zipfile as zf
+        from apps.accounts.models import OTPCodeV1
+        from apps.popia.services.export_service import build_export_zip
+        from datetime import timedelta
+
+        OTPCodeV1.objects.create(
+            user=tenant,
+            purpose="login",
+            code_hash="hashed",
+            channel_used="sms",
+            expires_at=timezone.now() + timedelta(minutes=10),
+        )
+        import tempfile
+        from django.conf import settings
+        with tempfile.TemporaryDirectory() as tmp:
+            original_media = settings.MEDIA_ROOT
+            settings.MEDIA_ROOT = tmp
+            try:
+                zip_path = build_export_zip(tenant, job_id=9998)
+                with zf.ZipFile(zip_path) as z:
+                    import json
+                    data = json.loads(z.read("otp_codes.json"))
+                    assert len(data) == 1
+                    # code_hash must NOT be present
+                    assert "code_hash" not in data[0]
+                    assert data[0]["purpose"] == "login"
+            finally:
+                settings.MEDIA_ROOT = original_media

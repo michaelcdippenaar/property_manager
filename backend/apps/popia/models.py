@@ -154,6 +154,7 @@ class ExportJob(models.Model):
         RUNNING = "running", "Running"
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
+        CONSUMED = "consumed", "Consumed (downloaded)"
 
     dsar_request = models.OneToOneField(
         DSARRequest,
@@ -214,3 +215,8 @@ class ExportJob(models.Model):
             and not self.is_expired
             and bool(self.archive_path)
         )
+
+    @property
+    def is_consumed(self) -> bool:
+        """True once the file has been downloaded (single-use enforcement)."""
+        return self.status == self.JobStatus.CONSUMED

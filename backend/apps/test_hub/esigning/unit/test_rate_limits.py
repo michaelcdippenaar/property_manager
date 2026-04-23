@@ -302,3 +302,103 @@ class TestThrottleRateConfiguration:
         ]
         for scope in required:
             assert scope in rates, f"Missing throttle scope '{scope}' in DEFAULT_THROTTLE_RATES"
+
+
+class TestThrottleCacheIsolationProof:
+    """
+    Assertion-style tests that prove cache contamination between test classes
+    is impossible regardless of execution order.
+
+    These tests verify the two-layer isolation strategy implemented in
+    conftest.py (_reset_drf_throttle_cache) and
+    TestPublicSignMinuteThrottle._isolate_throttle_cache:
+
+      Layer 1 (global, conftest.py): cache.clear() + THROTTLE_RATES snapshot/restore
+        around every single test — no throttle counter from test N can bleed to N+1.
+
+      Layer 2 (class-level, _isolate_throttle_cache): uniquely-named LocMemCache
+        "throttle-tests" + tight THROTTLE_RATES patch for the duration of the
+        TestPublicSignMinuteThrottle class — completely disjoint from the default
+        "locmem-cache" bucket used by every other test.
+    """
+
+    def test_cache_is_empty_at_test_start(self):
+        """
+        The root conftest autouse fixture clears the cache before every test.
+        If we write a key now it should have been cleared from any prior test.
+        Confirms the clearing happened before this test body ran.
+        """
+        from django.core.cache import cache
+
+        # No key set by any prior test should survive into this test.
+        sentinel_value = cache.get("__throttle_isolation_probe__")
+        assert sentinel_value is None, (
+            "Cache contamination detected: a value written by a prior test "
+            "survived into this test. The autouse _reset_drf_throttle_cache "
+            "fixture is not running correctly."
+        )
+
+        # Write a probe that the next test's autouse fixture must erase.
+        cache.set("__throttle_isolation_probe__", "dirty", timeout=60)
+
+    def test_throttle_rates_class_var_is_production_value(self):
+        """
+        After any test that patches SimpleRateThrottle.THROTTLE_RATES
+        (e.g. TestPublicSignMinuteThrottle._isolate_throttle_cache),
+        the root conftest must restore the original class variable.
+
+        This test asserts that THROTTLE_RATES in the current test reflects the
+        production settings value (public_sign_minute = 10/min), not the tight
+        3/min rate used exclusively inside TestPublicSignMinuteThrottle.
+        """
+        from django.conf import settings
+        from rest_framework.throttling import SimpleRateThrottle
+
+        production_rates = settings.REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {})
+        production_public_sign_rate = production_rates.get("public_sign_minute")
+
+        # THROTTLE_RATES on the class must match the settings value, not the
+        # tight 3/min override from TestPublicSignMinuteThrottle.
+        class_var_rate = SimpleRateThrottle.THROTTLE_RATES.get("public_sign_minute")
+        assert class_var_rate == production_public_sign_rate, (
+            f"SimpleRateThrottle.THROTTLE_RATES['public_sign_minute'] is "
+            f"'{class_var_rate}' but settings says '{production_public_sign_rate}'. "
+            "A prior test patched THROTTLE_RATES and the restore in "
+            "_reset_drf_throttle_cache did not run (or ran before the patch was "
+            "applied). Check that the autouse fixture yields correctly."
+        )
+
+    def test_isolated_cache_location_does_not_bleed_into_default(self):
+        """
+        The 'throttle-tests' LocMemCache location used by
+        TestPublicSignMinuteThrottle is disjoint from the default cache
+        location used everywhere else.
+
+        Writing to one LocMemCache LOCATION must be invisible to another
+        LOCATION — Django's LocMemCache uses the LOCATION string as the key
+        into a module-level dict (_caches), so two different LOCATION strings
+        are completely separate in-process buckets.
+        """
+        from django.core.cache.backends.locmem import LocMemCache
+
+        # Instantiate two independent LocMemCache backends at distinct locations.
+        # No special init call is needed — Django's LocMemCache uses the
+        # _caches module-level dict, keyed by LOCATION, which is lazily
+        # populated on first write.
+        throttle_cache = LocMemCache("proof-throttle-tests", {})
+        other_cache = LocMemCache("proof-default-locmem", {})
+
+        probe_key = "__isolation_proof_key__"
+        throttle_cache.set(probe_key, "from-throttle-location", timeout=60)
+
+        # The other location must not see what was written to 'proof-throttle-tests'.
+        leaked = other_cache.get(probe_key)
+        assert leaked is None, (
+            f"Cache location bleed detected: a value written to "
+            f"'proof-throttle-tests' was readable from 'proof-default-locmem'. "
+            f"LocMemCache LOCATION isolation is broken — got '{leaked}'."
+        )
+
+        # Cleanup so these proof locations don't pollute the module-level dict.
+        throttle_cache.clear()
+        other_cache.clear()

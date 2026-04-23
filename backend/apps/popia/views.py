@@ -72,8 +72,12 @@ class DataExportRequestView(APIView):
     """
     POST /api/v1/popia/data-export/
 
-    Create a Subject Access Request (SAR) and immediately queue the export job.
-    Returns the DSARRequest + ExportJob details so the tenant can track status.
+    Create a Subject Access Request (SAR).  The export does NOT run automatically
+    at submission — an operator must approve it via the DSAR queue first.
+
+    This aligns SAR with the RTBF flow: operator oversight is a POPIA feature,
+    not a bug (s23 allows up to 30 days; POPIA s23 requires operator review
+    before disclosing personal information to ensure identity verification).
 
     Rate-limited: one pending/running export per user at a time.
     """
@@ -84,7 +88,11 @@ class DataExportRequestView(APIView):
         existing = DSARRequest.objects.filter(
             requester=request.user,
             request_type=DSARRequest.RequestType.SAR,
-            status__in=[DSARRequest.Status.PENDING, DSARRequest.Status.IN_REVIEW],
+            status__in=[
+                DSARRequest.Status.PENDING,
+                DSARRequest.Status.IN_REVIEW,
+                DSARRequest.Status.APPROVED,
+            ],
         ).first()
         if existing:
             return Response(
@@ -107,11 +115,8 @@ class DataExportRequestView(APIView):
             requester_email=request.user.email,
             request_type=DSARRequest.RequestType.SAR,
             reason=ser.validated_data.get("reason", ""),
-            status=DSARRequest.Status.IN_REVIEW,
+            status=DSARRequest.Status.PENDING,
         )
-
-        # Create the export job
-        job = ExportJob.objects.create(dsar_request=dsar)
 
         # Write audit event
         _log_audit(
@@ -122,16 +127,15 @@ class DataExportRequestView(APIView):
             request,
         )
 
-        # Kick off the export in a background thread
-        run_export_job_async(job.pk)
+        # Notify operators (same as RTBF)
+        _notify_operators_sar(dsar)
 
         return Response(
             {
                 "dsar_request": DSARRequestSerializer(dsar).data,
-                "export_job": ExportJobSerializer(job).data,
                 "message": (
-                    "Your data export is being compiled. "
-                    "You will receive an email with a download link within a few minutes."
+                    "Your data access request has been received and will be reviewed within 30 days. "
+                    "You will receive an email with a download link once the operator has approved it."
                 ),
             },
             status=status.HTTP_201_CREATED,
@@ -222,20 +226,44 @@ class ExportDownloadView(APIView):
     GET /api/v1/popia/download/<token>/
 
     Serve the export ZIP using the signed download token.
-    No authentication required — the token IS the credential.
-    Token is single-use by design (invalidated after download).
+
+    POPIA binding: the data subject must be authenticated AS the account owner.
+    The token alone is not sufficient — the requesting user must match the
+    ExportJob's DSARRequest.requester.  This prevents URL-sharing leaking
+    another person's personal data (POPIA s19 — reasonable security measures).
+
+    Single-use enforcement: once served the job is marked CONSUMED and the
+    same token cannot be used again (returns 410 Gone on reuse).
     """
-    permission_classes = []
-    authentication_classes = []
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, token: str):
         try:
-            job = ExportJob.objects.select_related("dsar_request").get(
+            job = ExportJob.objects.select_related("dsar_request__requester").get(
                 download_token=token,
-                status=ExportJob.JobStatus.COMPLETED,
             )
         except ExportJob.DoesNotExist:
-            raise Http404("Download link not found or already used.")
+            raise Http404("Download link not found.")
+
+        # ── Blocker 2: single-use — already consumed ──────────────────────────
+        if job.status == ExportJob.JobStatus.CONSUMED:
+            from rest_framework.response import Response as DRFResponse
+            return DRFResponse(
+                {"detail": "This download link has already been used and is no longer valid."},
+                status=410,
+            )
+
+        if job.status != ExportJob.JobStatus.COMPLETED:
+            raise Http404("Download link not found or export not ready.")
+
+        # ── Blocker 1: bind token to the authenticated data subject ───────────
+        requester = job.dsar_request.requester
+        if requester is None or requester.pk != request.user.pk:
+            from rest_framework.response import Response as DRFResponse
+            return DRFResponse(
+                {"detail": "You are not authorised to download this export."},
+                status=403,
+            )
 
         if job.is_expired:
             raise Http404("Download link has expired.")
@@ -244,15 +272,21 @@ class ExportDownloadView(APIView):
         if not zip_path.exists():
             raise Http404("Export file not found.")
 
+        # ── Mark consumed BEFORE streaming so a failed stream can't be retried
+        job.status = ExportJob.JobStatus.CONSUMED
+        job.save(update_fields=["status", "updated_at"])
+
         _log_audit(
             "popia.export_downloaded",
-            job.dsar_request.requester,
+            request.user,
             f"ExportJob #{job.pk}",
             {"job_id": job.pk, "dsar_id": job.dsar_request.pk},
+            request,
         )
 
+        # Use zip_path directly — Django FileResponse handles fd lifecycle
         response = FileResponse(
-            open(zip_path, "rb"),
+            zip_path.open("rb"),
             content_type="application/zip",
             as_attachment=True,
             filename=f"klikk_data_export_{job.dsar_request.requester_email}.zip",
@@ -296,8 +330,13 @@ class DSARReviewView(APIView):
 
     Approve or deny a DSAR request.
 
+    For SAR approvals: creates the ExportJob and queues the export in the
+        background.  The data subject receives an email when the ZIP is ready.
+        Export only runs after operator approval — the operator has verified the
+        requester's identity (POPIA s23 identity verification obligation).
+
     For RTBF approvals: immediately executes the erasure.
-    For SAR approvals: no-op (export is already running from initial request).
+
     For denials: marks denied and notifies the data subject.
     """
     permission_classes = [IsAuthenticated, IsAdminOrAgencyAdmin]
@@ -338,10 +377,15 @@ class DSARReviewView(APIView):
                 request,
             )
 
-            # For RTBF: execute the erasure immediately
             if dsar.request_type == DSARRequest.RequestType.RTBF:
+                # For RTBF: execute the erasure immediately
                 from .services.deletion_service import execute_erasure
                 execute_erasure(dsar, reviewer=request.user)
+            elif dsar.request_type == DSARRequest.RequestType.SAR:
+                # For SAR: NOW queue the export (operator has verified identity)
+                job, _created = ExportJob.objects.get_or_create(dsar_request=dsar)
+                if job.status in (ExportJob.JobStatus.QUEUED, ExportJob.JobStatus.FAILED):
+                    run_export_job_async(job.pk)
 
             return Response(
                 {
@@ -384,6 +428,31 @@ class DSARReviewView(APIView):
 # ─────────────────────────────────────────────────────────────────────────────
 # Internal helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _notify_operators_sar(dsar: DSARRequest) -> None:
+    """Send an internal alert email to privacy@klikk.co.za when a SAR is submitted."""
+    try:
+        from apps.notifications.services.email import send_template_email
+
+        admin_email = getattr(settings, "POPIA_OFFICER_EMAIL", "privacy@klikk.co.za")
+        base_url = getattr(settings, "ADMIN_FRONTEND_URL", "https://app.klikk.co.za")
+        queue_url = f"{base_url}/admin/compliance/dsar-queue"
+
+        send_template_email(
+            template_id="popia_sar_alert",
+            to_emails=admin_email,
+            context={
+                "recipient_name": "Information Officer",
+                "requester_email": dsar.requester_email,
+                "dsar_id": dsar.pk,
+                "sla_deadline": dsar.sla_deadline.strftime("%d %B %Y"),
+                "queue_url": queue_url,
+                "cta_url": queue_url,
+            },
+        )
+    except Exception as exc:
+        logger.warning("popia: could not send SAR operator alert: %s", exc)
+
 
 def _notify_operators_rtbf(dsar: DSARRequest) -> None:
     """Send an internal alert email to privacy@klikk.co.za when an RTBF is submitted."""

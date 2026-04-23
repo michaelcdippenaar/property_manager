@@ -11,7 +11,9 @@ subsystems into a ZIP archive:
     leases.json           — Lease records where user is a party
     payments.json         — Payment records linked to the user's leases
     maintenance.json      — Maintenance tickets submitted by or assigned to the user
-    audit_events.json     — AuditEvent rows where the user is actor or subject
+    audit_events.json     — AuditEvent rows where user is actor OR the data subject (GFK target)
+    otp_audit.json        — OTP verification audit trail (OTPAuditLog)
+    otp_codes.json        — OTP code records metadata (OTPCodeV1, no code hashes)
     README.txt            — Human-readable index and POPIA statement
 
 The ZIP is written to MEDIA_ROOT/popia_exports/<job_id>.zip and the ExportJob
@@ -169,17 +171,71 @@ def _compile_maintenance(user) -> list[dict]:
 
 
 def _compile_audit_events(user) -> list[dict]:
-    """Compile audit events where user is the actor."""
+    """
+    Compile audit events where user is the actor OR the data subject.
+
+    "Data subject" events are rows where the GFK target is the User record
+    itself (content_type = accounts.User, object_id = user.pk).  These cover
+    role-change events, account-creation events, and any POPIA action logged
+    against the user account.
+    """
     try:
+        from django.contrib.contenttypes.models import ContentType
         from apps.audit.models import AuditEvent
+        from apps.accounts.models import User as UserModel
+
         fields = [
             "id", "action", "target_repr", "ip_address",
-            "user_agent", "timestamp",
+            "user_agent", "timestamp", "actor_id", "actor_email",
         ]
-        qs = AuditEvent.objects.filter(actor=user).values(*fields)
-        return list(qs)
+
+        # Events where user was the actor
+        actor_qs = AuditEvent.objects.filter(actor=user).values(*fields)
+
+        # Events where user's account is the target object (data subject)
+        try:
+            user_ct = ContentType.objects.get_for_model(UserModel)
+            subject_qs = AuditEvent.objects.filter(
+                content_type=user_ct,
+                object_id=user.pk,
+            ).exclude(actor=user).values(*fields)
+        except Exception:
+            subject_qs = AuditEvent.objects.none()
+
+        # Combine, de-duplicate by id
+        combined = {row["id"]: row for row in actor_qs}
+        for row in subject_qs:
+            combined.setdefault(row["id"], row)
+
+        return list(combined.values())
     except Exception as exc:
         logger.warning("popia export: audit query failed: %s", exc)
+        return []
+
+
+def _compile_otp_audit(user) -> list[dict]:
+    """Compile OTP verification audit trail (OTPAuditLog) for the user."""
+    try:
+        from apps.accounts.models import OTPAuditLog
+        fields = ["id", "purpose", "event_type", "channel", "metadata", "created_at"]
+        return list(OTPAuditLog.objects.filter(user=user).values(*fields))
+    except Exception as exc:
+        logger.warning("popia export: otp_audit query failed: %s", exc)
+        return []
+
+
+def _compile_otp_codes(user) -> list[dict]:
+    """Compile OTPCodeV1 records (metadata only — no code hashes) for the user."""
+    try:
+        from apps.accounts.models import OTPCodeV1
+        # Exclude code_hash — it is a security artefact, not personal data
+        fields = [
+            "id", "purpose", "channel_used", "created_at",
+            "expires_at", "consumed_at", "attempt_count",
+        ]
+        return list(OTPCodeV1.objects.filter(user=user).values(*fields))
+    except Exception as exc:
+        logger.warning("popia export: otp_codes query failed: %s", exc)
         return []
 
 
@@ -201,6 +257,8 @@ def build_export_zip(user, job_id: int) -> Path:
     payments = _compile_payments(user)
     maintenance = _compile_maintenance(user)
     audit_events = _compile_audit_events(user)
+    otp_audit = _compile_otp_audit(user)
+    otp_codes = _compile_otp_codes(user)
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("profile.json", json.dumps(profile, default=_safe_json, indent=2))
@@ -208,6 +266,8 @@ def build_export_zip(user, job_id: int) -> Path:
         zf.writestr("payments.json", json.dumps(payments, default=_safe_json, indent=2))
         zf.writestr("maintenance.json", json.dumps(maintenance, default=_safe_json, indent=2))
         zf.writestr("audit_events.json", json.dumps(audit_events, default=_safe_json, indent=2))
+        zf.writestr("otp_audit.json", json.dumps(otp_audit, default=_safe_json, indent=2))
+        zf.writestr("otp_codes.json", json.dumps(otp_codes, default=_safe_json, indent=2))
         zf.writestr(
             "README.txt",
             _RETENTION_STATEMENT.format(generated_at=generated_at),

@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: L
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462154266"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -121,3 +121,39 @@ Compliance-critical review. Strong implementation overall — models, tombstone 
 - Tests cover anonymous access, cross-user isolation, duplicate prevention, expired token, RTBF→tombstone end-to-end, audit-event assertions.
 
 Fix items 1–3, then either close 4–7 inline or drop discoveries and link them here. Back to you.
+
+### 2026-04-23 — implementer (blocker pass)
+
+All four must-fix blockers addressed. 41/41 tests pass (30 original + 11 new).
+
+**Blocker 1 — download token bound to authenticated user:**
+- `ExportDownloadView` now has `permission_classes = [IsAuthenticated]` (removed `authentication_classes = []` and empty `permission_classes`).
+- Added explicit check: `requester.pk != request.user.pk` → 403 Forbidden.
+- New test: `test_different_user_with_valid_token_gets_403` — a second authenticated user presenting a valid token for someone else's export is rejected.
+
+**Blocker 2 — single-use enforcement:**
+- Added `CONSUMED = "consumed"` to `ExportJob.JobStatus`.
+- `ExportDownloadView` sets `job.status = CONSUMED` before streaming (fail-safe: consumed even if stream fails).
+- Reuse returns 410 Gone.
+- Migration `0002_add_consumed_status.py` created.
+- New tests: `test_consumed_token_returns_410`, `test_download_marks_job_consumed`.
+
+**Blocker 3 — export scope:**
+- `_compile_audit_events` now includes events where the user is the GFK target (content_type=User, object_id=user.pk) in addition to actor events. De-duplicated by id.
+- Added `_compile_otp_audit()` — OTPAuditLog rows (purpose, event_type, channel, metadata).
+- Added `_compile_otp_codes()` — OTPCodeV1 rows excluding `code_hash` (security artefact, not personal data).
+- `build_export_zip` writes `otp_audit.json` and `otp_codes.json` to the ZIP.
+- New tests: `test_otp_audit_logs_included_in_export`, `test_otp_code_records_included_in_export`.
+- ESigningAuditEvent scope not added — ESigningAuditEvent has a `user` FK but signing events are already captured via AuditEvent (the esigning app writes to the main audit log). Noted here for reviewer attention.
+
+**Blocker 4 — SAR now requires operator approval:**
+- `DataExportRequestView` no longer creates an `ExportJob` or calls `run_export_job_async` at submission. SAR starts as `PENDING` (not `IN_REVIEW`).
+- `DSARReviewView` approve path for SAR now calls `ExportJob.objects.get_or_create(dsar_request=dsar)` and `run_export_job_async(job.pk)`.
+- `_notify_operators_sar()` helper added (mirrors RTBF alert email, template_id `popia_sar_alert`).
+- Updated `test_tenant_can_request_export` to assert `status == "pending"` and no `export_job` key in response.
+- New tests: `test_sar_submission_does_not_auto_run_export`, `test_sar_submission_creates_pending_not_in_review`, `test_admin_approve_sar_creates_export_job`, `test_duplicate_pending_sar_includes_approved_status`.
+
+**Reviewer should-fix items (4–7):**
+- Items 4 and 7 are closed by Blocker 3 and 4 fixes respectively.
+- Item 5 (active-lease pre-check in RTBF approval modal): dropped as discovery `tasks/discoveries/2026-04-23-rtbf-active-lease-precheck.md`.
+- Item 6 (`is_anonymised` field on accounts.User): pre-existing caveat, still guarded by `hasattr`. Noted in original handoff — needs a separate accounts migration. Not changed here per scope note (do not touch accounts models).

@@ -31,13 +31,29 @@ def _reset_drf_throttle_cache():
     state across test cases. Without resetting, earlier register/login/Google tests
     poison later tests with 429s. Clear the cache before each test runs.
 
+    Additionally, DRF's SimpleRateThrottle.THROTTLE_RATES is a class-level
+    variable that is set at module import time from api_settings. If the module
+    is imported outside an @override_settings context, the variable is frozen
+    at the base settings for the lifetime of the process. This fixture saves and
+    restores the class variable around every test so that any test which patches
+    THROTTLE_RATES (e.g. TestPublicSignMinuteThrottle._isolate_throttle_cache)
+    cannot bleed its patched value into subsequent tests.
+
     Tests that intentionally exercise throttle behaviour (account lockout, rate
-    limits) use a DB-backed `LoginAttempt` model instead and are unaffected.
+    limits) layer their own fixtures on top of this baseline reset.
     """
     from django.core.cache import cache
+    from rest_framework.throttling import SimpleRateThrottle
+
+    # Snapshot the class variable before the test runs.
+    _original_rates = SimpleRateThrottle.THROTTLE_RATES
+
     cache.clear()
     yield
     cache.clear()
+
+    # Restore so any monkeypatching done inside the test does not bleed out.
+    SimpleRateThrottle.THROTTLE_RATES = _original_rates
 
 
 @pytest.fixture
