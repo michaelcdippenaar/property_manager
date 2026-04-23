@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: in-progress
+status: review
 asana_gid: "1214177462887240"
-assigned_to: implementer
+assigned_to: reviewer
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -60,6 +60,18 @@ Modified files:
 - Cache TTL is 300 s. If the reviewer wants a different TTL it's a one-liner in `dashboard_service.py`.
 - Activity feed is computed fresh on every request (no cache). Event timestamps use `Property.start_date` / `MaintenanceRequest.created_at` etc. — for leases we use `start_date` as a proxy for "signed date" because there is no separate `signed_at` field.
 - The signal invalidation requires the `Property.owner` FK to be populated OR a current `PropertyOwnership` row; if neither exists the bust is silently skipped (data is stale until TTL expires). This mirrors the existing `owner_views.py` scoping.
+
+### 2026-04-24 — implementer (address review)
+
+Added two missing tests to `backend/apps/properties/tests/test_dashboard_cache.py`:
+
+1. `test_mandate_save_invalidates_cache` (in `OwnerDashboardCacheTest`) — warms the cache via `get_dashboard_stats(person.pk)`, creates a `RentalMandate` with `status=ACTIVE` linked to `self.prop`, then asserts `cache.get(_cache_key(person.pk))` is `None`. Exercises the `_on_mandate_saved` signal path in `dashboard_signals.py`.
+
+2. `test_mandate_signed_event_in_feed` (in `OwnerActivityFeedContentTest`) — creates an active `RentalMandate` on `self.prop` and asserts `"mandate_signed"` appears in the event types returned by `get_activity_feed(person.pk)`. Exercises lines 262–282 of `dashboard_service.py`.
+
+Both tests use `RentalMandate.objects.create()` directly (no `create_mandate` helper exists in TremlyAPITestCase). Also added `from apps.properties.models import RentalMandate` import to the test file.
+
+All 20 tests pass: `pytest apps/properties/tests/test_dashboard_cache.py -xvs` → 20 passed in 47.73s.
 
 ### 2026-04-23 — reviewer (changes requested)
 

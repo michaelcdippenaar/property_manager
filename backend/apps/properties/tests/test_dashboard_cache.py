@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from apps.payments.models import RentInvoice, RentPayment
+from apps.properties.models import RentalMandate
 from apps.properties.dashboard_service import (
     get_dashboard_stats,
     get_activity_feed,
@@ -152,6 +153,22 @@ class OwnerDashboardCacheTest(TremlyAPITestCase):
             "cache should be cleared after maintenance request save",
         )
 
+    def test_mandate_save_invalidates_cache(self):
+        get_dashboard_stats(self.person.pk)
+        self.assertIsNotNone(cache.get(_cache_key(self.person.pk)))
+
+        RentalMandate.objects.create(
+            property=self.prop,
+            mandate_type=RentalMandate.MandateType.FULL_MANAGEMENT,
+            commission_rate="10.00",
+            start_date=date.today(),
+            status=RentalMandate.Status.ACTIVE,
+        )
+        self.assertIsNone(
+            cache.get(_cache_key(self.person.pk)),
+            "cache should be cleared after rental mandate save",
+        )
+
     # ── Payment performance widget ───────────────────────────────────────────
 
     def test_payment_performance_current_month(self):
@@ -239,6 +256,18 @@ class OwnerActivityFeedContentTest(TremlyAPITestCase):
         feed = get_activity_feed(self.person.pk)
         types = [e["event_type"] for e in feed]
         self.assertIn("rent_received", types)
+
+    def test_mandate_signed_event_in_feed(self):
+        RentalMandate.objects.create(
+            property=self.prop,
+            mandate_type=RentalMandate.MandateType.FULL_MANAGEMENT,
+            commission_rate="10.00",
+            start_date=date.today(),
+            status=RentalMandate.Status.ACTIVE,
+        )
+        feed = get_activity_feed(self.person.pk)
+        types = [e["event_type"] for e in feed]
+        self.assertIn("mandate_signed", types)
 
     def test_feed_is_sorted_newest_first(self):
         """Events returned by the feed are sorted with most recent first."""
