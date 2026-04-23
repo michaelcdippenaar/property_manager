@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177309739070"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: [UX-005]
 created: 2026-04-22
 updated: 2026-04-23
@@ -103,3 +103,11 @@ Added `"needs_staff_input": needs_staff_input,` to the response `payload` dict a
 - No test modifications needed; the existing test suite validates the KB content and fallback mechanism, and the fix is a straightforward payload field addition that does not alter logic.
 
 **Ready for merge:** all acceptance criteria now met, all 28 tests pass, no syntax errors.
+
+### 2026-04-23 — reviewer (pass-2)
+
+**Review passed**
+
+Verified the single fix: `backend/apps/tenant_portal/views.py:1363` now includes `"needs_staff_input": needs_staff_input` in the `TenantConversationMessageCreateView` response payload, between `severity` and `skills_used`. Diff is scoped (1 line added) and does not alter any previously-reviewed logic — the KB articles, TENANT_SYSTEM_PROMPT handoff sentinel, management commands (`ingest_chat_kb`, `tenant_chat_coverage_check`), and 28 passing coverage tests all remain valid. No security/POPIA concerns introduced by exposing a boolean flag (no PII, already computed server-side from the model output).
+
+Moving to testing.
