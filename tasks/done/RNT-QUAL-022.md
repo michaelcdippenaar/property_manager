@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214195382944651"
 created: 2026-04-22
@@ -50,3 +50,11 @@ No code changes were needed in this task. Reviewer: verify the above commit is i
 
 
 2026-04-23: Review passed. Verified commit 9c3f5896 is in main: backend/logs/.gitkeep tracked, os.makedirs at backend/config/settings/base.py:272 creates dir before LOGGING config is applied, backend/logs/*.jsonl in .gitignore line 37. All 4 acceptance criteria satisfied without code changes in this task. No security/POPIA concerns (logging config only, no new endpoints or user input). Handing off to tester.
+
+2026-04-23: Test run — all checks pass.
+- PASS: backend/logs/.gitkeep confirmed tracked in git (`git ls-files backend/logs/` → `backend/logs/.gitkeep`).
+- PASS: os.makedirs at backend/config/settings/base.py:272 confirmed present.
+- PASS: backend/logs/*.jsonl in .gitignore confirmed at line 37.
+- PASS: Django setup completes cleanly — `django.setup()` prints "Django setup OK" with no ValueError.
+- PASS: pytest collection succeeds — 1703 tests collected with no ValueError at startup. (Pre-existing failures in unrelated account tests are not caused by this task's changes.)
+- All 4 acceptance criteria verified satisfied.
