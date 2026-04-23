@@ -45,13 +45,19 @@ class RegisterViewTests(TremlyAPITestCase):
 
     def test_register_default_role_is_admin(self):
         """
-        Account-type aware registration: the first person to register is the
-        agency admin, not a tenant. This keeps the onboarding flow self-service
-        (no existing admin needs to promote the new user).
+        Account-type aware registration: registering as an agency makes the
+        first user an agency_admin so they can configure the agency immediately.
+        Registering without an account_type (defaults to individual) produces
+        role=owner instead.
         """
-        resp = self.client.post(self.url, {"email": "new@test.com", "password": "strongpass123"})
+        resp = self.client.post(self.url, {
+            "email": "new@test.com",
+            "password": "strongpass123",
+            "account_type": "agency",
+            "agency_name": "Test Agency",
+        })
         self.assertEqual(resp.status_code, 201)
-        self.assertEqual(resp.data["role"], "admin")
+        self.assertEqual(resp.data["role"], "agency_admin")
 
     def test_register_no_auth_required(self):
         """AllowAny — no auth header needed."""

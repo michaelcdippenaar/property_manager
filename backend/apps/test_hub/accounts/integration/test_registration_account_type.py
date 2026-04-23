@@ -53,7 +53,10 @@ class RegisterAsAgencyTests(TremlyAPITestCase):
         self.assertIn("agency_name", resp.data)
 
     def test_first_registered_user_is_admin(self):
-        """So that they can log in and configure their agency."""
+        """
+        Agency registrations produce role=agency_admin so the user can log in
+        and configure their agency immediately (self-service onboarding).
+        """
         resp = self.client.post(self.url, {
             "email": "first@test.com",
             "password": "strongpass123",
@@ -62,7 +65,7 @@ class RegisterAsAgencyTests(TremlyAPITestCase):
         })
         self.assertEqual(resp.status_code, 201)
         user = User.objects.get(email="first@test.com")
-        self.assertEqual(user.role, User.Role.ADMIN)
+        self.assertEqual(user.role, User.Role.AGENCY_ADMIN)
 
 
 class RegisterAsIndividualOwnerTests(TremlyAPITestCase):

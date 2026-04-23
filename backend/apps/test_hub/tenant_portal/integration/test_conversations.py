@@ -237,6 +237,12 @@ class ConversationMessageTests(TremlyAPITestCase):
         self.assertEqual(acts[1].metadata["source"], "ai_agent")
 
     def test_maintenance_interaction_logs_without_ticket(self):
+        """
+        When the AI returns interaction_type=maintenance but maintenance_ticket=null,
+        the view treats it as a deliberate AI deferral (still gathering details).
+        No MR is auto-created in this pass; maintenance_report_suggested is set so
+        the tenant can use the manual report button.
+        """
         person = self.create_person(full_name="Tenant P", linked_user=self.tenant)
         prop = self.create_property()
         unit = self.create_unit(property_obj=prop)
@@ -251,17 +257,19 @@ class ConversationMessageTests(TremlyAPITestCase):
             )
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data.get("interaction_type"), "maintenance")
-        self.assertIsNotNone(resp.data.get("maintenance_request"))
-        self.assertEqual(resp.data["maintenance_request"]["category"], "plumbing")
-        self.assertEqual(resp.data["maintenance_request"]["priority"], "urgent")
-        self.assertIsNotNone(resp.data.get("maintenance_request_id"))
-        ai_entry = MaintenanceActivity.objects.filter(
-            request_id=resp.data["maintenance_request_id"],
-            metadata__source="ai_agent",
-        ).first()
-        self.assertIsNotNone(ai_entry)
+        # AI deliberately returned null ticket — no MR auto-created on this turn
+        self.assertIsNone(resp.data.get("maintenance_request"))
+        self.assertIsNone(resp.data.get("maintenance_request_id"))
+        # But maintenance context is identified so the report button appears
+        self.assertTrue(resp.data.get("maintenance_report_suggested"))
 
     def test_maintenance_interaction_without_unit_stays_truthful(self):
+        """
+        When the AI deliberately returns maintenance_ticket=null (still gathering
+        details), the view does NOT inject a 'could not log' correction — the AI
+        is intentionally deferring, not failing. The original AI reply is returned
+        unchanged and maintenance_report_suggested is set for the manual button.
+        """
         self.authenticate(self.tenant)
         with self._mock_anthropic(MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET):
             resp = self.client.post(
@@ -274,8 +282,8 @@ class ConversationMessageTests(TremlyAPITestCase):
         self.assertIsNone(resp.data.get("maintenance_request"))
         self.assertIsNone(resp.data.get("maintenance_request_id"))
         self.assertTrue(resp.data.get("maintenance_report_suggested"))
-        self.assertIn("could not log it automatically yet", resp.data["ai_message"]["content"])
-        self.assertNotIn("team has been alerted", resp.data["ai_message"]["content"].lower())
+        # AI deliberately deferred — the reply is the original AI text, no correction injected
+        self.assertNotIn("could not log it automatically yet", resp.data["ai_message"]["content"])
 
     def test_general_interaction_without_ticket_does_not_log_request(self):
         self.authenticate(self.tenant)

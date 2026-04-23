@@ -34,21 +34,30 @@ class TestGetAccessiblePropertyIds:
 
     @pytest.mark.green
     def test_agent_gets_only_managed_property_ids(self):
-        """Agent role filters by Property.agent == user."""
+        """Agent role queries PropertyAgentAssignment for active assignments."""
         from apps.accounts.models import User
         user = _make_user(User.Role.AGENT)
 
-        mock_filtered_qs = MagicMock()
-        mock_filtered_qs.values_list.return_value = [10, 11]
+        mock_assignment_qs = MagicMock()
+        mock_assignment_qs.values_list.return_value = [10, 11]
 
-        with patch("apps.properties.models.Property") as MockProperty:
-            MockProperty.objects.filter.return_value = mock_filtered_qs
+        mock_legacy_qs = MagicMock()
+        mock_legacy_qs.values_list.return_value = []
+
+        mock_final_qs = MagicMock()
+        mock_final_qs.values_list.return_value = [10, 11]
+
+        with patch("apps.properties.models.PropertyAgentAssignment") as MockAssignment, \
+             patch("apps.properties.models.Property") as MockProperty:
+            MockAssignment.objects.filter.return_value = mock_assignment_qs
+            # First filter call is for legacy Property.agent, second is for pk__in union
+            MockProperty.objects.filter.return_value = mock_final_qs
 
             from apps.properties.access import get_accessible_property_ids
             result = get_accessible_property_ids(user)
 
-            MockProperty.objects.filter.assert_called_once_with(agent=user)
-            mock_filtered_qs.values_list.assert_called_once_with("pk", flat=True)
+            # Verify that PropertyAgentAssignment was queried for active assignments
+            MockAssignment.objects.filter.assert_called_once_with(agent=user, status="active")
 
     @pytest.mark.green
     def test_tenant_gets_empty_queryset(self):
@@ -70,9 +79,11 @@ class TestGetAccessiblePropertyIds:
 
     @pytest.mark.green
     def test_owner_gets_empty_queryset(self):
-        """Owner role is not admin or agent — returns empty queryset."""
+        """Owner with no person_profile returns empty queryset."""
         from apps.accounts.models import User
         user = _make_user(User.Role.OWNER)
+        # Ensure person_profile is absent so the owner falls back to the empty-qs path
+        user.person_profile = None
 
         mock_none = MagicMock()
         mock_none.values_list.return_value = []
