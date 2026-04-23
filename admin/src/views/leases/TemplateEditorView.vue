@@ -2628,6 +2628,8 @@ function exportPDF() {
           } catch {
             showToast('Preparing your document — we\'ll email you when ready.', 'info')
           }
+          // Navigate to the render queue so the operator can monitor progress
+          router.push('/leases/render-jobs')
         }
         reader.readAsText(data instanceof Blob ? data : new Blob([data]))
         return
@@ -2654,6 +2656,7 @@ function exportPDF() {
             json.message || 'Preparing your document — we\'ll email you when ready.',
             'info',
           )
+          router.push('/leases/render-jobs')
           return
         }
       }
