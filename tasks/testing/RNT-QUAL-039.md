@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214216538774979"
 created: 2026-04-23
@@ -39,3 +39,4 @@ Fix the `?search=` filter in `RentInvoiceViewSet` to query `Person.full_name` in
 2026-04-23 — rentals-pm: Promoted from discovery `2026-04-22-payments-invoice-search-wrong-field-names`. Found during RNT-SEC-031 review. Silent failure — search returns zero results for any name query. Pre-existing bug unrelated to RNT-SEC-031.
 
 2026-04-23 — implementer: One-line fix in `backend/apps/payments/views.py` (lines 92–95): replaced two broken ORM lookups (`lease__primary_tenant__first_name__icontains`, `lease__primary_tenant__last_name__icontains`) with a single correct lookup (`lease__primary_tenant__full_name__icontains`). `Person` has no `first_name`/`last_name` fields — only `full_name`. Added 5 regression tests in `backend/apps/payments/tests/test_invoice_search.py` covering exact match, partial first name, surname, case-insensitive match, and no-match returns empty. All 5 pass. No other code changed.
+2026-04-23 — reviewer: Review passed. Verified (1) `Person.full_name` is a real `CharField` at `accounts/models.py:143` — ORM lookup is valid, no FieldError risk. (2) Both broken lookups removed and replaced correctly in `payments/views.py:92-94`. (3) 5 regression tests in `payments/tests/test_invoice_search.py` cover all required cases and match existing test placement pattern. (4) Auth + role-scoped queryset unchanged — `IsAuthenticated` + RBAC intact. No security or POPIA concerns. No new endpoints. Parameterised ORM only.
