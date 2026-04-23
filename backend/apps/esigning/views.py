@@ -487,7 +487,10 @@ class ESigningPublicSignDetailView(APIView):
             )
 
         link = (
-            ESigningPublicLink.objects.select_related("submission__lease__unit__property")
+            ESigningPublicLink.objects.select_related(
+                "submission__lease__unit__property",
+                "submission__mandate__property",
+            )
             .filter(pk=uid)
             .first()
         )
