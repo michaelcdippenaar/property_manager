@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Tenant App — Lifecycle Home States</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #2B2D6E;
+  --navy-dark: #23255a;
+  --navy-light: #3b3e8f;
+  --accent: #FF3D7F;
+  --accent-light: #FF6B9D;
+  --surface: #F5F5F8;
+  --surface-secondary: #F0EFF8;
+  --white: #FFFFFF;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --success-50: #f0fdfa;
+  --success-100: #ccfbf1;
+  --success-600: #0d9488;
+  --warning-50: #fffbeb;
+  --warning-600: #d97706;
+  --danger-50: #fef2f2;
+  --danger-600: #dc2626;
+  --info-50: #eff6ff;
+  --info-600: #2563eb;
+  --shadow-soft: 0 1px 2px rgba(15,17,57,0.04), 0 2px 6px rgba(15,17,57,0.04);
+  --shadow-lifted: 0 4px 12px rgba(15,17,57,0.08), 0 12px 24px rgba(15,17,57,0.06);
+  --shadow-phone: 0 20px 48px rgba(15,17,57,0.14), 0 8px 16px rgba(15,17,57,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { font-size: 15px; }
+
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #EEEDF4;
+  background-image: radial-gradient(#2B2D6E14 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #111;
+  min-height: 100vh;
+  padding: 40px 24px 80px;
+}
+
+.page-header {
+  max-width: 1200px;
+  margin: 0 auto 48px;
+  text-align: center;
+}
+.page-header h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 2.5rem;
+  font-weight: 600;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+.page-header p {
+  color: var(--gray-600);
+  font-size: 1rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.section-label {
+  max-width: 1200px;
+  margin: 72px auto 24px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 0 8px;
+}
+.section-label h2 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--navy);
+}
+.section-label span {
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+.section-label .rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--gray-300), transparent);
+}
+
+.grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 40px 32px;
+}
+
+.frame-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.frame-label {
+  margin-bottom: 12px;
+  text-align: center;
+}
+.frame-label .state-num {
+  display: inline-block;
+  background: var(--navy);
+  color: var(--white);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 22px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+.frame-label .state-name {
+  font-weight: 600;
+  color: var(--navy);
+  font-size: 0.95rem;
+  vertical-align: middle;
+}
+.frame-label .state-desc {
+  display: block;
+  color: var(--gray-500);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+/* ── Phone frame ── */
+.phone {
+  width: 320px;
+  height: 658px;
+  background: #000;
+  border-radius: 44px;
+  padding: 10px;
+  box-shadow: var(--shadow-phone);
+  position: relative;
+  flex-shrink: 0;
+}
+.phone::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 28px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 10;
+}
+.screen {
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+  border-radius: 34px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.status-bar {
+  height: 44px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 0 24px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+.status-bar .icons {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.app-header {
+  padding: 12px 20px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.app-header .greeting {
+  font-size: 12px;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+.app-header .name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-900);
+  font-family: 'Fraunces', Georgia, serif;
+  letter-spacing: -0.01em;
+  margin-top: 1px;
+}
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.6), 0 2px 6px rgba(43,45,110,0.15);
+}
+.avatar:hover { transform: scale(1.06); }
+.avatar .avatar-star {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  background: var(--navy);
+  color: white;
+  font-size: 8px;
+  font-weight: 700;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface), 0 1px 2px rgba(15,17,57,0.3);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.avatar-hint {
+  font-size: 9px;
+  color: var(--gray-400);
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
+
+.scroll-area {
+  flex: 1;
+  overflow: hidden;
+  padding: 6px 16px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Cards */
+.card {
+  background: var(--white);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: var(--shadow-soft);
+}
+.card-hero {
+  background: linear-gradient(135deg, var(--navy), var(--navy-light));
+  color: white;
+  border-radius: 20px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.card-hero::after {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(255,61,127,0.18), transparent 70%);
+}
+.card-hero .eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+.card-hero h3 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.card-hero .sub {
+  font-size: 12px;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+.card-hero.accent {
+  background: linear-gradient(135deg, var(--accent), #d92463);
+}
+
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.card-title .badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+}
+.badge.green { background: var(--success-100); color: var(--success-600); }
+.badge.amber { background: #fef3c7; color: var(--warning-600); }
+.badge.red { background: #fee2e2; color: var(--danger-600); }
+.badge.blue { background: #dbeafe; color: var(--info-600); }
+
+.big-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gray-900);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+.big-value .sub { font-size: 12px; color: var(--gray-500); font-weight: 500; margin-left: 4px; }
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 13px;
+}
+.row:last-child { border-bottom: none; }
+.row .icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.row .label { flex: 1; color: var(--gray-700); font-weight: 500; }
+.row .meta { color: var(--gray-400); font-size: 11px; }
+.row .chevron { color: var(--gray-300); font-size: 14px; }
+
+.checklist-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  font-size: 13px;
+  color: var(--gray-700);
+}
+.checklist-row .check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+.check.done { background: var(--success-100); color: var(--success-600); }
+.check.pending { background: var(--gray-100); color: var(--gray-400); border: 1px dashed var(--gray-300); }
+.check.current { background: var(--accent); color: white; box-shadow: 0 0 0 3px rgba(255,61,127,0.2); }
+
+.btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  text-align: center;
+  border: none;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--navy);
+  color: white;
+  width: 100%;
+}
+.btn-accent {
+  background: var(--accent);
+  color: white;
+  width: 100%;
+}
+.btn-ghost {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  width: 100%;
+}
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+.btn-row .btn { flex: 1; }
+
+/* Quick-action tile */
+.quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.quick-tile {
+  background: var(--white);
+  border-radius: 14px;
+  padding: 10px;
+  text-align: left;
+  box-shadow: var(--shadow-soft);
+}
+.quick-tile .icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--surface-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+.quick-tile .q-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gray-700);
+  line-height: 1.2;
+}
+.quick-tile .q-val {
+  font-size: 10px;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+
+/* Bottom nav */
+.tab-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 78px;
+  background: rgba(255,255,255,0.96);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--gray-100);
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-start;
+  padding: 10px 0 20px;
+}
+.tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--gray-400);
+  font-weight: 500;
+  flex: 1;
+}
+.tab .tab-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.tab.active { color: var(--navy); font-weight: 600; }
+
+/* Choice rows */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-soft);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-700);
+  cursor: pointer;
+}
+.choice .radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--gray-300);
+  flex-shrink: 0;
+}
+.choice.selected { border: 2px solid var(--accent); background: #fff4f8; }
+.choice.selected .radio { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 40%, transparent 50%); }
+
+.stat-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat-mini {
+  background: var(--white);
+  border-radius: 12px;
+  padding: 10px;
+  box-shadow: var(--shadow-soft);
+}
+.stat-mini .s-label {
+  font-size: 10px;
+  color: var(--gray-500);
+  font-weight: 500;
+}
+.stat-mini .s-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-status {
+  font-size: 11px;
+  color: var(--gray-500);
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mini-status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success-600);
+}
+
+/* Chat bubble */
+.chat-bubble {
+  background: var(--surface-secondary);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--gray-800);
+  line-height: 1.4;
+  max-width: 85%;
+}
+.chat-bubble .who {
+  font-size: 10px;
+  color: var(--navy);
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+
+/* Passport card */
+.passport {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 50%, #151747 100%);
+  color: white;
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow-lifted);
+  position: relative;
+  overflow: hidden;
+}
+.passport::before {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(255,61,127,0.25), transparent 70%);
+}
+.passport .pp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  position: relative;
+  z-index: 2;
+}
+.passport .pp-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.passport .pp-star {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.passport .pp-star svg {
+  width: 10px;
+  height: 10px;
+  fill: var(--accent);
+  stroke: none;
+}
+.passport .pp-name {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+.passport .pp-since {
+  font-size: 11px;
+  opacity: 0.75;
+  margin-bottom: 14px;
+}
+.passport .pp-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  padding-top: 12px;
+}
+.passport .pp-stat .v {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.passport .pp-stat .k {
+  font-size: 10px;
+  opacity: 0.7;
+  font-weight: 500;
+}
+
+/* Property card for marketplace */
+.prop-card {
+  background: var(--white);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+.prop-card .prop-img {
+  height: 90px;
+  background: linear-gradient(135deg, #d0d4e6 0%, #b0b6d3 100%);
+  position: relative;
+  overflow: hidden;
+}
+.prop-card .prop-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1' stroke-linecap='round' stroke-linejoin='round' opacity='0.5'><path d='M3 9.5 12 2l9 7.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z'/></svg>");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 44px;
+}
+.prop-card .prop-body {
+  padding: 10px 12px;
+}
+.prop-card .prop-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+.prop-card .prop-addr {
+  font-size: 11px;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+.prop-card .prop-meta {
+  font-size: 10px;
+  color: var(--gray-400);
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+}
+
+/* Timeline */
+.timeline {
+  position: relative;
+  padding-left: 20px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--gray-200);
+}
+.tl-item {
+  position: relative;
+  padding-bottom: 10px;
+  font-size: 12px;
+}
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: -19px;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  border: 2px solid var(--white);
+  box-shadow: 0 0 0 1px var(--gray-200);
+}
+.tl-item.done::before { background: var(--success-600); box-shadow: 0 0 0 1px var(--success-100); }
+.tl-item.current::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(255,61,127,0.2); }
+.tl-item .tl-when { font-size: 10px; color: var(--gray-400); margin-bottom: 2px; }
+.tl-item .tl-what { color: var(--gray-700); font-weight: 500; }
+
+.emoji { font-family: 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif; }
+
+/* ── Icon system (Lucide-style line icons) ── */
+.ico {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: inline-block;
+  vertical-align: middle;
+}
+.ico-sm { width: 14px; height: 14px; stroke-width: 1.8; }
+.ico-md { width: 16px; height: 16px; }
+.ico-lg { width: 20px; height: 20px; }
+.ico-xl { width: 24px; height: 24px; stroke-width: 1.5; }
+.ico-filled { fill: currentColor; stroke: none; }
+
+/* Tab bar icon */
+.tab .tab-ico {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  margin-bottom: 1px;
+}
+.tab.active .tab-ico {
+  stroke-width: 1.9;
+}
+
+/* Colored icon bubble (in .row) */
+.row .icon { color: var(--navy); }
+.row .icon .ico { color: inherit; }
+
+.footer {
+  max-width: 1200px;
+  margin: 100px auto 0;
+  padding: 32px;
+  text-align: center;
+  color: var(--gray-500);
+  font-size: 13px;
+  border-top: 1px solid var(--gray-200);
+}
+.footer strong { color: var(--navy); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     ICON LIBRARY (Lucide-style line icons)
+     ═══════════════════════════════════════ -->
+<svg width="0" height="0" style="position: absolute;" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9.5 12 2l9 7.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 1 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></symbol>
+    <symbol id="i-star-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></symbol>
+    <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-door" viewBox="0 0 24 24"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/><path d="M3 22h18"/><circle cx="14" cy="13" r=".5" fill="currentColor"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></symbol>
+    <symbol id="i-bed" viewBox="0 0 24 24"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20M6 8v0"/><circle cx="7" cy="13" r="2"/></symbol>
+    <symbol id="i-bath" viewBox="0 0 24 24"><path d="M9 6a2 2 0 0 1 4 0v4M3 10h18v4a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4zM7 21v-3M17 21v-3"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.3c1 3.2.5 8.3-2.8 12.1A6.98 6.98 0 0 1 11 20z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></symbol>
+    <symbol id="i-car" viewBox="0 0 24 24"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  </defs>
+</svg>
+
+<header class="page-header">
+  <h1>Klikk Tenant — Lifecycle Home</h1>
+  <p>A single home screen that adapts to where the tenant is in the rental cycle. 11 states + the Klikk Passport + Apply Elsewhere flow.</p>
+</header>
+
+<!-- ════════════════════════════════════════════════
+     SECTION 1: LIFECYCLE STATES
+     ════════════════════════════════════════════════ -->
+<div class="section-label">
+  <h2>Home screen, 11 lifecycle states</h2>
+  <span>what surfaces when</span>
+  <div class="rule"></div>
+</div>
+
+<div class="grid">
+
+<!-- ═══ 1. ONBOARDING ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">1</span><span class="state-name">Onboarding</span>
+    <span class="state-desc">Lease signed · not yet moved in</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Good morning,</div>
+        <div class="name">Michael</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero">
+        <div class="eyebrow">Moving in</div>
+        <h3>14 days to go</h3>
+        <div class="sub">25 Acacia Rd · Stellenbosch</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Before you move in</div>
+        <div class="checklist-row"><span class="check done">✓</span>Lease signed</div>
+        <div class="checklist-row"><span class="check done">✓</span>Deposit paid</div>
+        <div class="checklist-row"><span class="check current">!</span>Set up debit order</div>
+        <div class="checklist-row"><span class="check pending">○</span>Contents insurance</div>
+        <div class="checklist-row"><span class="check pending">○</span>Transfer utilities</div>
+      </div>
+      <div class="card" style="background: var(--surface-secondary);">
+        <div class="chat-bubble" style="background: white;">
+          <div class="who">Sarah · Agent</div>
+          Welcome Michael! I'll meet you at the property on the 30th with keys. Let me know if you need anything.
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 2. JUST MOVED IN ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">2</span><span class="state-name">Just moved in</span>
+    <span class="state-desc">First 30 days</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Welcome home,</div>
+        <div class="name">Michael</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero accent">
+        <div class="eyebrow">Action needed</div>
+        <h3>Finish move-in inspection</h3>
+        <div class="sub">You have 5 days left to flag anything</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Get settled<span class="badge blue">3 of 6</span></div>
+        <div class="checklist-row"><span class="check done">✓</span>Move-in inspection started</div>
+        <div class="checklist-row"><span class="check current">!</span>Finish inspection (5 days)</div>
+        <div class="checklist-row"><span class="check pending">○</span>Register with body corporate</div>
+        <div class="checklist-row"><span class="check pending">○</span>Meet building manager</div>
+      </div>
+      <div class="quick">
+        <div class="quick-tile">
+          <div class="icon"><svg class="ico ico-md" style="color: var(--navy);"><use href="#i-trash"/></svg></div>
+          <div class="q-label">Refuse day</div>
+          <div class="q-val">Wednesdays</div>
+        </div>
+        <div class="quick-tile">
+          <div class="icon"><svg class="ico ico-md" style="color: var(--navy);"><use href="#i-zap"/></svg></div>
+          <div class="q-label">Load-shed</div>
+          <div class="q-val">Zone 4A</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 3. SETTLED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">3</span><span class="state-name">Settled</span>
+    <span class="state-desc">Mid-lease, steady state</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Morning,</div>
+        <div class="name">Michael</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card">
+        <div class="card-title">Rent due<span class="badge green">on track</span></div>
+        <div class="big-value">R12,500 <span class="sub">in 12 days</span></div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--gray-500);">Debit order · 1st of month</div>
+      </div>
+      <div class="stat-pair">
+        <div class="stat-mini">
+          <div class="s-label">Active tickets</div>
+          <div class="s-val">1</div>
+          <div style="font-size: 10px; color: var(--warning-600); margin-top: 3px;">⏳ Scheduled</div>
+        </div>
+        <div class="stat-mini">
+          <div class="s-label">Messages</div>
+          <div class="s-val">2</div>
+          <div style="font-size: 10px; color: var(--info-600); margin-top: 3px;">Unread</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">This week</div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-zap"/></svg></div>
+          <div class="label">Load-shedding stage 2</div>
+          <div class="meta">Tonight 6pm</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-wrench"/></svg></div>
+          <div class="label">Gate motor service</div>
+          <div class="meta">Tue 10am</div>
+        </div>
+      </div>
+      <div class="card" style="background: #0E1138; color: white; padding: 16px; position: relative; overflow: hidden;">
+        <div style="position: absolute; bottom: -30px; right: -20px; width: 80px; height: 80px; background: radial-gradient(circle, rgba(255,61,127,0.15), transparent 70%); pointer-events: none;"></div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.5); font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 10px; position: relative;">Your Klikk Passport</div>
+        <div style="font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 500; letter-spacing: -0.02em; line-height: 1.1; position: relative;">14 months</div>
+        <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; position: relative;">on-time · 4.8 landlord rating</div>
+        <div style="font-size: 10px; color: rgba(255,255,255,0.45); margin-top: 12px; letter-spacing: 0.02em; position: relative;">Tap avatar to view →</div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 4. PRE-RENEWAL ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">4</span><span class="state-name">Pre-renewal</span>
+    <span class="state-desc">90 → 60 days before end</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Hi</div>
+        <div class="name">Michael</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero">
+        <div class="eyebrow">Your lease ends</div>
+        <h3>14 July 2026</h3>
+        <div class="sub">That's 87 days — what's next?</div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="choice selected">
+          <div class="radio"></div>
+          <div>
+            <div>I want to renew here</div>
+            <div style="font-size: 11px; color: var(--gray-500); margin-top: 2px;">Same property, new term</div>
+          </div>
+        </div>
+        <div class="choice">
+          <div class="radio"></div>
+          <div>
+            <div>I'm thinking of moving</div>
+            <div style="font-size: 11px; color: var(--gray-500); margin-top: 2px;">Explore other options</div>
+          </div>
+        </div>
+        <div class="choice">
+          <div class="radio"></div>
+          <div>
+            <div>Haven't decided</div>
+            <div style="font-size: 11px; color: var(--gray-500); margin-top: 2px;">Remind me in 2 weeks</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-accent" style="margin-top: 4px;">Let Sarah know</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 5. RENEWAL OFFERED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">5</span><span class="state-name">Renewal offered</span>
+    <span class="state-desc">Landlord has proposed terms</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Renewal offer</div>
+        <div class="name">Let's review</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card">
+        <div class="card-title">Landlord's offer<span class="badge amber">Needs response</span></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0;">
+          <div><div style="font-size: 10px; color: var(--gray-500);">Current rent</div><div style="font-weight: 700;">R12,500</div></div>
+          <div><div style="font-size: 10px; color: var(--gray-500);">New rent</div><div style="font-weight: 700; color: var(--navy);">R13,250</div></div>
+          <div><div style="font-size: 10px; color: var(--gray-500);">Escalation</div><div style="font-weight: 700;">+6%</div></div>
+          <div><div style="font-size: 10px; color: var(--gray-500);">Term</div><div style="font-weight: 700;">12 months</div></div>
+        </div>
+      </div>
+      <div class="card" style="background: var(--success-50); border: 1px solid var(--success-100);">
+        <div class="card-title" style="color: var(--success-600);">Your rental record</div>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--gray-700);">
+          <div style="display: flex; align-items: center; gap: 8px;"><svg class="ico ico-sm" style="color: var(--success-600);"><use href="#i-check"/></svg>18 months · on-time every month</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><svg class="ico ico-sm ico-filled" style="color: var(--accent);"><use href="#i-star-fill"/></svg>4.8 from landlord</div>
+          <div style="display: flex; align-items: center; gap: 8px;"><svg class="ico ico-sm" style="color: var(--navy);"><use href="#i-wrench"/></svg>3 maintenance tickets · all closed</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost">Negotiate</button>
+        <button class="btn btn-accent">Accept</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 6. RENEWING PAPERWORK ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">6</span><span class="state-name">Renewing</span>
+    <span class="state-desc">Accepted, awaiting signing</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Renewal in progress</div>
+        <div class="name">Almost done</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero">
+        <div class="eyebrow">Staying in</div>
+        <h3>25 Acacia Rd</h3>
+        <div class="sub">Until 14 July 2027 · R13,250/mo</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Renewal progress</div>
+        <div class="timeline">
+          <div class="tl-item done">
+            <div class="tl-when">Mon</div>
+            <div class="tl-what">You accepted the offer</div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-when">Tue</div>
+            <div class="tl-what">Landlord countersigned</div>
+          </div>
+          <div class="tl-item current">
+            <div class="tl-when">Now</div>
+            <div class="tl-what">Sign renewal lease</div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-when">Jul 14</div>
+            <div class="tl-what">New term begins</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-accent">Open & sign</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 7. GIVING NOTICE ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">7</span><span class="state-name">Giving notice</span>
+    <span class="state-desc">30-60 days out · not renewing</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Moving out</div>
+        <div class="name">45 days to go</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero accent">
+        <div class="eyebrow">Next chapter</div>
+        <h3>Where are you going?</h3>
+        <div class="sub">Your Klikk record is ready to travel with you</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Move-out plan</div>
+        <div class="checklist-row"><span class="check done">✓</span>Notice given</div>
+        <div class="checklist-row"><span class="check current">!</span>Start packing checklist</div>
+        <div class="checklist-row"><span class="check pending">○</span>Book move-out inspection</div>
+        <div class="checklist-row"><span class="check pending">○</span>Final meter readings</div>
+      </div>
+      <div class="quick">
+        <div class="quick-tile" style="background: linear-gradient(135deg, var(--accent), #d92463); color: white;">
+          <div class="icon" style="background: rgba(255,255,255,0.2); color: white;"><svg class="ico ico-md"><use href="#i-home"/></svg></div>
+          <div class="q-label" style="color: white;">Apply elsewhere</div>
+          <div class="q-val" style="color: rgba(255,255,255,0.85);">With your Passport</div>
+        </div>
+        <div class="quick-tile">
+          <div class="icon" style="color: var(--navy);"><svg class="ico ico-md"><use href="#i-search"/></svg></div>
+          <div class="q-label">Agent's portfolio</div>
+          <div class="q-val">8 similar listings</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 8. MOVING OUT ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">8</span><span class="state-name">Moving out</span>
+    <span class="state-desc">Final week</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Final stretch</div>
+        <div class="name">3 days left</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card">
+        <div class="card-title">Move-out<span class="badge red">urgent</span></div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-clipboard"/></svg></div>
+          <div class="label">Final inspection</div>
+          <div class="meta">Sat 9am</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-zap"/></svg></div>
+          <div class="label">Submit meter photos</div>
+          <div class="meta">Today</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-key"/></svg></div>
+          <div class="label">Key handover</div>
+          <div class="meta">Sat 12pm</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-mail"/></svg></div>
+          <div class="label">Forwarding address</div>
+          <div class="meta">Missing</div>
+        </div>
+      </div>
+      <div class="card" style="background: var(--info-50); border: 1px solid var(--info-100, #dbeafe);">
+        <div style="font-size: 11px; color: var(--info-600); font-weight: 700; margin-bottom: 4px;">Tip</div>
+        <div style="font-size: 12px; color: var(--gray-700); line-height: 1.4;">
+          Bring your move-in inspection report on Saturday — we'll compare side-by-side to avoid disputes.
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 9. DEPOSIT PENDING ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">9</span><span class="state-name">Deposit pending</span>
+    <span class="state-desc">Moved out · awaiting refund</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Deposit refund</div>
+        <div class="name">In progress</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero">
+        <div class="eyebrow">Your deposit</div>
+        <h3>R12,500 + R412 interest</h3>
+        <div class="sub">Expected back in 7 days · RHA s5(3)</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Refund timeline</div>
+        <div class="timeline">
+          <div class="tl-item done"><div class="tl-when">Sat</div><div class="tl-what">Move-out inspection done</div></div>
+          <div class="tl-item done"><div class="tl-when">Mon</div><div class="tl-what">Final meter readings received</div></div>
+          <div class="tl-item current"><div class="tl-when">Now</div><div class="tl-what">Awaiting municipal reconciliation</div></div>
+          <div class="tl-item"><div class="tl-when">+7 days</div><div class="tl-what">Refund due</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Deductions<span class="badge green">None yet</span></div>
+        <div style="font-size: 12px; color: var(--gray-500);">All clear. No issues raised at inspection.</div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 10. ALUMNI ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">10</span><span class="state-name">Alumni</span>
+    <span class="state-desc">No active lease · browsing</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Welcome back,</div>
+        <div class="name">Michael</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="passport">
+        <div class="pp-head">
+          <div class="pp-title">Klikk Passport</div>
+          <div class="pp-star"><svg viewBox="0 0 24 24"><use href="#i-star-fill"/></svg>4.8</div>
+        </div>
+        <div class="pp-name">Michael Dippenaar</div>
+        <div class="pp-since">Verified tenant since 2024</div>
+        <div class="pp-stats">
+          <div class="pp-stat"><div class="v">2</div><div class="k">Tenancies</div></div>
+          <div class="pp-stat"><div class="v">23/24</div><div class="k">On-time months</div></div>
+          <div class="pp-stat"><div class="v">752</div><div class="k">TPN score</div></div>
+          <div class="pp-stat"><div class="v">100%</div><div class="k">FICA verified</div></div>
+        </div>
+      </div>
+      <button class="btn btn-accent">Find your next place →</button>
+      <div class="card">
+        <div class="card-title">Your history</div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-home"/></svg></div>
+          <div class="label">25 Acacia Rd · Stellenbosch</div>
+          <div class="meta">2024–26</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-home"/></svg></div>
+          <div class="label">12 Oak St · Claremont</div>
+          <div class="meta">2023–24</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 11. APPLYING ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">11</span><span class="state-name">Applying</span>
+    <span class="state-desc">Application submitted · awaiting</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Your application</div>
+        <div class="name">In review</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card">
+        <div class="card-title">Applied 3 days ago<span class="badge amber">Pending</span></div>
+        <div style="font-weight: 600; color: var(--gray-900); margin: 4px 0;">18 Vredehoek Rd, Cape Town</div>
+        <div style="font-size: 12px; color: var(--gray-500);">R15,000/mo · 2 bed · Sea view</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Progress</div>
+        <div class="timeline">
+          <div class="tl-item done"><div class="tl-when">Mon</div><div class="tl-what">Application submitted</div></div>
+          <div class="tl-item done"><div class="tl-when">Mon</div><div class="tl-what">Passport shared with landlord</div></div>
+          <div class="tl-item done"><div class="tl-when">Tue</div><div class="tl-what">Credit check cleared</div></div>
+          <div class="tl-item current"><div class="tl-when">Wed</div><div class="tl-what">Previous landlord contacted</div></div>
+          <div class="tl-item"><div class="tl-when">—</div><div class="tl-what">Landlord decision</div></div>
+        </div>
+      </div>
+      <div class="mini-status"><div class="dot"></div>Usually decided within 48 hours</div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECTION 2: KLIKK PASSPORT
+     ════════════════════════════════════════════════ -->
+<div class="section-label">
+  <h2>The Klikk Passport</h2>
+  <span>tenant's view · landlord's view</span>
+  <div class="rule"></div>
+</div>
+
+<div class="grid" style="grid-template-columns: repeat(3, 1fr);">
+
+<!-- TENANT VIEW OF PASSPORT -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">A</span><span class="state-name">Tenant's view</span>
+    <span class="state-desc">Your portable rental CV</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Your</div>
+        <div class="name">Klikk Passport</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="passport">
+        <div class="pp-head">
+          <div class="pp-title">Klikk Passport</div>
+          <div class="pp-star"><svg viewBox="0 0 24 24"><use href="#i-star-fill"/></svg>4.8</div>
+        </div>
+        <div class="pp-name">Michael Dippenaar</div>
+        <div class="pp-since">Verified tenant · since Jun 2024</div>
+        <div class="pp-stats">
+          <div class="pp-stat"><div class="v">2</div><div class="k">Tenancies</div></div>
+          <div class="pp-stat"><div class="v">23 / 24</div><div class="k">On-time months</div></div>
+          <div class="pp-stat"><div class="v">752</div><div class="k">TPN score</div></div>
+          <div class="pp-stat"><div class="v">R54k</div><div class="k">Verified income</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">What's included</div>
+        <div class="checklist-row"><span class="check done">✓</span>Identity (FICA)</div>
+        <div class="checklist-row"><span class="check done">✓</span>Proof of income</div>
+        <div class="checklist-row"><span class="check done">✓</span>Payment history</div>
+        <div class="checklist-row"><span class="check done">✓</span>Previous landlord rating</div>
+        <div class="checklist-row"><span class="check done">✓</span>TPN credit score</div>
+      </div>
+      <button class="btn btn-accent">Share with a landlord</button>
+      <div class="mini-status" style="justify-content: center;"><svg class="ico ico-sm" style="color: var(--gray-400);"><use href="#i-lock"/></svg>You control every share · 7-day expiry</div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- LANDLORD VIEW OF APPLICATION -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">B</span><span class="state-name">Landlord's view</span>
+    <span class="state-desc">Verified applicant dossier</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">New applicant</div>
+        <div class="name">Michael D.</div>
+      </div>
+      <div class="avatar" style="background: linear-gradient(135deg, var(--accent), #d92463);">SA</div>
+    </div>
+    <div class="scroll-area">
+      <div class="card" style="background: var(--success-50); border: 1px solid var(--success-100);">
+        <div style="font-size: 11px; color: var(--success-600); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; display: flex; align-items: center; gap: 6px;"><svg class="ico ico-sm" style="color: var(--success-600);"><use href="#i-shield-check"/></svg>Verified applicant</div>
+        <div style="font-size: 13px; color: var(--gray-700); margin-top: 4px;">Klikk has verified identity, income, and rental history.</div>
+      </div>
+      <div class="stat-pair">
+        <div class="stat-mini">
+          <div class="s-label">Landlord rating</div>
+          <div class="s-val" style="display: flex; align-items: center; gap: 4px;">4.8<svg class="ico ico-sm ico-filled" style="color: var(--accent); width: 14px; height: 14px;"><use href="#i-star-fill"/></svg></div>
+        </div>
+        <div class="stat-mini">
+          <div class="s-label">On-time payments</div>
+          <div class="s-val">96%</div>
+        </div>
+        <div class="stat-mini">
+          <div class="s-label">TPN score</div>
+          <div class="s-val">752</div>
+        </div>
+        <div class="stat-mini">
+          <div class="s-label">Affordability</div>
+          <div class="s-val">28%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">References</div>
+        <div class="row">
+          <div class="icon" style="color: var(--accent);"><svg class="ico ico-md ico-filled"><use href="#i-star-fill"/></svg></div>
+          <div class="label" style="font-style: italic;">"Excellent tenant, on time, respectful."</div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg class="ico ico-md"><use href="#i-wrench"/></svg></div>
+          <div class="label">3 maintenance tickets · all closed</div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost">Decline</button>
+        <button class="btn btn-primary">Approve</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-list"/></svg>Pipeline</div>
+      <div class="tab active"><svg class="tab-ico"><use href="#i-users"/></svg>Applicants</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Properties</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- APPLY – BROWSE -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">C</span><span class="state-name">Apply · browse</span>
+    <span class="state-desc">Properties matched to Passport</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Find your next</div>
+        <div class="name">place</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
+        <div class="badge blue" style="padding: 4px 10px; font-size: 10px;">Within budget</div>
+        <div class="badge green" style="padding: 4px 10px; font-size: 10px;">Stellenbosch</div>
+        <div class="badge amber" style="padding: 4px 10px; font-size: 10px;">2+ bed</div>
+      </div>
+      <div class="prop-card">
+        <div class="prop-img"></div>
+        <div class="prop-body">
+          <div class="prop-price">R14,500 <span style="font-size: 10px; color: var(--gray-400); font-weight: 500;">/mo</span></div>
+          <div class="prop-addr">42 Dorp St, Stellenbosch</div>
+          <div class="prop-meta"><span>2 bed</span>·<span>1 bath</span>·<span>Garden</span></div>
+        </div>
+      </div>
+      <div class="prop-card">
+        <div class="prop-img" style="background: linear-gradient(135deg, #d8bfa5, #b39677);"></div>
+        <div class="prop-body">
+          <div class="prop-price">R15,200 <span style="font-size: 10px; color: var(--gray-400); font-weight: 500;">/mo</span></div>
+          <div class="prop-addr">8 Church St, Stellenbosch</div>
+          <div class="prop-meta"><span>2 bed</span>·<span>2 bath</span>·<span>Parking</span></div>
+        </div>
+      </div>
+      <div class="prop-card">
+        <div class="prop-img" style="background: linear-gradient(135deg, #c2d6b5, #8faa7e);"></div>
+        <div class="prop-body">
+          <div class="prop-price">R13,800 <span style="font-size: 10px; color: var(--gray-400); font-weight: 500;">/mo</span></div>
+          <div class="prop-addr">23 Plein St, Stellenbosch</div>
+          <div class="prop-meta"><span>2 bed</span>·<span>1 bath</span>·<span>Pet-friendly</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════
+     SECTION 3: APPLY FLOW
+     ════════════════════════════════════════════════ -->
+<div class="section-label">
+  <h2>Apply Elsewhere — 3-tap flow</h2>
+  <span>from "interested" to "submitted"</span>
+  <div class="rule"></div>
+</div>
+
+<div class="grid">
+
+<!-- APPLY – PROPERTY DETAIL -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">D</span><span class="state-name">Step 1</span>
+    <span class="state-desc">Review property + affordability</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header" style="padding-bottom: 4px;">
+      <div style="display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--gray-700); font-weight: 500;"><svg class="ico ico-md"><use href="#i-chevron-left"/></svg>Back</div>
+      <div style="color: var(--gray-500); display: flex; width: 32px; height: 32px; border-radius: 50%; background: var(--white); box-shadow: var(--shadow-soft); align-items: center; justify-content: center;"><svg class="ico ico-md"><use href="#i-heart"/></svg></div>
+    </div>
+    <div class="scroll-area" style="padding-top: 0;">
+      <div style="height: 140px; background: linear-gradient(135deg, #d0d4e6, #9ca3cc); border-radius: 16px; position: relative; display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" style="width: 56px; height: 56px; stroke: rgba(255,255,255,0.7); fill: none; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round;"><use href="#i-home"/></svg></div>
+      <div>
+        <div style="font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 500; color: var(--gray-900);">R14,500<span style="font-size: 13px; color: var(--gray-500); font-weight: 500;"> / mo</span></div>
+        <div style="font-size: 13px; color: var(--gray-600); margin-top: 2px;">42 Dorp St, Stellenbosch</div>
+      </div>
+      <div class="card" style="background: var(--success-50); border: 1px solid var(--success-100);">
+        <div style="font-size: 11px; color: var(--success-600); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">✓ Within your budget</div>
+        <div style="font-size: 12px; color: var(--gray-700); margin-top: 4px;">27% of your verified income · below the 33% limit</div>
+      </div>
+      <div class="card">
+        <div class="card-title">What the landlord wants</div>
+        <div class="checklist-row"><span class="check done">✓</span>12-month lease</div>
+        <div class="checklist-row"><span class="check done">✓</span>R14,500 deposit</div>
+        <div class="checklist-row"><span class="check done">✓</span>Pet-friendly</div>
+      </div>
+      <button class="btn btn-accent">Apply with Passport →</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- APPLY – CONFIRM PASSPORT -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">E</span><span class="state-name">Step 2</span>
+    <span class="state-desc">Confirm what to share</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Share Passport with</div>
+        <div class="name">Karen Agent</div>
+      </div>
+      <div style="color: var(--gray-500); display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;"><svg class="ico ico-md"><use href="#i-x"/></svg></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card">
+        <div class="card-title">What Karen will see</div>
+        <div class="checklist-row"><span class="check done">✓</span>Identity · verified</div>
+        <div class="checklist-row"><span class="check done">✓</span>Income band · R50–60k</div>
+        <div class="checklist-row"><span class="check done">✓</span>Payment history · 23/24</div>
+        <div class="checklist-row"><span class="check done">✓</span>Previous landlord rating · 4.8★</div>
+        <div class="checklist-row"><span class="check done">✓</span>TPN score · 752</div>
+      </div>
+      <div class="card" style="background: var(--info-50); border: 1px solid #dbeafe;">
+        <div style="font-size: 11px; color: var(--info-600); font-weight: 700; margin-bottom: 4px;">POPIA consent</div>
+        <div style="font-size: 12px; color: var(--gray-700); line-height: 1.4;">
+          You're sharing this for 7 days, only with Karen Agent, for the 42 Dorp St application.
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Anything to add?</div>
+        <div style="background: var(--gray-100); padding: 10px; border-radius: 8px; font-size: 12px; color: var(--gray-500); font-style: italic;">Add a note to the landlord...</div>
+      </div>
+      <button class="btn btn-accent">Submit application</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- APPLY – SUBMITTED -->
+<div class="frame-wrap">
+  <div class="frame-label">
+    <span class="state-num">F</span><span class="state-name">Step 3</span>
+    <span class="state-desc">Submitted · tracking</span>
+  </div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span class="icons">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div>
+        <div class="greeting">Application</div>
+        <div class="name">Submitted ✓</div>
+      </div>
+      <div class="avatar" title="Tap for your Klikk Passport">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="card-hero">
+        <div class="eyebrow">Sent to Karen</div>
+        <h3>42 Dorp St</h3>
+        <div class="sub">Usually decided within 48 hours</div>
+      </div>
+      <div class="card">
+        <div class="card-title">What happens next</div>
+        <div class="timeline">
+          <div class="tl-item done"><div class="tl-when">Just now</div><div class="tl-what">Passport sent to landlord</div></div>
+          <div class="tl-item current"><div class="tl-when">Today</div><div class="tl-what">Landlord reviews</div></div>
+          <div class="tl-item"><div class="tl-when">~48h</div><div class="tl-what">Decision notification</div></div>
+          <div class="tl-item"><div class="tl-when">If approved</div><div class="tl-what">Lease drafted in-app</div></div>
+        </div>
+      </div>
+      <div class="mini-status" style="justify-content: center;"><svg class="ico ico-sm" style="color: var(--gray-400);"><use href="#i-bell"/></svg>You'll be notified the moment Karen opens it</div>
+      <button class="btn btn-ghost">View application</button>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Support</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-bag"/></svg>Services</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<div class="footer">
+  <strong>Klikk Tenant</strong> — Lifecycle Home · Klikk Passport · Apply Elsewhere<br>
+  <span style="font-size: 11px;">Prototype · April 2026</span>
+</div>
+
+</body>
+</html>

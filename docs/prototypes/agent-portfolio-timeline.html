@@ -1,0 +1,736 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klikk · Portfolio Timeline — State › Stage › Property × Months</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #2B2D6E;
+    --navy-soft: #F0EFF8;
+    --pink: #FF3D7F;
+    --pink-soft: #FFE4EF;
+    --green: #16A34A;
+    --green-soft: #E6F4EB;
+    --orange: #D97706;
+    --orange-soft: #FDF3E0;
+    --amber: #F59E0B;
+    --red: #DC2626;
+    --ink: #0E0F2A;
+    --ink-2: #4A4D6E;
+    --ink-3: #8A8DA8;
+    --line: #E5E7F0;
+    --bg: #FAFAFC;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: 'DM Sans', system-ui, sans-serif; font-size: 15px; }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+
+  .topbar { position: sticky; top: 0; z-index: 40; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
+  .logo { font-family: 'Fraunces', serif; font-weight: 700; font-size: 22px; color: var(--navy); letter-spacing: -0.02em; }
+  .logo span { color: var(--pink); }
+  .crumb { color: var(--ink-3); font-size: 13px; }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  .topbar-right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .who { display:flex; align-items:center; gap: 10px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: #fff; display:flex; align-items:center; justify-content:center; font-weight: 700; font-size: 12px; }
+
+  /* Compact single-widget summary — replaces 6-KPI row */
+  .summary-bar { padding: 14px 24px; border-bottom: 1px solid var(--line); background: #fff; display: flex; align-items: center; gap: 18px; }
+  .summary { display: inline-flex; align-items: center; gap: 18px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .metric { display: flex; align-items: baseline; gap: 8px; }
+  .metric .num { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1; }
+  .metric .num.alert { color: var(--red); }
+  .metric .num .of { color: var(--ink-3); font-weight: 500; }
+  .metric .label { font-size: 12px; color: var(--ink-3); letter-spacing: 0.02em; }
+  .summary .v-divider { width: 1px; height: 22px; background: var(--line); }
+
+  /* Month range toggle */
+  .seg-group { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .btn-seg { padding: 7px 14px; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink-2); transition: background 0.12s, color 0.12s; }
+  .btn-seg:not(:last-child) { border-right: 1px solid var(--line); }
+  .btn-seg.active { background: var(--navy); color: #fff; font-weight: 600; }
+  .summary-bar .spacer { flex: 1; }
+
+  /* Legend */
+  .legend { display: inline-flex; gap: 14px; align-items: center; font-size: 12px; color: var(--ink-3); }
+  .legend .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .legend .sw.once-off i { border-radius: 50%; opacity: 0.7; }
+  .legend .sw.once-off { opacity: 0.75; font-style: italic; }
+  .legend .once-off-label { font-size: 11px; color: var(--ink-3); font-style: italic; padding-left: 2px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 0; }
+  .wrap { padding: 18px 24px 28px; overflow: auto; max-height: calc(100vh - 160px); }
+  .side { position: sticky; top: 0; height: calc(100vh - 60px); padding: 22px 22px 32px; border-left: 1px solid var(--line); background: #fff; overflow-y: auto; }
+
+  /* Matrix — label column + timeline column (single track per row, variable months) */
+  .matrix { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+
+  .hdr-row { display: grid; background: #FAFAFC; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+  .hdr-corner { padding: 10px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--ink-3); display: flex; align-items: center; }
+  .hdr-months { position: relative; display: grid; align-items: center; }
+  .hdr-months .mo { text-align: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.02em; border-left: 1px solid var(--line); }
+  .hdr-months .mo.now { color: var(--navy); font-weight: 700; }
+
+  .chev { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.15s; color: var(--ink-3); flex-shrink: 0; }
+  .chev svg { width: 100%; height: 100%; }
+  .collapsed .chev { transform: rotate(-90deg); }
+
+  /* Stage header — colored rule set via inline style; fatter pill */
+  .stage-head { display: grid; grid-template-columns: 360px 1fr; cursor: pointer; user-select: none; background: #FAFAFC; border-top: 1px solid var(--line); }
+  .stage-head:first-of-type { border-top: 0; }
+  .stage-head-inner { padding: 10px 16px 8px; display: flex; align-items: center; gap: 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 700; color: var(--ink-2); }
+  .stage-head .rule { width: 6px; height: 18px; border-radius: 3px; flex-shrink: 0; }
+  .stage-head-inner .title-ft { font-family: 'Fraunces', serif; color: var(--ink); font-weight: 600; font-size: 15px; text-transform: none; letter-spacing: -0.01em; }
+  .stage-head-inner .n { color: var(--ink-3); font-weight: 500; margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  /* Property row — fat left-edge indicator in stage color (or red for no-contract) */
+  .prow { display: grid; grid-template-columns: 360px 1fr; border-top: 1px solid #F5F6FB; }
+  .plabel { padding: 6px 14px 6px 20px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: #fff; transition: background 0.08s; border-left: 4px solid transparent; }
+  .plabel:hover { background: #FAFAFC; }
+  .plabel.selected { background: var(--navy); }
+  .plabel.selected .addr, .plabel.selected .sub { color: #fff; }
+  .plabel.selected .sub { opacity: 0.75; }
+  .plabel .main { flex: 1; min-width: 0; }
+  .plabel .addr { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .plabel .sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plabel .alert-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+
+  /* Track — single lane, color-changing bar (no vertical gridlines) */
+  .track { position: relative; height: 28px; cursor: pointer; }
+  .track .now-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--amber); opacity: 0.85; pointer-events: none; z-index: 3; }
+  .bar { position: absolute; top: 6px; height: 16px; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; font-size: 11px; font-weight: 600; color: #fff; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: clip; box-shadow: 0 1px 0 rgba(0,0,0,0.04); text-shadow: 0 1px 0 rgba(0,0,0,0.15); z-index: 2; transition: transform .12s ease; }
+  .bar:hover { transform: translateY(-1px); z-index: 4; }
+  /* bar background set via inline style per step */
+  .bar.flat-left { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .bar.flat-right { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .alertmark { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); z-index: 4; box-shadow: 0 0 0 1.5px #fff; }
+
+  /* Full-matrix-height today line */
+  .matrix { position: relative; }
+  .matrix-now { position: absolute; top: 0; bottom: 0; width: 2px; transform: translateX(-50%);
+    left: calc(360px + var(--now-pct) * (100% - 360px));
+    background: var(--amber); opacity: 0.28; pointer-events: none; z-index: 6; }
+
+  /* Collapsed mini timeline in stage header */
+  .collapsed-track { position: relative; align-self: stretch; min-height: 44px; }
+  .ctick-base { position: absolute; top: 50%; left: 6px; right: 6px; height: 2px; background: var(--line); transform: translateY(-50%); border-radius: 1px; }
+  .ctick { position: absolute; top: 50%; transform: translate(-50%, -50%); width: 2px; height: 18px; border-radius: 1px; opacity: 0.8; }
+  .c-now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--amber); opacity: 0.75; transform: translateX(-50%); }
+
+  /* Side panel */
+  .side h2 { font-size: 22px; color: var(--ink); letter-spacing: -0.015em; }
+  .side .addr-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  .side .phase-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+  .side .phase-chip .pc-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .side .phase-chip.pre { background: var(--navy-soft); color: var(--navy); }
+  .side .phase-chip.pre .pc-dot { background: var(--navy); }
+  .side .phase-chip.turn { background: var(--pink-soft); color: var(--pink); }
+  .side .phase-chip.turn .pc-dot { background: var(--pink); }
+  .side .phase-chip.active { background: var(--green-soft); color: var(--green); }
+  .side .phase-chip.active .pc-dot { background: var(--green); }
+  .side .phase-chip.close { background: var(--orange-soft); color: var(--orange); }
+  .side .phase-chip.close .pc-dot { background: var(--orange); }
+  .stage-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-top: 10px; color: var(--ink); }
+  .stage-desc { font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.55; }
+  .stage-legal { margin-top: 8px; font-size: 11px; color: var(--ink-3); }
+  .stage-legal code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--ink-2); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 22px; border-top: 1px solid var(--line); }
+  .stat { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .stat:nth-child(odd) { border-right: 1px solid var(--line); }
+  .stat .l { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .v { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--ink); margin-top: 2px; letter-spacing: -0.01em; }
+  .stat .v.dm { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; }
+
+  .btn { padding: 9px 14px; border-radius: 8px; font: inherit; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); }
+  .btn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .actions { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .alerts { margin-top: 14px; padding: 12px 14px; background: #FEF2F2; border-left: 3px solid var(--red); border-radius: 0 8px 8px 0; font-size: 13px; color: #991B1B; }
+  .alerts b { display: block; margin-bottom: 2px; font-size: 12px; }
+
+  /* View tabs */
+  .view-tabs { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-right: 12px; }
+  .view-tabs a { padding: 7px 14px; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink-2); text-decoration: none; display: inline-flex; align-items: center; }
+  .view-tabs a:not(:last-child) { border-right: 1px solid var(--line); }
+  .view-tabs a.active { background: var(--navy); color: #fff; font-weight: 600; }
+
+  /* Events view */
+  .events-grid { display: grid; grid-template-columns: 300px 1fr; gap: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-height: 520px; }
+  .ev-menu { border-right: 1px solid var(--line); display: flex; flex-direction: column; background: #FAFAFC; }
+  .ev-menu-inner { padding: 10px 0; flex: 1; overflow-y: auto; }
+  .ev-menu h4 { font-size: 10px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.1em; padding: 12px 18px 8px; margin: 0; }
+  .ev-item { display: flex; align-items: center; gap: 10px; padding: 10px 18px; font-size: 13px; color: var(--ink-2); cursor: pointer; border-left: 3px solid transparent; transition: background .08s; }
+  .ev-item:hover { background: #F3F4F9; }
+  .ev-item.active { background: var(--navy); color: #fff; border-left-color: transparent; }
+  .ev-item.active .ev-count { background: rgba(255,255,255,0.18); color: #fff; }
+  .ev-item .ev-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+  .ev-item .ev-ico { width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+  .ev-item .ev-ico svg { width: 13px; height: 13px; }
+  .ev-item .ev-label { flex: 1; font-weight: 500; }
+  .ev-item .ev-count { background: var(--line); color: var(--ink-2); font-size: 11px; font-weight: 600; min-width: 20px; padding: 2px 6px; border-radius: 10px; text-align: center; font-variant-numeric: tabular-nums; }
+
+
+  /* Events right widget */
+  .ev-widget { display: flex; flex-direction: column; }
+  .ev-widget-head { padding: 16px 22px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  .ev-widget-head .eh-rule { width: 6px; height: 20px; border-radius: 3px; }
+  .ev-widget-head h3 { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--ink); }
+  .ev-widget-head .eh-sub { margin-left: auto; font-size: 12px; color: var(--ink-3); }
+  .ev-list { flex: 1; overflow-y: auto; }
+  .ev-row { display: grid; grid-template-columns: 100px 1fr auto; align-items: center; gap: 14px; padding: 14px 22px; border-top: 1px solid #F5F6FB; border-left: 4px solid transparent; cursor: pointer; transition: background .08s; }
+  .ev-row:first-child { border-top: 0; }
+  .ev-row:hover { background: #FAFAFC; }
+  .ev-row.selected { background: var(--navy-soft); }
+  .ev-row .ev-when { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ev-row .ev-when.overdue { color: var(--red); }
+  .ev-row .ev-when.today { color: var(--orange); }
+  .ev-row .ev-when.soon { color: var(--ink-2); }
+  .ev-row .ev-when.future { color: var(--ink-3); }
+  .ev-row .ev-info .ev-addr { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .ev-row .ev-info .ev-ctx { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .ev-row .ev-act { padding: 7px 14px; border-radius: 8px; font: inherit; font-size: 12px; font-weight: 600; color: #fff; border: 0; cursor: pointer; }
+  .ev-empty { padding: 48px 24px; text-align: center; color: var(--ink-3); font-size: 13px; }
+
+  /* Upcoming tasks sidebar */
+  .up-head { padding: 4px 4px 14px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .up-head h2 { font-size: 20px; color: var(--ink); letter-spacing: -0.015em; }
+  .up-head .up-sub { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+  .up-head .up-overdue { color: var(--red); font-weight: 600; }
+  .up-list { display: flex; flex-direction: column; }
+  .up-row { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: flex-start; padding: 10px 4px; border-top: 1px solid #F5F6FB; cursor: pointer; transition: background .08s; }
+  .up-row:first-child { border-top: 0; }
+  .up-row:hover { background: #FAFAFC; }
+  .up-ico { width: 22px; height: 22px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-top: 2px; }
+  .up-ico svg { width: 13px; height: 13px; }
+  .up-body { min-width: 0; }
+  .up-top { display: flex; align-items: baseline; gap: 8px; }
+  .up-when { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .up-when.overdue { color: var(--red); }
+  .up-when.today { color: var(--orange); }
+  .up-when.soon { color: var(--ink-2); }
+  .up-when.future { color: var(--ink-3); }
+  .up-type { font-size: 12px; color: var(--ink-3); }
+  .up-addr { font-size: 13px; color: var(--ink); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">klikk<span>.</span></div>
+  <div class="crumb"><b>Greenwood Realty</b> · Portfolio</div>
+  <div class="topbar-right">
+    <div class="view-tabs" id="view-tabs">
+      <a class="active" href="agent-portfolio-timeline.html">By Property</a>
+      <a href="agent-portfolio-Events.html">Events</a>
+    </div>
+    <div class="seg-group" id="seg">
+      <button class="btn-seg" data-n="1">1 month</button>
+      <button class="btn-seg active" data-n="3">3 months</button>
+      <button class="btn-seg" data-n="12">12 months</button>
+    </div>
+    <div class="who"><div class="avatar">SM</div><span>Sipho M.</span></div>
+  </div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary">
+    <div class="metric"><span class="num"><span id="k-occ">0</span><span class="of">/<span id="k-total">0</span></span></span><span class="label">Occupied</span></div>
+    <div class="v-divider"></div>
+    <div class="metric"><span class="num alert" id="k-alert">0</span><span class="label">Need action</span></div>
+  </div>
+  <div class="spacer"></div>
+</div>
+
+<div class="layout">
+  <div class="wrap">
+    <div class="matrix" id="matrix"></div>
+  </div>
+  <aside class="side" id="side"></aside>
+</div>
+
+<script>
+  // Unique color per step — rule and bar use this
+  const stepColors = {
+    1:  '#2B2D6E', 2:  '#3B55C8', 3:  '#5E7CE0', 4:  '#0891B2',
+    5:  '#7C3AED', 6:  '#9333EA', 7:  '#C026D3', 8:  '#FF3D7F',
+    9:  '#DC2626', 10: '#EA580C', 11: '#D97706', 12: '#16A34A',
+    13: '#0D9488', 14: '#0284C7', 15: '#F59E0B',
+  };
+  // Recurring / background steps — skip as stage group headers in the matrix
+  const SKIP_STEPS = new Set([2, 3, 4, 5, 6, 9, 11, 13, 14]); // skip — Lease/Onboard = start of Rent; Renew = continuing Rent; Repairs = during Move-out; Market/Viewings/Screen once-off; Invoicing/Maintain recurring
+  const ONCE_OFF = new Set([3, 4]);           // once-off — show in legend only
+
+  const stages = [
+    { step: 1,  phase: 'pre',    title: 'Notice',    desc: 'Tenant or landlord gives 2-month written notice — triggers marketing.', legal: 'RHA s5(2)(b)' },
+    { step: 2,  phase: 'pre',    title: 'Market',    desc: 'List vacancy on Property24, Private Property, social media.', legal: 'POPIA s69' },
+    { step: 3,  phase: 'pre',    title: 'Viewings',  desc: 'Schedule and conduct viewings while previous tenant occupies.', legal: 'POPIA s11(1)(b), s18' },
+    { step: 4,  phase: 'pre',    title: 'Screen',    desc: 'AI scores applicants: credit, criminal, ID, employment, rental history.', legal: 'POPIA s27+s35, s71' },
+    { step: 5,  phase: 'pre',    title: 'Lease',     desc: 'AI generates RHA-compliant lease, e-sign from any device.', legal: 'RHA s5(3), ECTA s13' },
+    { step: 6,  phase: 'pre',    title: 'Invoicing', desc: 'Configure recurring rent schedule, escalation, payment method.', legal: 'RHA s4A(2)(b)' },
+    { step: 7,  phase: 'pre',    title: 'Deposit',   desc: 'Collect deposit + first month; lodge in interest-bearing account.', legal: 'RHA s5(3)(b)–(c)' },
+    { step: 8,  phase: 'turn',   title: 'Move-Out',  desc: 'Joint outgoing inspection, photos, signed report, keys returned.', legal: 'RHA s5(3)(g)' },
+    { step: 9,  phase: 'turn',   title: 'Repairs',   desc: 'Overnight contractors work from snag list — clean, paint, fix.', legal: 'POPIA s20–21' },
+    { step: 10, phase: 'turn',   title: 'Move-In',   desc: 'Joint incoming inspection with photo evidence, signed report.', legal: 'RHA s5(3)(e)–(f)' },
+    { step: 11, phase: 'turn',   title: 'Onboard',   desc: 'Keys, utilities transfer, welcome pack, tenant portal setup.', legal: 'POPIA s18' },
+    { step: 12, phase: 'active', title: 'Rent',      desc: 'Monthly invoices, payment tracking, receipts on request.', legal: 'RHA s5(3)(d)' },
+    { step: 13, phase: 'active', title: 'Maintain',  desc: 'AI triage, supplier matching, dispatch, tenant app tickets.', legal: 'RHA s4A(2)(c)' },
+    { step: 14, phase: 'active', title: 'Renew',     desc: 'Renewal at 80 biz days; renew, month-to-month, or vacate → stage 1.', legal: 'RHA s4A(2)(d), CPA s14' },
+    { step: 15, phase: 'close',  title: 'Refund',    desc: 'Itemised deposit refund with all accrued interest within 7/14/21 days.', legal: 'RHA s5(3)(g)–(i)' },
+  ];
+  const phaseLabels = { pre: 'Pre-tenancy', turn: 'Turnaround', active: 'Active tenancy', close: 'Closeout' };
+  const phaseDesc = {
+    pre: 'Stages 1–7 · previous tenant still occupies',
+    turn: 'Stages 8–11 · overnight PM move-out → AM move-in',
+    active: 'Stages 12–14 · 12-month lease running',
+    close: 'Stage 15 · deposit refund with interest'
+  };
+  const phaseOf = (step) => stages[step - 1].phase;
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const YEAR = 2026;
+  const NOW_MONTH = 3; // April
+
+  function seeded(i) { let x = Math.sin(i * 9301 + 49297) * 233280; return x - Math.floor(x); }
+  const suburbs = ['Stellenbosch','Sea Point','Claremont','Gardens','Rondebosch','Observatory','Newlands','Woodstock','Green Point','Sandton','Rosebank','Parkhurst','Melville','Bryanston','Morningside','Umhlanga','Ballito','Durbanville','Table View','Somerset West'];
+  const streets = ['Oak','Main','Church','Victoria','High','Long','Bree','Loop','Kloof','Orange','Adderley','Plein','Strand','Beach','Dorp','Ryneveld','Protea','Jacaranda','Acacia','Cedar'];
+  const types   = ['1-Bed Apt','2-Bed Apt','3-Bed House','Studio','2-Bed Townhouse','3-Bed Townhouse','4-Bed House','Penthouse','Loft'];
+  const tenants = ['Nomvula D.','Thabo M.','Hendrik P.','Ayesha K.','Lerato N.','Rowan S.','Farai C.','Jenna W.','Kgomotso L.','Daniel V.','Priya R.','Sibusiso Z.','Anke van R.','Tumi B.','Claire O.','Bongani N.','Maryam E.','Johan du P.','Nadia H.','Sipho G.'];
+
+  function pickStage(i) {
+    const r = seeded(i);
+    if (r < 0.70) return 12 + Math.floor(seeded(i*3) * 3);
+    if (r < 0.78) return 8 + Math.floor(seeded(i*7) * 4);
+    if (r < 0.92) return 1 + Math.floor(seeded(i*11) * 7);
+    if (r < 0.97) return 15;
+    return 1 + Math.floor(seeded(i*13) * 15);
+  }
+
+  const properties = [];
+  for (let i = 1; i <= 60; i++) {
+    const streetNum = 1 + Math.floor(seeded(i) * 180);
+    const st = streets[Math.floor(seeded(i*2) * streets.length)];
+    const sub = suburbs[Math.floor(seeded(i*5) * suburbs.length)];
+    const type = types[Math.floor(seeded(i*8) * types.length)];
+    const rent = 6500 + Math.floor(seeded(i*17) * 44) * 500;
+    const tenant = tenants[Math.floor(seeded(i*23) * tenants.length)];
+    const current = pickStage(i);
+    const alert = seeded(i*29) < 0.22;
+
+    const ph = phaseOf(current);
+    let leaseStartMonth;
+    if (ph === 'active') {
+      const monthsIn = current === 12 ? 1 + Math.floor(seeded(i*31)*3)
+                    : current === 13 ? 4 + Math.floor(seeded(i*31)*5)
+                    : 10 + Math.floor(seeded(i*31)*2);
+      leaseStartMonth = NOW_MONTH - monthsIn;
+    } else if (ph === 'turn') {
+      leaseStartMonth = NOW_MONTH;
+    } else if (ph === 'pre') {
+      leaseStartMonth = NOW_MONTH + (current <= 2 ? 2 : 1);
+    } else {
+      leaseStartMonth = NOW_MONTH - 12;
+    }
+
+    // Vacant properties (no active contract) — every 9th property is vacant
+    const noContract = i % 9 === 0 || (seeded(i*37) < 0.08 && phaseOf(current) !== 'active');
+    properties.push({
+      id: i,
+      address: `${streetNum} ${st} Street`,
+      suburb: sub, type, rent, tenant, current, alert, leaseStartMonth, noContract,
+      deposit: rent * 2,
+      alertReason: alert ? (['Rent arrears · 7 days','Renewal notice due in 4 days','Inspection report unsigned','Deposit refund deadline tomorrow','Contractor overdue','Tenant ticket SLA breach'][i % 6]) : null
+    });
+  }
+
+  // Sequential single-lane events — one segment per step, no recurring steps (6, 13).
+  function buildEvents(p) {
+    const s = p.leaseStartMonth;
+    return [
+      { step: 1,  title: 'Notice',   start: s - 2.5, end: s - 2   },
+      { step: 7,  title: 'Deposit',  start: s - 0.2, end: s       },
+      { step: 8,  title: 'Move-out', start: s,       end: s + 0.4 },
+      { step: 10, title: 'Move-in',  start: s + 0.4, end: s + 0.6 },
+      { step: 12, title: 'Rent',     start: s + 0.6, end: s + 12  },
+      { step: 15, title: 'Refund',   start: s + 12,  end: s + 12.5},
+    ];
+  }
+
+  const buckets = { pre: {}, turn: {}, active: {}, close: {} };
+  stages.forEach(s => { buckets[s.phase][s.step] = []; });
+  properties.forEach(p => { buckets[phaseOf(p.current)][p.current].push(p); });
+  Object.values(buckets).forEach(st => {
+    Object.values(st).forEach(arr => arr.sort((a,b) => a.id - b.id));
+  });
+
+  const phaseCounts = { pre: 0, turn: 0, active: 0, close: 0 };
+  properties.forEach(p => { phaseCounts[phaseOf(p.current)]++; });
+  const occupied = phaseCounts.active + phaseCounts.close;
+  document.getElementById('k-total').textContent = properties.length;
+  document.getElementById('k-occ').textContent = occupied;
+  document.getElementById('k-alert').textContent = properties.filter(p => p.alert).length;
+
+  const matrix = document.getElementById('matrix');
+  let selectedId = properties.find(p => p.alert)?.id || buckets.active[12]?.[0]?.id || 1;
+  let monthRange = 3; // 1 | 3 | 12
+  const collapsedStates = new Set();
+  const collapsedStages = new Set();
+
+  document.querySelectorAll('#seg .btn-seg').forEach(btn => {
+    btn.addEventListener('click', () => {
+      monthRange = parseInt(btn.dataset.n, 10);
+      document.querySelectorAll('#seg .btn-seg').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  function monthWindow() {
+    if (monthRange === 1) return { start: NOW_MONTH, end: NOW_MONTH + 1 };
+    if (monthRange === 3) return { start: NOW_MONTH - 1, end: NOW_MONTH + 2 };
+    return { start: 0, end: 12 };
+  }
+
+  function chevSvg() {
+    return '<span class="chev"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span>';
+  }
+
+  function buildCollapsedTrack(props, start, end, span) {
+    const ct = document.createElement('div');
+    ct.className = 'collapsed-track';
+    const base = document.createElement('div');
+    base.className = 'ctick-base';
+    ct.appendChild(base);
+    // Collect unique event-start positions within the window
+    const seen = new Map();
+    props.forEach(p => {
+      buildEvents(p).forEach(ev => {
+        if (ev.start >= start && ev.start < end) {
+          const pct = Math.round(((ev.start - start) / span) * 1000) / 10;
+          if (!seen.has(pct)) seen.set(pct, ev.step);
+        }
+      });
+    });
+    seen.forEach((step, pct) => {
+      const tick = document.createElement('div');
+      tick.className = 'ctick';
+      tick.style.cssText = `left:${pct}%;background:${stepColors[step]}`;
+      ct.appendChild(tick);
+    });
+    if (NOW_MONTH + 0.5 >= start && NOW_MONTH + 0.5 < end) {
+      const nl = document.createElement('div');
+      nl.className = 'c-now';
+      nl.style.left = `${((NOW_MONTH + 0.5 - start) / span) * 100}%`;
+      ct.appendChild(nl);
+    }
+    return ct;
+  }
+
+  function render() {
+    matrix.innerHTML = '';
+    const { start, end } = monthWindow();
+    const span = end - start;
+    // Set today CSS var for full-matrix line: fraction of track width
+    if (NOW_MONTH + 0.5 >= start && NOW_MONTH + 0.5 <= end) {
+      matrix.style.setProperty('--now-pct', ((NOW_MONTH + 0.5 - start) / span).toFixed(4));
+      const nl = document.createElement('div');
+      nl.className = 'matrix-now';
+      matrix.appendChild(nl);
+    } else {
+      matrix.style.removeProperty('--now-pct');
+    }
+    const gridCols = `repeat(${span}, 1fr)`;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'hdr-row';
+    hdr.style.gridTemplateColumns = '360px 1fr';
+    const corner = document.createElement('div');
+    corner.className = 'hdr-corner';
+    corner.textContent = 'Property · Stage';
+    hdr.appendChild(corner);
+    const moWrap = document.createElement('div');
+    moWrap.className = 'hdr-months';
+    moWrap.style.gridTemplateColumns = gridCols;
+    for (let m = start; m < end; m++) {
+      const cell = document.createElement('div');
+      cell.className = 'mo' + (m === NOW_MONTH ? ' now' : '');
+      const mi = ((m % 12) + 12) % 12;
+      const yr = YEAR + Math.floor(m / 12);
+      cell.textContent = (span <= 3 ? `${MONTHS[mi]} ${yr}` : MONTHS[mi]);
+      moWrap.appendChild(cell);
+    }
+    hdr.appendChild(moWrap);
+    matrix.appendChild(hdr);
+
+    const order = ['pre', 'turn', 'active', 'close'];
+    order.forEach(phase => {
+      stages.filter(s => s.phase === phase && !SKIP_STEPS.has(s.step)).forEach(s => {
+        const props = buckets[phase][s.step];
+        if (!props || props.length === 0) return;
+        const stageKey = `${phase}-${s.step}`;
+        const stCollapsed = collapsedStages.has(stageKey);
+        const color = stepColors[s.step];
+
+        const stg = document.createElement('div');
+        stg.className = `stage-head` + (stCollapsed ? ' collapsed' : '');
+        const rightCell = document.createElement('div');
+        if (stCollapsed) rightCell.appendChild(buildCollapsedTrack(props, start, end, span));
+        stg.innerHTML = `
+          <div class="stage-head-inner">
+            ${chevSvg()}
+            <span class="rule" style="background:${color}"></span>
+            <span class="title-ft">${s.title}</span>
+            <span class="n">${props.length}</span>
+          </div>`;
+        stg.appendChild(rightCell);
+        stg.addEventListener('click', () => {
+          if (collapsedStages.has(stageKey)) collapsedStages.delete(stageKey); else collapsedStages.add(stageKey);
+          render();
+        });
+        matrix.appendChild(stg);
+        if (stCollapsed) return;
+
+        props.forEach(p => {
+          const row = document.createElement('div');
+          row.className = 'prow';
+
+          const lbl = document.createElement('div');
+          lbl.className = 'plabel' + (p.id === selectedId ? ' selected' : '');
+          const edgeColor = p.noContract ? 'var(--red)' : color;
+          lbl.style.borderLeftColor = edgeColor;
+          lbl.innerHTML = `${p.alert ? '<span class="alert-dot"></span>' : ''}
+            <div class="main">
+              <div class="addr">${p.address}, ${p.suburb}</div>
+            </div>`;
+          lbl.addEventListener('click', () => { selectedId = p.id; render(); renderSide(); });
+          row.appendChild(lbl);
+
+          const track = document.createElement('div');
+          track.className = 'track';
+          track.addEventListener('click', () => { selectedId = p.id; render(); renderSide(); });
+
+          if (NOW_MONTH + 0.5 >= start && NOW_MONTH + 0.5 <= end) {
+            const nl = document.createElement('div');
+            nl.className = 'now-line';
+            nl.style.left = `${((NOW_MONTH + 0.5 - start) / span) * 100}%`;
+            track.appendChild(nl);
+          }
+
+          const evs = buildEvents(p);
+          const visible = evs.map(ev => ({
+            ...ev,
+            a: Math.max(ev.start, start),
+            b: Math.min(ev.end, end),
+          })).filter(ev => ev.b > ev.a);
+          visible.forEach((ev, vi) => {
+            const left = ((ev.a - start) / span) * 100;
+            const width = ((ev.b - ev.a) / span) * 100;
+            if (width < 0.2) return;
+            const prev = visible[vi - 1];
+            const next = visible[vi + 1];
+            const flatL = ev.start < start || (prev && prev.b >= ev.a - 0.01);
+            const flatR = ev.end > end || (next && next.a <= ev.b + 0.01);
+            const bar = document.createElement('div');
+            bar.className = `bar${flatL ? ' flat-left' : ''}${flatR ? ' flat-right' : ''}`;
+            bar.style.cssText = `left:${left}%;width:${width}%;background:${stepColors[ev.step]}`;
+            // ~56px of label space needed; track ≈ matrix width minus 360px label column
+            bar.textContent = width >= 10 ? ev.title : '';
+            bar.title = `${p.address} · ${ev.title}`;
+            bar.dataset.step = ev.step;
+            track.appendChild(bar);
+          });
+
+          if (p.alert) {
+            const am = document.createElement('div');
+            am.className = 'alertmark';
+            track.appendChild(am);
+          }
+
+          row.appendChild(track);
+          matrix.appendChild(row);
+        });
+      });
+    });
+  }
+
+
+  function renderSide() {
+    const p = properties.find(x => x.id === selectedId);
+    if (!p) return;
+    const s = stages[p.current - 1];
+    const phCls = s.phase;
+    const primaryAction = s.phase === 'turn' ? 'Dispatch contractor'
+                         : s.phase === 'close' ? 'Process refund'
+                         : s.phase === 'pre' ? 'Review applicants'
+                         : 'Send receipt';
+    const startMi = ((p.leaseStartMonth % 12) + 12) % 12;
+    const startYr = YEAR + Math.floor(p.leaseStartMonth / 12);
+    document.getElementById('side').innerHTML = `
+      <h2>${p.address}</h2>
+      <div class="addr-sub">${p.suburb} · ${p.type}</div>
+      <div class="phase-chip ${phCls}"><span class="pc-dot"></span>${phaseLabels[phCls]} · stage ${s.step} of 15</div>
+
+      <div class="stage-title">${s.title}</div>
+      <div class="stage-desc">${s.desc}</div>
+      <div class="stage-legal">Legal anchor · <code>${s.legal}</code></div>
+
+      ${p.alert ? `<div class="alerts"><b>Action needed today</b>${p.alertReason}</div>` : ''}
+
+      <div class="actions">
+        <button class="btn primary">${primaryAction}</button>
+        <button class="btn">Open property</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="l">Tenant</div><div class="v dm">${p.tenant}</div></div>
+        <div class="stat"><div class="l">Rent / month</div><div class="v">R${p.rent.toLocaleString()}</div></div>
+        <div class="stat"><div class="l">Deposit held</div><div class="v">R${p.deposit.toLocaleString()}</div></div>
+        <div class="stat"><div class="l">Lease start</div><div class="v dm">${MONTHS[startMi]} ${startYr}</div></div>
+      </div>
+    `;
+  }
+
+  // ───────────────────────────── Shared: icons + event catalog (used by Upcoming Tasks sidebar) ─────────────────────────────
+
+  const ICONS = {
+    'rent-overdue':   '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+    'deposit-refund': '<path d="M3 7h13a5 5 0 010 10h-3"/><path d="M6 20l-3-3 3-3"/>',
+    'move-out':       '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+    'move-in':        '<path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l-5-5 5-5"/><path d="M15 12H3"/>',
+    'sign-contract':  '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+    'notice':         '<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/>',
+    'viewings':       '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
+    'screen':         '<path d="M20 6L9 17l-5-5"/>',
+    'owner-approval': '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    'renewal-due':    '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/>',
+    'maintenance':    '<path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>',
+    'no-contract':    '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 3l18 18"/>',
+  };
+  function iconSvg(key) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${ICONS[key] || ICONS.maintenance}</svg>`;
+  }
+
+  const EVENT_TYPES = [
+    { key: 'rent-overdue',   label: 'Rent overdue',   color: stepColors[9],  action: 'Collect',     match: p => !p.noContract && p.alert && p.alertReason && p.alertReason.includes('arrears') },
+    { key: 'deposit-refund', label: 'Deposit refund', color: stepColors[15], action: 'Refund',      match: p => p.current === 15 || (p.alert && p.alertReason && p.alertReason.includes('Deposit refund')) },
+    { key: 'move-out',       label: 'Move-out',       color: stepColors[8],  action: 'Inspect',     match: p => p.current === 8 && !p.noContract },
+    { key: 'move-in',        label: 'Move-in',        color: stepColors[10], action: 'Inspect',     match: p => p.current === 10 },
+    { key: 'sign-contract',  label: 'Sign contract',  color: stepColors[5],  action: 'Send to sign',match: p => p.current === 5 },
+    { key: 'notice',         label: 'Notice',         color: stepColors[1],  action: 'Acknowledge', match: p => p.current === 1 && !p.noContract },
+    { key: 'viewings',       label: 'Viewings',       color: stepColors[3],  action: 'Host',        match: p => p.current === 3 },
+    { key: 'screen',         label: 'Screen',         color: stepColors[4],  action: 'Review',      match: p => p.current === 4 },
+    { key: 'owner-approval', label: 'Owner approval', color: stepColors[11], action: 'Chase owner', match: p => p.alert && p.alertReason && p.alertReason.includes('Inspection report unsigned') },
+    { key: 'renewal-due',    label: 'Renewal due',    color: stepColors[14], action: 'Draft offer', match: p => p.current === 14 || (p.alert && p.alertReason && p.alertReason.includes('Renewal notice')) },
+    { key: 'maintenance',    label: 'Maintenance',    color: '#D97706',      action: 'Dispatch',    match: p => p.alert && p.alertReason && (p.alertReason.includes('Contractor') || p.alertReason.includes('ticket')) },
+    { key: 'no-contract',    label: 'No contract',    color: '#DC2626',      action: 'List',        match: p => p.noContract },
+  ];
+
+  // Relative date for sorting: days offset from today (negative = overdue)
+  function eventOffsetDays(p, key) {
+    const h = seeded(p.id * 41 + key.length);
+    const offsets = {
+      'rent-overdue':   -Math.ceil(h * 14) - 1,   // 1–15 days overdue
+      'deposit-refund': Math.ceil(h * 7) - 3,     // -3..+4 days
+      'move-out':       Math.ceil(h * 10) - 2,    // -2..+8
+      'move-in':        Math.ceil(h * 10),        // 0..+10
+      'sign-contract':  Math.ceil(h * 6) - 1,     // -1..+5
+      'notice':         Math.ceil(h * 20) - 5,    // -5..+15
+      'viewings':       Math.ceil(h * 14),        // 0..+14
+      'screen':         Math.ceil(h * 5) - 1,     // -1..+4
+      'owner-approval': Math.ceil(h * 10) - 4,    // -4..+6
+      'renewal-due':    Math.ceil(h * 60) + 5,    // +5..+65
+      'maintenance':    Math.ceil(h * 8) - 3,     // -3..+5
+      'no-contract':    Math.ceil(h * 30) - 10,   // -10..+20 (days vacant)
+    };
+    return offsets[key] ?? 0;
+  }
+
+  function whenLabel(days) {
+    if (days < 0) return { text: `Overdue ${-days}d`, cls: 'overdue' };
+    if (days === 0) return { text: 'Today', cls: 'today' };
+    if (days === 1) return { text: 'Tomorrow', cls: 'today' };
+    if (days <= 7) return { text: `in ${days}d`, cls: 'soon' };
+    return { text: `in ${days}d`, cls: 'future' };
+  }
+
+  function contextFor(p, key) {
+    switch (key) {
+      case 'rent-overdue':   return `R${p.rent.toLocaleString()} unpaid · ${p.tenant}`;
+      case 'deposit-refund': return `R${p.deposit.toLocaleString()} held · outgoing tenant ${p.tenant}`;
+      case 'move-out':       return `Outgoing inspection · ${p.tenant} vacating`;
+      case 'move-in':        return `Incoming inspection · ${p.tenant}`;
+      case 'sign-contract':  return `Lease ready · awaiting ${p.tenant}`;
+      case 'notice':         return `2-month notice from ${p.tenant}`;
+      case 'viewings':       return `Scheduled viewing slot`;
+      case 'screen':         return `Applicant screening · ${p.tenant}`;
+      case 'owner-approval': return `Owner gate pending · inspection report`;
+      case 'renewal-due':    return `Lease ends in 80 business days · ${p.tenant}`;
+      case 'maintenance':    return p.alertReason || 'Open ticket';
+      case 'no-contract':    return `Vacant · R${p.rent.toLocaleString()}/mo potential`;
+    }
+    return '';
+  }
+
+  function matchesForType(key) {
+    const t = EVENT_TYPES.find(t => t.key === key);
+    if (!t) return [];
+    return properties.filter(t.match).map(p => {
+      const days = eventOffsetDays(p, key);
+      return { p, days, when: whenLabel(days), ctx: contextFor(p, key) };
+    }).sort((a, b) => a.days - b.days);
+  }
+
+  function vacantProperties() {
+    return properties.filter(p => p.noContract);
+  }
+
+  // Upcoming tasks feed — global, sorted by date (all action queue items across all properties)
+  function allUpcoming() {
+    const rows = [];
+    EVENT_TYPES.forEach(t => {
+      properties.filter(t.match).forEach(p => {
+        const days = eventOffsetDays(p, t.key);
+        rows.push({ t, p, days, when: whenLabel(days) });
+      });
+    });
+    return rows.sort((a, b) => a.days - b.days);
+  }
+
+  function renderUpcoming() {
+    const el = document.getElementById('side');
+    const rows = allUpcoming();
+    const overdue = rows.filter(r => r.days < 0).length;
+    el.innerHTML = `
+      <div class="up-head">
+        <h2>Upcoming tasks</h2>
+        <div class="up-sub">${rows.length} total${overdue ? ' · <span class="up-overdue">' + overdue + ' overdue</span>' : ''}</div>
+      </div>
+      <div class="up-list">
+        ${rows.map(r => `
+          <div class="up-row" data-id="${r.p.id}">
+            <span class="up-ico" style="background:${r.t.color}">${iconSvg(r.t.key)}</span>
+            <div class="up-body">
+              <div class="up-top"><span class="up-when ${r.when.cls}">${r.when.text}</span><span class="up-type">${r.t.label}</span></div>
+              <div class="up-addr">${r.p.address}, ${r.p.suburb}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    el.querySelectorAll('.up-row').forEach(row => {
+      row.addEventListener('click', () => {
+        selectedId = parseInt(row.dataset.id, 10);
+        render();
+      });
+    });
+  }
+
+  render();
+  renderUpcoming();
+</script>
+</body>
+</html>

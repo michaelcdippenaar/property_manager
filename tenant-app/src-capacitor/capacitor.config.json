@@ -1,0 +1,6 @@
+{
+  "appId": "org.capacitor.quasar.app",
+  "appName": "Klikk Tenant",
+  "webDir": "www",
+  "server": {}
+}

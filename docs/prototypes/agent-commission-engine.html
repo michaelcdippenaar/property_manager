@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Agent — Commission Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy:#2B2D6E; --navy-dark:#23255a; --navy-light:#3b3e8f;
+  --accent:#FF3D7F; --accent-light:#FF6B9D; --accent-dark:#e02d6b;
+  --surface:#F5F5F8; --surface-secondary:#F0EFF8; --white:#FFFFFF;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+  --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+  --gray-800:#1f2937;--gray-900:#111827;
+  --success-50:#f0fdfa;--success-100:#ccfbf1;--success-600:#0d9488;--success-700:#0f766e;
+  --warning-50:#fffbeb;--warning-100:#fef3c7;--warning-600:#d97706;--warning-700:#b45309;
+  --danger-50:#fef2f2;--danger-100:#fee2e2;--danger-600:#dc2626;--danger-700:#b91c1c;
+  --wa:#25D366; --p24:#00A6D6; --ig:#E4405F; --pp:#F7941D;
+  --shadow-soft:0 1px 2px rgba(15,17,57,0.04),0 2px 6px rgba(15,17,57,0.04);
+  --shadow-lifted:0 4px 12px rgba(15,17,57,0.08),0 12px 24px rgba(15,17,57,0.06);
+  --shadow-phone:0 20px 48px rgba(15,17,57,0.14),0 8px 16px rgba(15,17,57,0.08);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:15px}
+body{
+  font-family:'DM Sans',system-ui,-apple-system,sans-serif;
+  background:#EEEDF4;
+  background-image:radial-gradient(#2B2D6E14 1px,transparent 1px);
+  background-size:24px 24px;
+  color:#111;min-height:100vh;
+  padding:40px 24px 80px;
+}
+.page-header{max-width:1400px;margin:0 auto 48px;text-align:center}
+.page-header .tag{display:inline-block;padding:6px 14px;background:var(--accent);color:white;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:14px}
+.page-header h1{font-family:'Fraunces',Georgia,serif;font-size:2.6rem;font-weight:600;color:var(--navy);letter-spacing:-0.02em;margin-bottom:10px}
+.page-header p{color:var(--gray-600);font-size:1rem;max-width:720px;margin:0 auto;line-height:1.55}
+.page-header .thesis{margin-top:16px;display:inline-block;padding:10px 18px;background:var(--navy);color:white;border-radius:10px;font-size:12px;font-weight:600;letter-spacing:0.01em}
+
+.grid{max-width:1400px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:32px 24px}
+@media (max-width:1280px){.grid{grid-template-columns:repeat(2,1fr);max-width:760px}}
+@media (max-width:680px){.grid{grid-template-columns:1fr;max-width:360px}}
+.frame-wrap{display:flex;flex-direction:column;align-items:center}
+.frame-label{margin-bottom:12px;text-align:center}
+.frame-label .state-num{display:inline-block;background:var(--navy);color:white;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;line-height:22px;margin-right:8px;vertical-align:middle}
+.frame-label .state-name{font-weight:600;color:var(--navy);font-size:0.95rem;vertical-align:middle}
+.frame-label .state-desc{display:block;color:var(--gray-500);font-size:0.78rem;margin-top:4px;max-width:260px}
+
+/* Phone shell */
+.phone{width:320px;height:658px;background:#000;border-radius:44px;padding:10px;box-shadow:var(--shadow-phone);position:relative;flex-shrink:0}
+.phone::before{content:'';position:absolute;top:18px;left:50%;transform:translateX(-50%);width:100px;height:28px;background:#000;border-radius:20px;z-index:10}
+.screen{width:100%;height:100%;background:var(--surface);border-radius:34px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.status-bar{height:44px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 24px 6px;font-size:13px;font-weight:600;color:var(--gray-900)}
+
+/* App header */
+.app-hd{padding:8px 16px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.app-hd-title{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:600;color:var(--navy);letter-spacing:-0.01em}
+.app-hd-sub{font-size:10px;color:var(--gray-500);margin-top:-1px}
+.avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-light) 100%);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;box-shadow:var(--shadow-soft);flex-shrink:0}
+
+/* Body scroll */
+.body-scroll{flex:1;overflow:hidden;padding:0 0 90px;position:relative}
+
+/* Tab bar */
+.tab-bar{position:absolute;bottom:0;left:0;right:0;height:78px;background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);border-top:1px solid var(--gray-100);display:flex;justify-content:space-around;align-items:flex-start;padding:10px 0 20px}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--gray-400);font-weight:600}
+.tab .tab-ico{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tab.active{color:var(--navy);font-weight:700}
+.tab.active .tab-ico-wrap{width:36px;height:36px;border-radius:50%;background:var(--navy);display:flex;align-items:center;justify-content:center;transform:translateY(-10px);box-shadow:0 6px 14px rgba(43,45,110,0.35);margin-bottom:-8px;position:relative}
+.tab.active .tab-ico-wrap::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:54px;height:54px;border-radius:50%;background:radial-gradient(circle,rgba(255,61,127,0.18) 30%,transparent 70%);z-index:-1}
+.tab.active .tab-ico{stroke:white;color:white;stroke-width:2;width:18px;height:18px}
+.tab-badge{position:absolute;top:-2px;right:-6px;background:var(--accent);color:white;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;line-height:1.4;min-width:14px;text-align:center;border:2px solid white}
+.tab-ico-wrap-simple{position:relative}
+
+/* Icons */
+.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ico-sm{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.ico-lg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+/* ═══ TODAY PAGE ═══ */
+.hero-earnings{margin:6px 16px 14px;padding:18px 18px 20px;background:linear-gradient(135deg,var(--navy) 0%,var(--navy-dark) 100%);border-radius:20px;color:white;position:relative;overflow:hidden}
+.hero-earnings::before{content:'';position:absolute;top:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(255,61,127,0.22) 0%,transparent 70%)}
+.hero-label{font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.75;position:relative}
+.hero-amount{font-family:'Fraunces',Georgia,serif;font-size:36px;font-weight:500;margin-top:4px;letter-spacing:-0.02em;position:relative;line-height:1}
+.hero-amount .rand{font-size:18px;opacity:0.7;margin-right:4px;font-weight:400}
+.hero-progress{margin-top:14px;position:relative;z-index:1}
+.hero-progress-bar{height:6px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden}
+.hero-progress-fill{height:100%;background:linear-gradient(90deg,var(--accent) 0%,var(--accent-light) 100%);border-radius:3px;width:64%}
+.hero-progress-meta{display:flex;justify-content:space-between;font-size:11px;margin-top:6px;opacity:0.8}
+
+/* Next-move card */
+.next-move{margin:0 16px 14px;padding:16px;background:white;border-radius:16px;box-shadow:var(--shadow-soft);border-left:3px solid var(--accent)}
+.next-move-eyebrow{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:6px}
+.next-move-title{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:500;color:var(--gray-900);margin-top:6px;letter-spacing:-0.01em;line-height:1.3}
+.next-move-sub{font-size:11px;color:var(--gray-500);margin-top:6px;line-height:1.5}
+.next-move-cta{margin-top:12px;padding:11px 14px;background:var(--accent);color:white;border-radius:10px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+
+/* Pulse grid */
+.grp{padding:2px 16px 6px;display:flex;align-items:center;gap:8px}
+.grp-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--navy)}
+.grp-rule{flex:1;height:1px;background:linear-gradient(to right,var(--gray-200),transparent)}
+
+.pulse-grid{margin:0 16px 10px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pulse-tile{background:white;border-radius:12px;padding:12px;box-shadow:var(--shadow-soft)}
+.pulse-tile-v{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:500;color:var(--navy);letter-spacing:-0.01em;line-height:1}
+.pulse-tile-v .rand{font-size:13px;opacity:0.6}
+.pulse-tile-l{font-size:10px;color:var(--gray-500);margin-top:4px;font-weight:500}
+.pulse-tile.warn{background:var(--warning-50)}
+.pulse-tile.warn .pulse-tile-v{color:var(--warning-700)}
+.pulse-tile.accent .pulse-tile-v{color:var(--accent)}
+
+/* Later today */
+.later-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:white;margin:0 16px 6px;border-radius:12px;box-shadow:var(--shadow-soft)}
+.later-time{font-size:10px;font-weight:700;color:var(--gray-500);width:42px;text-transform:uppercase}
+.later-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.later-dot.navy{background:var(--navy)}
+.later-body{flex:1;min-width:0}
+.later-title{font-size:12px;font-weight:600;color:var(--gray-900)}
+.later-sub{font-size:10px;color:var(--gray-500);margin-top:1px}
+
+/* ═══ PIPELINE PAGE ═══ */
+.funnel-tabs{display:flex;gap:6px;padding:4px 16px 10px;overflow-x:auto}
+.funnel-tab{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 12px;background:white;border-radius:10px;border:1px solid var(--gray-100);min-width:62px;flex-shrink:0}
+.funnel-tab.active{background:var(--navy);color:white;border-color:var(--navy);box-shadow:0 4px 10px rgba(43,45,110,0.25)}
+.funnel-tab-n{font-family:'Fraunces',Georgia,serif;font-size:17px;font-weight:600;color:var(--navy);line-height:1}
+.funnel-tab.active .funnel-tab-n{color:white}
+.funnel-tab-l{font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--gray-500)}
+.funnel-tab.active .funnel-tab-l{color:rgba(255,255,255,0.85)}
+
+.forecast{margin:0 16px 12px;padding:12px 14px;background:linear-gradient(135deg,var(--accent) 0%,var(--accent-dark) 100%);border-radius:12px;color:white;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden}
+.forecast::before{content:'';position:absolute;top:-20px;right:-10px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.1)}
+.forecast-ico{width:32px;height:32px;border-radius:10px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative}
+.forecast-body{flex:1;position:relative}
+.forecast-l{font-size:9px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;opacity:0.85}
+.forecast-v{font-family:'Fraunces',Georgia,serif;font-size:18px;font-weight:500;margin-top:1px;line-height:1.1}
+
+/* Listing card */
+.listing-card{margin:0 16px 10px;background:white;border-radius:14px;overflow:hidden;box-shadow:var(--shadow-soft)}
+.listing-img{height:78px;position:relative;background:linear-gradient(135deg,#c9d5e6 0%,#8ea3c0 100%)}
+.listing-img.b{background:linear-gradient(135deg,#d8c9bb 0%,#9b8775 100%)}
+.listing-img.c{background:linear-gradient(135deg,#bdd3c5 0%,#708a79 100%)}
+.listing-img::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(17,24,39,0.35),transparent 60%)}
+.listing-dom{position:absolute;top:8px;left:8px;background:rgba(17,24,39,0.75);color:white;padding:3px 8px;border-radius:999px;font-size:9px;font-weight:700;letter-spacing:0.04em}
+.listing-dom.stale{background:var(--warning-600)}
+.listing-dom.hot{background:var(--accent)}
+.listing-body{padding:10px 12px 12px}
+.listing-title{font-size:12px;font-weight:700;color:var(--gray-900);letter-spacing:-0.01em}
+.listing-sub{font-size:10px;color:var(--gray-500);margin-top:2px}
+.listing-meta{display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap}
+.listing-price{font-family:'Fraunces',Georgia,serif;font-size:14px;font-weight:600;color:var(--navy)}
+.portal-chip{font-size:8px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:0.04em}
+.portal-chip.p24{background:#e5f5fa;color:var(--p24)}
+.portal-chip.pp{background:#fff1de;color:var(--pp)}
+.portal-chip.ig{background:#fde4ea;color:var(--ig)}
+.portal-chip.wa{background:#dcf7e6;color:#128c4a}
+
+/* ═══ PEOPLE PAGE ═══ */
+.search-bar{margin:0 16px 10px;padding:10px 14px;background:white;border-radius:12px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-soft)}
+.search-bar .ico{color:var(--gray-400)}
+.search-bar-text{font-size:12px;color:var(--gray-400)}
+
+.segment{display:flex;gap:4px;margin:0 16px 12px;padding:3px;background:var(--gray-100);border-radius:10px}
+.seg{flex:1;padding:7px 6px;text-align:center;font-size:11px;font-weight:600;color:var(--gray-500);border-radius:8px}
+.seg.active{background:white;color:var(--navy);box-shadow:0 1px 3px rgba(15,17,57,0.1)}
+.seg-c{display:inline-block;font-size:10px;padding:0 5px;background:var(--gray-200);color:var(--gray-600);border-radius:6px;margin-left:3px;font-weight:700}
+.seg.active .seg-c{background:var(--navy);color:white}
+
+.match-banner{margin:0 16px 10px;padding:12px;background:linear-gradient(135deg,rgba(255,61,127,0.08) 0%,rgba(255,61,127,0.12) 100%);border:1px solid rgba(255,61,127,0.2);border-radius:12px;display:flex;align-items:center;gap:10px}
+.match-ico{width:32px;height:32px;border-radius:8px;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.match-body{flex:1}
+.match-title{font-size:12px;font-weight:700;color:var(--accent-dark)}
+.match-sub{font-size:10px;color:var(--gray-600);margin-top:1px;line-height:1.4}
+
+.prospect-row{display:flex;align-items:center;gap:10px;padding:11px 12px;background:white;margin:0 16px 6px;border-radius:12px;box-shadow:var(--shadow-soft)}
+.p-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#c9d5e6,#8ea3c0);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.p-avatar.b{background:linear-gradient(135deg,#d8c9bb,#9b8775)}
+.p-avatar.c{background:linear-gradient(135deg,#bdd3c5,#708a79)}
+.p-avatar.d{background:linear-gradient(135deg,#e6c9d0,#b57c8a)}
+.p-body{flex:1;min-width:0}
+.p-name{font-size:12px;font-weight:700;color:var(--gray-900)}
+.p-meta{font-size:10px;color:var(--gray-500);margin-top:1px}
+.p-match{font-size:10px;color:var(--accent);margin-top:3px;font-weight:600}
+.score-pill{font-size:9px;font-weight:700;padding:3px 7px;border-radius:6px;letter-spacing:0.04em;text-transform:uppercase;flex-shrink:0}
+.score-pill.top{background:var(--success-100);color:var(--success-700)}
+.score-pill.strong{background:#e0ebff;color:#1e40af}
+.score-pill.fair{background:var(--warning-100);color:var(--warning-700)}
+.score-pill.weak{background:var(--gray-100);color:var(--gray-600)}
+
+/* ═══ INBOX PAGE ═══ */
+.channel-strip{display:flex;gap:6px;padding:2px 16px 10px;overflow-x:auto}
+.channel-chip{display:flex;align-items:center;gap:4px;padding:7px 11px;background:white;border-radius:999px;border:1px solid var(--gray-100);font-size:11px;font-weight:600;color:var(--gray-600);white-space:nowrap;flex-shrink:0;position:relative}
+.channel-chip.active{background:var(--navy);color:white;border-color:var(--navy)}
+.channel-chip .c-dot{width:7px;height:7px;border-radius:50%}
+.channel-chip .c-unread{background:var(--accent);color:white;font-size:9px;font-weight:700;padding:0 5px;border-radius:6px;min-width:14px;text-align:center}
+.channel-chip.active .c-unread{background:white;color:var(--navy)}
+
+.digest{margin:0 16px 12px;padding:12px 14px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);border-left:3px solid var(--navy)}
+.digest-eyebrow{font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--navy);display:flex;align-items:center;gap:5px}
+.digest-list{font-size:11px;color:var(--gray-700);margin-top:6px;line-height:1.6}
+.digest-list strong{color:var(--gray-900)}
+
+.thread-row{display:flex;gap:10px;padding:12px 14px;background:white;margin:0 16px 6px;border-radius:12px;box-shadow:var(--shadow-soft);align-items:flex-start;position:relative}
+.thread-avatar-wrap{position:relative;flex-shrink:0}
+.thread-ch-badge{position:absolute;bottom:-2px;right:-2px;width:16px;height:16px;border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:white}
+.thread-ch-badge.wa{background:var(--wa)}
+.thread-ch-badge.p24{background:var(--p24)}
+.thread-ch-badge.ig{background:var(--ig)}
+.thread-ch-badge.em{background:var(--gray-500)}
+.thread-body{flex:1;min-width:0}
+.thread-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.thread-name{font-size:12px;font-weight:700;color:var(--gray-900)}
+.thread-time{font-size:9px;color:var(--gray-400);font-weight:600;flex-shrink:0}
+.thread-snippet{font-size:11px;color:var(--gray-600);margin-top:2px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.thread-tags{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.tag-chip{font-size:9px;font-weight:700;padding:2px 6px;border-radius:5px;letter-spacing:0.03em}
+.tag-chip.hot{background:var(--accent);color:white}
+.tag-chip.ai{background:var(--surface-secondary);color:var(--navy)}
+.tag-chip.qual{background:var(--success-100);color:var(--success-700)}
+.tag-chip.warn{background:var(--warning-100);color:var(--warning-700)}
+.thread-unread{position:absolute;top:14px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+
+.footer{max-width:1200px;margin:56px auto 0;padding:24px;text-align:center;color:var(--gray-500);font-size:0.85rem;line-height:1.7}
+.footer strong{color:var(--navy)}
+</style>
+</head>
+<body>
+
+<header class="page-header">
+  <span class="tag">Prototype · Agent mobile · Commission Engine</span>
+  <h1>Find tenants faster. Protect commission.</h1>
+  <p>A four-screen reframe of the Klikk agent app for the top 1% rental agent. Positioned not as an admin tool but as a sales &amp; marketing engine — pipeline visibility, AI-prequalified leads, unified inbox, earnings at the top.</p>
+  <div class="thesis">Today · Pipeline · People · Inbox — profile moves to avatar, 5 tabs collapse to 4.</div>
+</header>
+
+<div class="grid">
+
+  <!-- ═══════════════════════ 1 · TODAY ═══════════════════════ -->
+  <div class="frame-wrap">
+    <div class="frame-label">
+      <span class="state-num">1</span><span class="state-name">Today</span>
+      <span class="state-desc">Earnings hero, AI "next move", pipeline pulse — the first thing the agent sees each morning.</span>
+    </div>
+    <div class="phone"><div class="screen">
+      <div class="status-bar"><span>9:41</span><span>●●●●</span></div>
+      <div class="app-hd">
+        <div>
+          <div class="app-hd-title">Morning, Luzaan</div>
+          <div class="app-hd-sub">Fri 17 Apr · 3 priorities</div>
+        </div>
+        <div class="avatar">LM</div>
+      </div>
+
+      <div class="body-scroll">
+        <div class="hero-earnings">
+          <div class="hero-label">Commission this month</div>
+          <div class="hero-amount"><span class="rand">R</span>127 400</div>
+          <div class="hero-progress">
+            <div class="hero-progress-bar"><div class="hero-progress-fill"></div></div>
+            <div class="hero-progress-meta"><span>64% of R200 000 target</span><span>13 days left</span></div>
+          </div>
+        </div>
+
+        <div class="next-move">
+          <div class="next-move-eyebrow">
+            <svg class="ico-sm" viewBox="0 0 24 24"><path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>
+            Your next move
+          </div>
+          <div class="next-move-title">4 warm prospects match 14 Bosch St</div>
+          <div class="next-move-sub">Pre-qualified, budgets aligned, ready for viewing this weekend. Fire the WhatsApp broadcast before lunch.</div>
+          <div class="next-move-cta">Send to 4 <svg class="ico-sm" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+        </div>
+
+        <div class="grp"><span class="grp-lbl">Pipeline pulse</span><span class="grp-rule"></span></div>
+        <div class="pulse-grid">
+          <div class="pulse-tile"><div class="pulse-tile-v">14</div><div class="pulse-tile-l">Live mandates</div></div>
+          <div class="pulse-tile warn"><div class="pulse-tile-v">3</div><div class="pulse-tile-l">Stale &gt; 21 days</div></div>
+          <div class="pulse-tile"><div class="pulse-tile-v">9</div><div class="pulse-tile-l">Viewings this wk</div></div>
+          <div class="pulse-tile accent"><div class="pulse-tile-v"><span class="rand">R</span>184k</div><div class="pulse-tile-l">Forecast · May</div></div>
+        </div>
+
+        <div class="grp"><span class="grp-lbl">Later today</span><span class="grp-rule"></span></div>
+        <div class="later-row">
+          <div class="later-time">11:00</div>
+          <div class="later-dot"></div>
+          <div class="later-body">
+            <div class="later-title">Viewing · 14 Bosch St, Stellenbosch</div>
+            <div class="later-sub">Sarah Naidoo · R18 500/mo · pre-qualified</div>
+          </div>
+        </div>
+        <div class="later-row">
+          <div class="later-time">14:30</div>
+          <div class="later-dot navy"></div>
+          <div class="later-body">
+            <div class="later-title">Mandate signing · Mr Botha</div>
+            <div class="later-sub">Kloof Rd, Tamboerskloof · sole mandate</div>
+          </div>
+        </div>
+        <div class="later-row">
+          <div class="later-time">16:00</div>
+          <div class="later-dot"></div>
+          <div class="later-body">
+            <div class="later-title">Follow up · 3 stale listings</div>
+            <div class="later-sub">Drop price or re-shoot</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg></div><span>Today</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 6h16M6 12h12M9 18h6"/></svg></div><span>Pipeline</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15 19c0-2 2-3.5 4-3.5"/></svg></div><span>People</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 5l8 7 8-7"/></svg><span class="tab-badge">7</span></div><span>Inbox</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ═══════════════════════ 2 · PIPELINE ═══════════════════════ -->
+  <div class="frame-wrap">
+    <div class="frame-label">
+      <span class="state-num">2</span><span class="state-name">Pipeline</span>
+      <span class="state-desc">Mandate → Listing → Viewing → App. Forecast commission at the top. Where the agent's money lives.</span>
+    </div>
+    <div class="phone"><div class="screen">
+      <div class="status-bar"><span>9:41</span><span>●●●●</span></div>
+      <div class="app-hd">
+        <div>
+          <div class="app-hd-title">Pipeline</div>
+          <div class="app-hd-sub">13 deals in flight</div>
+        </div>
+        <div class="avatar">LM</div>
+      </div>
+
+      <div class="body-scroll">
+        <div class="forecast">
+          <div class="forecast-ico"><svg class="ico" viewBox="0 0 24 24" stroke="white"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg></div>
+          <div class="forecast-body">
+            <div class="forecast-l">Forecast commission · May</div>
+            <div class="forecast-v"><span style="font-size:13px;opacity:0.8">R</span> 184,000</div>
+          </div>
+        </div>
+
+        <div class="funnel-tabs">
+          <div class="funnel-tab"><div class="funnel-tab-n">3</div><div class="funnel-tab-l">Mandates</div></div>
+          <div class="funnel-tab active"><div class="funnel-tab-n">3</div><div class="funnel-tab-l">Listings</div></div>
+          <div class="funnel-tab"><div class="funnel-tab-n">4</div><div class="funnel-tab-l">Viewings</div></div>
+          <div class="funnel-tab"><div class="funnel-tab-n">3</div><div class="funnel-tab-l">Apps</div></div>
+        </div>
+
+        <div class="grp"><span class="grp-lbl">Live listings</span><span class="grp-rule"></span></div>
+
+        <div class="listing-card">
+          <div class="listing-img"><span class="listing-dom hot">Day 2 · Hot</span></div>
+          <div class="listing-body">
+            <div class="listing-title">14 Bosch St, Stellenbosch</div>
+            <div class="listing-sub">3 bed · 2 bath · Available 1 May</div>
+            <div class="listing-meta">
+              <span class="listing-price">R 18,500</span>
+              <span class="portal-chip p24">P24</span>
+              <span class="portal-chip pp">PP</span>
+              <span class="portal-chip ig">IG</span>
+              <span class="portal-chip wa">WA</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="listing-card">
+          <div class="listing-img b"><span class="listing-dom">Day 11</span></div>
+          <div class="listing-body">
+            <div class="listing-title">7 Kloof Rd, Tamboerskloof</div>
+            <div class="listing-sub">2 bed · 1 bath · Pet friendly</div>
+            <div class="listing-meta">
+              <span class="listing-price">R 14,200</span>
+              <span class="portal-chip p24">P24</span>
+              <span class="portal-chip pp">PP</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="listing-card">
+          <div class="listing-img c"><span class="listing-dom stale">Day 28 · Stale</span></div>
+          <div class="listing-body">
+            <div class="listing-title">22B Main Rd, Claremont</div>
+            <div class="listing-sub">1 bed studio · Unfurnished</div>
+            <div class="listing-meta">
+              <span class="listing-price">R 9,800</span>
+              <span class="portal-chip p24">P24</span>
+              <span class="portal-chip ig">IG</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg></div><span>Today</span></div>
+        <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 6h16M6 12h12M9 18h6"/></svg></div><span>Pipeline</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15 19c0-2 2-3.5 4-3.5"/></svg></div><span>People</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 5l8 7 8-7"/></svg><span class="tab-badge">7</span></div><span>Inbox</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ═══════════════════════ 3 · PEOPLE ═══════════════════════ -->
+  <div class="frame-wrap">
+    <div class="frame-label">
+      <span class="state-num">3</span><span class="state-name">People</span>
+      <span class="state-desc">Prospects · Landlords · Tenants. AI-ranked by match fit to live listings — with POPIA-ready consent trails.</span>
+    </div>
+    <div class="phone"><div class="screen">
+      <div class="status-bar"><span>9:41</span><span>●●●●</span></div>
+      <div class="app-hd">
+        <div>
+          <div class="app-hd-title">People</div>
+          <div class="app-hd-sub">13 contacts</div>
+        </div>
+        <div class="avatar">LM</div>
+      </div>
+
+      <div class="body-scroll">
+        <div class="search-bar">
+          <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/></svg>
+          <span class="search-bar-text">Search prospects, landlords, tenants…</span>
+        </div>
+
+        <div class="segment">
+          <div class="seg active">Prospects <span class="seg-c">6</span></div>
+          <div class="seg">Landlords <span class="seg-c">4</span></div>
+          <div class="seg">Tenants <span class="seg-c">3</span></div>
+        </div>
+
+        <div class="match-banner">
+          <div class="match-ico"><svg class="ico" viewBox="0 0 24 24" stroke="white"><path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg></div>
+          <div class="match-body">
+            <div class="match-title">3 fresh matches ready</div>
+            <div class="match-sub">AI matched your prospects to new listings</div>
+          </div>
+        </div>
+
+        <div class="prospect-row">
+          <div class="p-avatar">SN</div>
+          <div class="p-body">
+            <div class="p-name">Sarah Naidoo</div>
+            <div class="p-meta">R18 500 · 2 bed · Stellenbosch</div>
+            <div class="p-match">→ 14 Bosch St</div>
+          </div>
+          <span class="score-pill top">Top 96</span>
+        </div>
+        <div class="prospect-row">
+          <div class="p-avatar b">DK</div>
+          <div class="p-body">
+            <div class="p-name">Daniel Koekemoer</div>
+            <div class="p-meta">R15 000 · 2 bed · Tamboerskloof</div>
+            <div class="p-match">→ 7 Kloof Rd</div>
+          </div>
+          <span class="score-pill top">Top 91</span>
+        </div>
+        <div class="prospect-row">
+          <div class="p-avatar c">TM</div>
+          <div class="p-body">
+            <div class="p-name">Thandi Mokoena</div>
+            <div class="p-meta">R19 000 · 3 bed · Southern Subs</div>
+            <div class="p-match">→ 14 Bosch St</div>
+          </div>
+          <span class="score-pill strong">Strong 78</span>
+        </div>
+        <div class="prospect-row">
+          <div class="p-avatar d">JP</div>
+          <div class="p-body">
+            <div class="p-name">Jana Pretorius</div>
+            <div class="p-meta">R12 000 · 1 bed · Claremont</div>
+          </div>
+          <span class="score-pill strong">Strong 72</span>
+        </div>
+        <div class="prospect-row">
+          <div class="p-avatar">AV</div>
+          <div class="p-body">
+            <div class="p-name">Ayanda van Wyk</div>
+            <div class="p-meta">R14 500 · 2 bed · Observatory</div>
+          </div>
+          <span class="score-pill fair">Fair 58</span>
+        </div>
+        <div class="prospect-row">
+          <div class="p-avatar b">MR</div>
+          <div class="p-body">
+            <div class="p-name">Michael Roberts</div>
+            <div class="p-meta">R8 500 · studio · Rondebosch</div>
+          </div>
+          <span class="score-pill weak">Weak 34</span>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg></div><span>Today</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 6h16M6 12h12M9 18h6"/></svg></div><span>Pipeline</span></div>
+        <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15 19c0-2 2-3.5 4-3.5"/></svg></div><span>People</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 5l8 7 8-7"/></svg><span class="tab-badge">7</span></div><span>Inbox</span></div>
+      </div>
+    </div></div>
+  </div>
+
+  <!-- ═══════════════════════ 4 · INBOX ═══════════════════════ -->
+  <div class="frame-wrap">
+    <div class="frame-label">
+      <span class="state-num">4</span><span class="state-name">Inbox</span>
+      <span class="state-desc">WhatsApp, Property24, Instagram, Email — one unified inbox. AI drafts replies and pre-qualifies leads overnight.</span>
+    </div>
+    <div class="phone"><div class="screen">
+      <div class="status-bar"><span>9:41</span><span>●●●●</span></div>
+      <div class="app-hd">
+        <div>
+          <div class="app-hd-title">Inbox</div>
+          <div class="app-hd-sub">7 unread · 3 hot</div>
+        </div>
+        <div class="avatar">LM</div>
+      </div>
+
+      <div class="body-scroll">
+        <div class="channel-strip">
+          <div class="channel-chip active">All <span class="c-unread">7</span></div>
+          <div class="channel-chip"><span class="c-dot" style="background:var(--wa)"></span>WhatsApp <span class="c-unread">4</span></div>
+          <div class="channel-chip"><span class="c-dot" style="background:var(--p24)"></span>P24 <span class="c-unread">2</span></div>
+          <div class="channel-chip"><span class="c-dot" style="background:var(--ig)"></span>Instagram</div>
+          <div class="channel-chip"><span class="c-dot" style="background:var(--gray-500)"></span>Email <span class="c-unread">1</span></div>
+        </div>
+
+        <div class="digest">
+          <div class="digest-eyebrow">
+            <svg class="ico-sm" viewBox="0 0 24 24"><path d="M12 2l3 7 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1z"/></svg>
+            AI digest · overnight
+          </div>
+          <div class="digest-list">
+            <strong>3 hot leads</strong> pre-qualified · <strong>7 threads</strong> waiting · <strong>2 landlords</strong> asking for updates
+          </div>
+        </div>
+
+        <div class="thread-row">
+          <div class="thread-avatar-wrap">
+            <div class="p-avatar">SN</div>
+            <div class="thread-ch-badge wa">W</div>
+          </div>
+          <div class="thread-body">
+            <div class="thread-top"><span class="thread-name">Sarah Naidoo</span><span class="thread-time">2m</span></div>
+            <div class="thread-snippet">Yes, Saturday 11am works — should I bring payslips?</div>
+            <div class="thread-tags"><span class="tag-chip hot">Hot</span><span class="tag-chip qual">Pre-qualified</span></div>
+          </div>
+          <div class="thread-unread"></div>
+        </div>
+
+        <div class="thread-row">
+          <div class="thread-avatar-wrap">
+            <div class="p-avatar b">AM</div>
+            <div class="thread-ch-badge p24">P</div>
+          </div>
+          <div class="thread-body">
+            <div class="thread-top"><span class="thread-name">Anele Mthembu</span><span class="thread-time">14m</span></div>
+            <div class="thread-snippet">Hi, is 14 Bosch St still available? Looking to move 1 May.</div>
+            <div class="thread-tags"><span class="tag-chip ai">AI drafted</span></div>
+          </div>
+          <div class="thread-unread"></div>
+        </div>
+
+        <div class="thread-row">
+          <div class="thread-avatar-wrap">
+            <div class="p-avatar c">MB</div>
+            <div class="thread-ch-badge em">@</div>
+          </div>
+          <div class="thread-body">
+            <div class="thread-top"><span class="thread-name">Mr Botha · landlord</span><span class="thread-time">1h</span></div>
+            <div class="thread-snippet">Any update on the Kloof Rd viewings this week?</div>
+            <div class="thread-tags"><span class="tag-chip warn">Update asked</span></div>
+          </div>
+          <div class="thread-unread"></div>
+        </div>
+
+        <div class="thread-row">
+          <div class="thread-avatar-wrap">
+            <div class="p-avatar d">DK</div>
+            <div class="thread-ch-badge wa">W</div>
+          </div>
+          <div class="thread-body">
+            <div class="thread-top"><span class="thread-name">Daniel Koekemoer</span><span class="thread-time">3h</span></div>
+            <div class="thread-snippet">Can I do a second viewing with my partner on Sunday?</div>
+            <div class="thread-tags"><span class="tag-chip hot">Hot</span></div>
+          </div>
+        </div>
+
+        <div class="thread-row">
+          <div class="thread-avatar-wrap">
+            <div class="p-avatar">JV</div>
+            <div class="thread-ch-badge ig">I</div>
+          </div>
+          <div class="thread-body">
+            <div class="thread-top"><span class="thread-name">@jvisser.sa</span><span class="thread-time">Yest</span></div>
+            <div class="thread-snippet">Love the Bosch St listing — still open?</div>
+            <div class="thread-tags"><span class="tag-chip ai">AI drafted</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-bar">
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/></svg></div><span>Today</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 6h16M6 12h12M9 18h6"/></svg></div><span>Pipeline</span></div>
+        <div class="tab"><div class="tab-ico-wrap-simple"><svg class="tab-ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><circle cx="17" cy="9" r="2.5"/><path d="M15 19c0-2 2-3.5 4-3.5"/></svg></div><span>People</span></div>
+        <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 5l8 7 8-7"/></svg></div><span>Inbox</span></div>
+      </div>
+    </div></div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <strong>Klikk Agent · Commission Engine</strong> — ported from <code>agent-app/src/pages/{Today,Pipeline,People,Inbox}Page.vue</code><br>
+  Design tokens: navy <strong>#2B2D6E</strong> · accent <strong>#FF3D7F</strong> · type Fraunces + DM Sans · shell 320×658
+</div>
+
+</body>
+</html>

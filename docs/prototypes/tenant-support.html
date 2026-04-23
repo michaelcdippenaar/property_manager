@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Tenant App — Problems + AI Assist</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #2B2D6E;
+  --navy-dark: #23255a;
+  --navy-light: #3b3e8f;
+  --accent: #FF3D7F;
+  --accent-light: #FF6B9D;
+  --surface: #F5F5F8;
+  --surface-secondary: #F0EFF8;
+  --white: #FFFFFF;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --success-50: #f0fdfa;
+  --success-100: #ccfbf1;
+  --success-600: #0d9488;
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-600: #d97706;
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-600: #dc2626;
+  --info-50: #eff6ff;
+  --info-100: #dbeafe;
+  --info-600: #2563eb;
+  --shadow-soft: 0 1px 2px rgba(15,17,57,0.04), 0 2px 6px rgba(15,17,57,0.04);
+  --shadow-lifted: 0 4px 12px rgba(15,17,57,0.08), 0 12px 24px rgba(15,17,57,0.06);
+  --shadow-phone: 0 20px 48px rgba(15,17,57,0.14), 0 8px 16px rgba(15,17,57,0.08);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 15px; }
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #EEEDF4;
+  background-image: radial-gradient(#2B2D6E14 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #111;
+  min-height: 100vh;
+  padding: 40px 24px 80px;
+}
+.page-header { max-width: 1200px; margin: 0 auto 48px; text-align: center; }
+.page-header h1 {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 2.5rem; font-weight: 600;
+  color: var(--navy); letter-spacing: -0.02em; margin-bottom: 8px;
+}
+.page-header p { color: var(--gray-600); font-size: 1rem; max-width: 640px; margin: 0 auto; }
+.section-label { max-width: 1200px; margin: 56px auto 24px; display: flex; align-items: baseline; gap: 12px; padding: 0 8px; }
+.section-label h2 { font-family: 'Fraunces', Georgia, serif; font-size: 1.4rem; font-weight: 500; color: var(--navy); }
+.section-label span { color: var(--gray-500); font-size: 0.875rem; }
+.section-label .rule { flex: 1; height: 1px; background: linear-gradient(to right, var(--gray-300), transparent); }
+.grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 32px; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.frame-label { margin-bottom: 12px; text-align: center; }
+.frame-label .state-num { display: inline-block; background: var(--navy); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 22px; margin-right: 8px; vertical-align: middle; }
+.frame-label .state-name { font-weight: 600; color: var(--navy); font-size: 0.95rem; vertical-align: middle; }
+.frame-label .state-desc { display: block; color: var(--gray-500); font-size: 0.8rem; margin-top: 4px; }
+
+.phone { width: 320px; height: 658px; background: #000; border-radius: 44px; padding: 10px; box-shadow: var(--shadow-phone); position: relative; flex-shrink: 0; }
+.phone::before { content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 100px; height: 28px; background: #000; border-radius: 20px; z-index: 10; }
+.screen { width: 100%; height: 100%; background: var(--surface); border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.status-bar { height: 44px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 24px 6px; font-size: 13px; font-weight: 600; color: var(--gray-900); }
+
+.app-header { padding: 12px 20px 8px; display: flex; justify-content: space-between; align-items: center; }
+.app-header .greeting { font-size: 12px; color: var(--gray-500); font-weight: 500; }
+.app-header .name { font-size: 18px; font-weight: 700; color: var(--gray-900); font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; margin-top: 1px; }
+
+.avatar { width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(135deg, var(--navy), var(--navy-light)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 13px; position: relative; box-shadow: 0 0 0 2px rgba(255,255,255,0.6), 0 2px 6px rgba(43,45,110,0.15); }
+.avatar .avatar-star { position: absolute; bottom: -2px; right: -2px; background: var(--navy); color: white; font-size: 8px; font-weight: 700; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface), 0 1px 2px rgba(15,17,57,0.3); display: flex; align-items: center; justify-content: center; line-height: 1; }
+
+.scroll-area { flex: 1; overflow: hidden; padding: 6px 16px 90px; display: flex; flex-direction: column; gap: 12px; }
+
+/* Screen header: page title within app */
+.page-title { padding: 4px 4px 6px; display: flex; justify-content: space-between; align-items: center; }
+.page-title h2 { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 500; color: var(--gray-900); letter-spacing: -0.01em; }
+.page-title .add-btn { width: 32px; height: 32px; border-radius: 50%; background: var(--navy); color: white; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-soft); }
+
+/* Cards */
+.card { background: var(--white); border-radius: 16px; padding: 14px; box-shadow: var(--shadow-soft); }
+.card-title { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gray-400); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+
+.badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; letter-spacing: 0.03em; }
+.badge.green { background: var(--success-100); color: var(--success-600); }
+.badge.amber { background: var(--warning-100); color: var(--warning-600); }
+.badge.red { background: var(--danger-100); color: var(--danger-600); }
+.badge.blue { background: var(--info-100); color: var(--info-600); }
+.badge.gray { background: var(--gray-100); color: var(--gray-600); }
+
+/* Ticket card (list) */
+.tkt { background: var(--white); border-radius: 14px; padding: 12px; box-shadow: var(--shadow-soft); position: relative; }
+.tkt .tkt-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.tkt .tkt-title { font-size: 13px; font-weight: 600; color: var(--gray-900); line-height: 1.3; }
+.tkt .tkt-meta { font-size: 11px; color: var(--gray-500); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.tkt .tkt-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--gray-300); }
+.tkt .tkt-footer { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--gray-100); font-size: 11px; color: var(--gray-600); }
+.tkt .tkt-avatar { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #7b7ea8, #5a5d90); color: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 600; }
+.tkt.emergency { border: 1.5px solid var(--danger-100); background: linear-gradient(180deg, #fff 60%, #fff6f8 100%); }
+.tkt.emergency::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; background: var(--danger-600); border-radius: 0 3px 3px 0; }
+.tkt-ico { width: 36px; height: 36px; border-radius: 10px; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tkt-ico.red { background: var(--danger-100); color: var(--danger-600); }
+.tkt-ico.amber { background: var(--warning-100); color: var(--warning-600); }
+.tkt-ico.green { background: var(--success-100); color: var(--success-600); }
+
+/* Filter chips */
+.chips { display: flex; gap: 6px; padding: 4px 0 8px; overflow-x: auto; }
+.chip { font-size: 11px; padding: 6px 12px; border-radius: 20px; background: var(--white); color: var(--gray-600); font-weight: 600; border: 1px solid var(--gray-200); white-space: nowrap; }
+.chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+
+/* Category grid (new ticket) */
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cat-tile { background: var(--white); border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: var(--shadow-soft); }
+.cat-tile .cat-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; }
+.cat-tile .cat-label { font-size: 12px; font-weight: 600; color: var(--gray-800); }
+.cat-tile .cat-sub { font-size: 10px; color: var(--gray-400); margin-top: 2px; }
+.cat-tile.selected { background: #fff4f8; box-shadow: 0 0 0 2px var(--accent), var(--shadow-soft); }
+.cat-tile.selected .cat-ico { background: var(--accent); color: white; }
+
+/* Text area */
+.textarea { background: var(--white); border-radius: 12px; padding: 12px; font-size: 12px; color: var(--gray-800); line-height: 1.5; box-shadow: var(--shadow-soft); min-height: 100px; }
+.textarea .placeholder { color: var(--gray-400); }
+.input-label { font-size: 11px; font-weight: 600; color: var(--gray-500); margin-bottom: 6px; letter-spacing: 0.02em; }
+
+/* Photo strip */
+.photo-row { display: flex; gap: 8px; overflow-x: auto; padding: 2px; }
+.photo { width: 72px; height: 72px; border-radius: 10px; background: linear-gradient(135deg, #c8cce0, #a0a6c8); flex-shrink: 0; position: relative; overflow: hidden; }
+.photo.add { background: var(--white); border: 1.5px dashed var(--gray-300); color: var(--gray-400); display: flex; align-items: center; justify-content: center; }
+.photo::after { content: ''; position: absolute; inset: 0; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1.2' stroke-linecap='round' stroke-linejoin='round' opacity='0.6'><circle cx='12' cy='13' r='3'/><path d='M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z'/></svg>"); background-position: center; background-repeat: no-repeat; background-size: 28px; }
+.photo.add::after { display: none; }
+
+/* Choice rows (radio) */
+.choice { display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--white); border-radius: 12px; box-shadow: var(--shadow-soft); font-size: 13px; font-weight: 500; color: var(--gray-700); border: 2px solid transparent; }
+.choice .radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--gray-300); flex-shrink: 0; }
+.choice .c-body { flex: 1; }
+.choice .c-sub { font-size: 11px; color: var(--gray-500); font-weight: 400; margin-top: 2px; }
+.choice.selected { border-color: var(--accent); background: #fff4f8; }
+.choice.selected .radio { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 40%, transparent 50%); }
+.choice.danger.selected { border-color: var(--danger-600); background: var(--danger-50); }
+.choice.danger.selected .radio { border-color: var(--danger-600); background: radial-gradient(circle, var(--danger-600) 40%, transparent 50%); }
+
+/* Contractor card */
+.ctr { background: var(--white); border-radius: 14px; padding: 12px; box-shadow: var(--shadow-soft); display: flex; align-items: center; gap: 10px; }
+.ctr-avatar { width: 44px; height: 44px; border-radius: 50%; background: linear-gradient(135deg, #647296, #3c4668); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+.ctr-body { flex: 1; min-width: 0; }
+.ctr-name { font-size: 13px; font-weight: 700; color: var(--gray-900); }
+.ctr-sub { font-size: 11px; color: var(--gray-500); margin-top: 1px; display: flex; align-items: center; gap: 6px; }
+.ctr-rating { display: inline-flex; align-items: center; gap: 3px; color: var(--gray-700); font-weight: 600; }
+.ctr-actions { display: flex; gap: 6px; }
+.ctr-btn { width: 36px; height: 36px; border-radius: 12px; background: var(--navy); color: white; display: flex; align-items: center; justify-content: center; }
+.ctr-btn.ghost { background: var(--gray-100); color: var(--navy); }
+
+/* Status banner */
+.status-banner { background: var(--white); border-radius: 14px; padding: 12px 14px; box-shadow: var(--shadow-soft); display: flex; align-items: center; gap: 12px; }
+.status-banner .sb-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--info-100); color: var(--info-600); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.status-banner.amber .sb-ico { background: var(--warning-100); color: var(--warning-600); }
+.status-banner.green .sb-ico { background: var(--success-100); color: var(--success-600); }
+.status-banner.red .sb-ico { background: var(--danger-100); color: var(--danger-600); }
+.status-banner .sb-title { font-size: 13px; font-weight: 700; color: var(--gray-900); }
+.status-banner .sb-sub { font-size: 11px; color: var(--gray-500); margin-top: 1px; }
+
+/* Live ETA map preview */
+.map-preview { height: 120px; border-radius: 14px; background: linear-gradient(135deg, #dfe4f2 0%, #c8cfe5 100%); position: relative; overflow: hidden; }
+.map-preview::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(45deg, transparent 48%, rgba(255,255,255,0.4) 49%, rgba(255,255,255,0.4) 51%, transparent 52%), linear-gradient(-45deg, transparent 48%, rgba(255,255,255,0.25) 49%, rgba(255,255,255,0.25) 51%, transparent 52%); background-size: 30px 30px; }
+.map-preview .pin { position: absolute; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid white; box-shadow: 0 2px 6px rgba(255,61,127,0.4); }
+.map-preview .pin.home { top: 65%; left: 70%; background: var(--navy); }
+.map-preview .pin.ctr { top: 30%; left: 20%; }
+.map-preview .pin.ctr::after { content: ''; position: absolute; inset: -8px; border-radius: 50%; background: var(--accent); opacity: 0.2; animation: pulse 1.8s infinite; }
+@keyframes pulse { 0% { transform: scale(0.8); opacity: 0.4; } 100% { transform: scale(1.8); opacity: 0; } }
+.map-preview .path { position: absolute; top: 35%; left: 25%; width: 45%; height: 2px; background: repeating-linear-gradient(to right, var(--accent) 0 6px, transparent 6px 10px); transform: rotate(22deg); transform-origin: left; }
+
+/* Timeline */
+.timeline { position: relative; padding-left: 20px; }
+.timeline::before { content: ''; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: var(--gray-200); }
+.tl-item { position: relative; padding-bottom: 10px; font-size: 12px; }
+.tl-item::before { content: ''; position: absolute; left: -19px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--gray-300); border: 2px solid var(--white); box-shadow: 0 0 0 1px var(--gray-200); }
+.tl-item.done::before { background: var(--success-600); box-shadow: 0 0 0 1px var(--success-100); }
+.tl-item.current::before { background: var(--accent); box-shadow: 0 0 0 3px rgba(255,61,127,0.2); }
+.tl-item .tl-when { font-size: 10px; color: var(--gray-400); margin-bottom: 2px; }
+.tl-item .tl-what { color: var(--gray-700); font-weight: 500; }
+.tl-item .tl-note { font-size: 11px; color: var(--gray-500); margin-top: 2px; }
+
+/* Chat bubble */
+.chat-bubble { background: var(--surface-secondary); border-radius: 12px; padding: 10px 12px; font-size: 12px; color: var(--gray-800); line-height: 1.4; max-width: 85%; }
+.chat-bubble .who { font-size: 10px; color: var(--navy); font-weight: 600; margin-bottom: 3px; }
+.chat-bubble.mine { background: var(--navy); color: white; margin-left: auto; }
+.chat-bubble.mine .who { color: rgba(255,255,255,0.7); }
+.chat-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* Buttons */
+.btn { display: inline-block; padding: 10px 16px; border-radius: 12px; font-weight: 600; font-size: 13px; text-align: center; border: none; }
+.btn-primary { background: var(--navy); color: white; width: 100%; }
+.btn-accent { background: var(--accent); color: white; width: 100%; }
+.btn-ghost { background: var(--gray-100); color: var(--gray-700); width: 100%; }
+.btn-outline { background: white; color: var(--navy); border: 1.5px solid var(--gray-200); width: 100%; }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+/* Star rate */
+.star-rate { display: flex; gap: 4px; justify-content: center; padding: 6px 0; }
+.star-rate .star { width: 28px; height: 28px; color: var(--warning-600); }
+.star-rate .star.empty { color: var(--gray-200); }
+
+/* Hero (emergency / big focal card) */
+.hero-ticket { background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%); color: white; border-radius: 18px; padding: 16px; position: relative; overflow: hidden; }
+.hero-ticket::after { content: ''; position: absolute; top: -40px; right: -40px; width: 140px; height: 140px; background: radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%); }
+.hero-ticket .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.85; margin-bottom: 4px; }
+.hero-ticket h3 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 500; line-height: 1.15; margin-bottom: 4px; }
+.hero-ticket .sub { font-size: 12px; opacity: 0.9; }
+
+/* Empty state */
+.empty { text-align: center; padding: 24px 12px; }
+.empty .e-ico { width: 72px; height: 72px; border-radius: 50%; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.empty h3 { font-family: 'Fraunces', Georgia, serif; font-size: 20px; color: var(--gray-900); margin-bottom: 6px; }
+.empty p { font-size: 13px; color: var(--gray-500); line-height: 1.5; margin-bottom: 18px; }
+
+/* Emergency card */
+.emerg-card { background: linear-gradient(135deg, #fef2f2, #fee2e2); border-radius: 14px; padding: 14px; border: 1px solid var(--danger-100); display: flex; align-items: center; gap: 12px; }
+.emerg-card .e-ico2 { width: 40px; height: 40px; border-radius: 50%; background: var(--danger-600); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.emerg-card .e-body { flex: 1; }
+.emerg-card .e-title { font-size: 13px; font-weight: 700; color: var(--danger-600); }
+.emerg-card .e-sub { font-size: 11px; color: var(--gray-600); margin-top: 2px; }
+
+/* Tab bar — Klikk signature: active tab pops up with navy pill + pink cushion */
+.tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 78px; background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-top: 1px solid var(--gray-100); display: flex; justify-content: space-around; align-items: flex-start; padding: 10px 0 20px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--gray-400); font-weight: 500; flex: 1; position: relative; padding-top: 4px; }
+.tab .tab-ico { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active { color: var(--navy); font-weight: 700; }
+.tab.active .tab-ico-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; transform: translateY(-10px); box-shadow: 0 6px 14px rgba(43,45,110,0.35); margin-bottom: -8px; position: relative; }
+.tab.active .tab-ico-wrap::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, rgba(255,61,127,0.18) 30%, transparent 70%); z-index: -1; }
+.tab.active .tab-ico { stroke: white; color: white; stroke-width: 2; width: 18px; height: 18px; }
+
+/* ── AI chat (ticket creation via Chat tab) ── */
+.chat-screen { display: flex; flex-direction: column; height: 100%; padding: 0; }
+.chat-thread { flex: 1; overflow: hidden; padding: 8px 14px 90px; display: flex; flex-direction: column; gap: 8px; }
+.msg-ai { display: flex; gap: 8px; align-items: flex-start; max-width: 88%; }
+.msg-user { align-self: flex-end; max-width: 82%; }
+.msg-ai .ai-av { width: 26px; height: 26px; border-radius: 50%; background: linear-gradient(135deg, #a78bfa, var(--accent)); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 2px 6px rgba(255,61,127,0.3); }
+.msg-ai .ai-av svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 1.8; }
+.msg-body { background: var(--white); border-radius: 4px 14px 14px 14px; padding: 10px 12px; font-size: 12px; color: var(--gray-800); line-height: 1.45; box-shadow: var(--shadow-soft); }
+.msg-user .msg-body { background: var(--navy); color: white; border-radius: 14px 14px 4px 14px; }
+.msg-ai .who { font-size: 10px; font-weight: 700; color: var(--accent); margin-bottom: 2px; letter-spacing: 0.02em; }
+.msg-time { font-size: 9px; color: var(--gray-400); text-align: center; padding: 2px 0; }
+
+/* Intent chips grid (AI suggests options) */
+.intent-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px; }
+.intent-chip { background: var(--white); border: 1px solid var(--gray-200); border-radius: 10px; padding: 10px 10px; font-size: 11px; font-weight: 600; color: var(--gray-800); text-align: left; display: flex; align-items: center; gap: 8px; }
+.intent-chip svg { width: 18px; height: 18px; stroke: var(--navy); fill: none; stroke-width: 1.6; flex-shrink: 0; }
+.intent-chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+.intent-chip.active svg { stroke: white; }
+
+/* AI ticket summary card (in-thread) */
+.ai-card { background: linear-gradient(135deg, #ede9fe 0%, #fff4f8 100%); border: 1px solid #e5d9fe; border-radius: 14px; padding: 12px; }
+.ai-card .ac-head { font-size: 10px; font-weight: 700; color: var(--navy); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+.ai-card .ac-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid rgba(43,45,110,0.08); }
+.ai-card .ac-row:last-of-type { border-bottom: none; }
+.ai-card .ac-key { color: var(--gray-500); font-weight: 500; }
+.ai-card .ac-val { color: var(--gray-900); font-weight: 600; text-align: right; }
+
+/* System card (joined/assigned/status) */
+.sys-card { background: var(--surface-secondary); border-radius: 10px; padding: 8px 10px; font-size: 11px; color: var(--gray-600); display: flex; align-items: center; gap: 8px; align-self: center; max-width: 90%; text-align: center; justify-content: center; }
+.sys-card svg { width: 12px; height: 12px; stroke: var(--navy); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+.sys-card strong { color: var(--navy); }
+
+/* Chat input bar (fixed above tab bar) */
+.chat-input { position: absolute; bottom: 78px; left: 0; right: 0; background: white; border-top: 1px solid var(--gray-100); padding: 10px 14px; display: flex; gap: 8px; align-items: center; }
+.chat-input .ci-field { flex: 1; background: var(--gray-100); border-radius: 20px; padding: 8px 14px; font-size: 12px; color: var(--gray-400); }
+.chat-input .ci-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--navy); color: white; display: flex; align-items: center; justify-content: center; }
+.chat-input .ci-btn.accent { background: var(--accent); }
+
+/* Chat header (for tickets — shows participants) */
+.chat-head { padding: 10px 14px; background: white; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 10px; }
+.chat-head .ch-back { width: 32px; height: 32px; border-radius: 50%; background: var(--gray-100); color: var(--navy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.chat-head .ch-title { flex: 1; min-width: 0; }
+.chat-head .ch-title-main { font-size: 14px; font-weight: 700; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chat-head .ch-participants { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
+.chat-head .ch-status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.chat-head .ch-status-dot.red { background: var(--danger-600); box-shadow: 0 0 0 3px rgba(220,38,38,0.15); }
+.chat-head .ch-status-dot.amber { background: var(--warning-600); box-shadow: 0 0 0 3px rgba(217,119,6,0.15); }
+.chat-head .ch-status-dot.green { background: var(--success-600); box-shadow: 0 0 0 3px rgba(13,148,136,0.15); }
+
+/* Rating inline card (in-chat) */
+.rate-card { background: white; border-radius: 14px; padding: 14px; box-shadow: var(--shadow-soft); border: 1px solid var(--accent); }
+
+/* Participant pills in chat head */
+.participant-stack { display: flex; }
+.participant-stack .p-av { width: 22px; height: 22px; border-radius: 50%; background: var(--navy); color: white; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; border: 2px solid white; margin-left: -6px; }
+.participant-stack .p-av:first-child { margin-left: 0; }
+.participant-stack .p-av.ai { background: linear-gradient(135deg, #a78bfa, var(--accent)); }
+.participant-stack .p-av.agent { background: linear-gradient(135deg, #5a5d90, #3b3e8f); }
+.participant-stack .p-av.supplier { background: linear-gradient(135deg, #647296, #3c4668); }
+
+/* Icon system */
+.ico { width: 18px; height: 18px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; display: inline-block; vertical-align: middle; }
+.ico-sm { width: 14px; height: 14px; stroke-width: 1.8; }
+.ico-md { width: 16px; height: 16px; }
+.ico-lg { width: 20px; height: 20px; }
+.ico-xl { width: 28px; height: 28px; stroke-width: 1.5; }
+.ico-filled { fill: currentColor; stroke: none; }
+
+.screen-header { padding: 4px 4px 10px; display: flex; align-items: center; gap: 10px; }
+.screen-header .back { width: 32px; height: 32px; border-radius: 50%; background: var(--white); color: var(--navy); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-soft); }
+.screen-header h2 { font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 500; color: var(--gray-900); flex: 1; letter-spacing: -0.01em; }
+
+.footer { max-width: 1200px; margin: 100px auto 0; padding: 32px; text-align: center; color: var(--gray-500); font-size: 13px; border-top: 1px solid var(--gray-200); }
+.footer strong { color: var(--navy); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute;" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9.5 12 2l9 7.5V20a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 1 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+<symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="i-bag" viewBox="0 0 24 24"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-droplet" viewBox="0 0 24 24"><path d="M12 2.69s5.66 5.12 5.66 9.81a5.66 5.66 0 1 1-11.32 0C6.34 7.81 12 2.69 12 2.69z"/></symbol>
+<symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M6 8h12v2a6 6 0 0 1-6 6 6 6 0 0 1-6-6zM12 16v6"/></symbol>
+<symbol id="i-thermo" viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+<symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 1 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+<symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.3c1 3.2.5 8.3-2.8 12.1A6.98 6.98 0 0 1 11 20z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></symbol>
+<symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></symbol>
+<symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></symbol>
+<symbol id="i-star-fill" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="m12 2 3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14 2 9.27l6.91-1.01z"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M20 10c0 7-8 13-8 13S4 17 4 10a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="m16.5 9.4-9-5.19M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.27 6.96 12 12.01l8.73-5.05M12 22.08V12"/></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+<symbol id="i-sparkles" viewBox="0 0 24 24"><path d="m12 3-1.5 4.5L6 9l4.5 1.5L12 15l1.5-4.5L18 9l-4.5-1.5zM19 13l-.7 2.3L16 16l2.3.7L19 19l.7-2.3L22 16l-2.3-.7zM5 15l-.5 1.5L3 17l1.5.5L5 19l.5-1.5L7 17l-1.5-.5z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+<symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 12h16M4 6h16M4 18h16"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10a7 7 0 0 1-14 0M12 19v4M8 23h8"/></symbol>
+<symbol id="i-paperclip" viewBox="0 0 24 24"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+</defs></svg>
+
+<header class="page-header">
+  <h1>Klikk Tenant — Problems + AI Assist</h1>
+  <p>Tickets are created through conversation with the AI assistant (RAG over lease, property, and skills). Agent joins the thread on dispatch, supplier joins on assignment. 12 frames: list → AI chat → thread lifecycle → resolution.</p>
+</header>
+
+<div class="section-label"><h2>Problems tab — ticket list</h2><span>status dots match Calendar: red = urgent · amber = waiting · green = done</span><div class="rule"></div></div>
+
+<div class="grid">
+<!-- ═══ 1. EMPTY STATE ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">1</span><span class="state-name">Empty state</span><span class="state-desc">No open tickets · the goal</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div><div class="greeting">Good morning,</div><div class="name">Michael</div></div>
+      <div class="avatar">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="page-title"><h2>Problems</h2><div class="add-btn" title="Ask AI"><svg class="ico" style="color:white;"><use href="#i-sparkles"/></svg></div></div>
+      <div class="empty">
+        <div class="e-ico"><svg class="ico-xl"><use href="#i-sparkles"/></svg></div>
+        <h3>All quiet at home</h3>
+        <p>No open maintenance tickets.<br>Something broken or not working? Log it here.</p>
+        <button class="btn btn-primary"><svg class="ico-sm" style="color:white;margin-right:6px;"><use href="#i-sparkles"/></svg>Ask Klikk AI</button>
+      </div>
+      <div class="emerg-card">
+        <div class="e-ico2"><svg class="ico"><use href="#i-alert"/></svg></div>
+        <div class="e-body">
+          <div class="e-title">Emergency?</div>
+          <div class="e-sub">Burst pipe, gas leak, break-in. Call 24/7 line.</div>
+        </div>
+        <div class="ctr-btn" style="background:var(--danger-600);"><svg class="ico-sm" style="color:white;"><use href="#i-phone"/></svg></div>
+      </div>
+      <div class="card" style="background:var(--surface-secondary);">
+        <div style="font-size:11px;color:var(--gray-500);line-height:1.5;">
+          <strong style="color:var(--navy);">Tip:</strong> Photos speed things up. Snap 1–2 pictures when logging a ticket — your landlord will approve faster.
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 2. ACTIVE LIST ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">2</span><span class="state-name">Active tickets</span><span class="state-desc">3 open · various states</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div><div class="greeting">Good morning,</div><div class="name">Michael</div></div>
+      <div class="avatar">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="page-title"><h2>Problems</h2><div class="add-btn" title="Ask AI"><svg class="ico" style="color:white;"><use href="#i-sparkles"/></svg></div></div>
+      <div class="chips">
+        <div class="chip active">All · 3</div>
+        <div class="chip">Open · 2</div>
+        <div class="chip">Scheduled · 1</div>
+        <div class="chip">Resolved</div>
+      </div>
+      <div class="tkt emergency">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico red"><svg class="ico"><use href="#i-droplet"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Geyser leaking into ceiling</div>
+              <div class="tkt-meta">Plumbing<span class="dot"></span>Logged 08:14</div>
+            </div>
+          </div>
+          <span class="badge red">EMERGENCY</span>
+        </div>
+        <div class="tkt-footer">
+          <div class="tkt-avatar">JM</div>
+          <span style="flex:1;"><strong style="color:var(--gray-800);">John Mbeki</strong> · arriving 14:00–16:00</span>
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+      <div class="tkt">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico"><svg class="ico"><use href="#i-droplet"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Bathroom tap constantly drips</div>
+              <div class="tkt-meta">Plumbing<span class="dot"></span>3 days ago</div>
+            </div>
+          </div>
+          <span class="badge blue">SCHEDULED</span>
+        </div>
+        <div class="tkt-footer">
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-calendar"/></svg>
+          <span style="flex:1;">Thursday AM · awaiting contractor</span>
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+      <div class="tkt">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico amber"><svg class="ico"><use href="#i-tool"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Gate motor grinding noise</div>
+              <div class="tkt-meta">Security<span class="dot"></span>6 days ago</div>
+            </div>
+          </div>
+          <span class="badge amber">PARTS</span>
+        </div>
+        <div class="tkt-footer">
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-package"/></svg>
+          <span style="flex:1;">Part arrives Mon · return visit</span>
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 3. RESOLVED HISTORY ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">3</span><span class="state-name">Resolved history</span><span class="state-desc">Filter view · last 12 months</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-header">
+      <div><div class="greeting">Good morning,</div><div class="name">Michael</div></div>
+      <div class="avatar">MD<span class="avatar-star">✓</span></div>
+    </div>
+    <div class="scroll-area">
+      <div class="page-title"><h2>Problems</h2><div class="add-btn" title="Ask AI"><svg class="ico" style="color:white;"><use href="#i-sparkles"/></svg></div></div>
+      <div class="chips">
+        <div class="chip">All · 3</div>
+        <div class="chip">Open · 2</div>
+        <div class="chip">Scheduled · 1</div>
+        <div class="chip active">Resolved · 7</div>
+      </div>
+      <div class="tkt">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico green"><svg class="ico"><use href="#i-check"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Kitchen light fitting replaced</div>
+              <div class="tkt-meta">Electrical<span class="dot"></span>2 weeks ago</div>
+            </div>
+          </div>
+          <span class="badge green">DONE</span>
+        </div>
+        <div class="tkt-footer">
+          <div style="display:flex;align-items:center;gap:3px;color:var(--warning-600);">
+            <svg class="ico-sm ico-filled"><use href="#i-star-fill"/></svg><strong>5.0</strong>
+          </div>
+          <span style="flex:1;color:var(--gray-500);">Rated · Eskom Certified</span>
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+      <div class="tkt">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico green"><svg class="ico"><use href="#i-check"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Oven heating element replaced</div>
+              <div class="tkt-meta">Appliance<span class="dot"></span>5 weeks ago</div>
+            </div>
+          </div>
+          <span class="badge green">DONE</span>
+        </div>
+        <div class="tkt-footer">
+          <div style="display:flex;align-items:center;gap:3px;color:var(--warning-600);">
+            <svg class="ico-sm ico-filled"><use href="#i-star-fill"/></svg><strong>4.0</strong>
+          </div>
+          <span style="flex:1;color:var(--gray-500);">Rated · Bosch Service</span>
+          <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+        </div>
+      </div>
+      <div class="tkt">
+        <div class="tkt-head">
+          <div style="display:flex;gap:10px;flex:1;min-width:0;">
+            <div class="tkt-ico green"><svg class="ico"><use href="#i-check"/></svg></div>
+            <div style="flex:1;min-width:0;">
+              <div class="tkt-title">Garden irrigation timer fault</div>
+              <div class="tkt-meta">Garden<span class="dot"></span>2 months ago</div>
+            </div>
+          </div>
+          <span class="badge gray">NOT RATED</span>
+        </div>
+        <div class="tkt-footer">
+          <svg class="ico-sm" style="color:var(--accent);"><use href="#i-star"/></svg>
+          <span style="flex:1;color:var(--accent);font-weight:600;">Tap to rate contractor →</span>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<div class="section-label"><h2>AI assist — how tickets are created</h2><span>tenant taps Chat → AI asks intent → RAG answers OR books a ticket</span><div class="rule"></div></div>
+
+<div class="grid">
+<!-- ═══ 4. AI GREETING + INTENTS ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">4</span><span class="state-name">AI assistant · start</span><span class="state-desc">Chat tab · "What can I help with?"</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Klikk AI</div>
+        <div class="ch-participants">Knows your lease, property &amp; rental law</div>
+      </div>
+      <div class="participant-stack">
+        <div class="p-av ai"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+      </div>
+    </div>
+    <div class="chat-thread">
+      <div class="msg-time">Today</div>
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body">
+          <div class="who">KLIKK AI</div>
+          Hi Michael 👋 I'm here to help with anything about 25 Acacia Rd. What's up?
+        </div>
+      </div>
+      <div class="intent-grid" style="margin-left:34px;">
+        <div class="intent-chip"><svg><use href="#i-wrench"/></svg>Report a problem</div>
+        <div class="intent-chip"><svg><use href="#i-help"/></svg>Ask a question</div>
+        <div class="intent-chip"><svg><use href="#i-shield"/></svg>Check my lease</div>
+        <div class="intent-chip"><svg><use href="#i-bag"/></svg>Book a service</div>
+      </div>
+      <div class="msg-ai" style="margin-top:4px;">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body" style="font-size:11px;color:var(--gray-500);font-style:italic;">
+          …or just type what's on your mind.
+        </div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-paperclip"/></svg></div>
+      <div class="ci-field">Message Klikk AI…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-mic"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-message"/></svg></div>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 5. PROBLEM DESCRIBED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">5</span><span class="state-name">AI gathers details</span><span class="state-desc">RAG classifies · asks for photos</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Klikk AI</div>
+        <div class="ch-participants">Reporting a problem · 09:12</div>
+      </div>
+      <div class="participant-stack">
+        <div class="p-av ai"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+      </div>
+    </div>
+    <div class="chat-thread">
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body">
+          <div class="who">KLIKK AI</div>
+          Sorry to hear it. Tell me what's wrong.
+        </div>
+      </div>
+      <div class="msg-user">
+        <div class="msg-body">Water is dripping from the bathroom ceiling. It's getting worse — there's a damp patch now. I turned off the geyser at the DB.</div>
+      </div>
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body">
+          <div class="who">KLIKK AI</div>
+          <strong>That sounds like a geyser leak above your bathroom</strong> — good call shutting it off. This is usually an <span style="color:var(--danger-600);font-weight:700;">emergency</span>.<br><br>
+          Can you send 1–2 photos of the damp patch?
+        </div>
+      </div>
+      <div class="msg-user">
+        <div class="msg-body" style="padding:6px;">
+          <div style="display:flex;gap:4px;">
+            <div class="photo" style="width:70px;height:70px;border-radius:8px;"></div>
+            <div class="photo" style="width:70px;height:70px;border-radius:8px;"></div>
+            <div class="photo" style="width:70px;height:70px;border-radius:8px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body" style="font-style:italic;color:var(--gray-500);font-size:11px;">
+          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin-right:2px;animation:pulse 1.2s infinite;"></span>
+          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);margin:0 2px;"></span>
+          <span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--accent);"></span>
+          Analysing photos…
+        </div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-paperclip"/></svg></div>
+      <div class="ci-field">Reply to Klikk AI…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-mic"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-message"/></svg></div>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 6. AI CONFIRMS + BOOKS TICKET ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">6</span><span class="state-name">AI books ticket</span><span class="state-desc">Summary card · tenant confirms</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Klikk AI</div>
+        <div class="ch-participants">Ready to log · confirm to send</div>
+      </div>
+      <div class="participant-stack">
+        <div class="p-av ai"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+      </div>
+    </div>
+    <div class="chat-thread">
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body" style="padding:0;background:transparent;box-shadow:none;width:100%;">
+          <div class="who" style="padding:0 0 4px 2px;">KLIKK AI</div>
+          <div style="font-size:12px;color:var(--gray-700);margin-bottom:8px;padding:0 2px;">I can see active damp and water drops. Here's the ticket I'll log:</div>
+          <div class="ai-card">
+            <div class="ac-head"><svg style="width:12px;height:12px;stroke:var(--navy);fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg>New ticket</div>
+            <div class="ac-row"><span class="ac-key">Title</span><span class="ac-val">Geyser leak into ceiling</span></div>
+            <div class="ac-row"><span class="ac-key">Category</span><span class="ac-val">Plumbing</span></div>
+            <div class="ac-row"><span class="ac-key">Urgency</span><span class="ac-val" style="color:var(--danger-600);">Emergency</span></div>
+            <div class="ac-row"><span class="ac-key">Photos</span><span class="ac-val">3 attached</span></div>
+            <div class="ac-row"><span class="ac-key">Location</span><span class="ac-val">Bathroom · 25 Acacia Rd</span></div>
+            <div class="ac-row"><span class="ac-key">Notify</span><span class="ac-val">Sarah (agent)</span></div>
+            <div style="display:flex;gap:6px;margin-top:10px;">
+              <button class="btn btn-accent" style="flex:1;padding:9px;">Send to agent</button>
+              <button class="btn btn-outline" style="flex:0 0 auto;padding:9px 12px;">Edit</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="msg-ai" style="margin-top:4px;">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body" style="font-size:11px;color:var(--gray-500);">
+          Sarah usually replies within 2h. If it gets worse, call the 24/7 line.
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-message"/></svg></div>Chat</div>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<div class="section-label"><h2>Ticket thread — multi-party chat</h2><span>tenant + AI + agent + supplier · same thread, state changes inline</span><div class="rule"></div></div>
+
+<div class="grid">
+<!-- ═══ 7. THREAD CREATED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">7</span><span class="state-name">Ticket sent</span><span class="state-desc">AI logs, agent notified · red dot</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Geyser leak · Emergency</div>
+        <div class="ch-participants">Ticket #KL-0473 · waiting on agent</div>
+      </div>
+      <div class="ch-status-dot red"></div>
+    </div>
+    <div class="chat-thread">
+      <div class="sys-card"><svg><use href="#i-sparkles"/></svg><span><strong>Klikk AI</strong> logged this ticket · 09:12</span></div>
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body">
+          <div class="who">KLIKK AI</div>
+          Done ✓ Ticket sent to Sarah. You'll get a push when she approves.<br><br>
+          <span style="color:var(--gray-500);font-size:11px;">Meanwhile: keep the geyser switched off at the DB board. If the drip turns into active flow, call the 24/7 line.</span>
+        </div>
+      </div>
+      <div class="sys-card"><svg><use href="#i-clock"/></svg><span>Awaiting agent approval · Sarah usually responds within 2h</span></div>
+      <div class="msg-time">09:14</div>
+      <div class="participant-stack" style="justify-content:center;padding:6px;">
+        <div class="p-av ai" title="Klikk AI"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+        <div class="p-av" title="You">MD</div>
+      </div>
+      <div style="text-align:center;font-size:9px;color:var(--gray-400);margin-top:-2px;">2 in this thread</div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-paperclip"/></svg></div>
+      <div class="ci-field">Message…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-send"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 8. AGENT JOINED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">8</span><span class="state-name">Agent joined</span><span class="state-desc">Sarah approves, dispatches plumber</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Geyser leak · Emergency</div>
+        <div class="ch-participants">Sarah (Agent) · approved · assigning plumber</div>
+      </div>
+      <div class="ch-status-dot red"></div>
+    </div>
+    <div class="chat-thread">
+      <div style="text-align:center;font-size:10px;color:var(--gray-400);padding:4px;">↑ 2 earlier messages</div>
+      <div class="sys-card"><svg><use href="#i-user"/></svg><span><strong>Sarah</strong> joined the thread · 09:38</span></div>
+      <div class="msg-ai" style="align-items:flex-start;">
+        <div class="ai-av" style="background:linear-gradient(135deg,#5a5d90,#3b3e8f);"><span style="font-size:10px;font-weight:700;">S</span></div>
+        <div class="msg-body">
+          <div class="who" style="color:var(--navy);">SARAH · AGENT</div>
+          Hi Michael — really sorry this happened. I've approved the ticket and I'm dispatching John from Cape Plumbing now. ETA 14:00–16:00 today.<br><br>
+          Keep the geyser off until he gets there.
+        </div>
+      </div>
+      <div class="sys-card" style="background:var(--success-50);color:var(--success-600);"><svg style="stroke:var(--success-600);"><use href="#i-check"/></svg><span><strong>Ticket approved</strong> · Plumber assigned · Cape Plumbing</span></div>
+      <div class="msg-user">
+        <div class="msg-body">Thanks Sarah, much appreciated.</div>
+      </div>
+      <div class="msg-time">09:41</div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-paperclip"/></svg></div>
+      <div class="ci-field">Message…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-send"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 9. SUPPLIER JOINED · EN-ROUTE ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">9</span><span class="state-name">Supplier en-route</span><span class="state-desc">John joins · live ETA · amber dot</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Geyser leak · En-route</div>
+        <div class="ch-participants">4 in thread · John is 12 min away</div>
+      </div>
+      <div class="ch-status-dot amber"></div>
+    </div>
+    <div class="chat-thread">
+      <div style="text-align:center;font-size:10px;color:var(--gray-400);padding:4px;">↑ 5 earlier messages</div>
+      <div class="sys-card"><svg><use href="#i-user"/></svg><span><strong>John</strong> (Plumber · Cape Plumbing) joined · 13:45</span></div>
+      <div class="msg-ai">
+        <div class="ai-av" style="background:linear-gradient(135deg,#647296,#3c4668);"><span style="font-size:10px;font-weight:700;">J</span></div>
+        <div class="msg-body">
+          <div class="who" style="color:#647296;">JOHN · PLUMBER</div>
+          Hi Michael, on my way. 12 min out. Please unlock the gate by 14:20 — I'll ring on arrival.
+        </div>
+      </div>
+      <div class="map-preview" style="height:100px;margin:2px 0;border-radius:12px;">
+        <div class="path"></div>
+        <div class="pin ctr"></div>
+        <div class="pin home"></div>
+      </div>
+      <div class="sys-card" style="background:var(--warning-50);color:var(--warning-600);"><svg style="stroke:var(--warning-600);"><use href="#i-truck"/></svg><span><strong>Arriving ~14:22</strong> · Toyota Hilux · live</span></div>
+      <div class="msg-user">
+        <div class="msg-body">Gate will be open. Thanks 👍</div>
+      </div>
+      <div class="msg-time">13:48</div>
+      <div class="participant-stack" style="justify-content:center;padding:6px;">
+        <div class="p-av ai"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+        <div class="p-av">MD</div>
+        <div class="p-av agent">S</div>
+        <div class="p-av supplier">J</div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-phone"/></svg></div>
+      <div class="ci-field">Message John…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-send"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<div class="section-label"><h2>Resolution</h2><span>parts → rate → close</span><div class="rule"></div></div>
+
+<div class="grid">
+<!-- ═══ 10. AWAITING PARTS ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">10</span><span class="state-name">Awaiting parts</span><span class="state-desc">Supplier diagnoses in-thread · amber dot</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Gate motor noise · On hold</div>
+        <div class="ch-participants">4 in thread · part arrives Mon</div>
+      </div>
+      <div class="ch-status-dot amber"></div>
+    </div>
+    <div class="chat-thread">
+      <div style="text-align:center;font-size:10px;color:var(--gray-400);padding:4px;">↑ 8 earlier messages</div>
+      <div class="msg-ai" style="align-items:flex-start;">
+        <div class="ai-av" style="background:linear-gradient(135deg,#967d4a,#6b5836);"><span style="font-size:10px;font-weight:700;">T</span></div>
+        <div class="msg-body">
+          <div class="who" style="color:#6b5836;">THABO · SECUREGATE</div>
+          Inspected the gate — worn gear assembly is causing the grinding. Applied temporary lubrication so it keeps working, but the gear needs replacing.<br><br>
+          Local stock out — ordering from Centurion. Back here Tue AM to install.
+        </div>
+      </div>
+      <div class="sys-card" style="background:var(--warning-50);color:var(--warning-600);"><svg style="stroke:var(--warning-600);"><use href="#i-package"/></svg><span><strong>Status → Awaiting parts</strong> · Gear assembly · arriving Mon</span></div>
+      <div class="msg-ai">
+        <div class="ai-av"><svg><use href="#i-sparkles"/></svg></div>
+        <div class="msg-body">
+          <div class="who">KLIKK AI</div>
+          Got it — I've moved this ticket to <strong>Awaiting parts</strong> and pinned Tue AM to your Calendar so you know to be in.<br><br>
+          <span style="color:var(--gray-500);font-size:11px;">No action needed from you. The gate still works with the lube Thabo applied.</span>
+        </div>
+      </div>
+      <div class="msg-user">
+        <div class="msg-body">Perfect, thanks both.</div>
+      </div>
+      <div class="msg-time">16:04 · 3 days ago</div>
+      <div class="participant-stack" style="justify-content:center;padding:6px;">
+        <div class="p-av ai"><svg style="width:11px;height:11px;stroke:white;fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg></div>
+        <div class="p-av">MD</div>
+        <div class="p-av agent">S</div>
+        <div class="p-av supplier" style="background:linear-gradient(135deg,#967d4a,#6b5836);">T</div>
+      </div>
+    </div>
+    <div class="chat-input">
+      <div class="ci-btn ghost" style="background:var(--gray-100);color:var(--navy);"><svg class="ico-sm"><use href="#i-paperclip"/></svg></div>
+      <div class="ci-field">Message Thabo…</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-send"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 11. RESOLVED — INLINE RATE ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">11</span><span class="state-name">Resolved · rate inline</span><span class="state-desc">Rate card appears in the thread</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Geyser leak · Done</div>
+        <div class="ch-participants">John marked complete · rate the work</div>
+      </div>
+      <div class="ch-status-dot green"></div>
+    </div>
+    <div class="chat-thread">
+      <div style="text-align:center;font-size:10px;color:var(--gray-400);padding:4px;">↑ 11 earlier messages</div>
+      <div class="msg-ai" style="align-items:flex-start;">
+        <div class="ai-av" style="background:linear-gradient(135deg,#647296,#3c4668);"><span style="font-size:10px;font-weight:700;">J</span></div>
+        <div class="msg-body">
+          <div class="who" style="color:#647296;">JOHN · PLUMBER</div>
+          All done. Replaced the element + isolation valve. Ran it for 20min — no leak. Photos uploaded to the ticket.
+        </div>
+      </div>
+      <div class="sys-card" style="background:var(--success-50);color:var(--success-600);"><svg style="stroke:var(--success-600);"><use href="#i-check"/></svg><span><strong>Marked complete</strong> · Geyser element replaced · 16:10</span></div>
+      <div class="ai-card" style="margin:4px 0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <svg style="width:14px;height:14px;stroke:var(--navy);fill:none;stroke-width:2;"><use href="#i-sparkles"/></svg>
+          <strong style="font-size:11px;color:var(--navy);">Rate the work (stays in this thread)</strong>
+        </div>
+        <div style="font-size:11px;color:var(--gray-700);margin-bottom:8px;">Did this fix your issue?</div>
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="btn" style="flex:1;padding:8px;font-size:11px;background:var(--success-600);color:white;border-radius:8px;border:none;">Yes, fixed</button>
+          <button class="btn btn-outline" style="flex:1;padding:8px;font-size:11px;border-radius:8px;">Not really</button>
+        </div>
+        <div style="font-size:10px;color:var(--gray-600);margin-bottom:4px;">Rate John</div>
+        <div class="star-rate" style="gap:3px;margin-bottom:8px;">
+          <svg class="star ico-filled" style="width:18px;height:18px;color:var(--warning-600);"><use href="#i-star-fill"/></svg>
+          <svg class="star ico-filled" style="width:18px;height:18px;color:var(--warning-600);"><use href="#i-star-fill"/></svg>
+          <svg class="star ico-filled" style="width:18px;height:18px;color:var(--warning-600);"><use href="#i-star-fill"/></svg>
+          <svg class="star ico-filled" style="width:18px;height:18px;color:var(--warning-600);"><use href="#i-star-fill"/></svg>
+          <svg class="star ico-filled" style="width:18px;height:18px;color:var(--warning-600);"><use href="#i-star-fill"/></svg>
+        </div>
+        <div style="font-size:11px;color:var(--gray-700);padding:8px;background:white;border-radius:8px;border:1px solid var(--gray-200);line-height:1.4;">"Fast response, arrived within the hour. Friendly, explained what he was replacing. Clean work."</div>
+        <div style="font-size:10px;color:var(--gray-500);margin-top:6px;">🔒 Private to Klikk — not shared with landlord</div>
+      </div>
+      <div class="msg-time">16:48</div>
+    </div>
+    <div class="chat-input" style="background:var(--navy);border-top:1px solid var(--navy);">
+      <div class="ci-field" style="background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);">Submit rating to close ticket</div>
+      <div class="ci-btn"><svg class="ico-sm" style="color:white;"><use href="#i-check"/></svg></div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 12. CLOSED + ARCHIVED ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">12</span><span class="state-name">Closed</span><span class="state-desc">Archived thread · on Passport · reopenable</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="chat-head" style="opacity:0.9;">
+      <div class="ch-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="ch-title">
+        <div class="ch-title-main">Geyser leak · Archived</div>
+        <div class="ch-participants">Closed 5 days ago · on your Passport</div>
+      </div>
+      <div class="ch-status-dot green" style="opacity:0.5;"></div>
+    </div>
+    <div class="chat-thread">
+      <div class="sys-card" style="background:var(--success-50);color:var(--success-600);"><svg style="stroke:var(--success-600);"><use href="#i-check"/></svg><span><strong>Ticket closed</strong> · Rated 5.0 · 16:48</span></div>
+      <div class="ai-card" style="margin:4px 0;background:linear-gradient(135deg,#f4f4f9,#eaeaf2);border:1px solid var(--gray-200);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <svg style="width:14px;height:14px;stroke:var(--navy);fill:none;stroke-width:2;"><use href="#i-clock"/></svg>
+          <strong style="font-size:11px;color:var(--navy);">Thread summary · 14 messages</strong>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:11px;">
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">09:12</span><span style="color:var(--gray-800);">Reported · 3 photos</span></div>
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">09:38</span><span style="color:var(--gray-800);">Sarah approved · plumber dispatched</span></div>
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">13:45</span><span style="color:var(--gray-800);">John joined thread</span></div>
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">14:22</span><span style="color:var(--gray-800);">On-site</span></div>
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">16:10</span><span style="color:var(--gray-800);">Element replaced · verified</span></div>
+          <div style="display:flex;gap:8px;"><span style="color:var(--gray-500);width:60px;flex-shrink:0;">16:48</span><span style="color:var(--gray-800);">Rated 5.0 · closed</span></div>
+        </div>
+      </div>
+      <div class="sys-card" style="background:rgba(43,45,110,0.06);color:var(--navy);"><svg style="stroke:var(--navy);"><use href="#i-shield"/></svg><span><strong>On your Klikk Passport</strong> · "reports issues responsibly"</span></div>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-top:6px;">
+        <button class="btn btn-outline" style="font-size:11px;padding:10px;border-radius:10px;">
+          <svg class="ico-sm" style="margin-right:6px;vertical-align:-2px;"><use href="#i-refresh"/></svg>
+          Reopen if it happens again
+        </button>
+        <div style="font-size:10px;color:var(--gray-500);text-align:center;">Thread is read-only · reopening notifies Sarah</div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-wrench"/></svg></div>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-calendar"/></svg>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+</div>
+
+<footer class="footer">
+  <strong>Klikk Tenant · Problems tab + AI Assist</strong><br>
+  12 frames — list · AI intake · multi-party thread · resolution<br>
+  The ticket IS the chat. Tenant + Klikk AI + agent + supplier live in the same thread.
+</footer>
+
+</body>
+</html>

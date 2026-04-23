@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Passport · Your rental history. Yours to carry.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══ KLIKK DESIGN TOKENS ═══ */
+:root {
+  --navy: #2B2D6E;
+  --navy-dark: #23255a;
+  --navy-light: #3b3e8f;
+  --accent: #FF3D7F;
+  --accent-light: #FF6B9D;
+  --accent-dark: #E02D6B;
+  --surface: #F5F5F8;
+  --surface-secondary: #F0EFF8;
+  --white: #FFFFFF;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+  --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+  --gray-800:#1f2937;--gray-900:#111827;
+  --success-50:#ecfdf5;--success-100:#d1fae5;--success-500:#10b981;--success-600:#059669;
+  --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+  --danger-50:#fef2f2;--danger-500:#ef4444;--danger-600:#dc2626;
+  --shadow-soft: 0 1px 2px rgba(17,24,39,0.04), 0 1px 3px rgba(17,24,39,0.06);
+  --shadow-lifted: 0 10px 30px rgba(43,45,110,0.12), 0 2px 6px rgba(17,24,39,0.06);
+  --shadow-floating: 0 20px 60px rgba(43,45,110,0.18);
+  --shadow-passport: 0 30px 80px rgba(43,45,110,0.35), 0 8px 20px rgba(255,61,127,0.2);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 15px; line-height: 1.55; color: var(--gray-800); background: var(--surface); -webkit-font-smoothing: antialiased; }
+.lucide { stroke-width: 1.75; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+section { padding: 96px 0; }
+@media (max-width: 768px) { section { padding: 64px 0; } }
+
+/* ═══ HEADER ═══ */
+.header { position: sticky; top: 0; z-index: 50; background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid var(--gray-200); }
+.header-inner { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; max-width: 1400px; margin: 0 auto; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--navy); font-size: 1.125rem; letter-spacing: -0.02em; }
+.brand-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px rgba(255,61,127,0.18); }
+.header-cta { display: flex; gap: 10px; align-items: center; }
+.pill-chip { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 4px 10px; border-radius: 999px; background: rgba(255,61,127,0.1); color: var(--accent-dark); }
+
+/* ═══ BUTTONS ═══ */
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 0.9375rem; text-decoration: none; border: none; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+.btn-primary { background: var(--navy); color: var(--white); }
+.btn-primary:hover { background: var(--navy-dark); box-shadow: 0 0 0 2px rgba(255,61,127,0.35); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-accent:hover { background: var(--accent-dark); box-shadow: 0 0 0 2px rgba(255,61,127,0.35); }
+.btn-ghost { background: transparent; color: var(--navy); border: 1px solid var(--gray-300); }
+.btn-ghost:hover { border-color: var(--navy); background: var(--surface-secondary); }
+.btn-sm { padding: 8px 14px; font-size: 0.8125rem; }
+.btn-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* ═══ HERO ═══ */
+.hero { padding-top: 80px; padding-bottom: 100px; background: linear-gradient(180deg, var(--navy) 0%, var(--navy-dark) 100%); color: var(--white); position: relative; overflow: hidden; }
+.hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 700px; height: 700px; background: radial-gradient(circle, rgba(255,61,127,0.25) 0%, transparent 55%); pointer-events: none; }
+.hero::after { content: ''; position: absolute; bottom: -300px; left: -200px; width: 800px; height: 800px; background: radial-gradient(circle, rgba(167,139,250,0.12) 0%, transparent 55%); pointer-events: none; }
+.hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; position: relative; z-index: 1; }
+@media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 48px; } }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent-light); padding: 6px 12px; background: rgba(255,61,127,0.15); border-radius: 999px; margin-bottom: 20px; }
+.eyebrow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+h1.hero-title { font-size: clamp(2.5rem, 5.5vw, 4.25rem); font-weight: 800; letter-spacing: -0.04em; line-height: 1.02; margin-bottom: 24px; }
+h1.hero-title .accent { color: var(--accent-light); }
+.hero-sub { font-size: 1.1875rem; color: rgba(255,255,255,0.8); max-width: 560px; margin-bottom: 36px; line-height: 1.55; }
+.hero-sub strong { color: var(--white); font-weight: 600; }
+
+/* ═══ PASSPORT CARD (star of the show) ═══ */
+.passport-stage { display: flex; justify-content: center; align-items: center; perspective: 1400px; }
+.passport { width: 340px; height: 440px; background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 70%, #16183f 100%); border-radius: 22px; padding: 26px; color: var(--white); position: relative; box-shadow: var(--shadow-passport); transform: rotate3d(0.8, 1, 0, 10deg) rotateZ(-4deg); transition: transform 0.4s ease; overflow: hidden; }
+.passport:hover { transform: rotate3d(0.4, 0.6, 0, 4deg) rotateZ(-1deg); }
+.passport::before { content: ''; position: absolute; top: -50%; right: -30%; width: 320px; height: 320px; background: radial-gradient(circle, rgba(255,61,127,0.4) 0%, transparent 60%); pointer-events: none; }
+.passport::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.08) 50%, transparent 70%); pointer-events: none; border-radius: 22px; }
+.pp-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28px; position: relative; z-index: 1; }
+.pp-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.875rem; letter-spacing: 0.1em; text-transform: uppercase; }
+.pp-brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+.pp-chip-nfc { width: 40px; height: 28px; background: linear-gradient(135deg, #d4af37, #b8860b); border-radius: 5px; position: relative; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2); }
+.pp-chip-nfc::before, .pp-chip-nfc::after { content: ''; position: absolute; background: rgba(0,0,0,0.3); }
+.pp-chip-nfc::before { top: 6px; left: 6px; right: 6px; height: 1px; }
+.pp-chip-nfc::after { top: 14px; left: 6px; right: 6px; height: 1px; box-shadow: 0 4px 0 rgba(0,0,0,0.3); }
+.pp-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(255,255,255,0.5); }
+.pp-value { font-size: 1rem; font-weight: 600; margin-top: 2px; margin-bottom: 18px; position: relative; z-index: 1; }
+.pp-name { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.015em; position: relative; z-index: 1; }
+.pp-photo { position: absolute; top: 90px; right: 26px; width: 72px; height: 96px; border-radius: 10px; background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)); border: 2px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 800; color: rgba(255,255,255,0.3); z-index: 1; backdrop-filter: blur(8px); }
+.pp-score { position: relative; z-index: 1; margin-top: 16px; padding: 14px; background: rgba(255,255,255,0.06); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(4px); }
+.pp-score-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.pp-score-val { font-size: 1.75rem; font-weight: 800; color: var(--accent-light); letter-spacing: -0.02em; }
+.pp-score-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.pp-score-fill { height: 100%; width: 94%; background: linear-gradient(90deg, var(--accent), var(--accent-light)); border-radius: 2px; }
+.pp-score-note { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 8px; }
+.pp-meta { display: flex; gap: 16px; margin-top: 18px; position: relative; z-index: 1; }
+.pp-meta-item { flex: 1; }
+.pp-meta-val { font-size: 1.125rem; font-weight: 700; color: var(--white); }
+.pp-meta-label { font-size: 10px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+.pp-footer { position: absolute; bottom: 20px; left: 26px; right: 26px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: rgba(255,255,255,0.5); letter-spacing: 0.1em; z-index: 1; }
+
+/* ═══ SECTION HEADINGS ═══ */
+.section-head { text-align: center; max-width: 760px; margin: 0 auto 56px; }
+.section-head .eyebrow { margin-bottom: 16px; color: var(--accent); background: rgba(255,61,127,0.08); }
+h2 { font-size: clamp(1.875rem, 4vw, 2.75rem); font-weight: 800; letter-spacing: -0.03em; color: var(--navy); line-height: 1.1; margin-bottom: 16px; }
+.section-sub { font-size: 1.0625rem; color: var(--gray-600); line-height: 1.55; }
+
+/* ═══ WHY IT MATTERS ═══ */
+.why { background: var(--white); }
+.why-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .why-grid { grid-template-columns: 1fr; } }
+.why-card { padding: 32px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 16px; box-shadow: var(--shadow-soft); transition: all 0.2s; }
+.why-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lifted); border-color: rgba(255,61,127,0.3); }
+.why-icon { width: 48px; height: 48px; border-radius: 14px; background: rgba(43,45,110,0.08); color: var(--navy); display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+.why-icon.accent { background: rgba(255,61,127,0.1); color: var(--accent); }
+.why-card h3 { font-size: 1.25rem; font-weight: 700; color: var(--navy); margin-bottom: 10px; letter-spacing: -0.015em; }
+.why-card p { font-size: 0.9375rem; color: var(--gray-600); line-height: 1.6; }
+
+/* ═══ WHAT'S ON IT (split w/ list) ═══ */
+.whats-on { background: var(--surface-secondary); }
+.whats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+@media (max-width: 900px) { .whats-grid { grid-template-columns: 1fr; } }
+.whats-body h2 { text-align: left; }
+.whats-list { margin-top: 28px; display: flex; flex-direction: column; gap: 16px; }
+.whats-item { display: flex; gap: 14px; align-items: flex-start; padding: 16px; background: var(--white); border: 1px solid var(--gray-200); border-radius: 12px; transition: all 0.2s; }
+.whats-item:hover { border-color: var(--accent); transform: translateX(4px); }
+.whats-ico-wrap { width: 36px; height: 36px; border-radius: 10px; background: rgba(43,45,110,0.08); color: var(--navy); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.whats-item-body strong { display: block; color: var(--navy); font-weight: 700; margin-bottom: 2px; font-size: 0.9375rem; }
+.whats-item-body span { font-size: 0.875rem; color: var(--gray-600); line-height: 1.5; }
+.whats-illus { display: flex; justify-content: center; align-items: center; perspective: 1200px; min-height: 520px; }
+.mini-passport { width: 300px; min-height: 380px; background: linear-gradient(135deg, var(--white) 0%, var(--surface-secondary) 100%); border: 1px solid var(--gray-200); border-radius: 20px; padding: 24px; box-shadow: var(--shadow-lifted); transform: rotateZ(2deg); }
+.mini-passport-head { display: flex; justify-content: space-between; align-items: center; padding-bottom: 16px; border-bottom: 1px solid var(--gray-200); margin-bottom: 16px; }
+.mini-brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--navy); font-size: 0.9375rem; }
+.mini-brand-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+.mini-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; padding: 3px 8px; background: var(--success-50); color: var(--success-600); border-radius: 999px; }
+.mini-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px dashed var(--gray-200); }
+.mini-row:last-child { border-bottom: none; }
+.mini-row-label { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; color: var(--gray-600); }
+.mini-row-value { font-size: 0.8125rem; font-weight: 600; color: var(--navy); }
+.mini-row-value.green { color: var(--success-600); }
+
+/* ═══ HOW IT TRAVELS ═══ */
+.travels { background: var(--white); }
+.travels-flow { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; position: relative; max-width: 900px; margin: 0 auto; }
+@media (max-width: 900px) { .travels-flow { grid-template-columns: 1fr; } }
+.travel-step { padding: 28px; background: var(--white); border: 2px solid var(--gray-200); border-radius: 16px; text-align: center; position: relative; transition: all 0.2s; }
+.travel-step:hover { border-color: var(--accent); transform: translateY(-4px); }
+.travel-num { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: var(--white); font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 12px rgba(255,61,127,0.3); }
+.travel-ico { width: 56px; height: 56px; border-radius: 16px; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; margin: 8px auto 16px; }
+.travel-step h4 { font-size: 1.125rem; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+.travel-step p { font-size: 0.875rem; color: var(--gray-600); line-height: 1.55; }
+
+/* ═══ PRIVACY / TRUST ═══ */
+.trust { background: var(--navy); color: var(--white); position: relative; overflow: hidden; }
+.trust::before { content: ''; position: absolute; top: -150px; left: 50%; transform: translateX(-50%); width: 600px; height: 600px; background: radial-gradient(circle, rgba(255,61,127,0.12) 0%, transparent 55%); pointer-events: none; }
+.trust h2 { color: var(--white); }
+.trust .section-sub { color: rgba(255,255,255,0.7); }
+.trust .section-head .eyebrow { background: rgba(255,61,127,0.15); color: var(--accent-light); }
+.trust-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; position: relative; z-index: 1; }
+@media (max-width: 900px) { .trust-grid { grid-template-columns: repeat(2, 1fr); } }
+.trust-card { padding: 24px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; backdrop-filter: blur(10px); }
+.trust-ico { width: 40px; height: 40px; border-radius: 10px; background: rgba(255,61,127,0.15); color: var(--accent-light); display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.trust-card h4 { font-size: 1rem; font-weight: 700; color: var(--white); margin-bottom: 6px; letter-spacing: -0.01em; }
+.trust-card p { font-size: 0.875rem; color: rgba(255,255,255,0.7); line-height: 1.5; }
+
+/* ═══ CTA BIG ═══ */
+.cta-big { background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%); color: var(--white); text-align: center; position: relative; overflow: hidden; }
+.cta-big::before { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at 50% -20%, rgba(255,255,255,0.15) 0%, transparent 50%); pointer-events: none; }
+.cta-inner { position: relative; z-index: 1; max-width: 680px; margin: 0 auto; padding: 0 24px; }
+.cta-big h2 { color: var(--white); }
+.cta-big p { font-size: 1.125rem; opacity: 0.9; margin-bottom: 32px; }
+.cta-big .btn-row { justify-content: center; }
+.cta-big .btn-primary { background: var(--white); color: var(--accent-dark); }
+.cta-big .btn-primary:hover { background: rgba(255,255,255,0.95); box-shadow: 0 0 0 3px rgba(255,255,255,0.3); }
+.cta-big .btn-ghost { color: var(--white); border-color: rgba(255,255,255,0.4); }
+.cta-big .btn-ghost:hover { background: rgba(255,255,255,0.1); border-color: var(--white); }
+
+/* ═══ FOOTER ═══ */
+.footer { background: var(--navy-dark); color: rgba(255,255,255,0.6); padding: 40px 24px; text-align: center; font-size: 0.8125rem; }
+.footer strong { color: var(--white); }
+</style>
+</head>
+<body>
+
+<!-- ═══ SVG ICON SPRITES ═══ -->
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <symbol id="i-shield-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-5h-2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-user-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
+    <symbol id="i-trending-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m23 6-9.5 9.5-5-5L1 18M17 6h6v6"/></symbol>
+    <symbol id="i-heart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.6a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9Z"/></symbol>
+    <symbol id="i-award" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><path d="m8.21 13.89-1.21 7.11 5-3 5 3-1.21-7.12"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 1 1 5.3 5.3L9 22.6a1.4 1.4 0 0 1-2-2L17.7 9.8a4 4 0 0 1-3-3.5Z"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></symbol>
+  </defs>
+</svg>
+
+<!-- ═══ HEADER ═══ -->
+<header class="header">
+  <div class="header-inner">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      Klikk
+    </div>
+    <div class="header-cta">
+      <span class="pill-chip">For tenants</span>
+      <a href="#get" class="btn btn-accent btn-sm">Get Klikk</a>
+    </div>
+  </div>
+</header>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow"><span class="eyebrow-dot"></span>Klikk Passport · The rental credential</span>
+        <h1 class="hero-title">Your rental history.<br><span class="accent">Yours to carry.</span></h1>
+        <p class="hero-sub">
+          Every on-time rent, every clean inspection, every closed ticket — <strong>you</strong> built that. Klikk Passport makes it portable.
+          Skip the paperwork. Walk into your next lease with proof that you're a great tenant.
+        </p>
+        <div class="btn-row">
+          <a href="#get" class="btn btn-accent">
+            <svg class="lucide" width="16" height="16"><use href="#i-download"/></svg>
+            Get Klikk — free
+          </a>
+          <a href="#whats-on" class="btn btn-ghost" style="color:white;border-color:rgba(255,255,255,0.3);">
+            See what's on it
+            <svg class="lucide" width="16" height="16"><use href="#i-arrow-right"/></svg>
+          </a>
+        </div>
+      </div>
+      <div class="passport-stage">
+        <div class="passport">
+          <div class="pp-top">
+            <div class="pp-brand"><div class="pp-brand-dot"></div>Klikk · Passport</div>
+            <div class="pp-chip-nfc" title="secure chip"></div>
+          </div>
+          <div class="pp-label">Passport holder</div>
+          <div class="pp-name">Michael Dippenaar</div>
+          <div class="pp-photo">MD</div>
+          <div class="pp-score">
+            <div class="pp-score-head">
+              <span class="pp-label" style="color:rgba(255,255,255,0.6);">Tenant score</span>
+              <span class="pp-score-val">A+</span>
+            </div>
+            <div class="pp-score-bar"><div class="pp-score-fill"></div></div>
+            <div class="pp-score-note">94/100 · Verified by 2 landlords</div>
+          </div>
+          <div class="pp-meta">
+            <div class="pp-meta-item">
+              <div class="pp-meta-val">36</div>
+              <div class="pp-meta-label">On-time months</div>
+            </div>
+            <div class="pp-meta-item">
+              <div class="pp-meta-val">2</div>
+              <div class="pp-meta-label">Leases</div>
+            </div>
+            <div class="pp-meta-item">
+              <div class="pp-meta-val">5.0★</div>
+              <div class="pp-meta-label">From agents</div>
+            </div>
+          </div>
+          <div class="pp-footer">
+            <span>KL-PPT-MD-2426</span>
+            <span>ZA · POPIA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ WHY IT MATTERS ═══ -->
+<section class="why">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow"><span class="eyebrow-dot"></span>Why tenants need this</span>
+      <h2>Being a great tenant used to be <span style="color:var(--accent);">invisible</span>.</h2>
+      <p class="section-sub">In South Africa, good tenants get the same treatment as bad ones — endless FICA docs, bank statements, reference calls that go nowhere. Klikk Passport changes the equation: you earn it once, you use it everywhere.</p>
+    </div>
+    <div class="why-grid">
+      <div class="why-card">
+        <div class="why-icon accent"><svg class="lucide" width="24" height="24"><use href="#i-bolt"/></svg></div>
+        <h3>Faster approvals</h3>
+        <p>Walk into a viewing with a verified Passport. Agents who use Klikk can approve you on the spot — no 3-day FICA wait, no "we'll call your old landlord" delays.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon"><svg class="lucide" width="24" height="24"><use href="#i-heart"/></svg></div>
+        <h3>Better landlords pick you</h3>
+        <p>Landlords on Klikk see your score before the ink dries. Proven good tenants get better units, lower deposits, and longer leases. The market stops being a lottery.</p>
+      </div>
+      <div class="why-card">
+        <div class="why-icon accent"><svg class="lucide" width="24" height="24"><use href="#i-trending-up"/></svg></div>
+        <h3>It compounds</h3>
+        <p>Every lease you complete cleanly adds to your record. After 2 years you're not "just another renter" — you're a verified A+ tenant with portable proof.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ WHAT'S ON IT ═══ -->
+<section class="whats-on" id="whats-on">
+  <div class="container">
+    <div class="whats-grid">
+      <div class="whats-body">
+        <span class="eyebrow"><span class="eyebrow-dot"></span>What's on your Passport</span>
+        <h2>Everything you've earned. Nothing you haven't.</h2>
+        <p class="section-sub">Your Passport is a signed, verifiable record — not a credit-score black box. You can see every line, show every line, hide any line, or delete the whole thing anytime.</p>
+        <div class="whats-list">
+          <div class="whats-item">
+            <div class="whats-ico-wrap"><svg class="lucide" width="18" height="18"><use href="#i-wallet"/></svg></div>
+            <div class="whats-item-body">
+              <strong>Payment record</strong>
+              <span>Month-by-month on-time / late / partial. Verified by the landlord at source — not self-reported.</span>
+            </div>
+          </div>
+          <div class="whats-item">
+            <div class="whats-ico-wrap"><svg class="lucide" width="18" height="18"><use href="#i-wrench"/></svg></div>
+            <div class="whats-item-body">
+              <strong>Maintenance behaviour</strong>
+              <span>"Reports issues responsibly" — tickets raised, photos attached, tenant-fault vs. landlord-fault breakdown.</span>
+            </div>
+          </div>
+          <div class="whats-item">
+            <div class="whats-ico-wrap"><svg class="lucide" width="18" height="18"><use href="#i-star"/></svg></div>
+            <div class="whats-item-body">
+              <strong>Agent &amp; supplier ratings</strong>
+              <span>What the agents who've managed you said. What plumbers and electricians said after site visits.</span>
+            </div>
+          </div>
+          <div class="whats-item">
+            <div class="whats-ico-wrap"><svg class="lucide" width="18" height="18"><use href="#i-file-text"/></svg></div>
+            <div class="whats-item-body">
+              <strong>Move-in / move-out proofs</strong>
+              <span>Inspection photos, signed handover sheets, deposit disposition — so there's never a deposit dispute again.</span>
+            </div>
+          </div>
+          <div class="whats-item">
+            <div class="whats-ico-wrap"><svg class="lucide" width="18" height="18"><use href="#i-shield-check"/></svg></div>
+            <div class="whats-item-body">
+              <strong>Verified identity</strong>
+              <span>FICA once — carry it forever. Klikk keeps the docs encrypted; you choose who gets to see them.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="whats-illus">
+        <div class="mini-passport">
+          <div class="mini-passport-head">
+            <div class="mini-brand"><div class="mini-brand-dot"></div>Passport summary</div>
+            <div class="mini-badge">Verified</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-wallet"/></svg>On-time rent</div>
+            <div class="mini-row-value green">36 / 36</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-wrench"/></svg>Tickets closed</div>
+            <div class="mini-row-value">11 · 4.9★</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-home"/></svg>Clean inspections</div>
+            <div class="mini-row-value green">2 / 2</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-user-check"/></svg>Agent rating</div>
+            <div class="mini-row-value">5.0★</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-clock"/></svg>Avg response time</div>
+            <div class="mini-row-value">2.1 hrs</div>
+          </div>
+          <div class="mini-row">
+            <div class="mini-row-label"><svg class="lucide" width="14" height="14" style="color:var(--navy);"><use href="#i-file-text"/></svg>FICA docs</div>
+            <div class="mini-row-value green">Verified ✓</div>
+          </div>
+          <div class="mini-row" style="border-bottom:none;margin-top:6px;padding-top:14px;border-top:1px solid var(--gray-200);">
+            <div class="mini-row-label" style="font-weight:600;color:var(--navy);">Overall</div>
+            <div class="mini-row-value" style="font-size:1rem;color:var(--accent);">A+ · 94</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ HOW IT TRAVELS ═══ -->
+<section class="travels">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow"><span class="eyebrow-dot"></span>How it travels with you</span>
+      <h2>One Passport. Every <span style="color:var(--accent);">move</span>.</h2>
+      <p class="section-sub">Your Passport isn't locked to one landlord or one property. It's yours — wherever you rent next.</p>
+    </div>
+    <div class="travels-flow">
+      <div class="travel-step">
+        <div class="travel-num">1</div>
+        <div class="travel-ico"><svg class="lucide" width="28" height="28"><use href="#i-award"/></svg></div>
+        <h4>Earn it</h4>
+        <p>Rent on Klikk. Every month, inspection and ticket quietly adds to your record. No forms, no effort.</p>
+      </div>
+      <div class="travel-step">
+        <div class="travel-num">2</div>
+        <div class="travel-ico"><svg class="lucide" width="28" height="28"><use href="#i-share"/></svg></div>
+        <h4>Share it</h4>
+        <p>New viewing? Tap 'Share Passport' → send a private link. Agent sees your score, not your raw data, unless you allow it.</p>
+      </div>
+      <div class="travel-step">
+        <div class="travel-num">3</div>
+        <div class="travel-ico"><svg class="lucide" width="28" height="28"><use href="#i-key"/></svg></div>
+        <h4>Move in faster</h4>
+        <p>Landlords on Klikk approve A+ Passports at viewing. Off-Klikk? Export as a signed PDF reference they can verify in 30 seconds.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ PRIVACY / TRUST ═══ -->
+<section class="trust">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow"><span class="eyebrow-dot"></span>Your data, your rules</span>
+      <h2>POPIA-aligned. Tenant-owned. Auditable.</h2>
+      <p class="section-sub">Klikk Passport is built on South African privacy law. You own it. You control who sees it. You can delete it.</p>
+    </div>
+    <div class="trust-grid">
+      <div class="trust-card">
+        <div class="trust-ico"><svg class="lucide" width="20" height="20"><use href="#i-lock"/></svg></div>
+        <h4>Encrypted at rest</h4>
+        <p>Your FICA docs, bank statements, and photos are AES-256 encrypted. Nobody at Klikk browses them.</p>
+      </div>
+      <div class="trust-card">
+        <div class="trust-ico"><svg class="lucide" width="20" height="20"><use href="#i-eye-off"/></svg></div>
+        <h4>Hide anything</h4>
+        <p>Don't want landlords to see maintenance history? Hide it. Don't want your old address shown? Hide it. Granular control, always on.</p>
+      </div>
+      <div class="trust-card">
+        <div class="trust-ico"><svg class="lucide" width="20" height="20"><use href="#i-trash"/></svg></div>
+        <h4>Delete anytime</h4>
+        <p>One tap. We wipe everything within 7 days. No dark-pattern "are you sure" loops. It's your record.</p>
+      </div>
+      <div class="trust-card">
+        <div class="trust-ico"><svg class="lucide" width="20" height="20"><use href="#i-shield-check"/></svg></div>
+        <h4>Shareable, not scrapable</h4>
+        <p>Passports share as signed, time-limited links. No-one downloads your life; they verify what you chose to show.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-big" id="get">
+  <div class="cta-inner">
+    <h2>Move in once. Prove it everywhere.</h2>
+    <p>Klikk is free for tenants. Your landlord pays for the platform — you get the Passport.</p>
+    <div class="btn-row">
+      <a href="#" class="btn btn-primary">
+        <svg class="lucide" width="16" height="16"><use href="#i-download"/></svg>
+        Download Klikk
+      </a>
+      <a href="#" class="btn btn-ghost">
+        Ask your landlord for it
+        <svg class="lucide" width="16" height="16"><use href="#i-arrow-right"/></svg>
+      </a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <strong>Klikk Passport</strong> · Your rental history. Yours to carry.<br>
+  Built for South African tenants · POPIA-aligned · Free for renters
+</footer>
+
+</body>
+</html>

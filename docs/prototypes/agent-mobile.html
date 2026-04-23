@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Agent — Mobile · Site Tool</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #2B2D6E; --navy-dark: #23255a; --navy-light: #3b3e8f;
+  --accent: #FF3D7F; --accent-light: #FF6B9D;
+  --surface: #F5F5F8; --surface-secondary: #F0EFF8; --white: #FFFFFF;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+  --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+  --gray-800:#1f2937;--gray-900:#111827;
+  --success-50:#f0fdfa;--success-100:#ccfbf1;--success-600:#0d9488;--success-700:#0f766e;
+  --warning-50:#fffbeb;--warning-100:#fef3c7;--warning-600:#d97706;--warning-700:#b45309;
+  --danger-50:#fef2f2;--danger-100:#fee2e2;--danger-600:#dc2626;--danger-700:#b91c1c;
+  --shadow-soft: 0 1px 2px rgba(15,17,57,0.04), 0 2px 6px rgba(15,17,57,0.04);
+  --shadow-lifted: 0 4px 12px rgba(15,17,57,0.08), 0 12px 24px rgba(15,17,57,0.06);
+  --shadow-phone: 0 20px 48px rgba(15,17,57,0.14), 0 8px 16px rgba(15,17,57,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 15px; }
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #EEEDF4;
+  background-image: radial-gradient(#2B2D6E14 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #111; min-height: 100vh;
+  padding: 40px 24px 80px;
+}
+.page-header { max-width: 1200px; margin: 0 auto 48px; text-align: center; }
+.page-header h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.5rem; font-weight: 600; color: var(--navy); letter-spacing: -0.02em; margin-bottom: 8px; }
+.page-header p { color: var(--gray-600); font-size: 1rem; max-width: 680px; margin: 0 auto; }
+.page-header .tag { display:inline-block;margin-top:10px;padding:6px 14px;background:var(--navy);color:white;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;}
+
+.section-label { max-width: 1200px; margin: 56px auto 24px; display: flex; align-items: baseline; gap: 12px; padding: 0 8px; }
+.section-label h2 { font-family: 'Fraunces', Georgia, serif; font-size: 1.4rem; font-weight: 500; color: var(--navy); }
+.section-label span { color: var(--gray-500); font-size: 0.875rem; }
+.section-label .rule { flex: 1; height: 1px; background: linear-gradient(to right, var(--gray-300), transparent); }
+
+.grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 32px; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.frame-label { margin-bottom: 12px; text-align: center; }
+.frame-label .state-num { display: inline-block; background: var(--navy); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 22px; margin-right: 8px; vertical-align: middle; }
+.frame-label .state-name { font-weight: 600; color: var(--navy); font-size: 0.95rem; vertical-align: middle; }
+.frame-label .state-desc { display: block; color: var(--gray-500); font-size: 0.8rem; margin-top: 4px; }
+
+/* Phone shell */
+.phone { width: 320px; height: 658px; background: #000; border-radius: 44px; padding: 10px; box-shadow: var(--shadow-phone); position: relative; flex-shrink: 0; }
+.phone::before { content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 100px; height: 28px; background: #000; border-radius: 20px; z-index: 10; }
+.screen { width: 100%; height: 100%; background: var(--surface); border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.status-bar { height: 44px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 24px 6px; font-size: 13px; font-weight: 600; color: var(--gray-900); }
+
+/* App header (role pill + offline cloud) */
+.app-hd { padding: 10px 16px 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.role-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(43,45,110,0.08); color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; }
+.role-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.hd-icons { display: flex; gap: 6px; align-items: center; }
+.hd-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--white); display: flex; align-items: center; justify-content: center; color: var(--navy); box-shadow: var(--shadow-soft); position: relative; }
+.hd-btn .dot-bell { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px white; }
+.offline-chip { font-size: 10px; font-weight: 700; color: var(--warning-700); background: var(--warning-50); padding: 4px 9px; border-radius: 999px; display: inline-flex; align-items: center; gap: 4px; }
+
+/* Ambient strip (GPS context) */
+.ambient { padding: 6px 16px 4px; font-size: 10px; color: var(--gray-500); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+.ambient strong { color: var(--navy); }
+
+/* Tab bar (Now · Inspect · Sign · Log) */
+.tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 78px; background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-top: 1px solid var(--gray-100); display: flex; justify-content: space-around; align-items: flex-start; padding: 10px 0 20px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--gray-400); font-weight: 600; }
+.tab .tab-ico { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active { color: var(--navy); font-weight: 700; }
+.tab.active .tab-ico-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; transform: translateY(-10px); box-shadow: 0 6px 14px rgba(43,45,110,0.35); margin-bottom: -8px; position: relative; }
+.tab.active .tab-ico-wrap::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, rgba(255,61,127,0.18) 30%, transparent 70%); z-index: -1; }
+.tab.active .tab-ico { stroke: white; color: white; stroke-width: 2; width: 18px; height: 18px; }
+
+/* Icons */
+.ico { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ico-sm { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.ico-lg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ico-xl { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.footer { max-width: 1200px; margin: 56px auto 0; padding: 24px; text-align: center; color: var(--gray-500); font-size: 0.85rem; line-height: 1.6; }
+.footer strong { color: var(--navy); }
+
+/* ═══ PROPERTY CARD (the app's centre of gravity) ═══ */
+.prop-card { margin: 6px 16px 12px; border-radius: 16px; overflow: hidden; background: white; box-shadow: var(--shadow-soft); }
+.prop-card-img { height: 88px; background: linear-gradient(135deg, #c9d5e6 0%, #a7b9d1 50%, #8ea3c0 100%); position: relative; }
+.prop-card-img::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to top, rgba(17,24,39,0.35), transparent 60%); }
+.prop-card-img.unit2 { background: linear-gradient(135deg, #d8c9bb 0%, #b9a18a 50%, #9b8775 100%); }
+.prop-card-img.unit3 { background: linear-gradient(135deg, #bdd3c5 0%, #95b19d 50%, #708a79 100%); }
+.prop-card-body { padding: 12px 14px 14px; }
+.prop-card-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--navy); display: flex; align-items: center; gap: 5px; }
+.prop-card-title { font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 500; color: var(--gray-900); margin-top: 3px; letter-spacing: -0.01em; }
+.prop-card-sub { font-size: 11px; color: var(--gray-500); margin-top: 2px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.prop-card-sub .divider { color: var(--gray-300); }
+
+/* Event banner (the pink CTA strip on Now home) */
+.evt-banner { margin: 0 16px 12px; padding: 14px 16px; border-radius: 14px; background: linear-gradient(135deg, var(--accent) 0%, #e02d6b 100%); color: white; position: relative; overflow: hidden; }
+.evt-banner::before { content: ''; position: absolute; top: -30px; right: -20px; width: 100px; height: 100px; border-radius: 50%; background: rgba(255,255,255,0.08); }
+.evt-banner-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; }
+.evt-banner-title { font-family: 'Fraunces', Georgia, serif; font-size: 18px; font-weight: 500; margin-top: 3px; position: relative; z-index: 1; }
+.evt-banner-meta { font-size: 11px; opacity: 0.9; margin-top: 4px; display: flex; align-items: center; gap: 6px; position: relative; z-index: 1; }
+.evt-banner-cta { margin-top: 10px; padding: 10px 14px; background: white; color: var(--navy); border-radius: 10px; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; position: relative; z-index: 1; }
+.evt-banner.amber { background: linear-gradient(135deg, var(--warning-600) 0%, #92400e 100%); }
+.evt-banner.navy { background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); }
+
+/* Body scroll container */
+.body-scroll { flex: 1; overflow: hidden; padding: 0 0 90px; position: relative; }
+
+/* Section group label (within body) */
+.grp { padding: 16px 16px 6px; display: flex; align-items: center; gap: 8px; }
+.grp-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--navy); }
+.grp-rule { flex: 1; height: 1px; background: linear-gradient(to right, var(--gray-200), transparent); }
+
+/* Today's agenda strip */
+.agenda { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+.agenda-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border-radius: 12px; box-shadow: var(--shadow-soft); }
+.agenda-time { font-size: 10px; font-weight: 700; color: var(--gray-500); width: 42px; text-transform: uppercase; letter-spacing: 0.04em; }
+.agenda-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(220,38,38,0.12); }
+.agenda-dot.amber { background: var(--warning-600); box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(217,119,6,0.12); }
+.agenda-dot.navy { background: var(--navy); box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(43,45,110,0.12); }
+.agenda-dot.red { background: var(--danger-600); }
+.agenda-dot.green { background: var(--success-600); box-shadow: 0 0 0 2px white, 0 0 0 4px rgba(13,148,136,0.12); }
+.agenda-body { flex: 1; }
+.agenda-title { font-size: 12px; font-weight: 600; color: var(--gray-900); }
+.agenda-sub { font-size: 10px; color: var(--gray-500); margin-top: 1px; }
+
+/* Big action buttons (thumb-reach, gloves) */
+.btn-big { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; border-radius: 12px; font-size: 14px; font-weight: 700; border: none; width: 100%; font-family: inherit; }
+.btn-big.primary { background: var(--navy); color: white; }
+.btn-big.accent { background: var(--accent); color: white; }
+.btn-big.outline { background: white; color: var(--navy); border: 1px solid var(--gray-200); }
+.btn-big.danger { background: var(--danger-600); color: white; }
+.btn-row-2 { display: flex; gap: 8px; padding: 0 16px; }
+.btn-row-2 .btn-big { flex: 1; }
+
+/* Quick-action tiles (on Now home) */
+.quick-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px; }
+.quick-tile { background: white; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 6px; box-shadow: var(--shadow-soft); min-height: 80px; }
+.quick-tile-ico { width: 32px; height: 32px; border-radius: 8px; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; }
+.quick-tile-ico.accent { background: rgba(255,61,127,0.1); color: var(--accent); }
+.quick-tile-ico.warning { background: var(--warning-50); color: var(--warning-700); }
+.quick-tile-ico.success { background: var(--success-50); color: var(--success-600); }
+.quick-tile-title { font-size: 12px; font-weight: 700; color: var(--gray-900); }
+.quick-tile-sub { font-size: 10px; color: var(--gray-500); line-height: 1.3; }
+
+/* Recent activity strip */
+.recent-strip { margin: 0 16px; padding: 10px 12px; background: white; border-radius: 12px; box-shadow: var(--shadow-soft); }
+.recent-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 11px; color: var(--gray-600); }
+.recent-row + .recent-row { border-top: 1px dashed var(--gray-100); }
+.recent-row .ico-sm { color: var(--navy); }
+
+/* Sheet head (back-button variant) */
+.sheet-head { padding: 12px 16px; display: flex; align-items: center; gap: 10px; background: white; border-bottom: 1px solid var(--gray-100); }
+.sheet-back { width: 36px; height: 36px; border-radius: 50%; background: var(--gray-100); display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.sheet-title { flex: 1; }
+.sheet-title-main { font-family: 'Fraunces', Georgia, serif; font-size: 15px; font-weight: 600; color: var(--gray-900); }
+.sheet-title-sub { font-size: 10px; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 1px; }
+
+/* Progress rail (rooms done / total) */
+.progress-rail { padding: 12px 16px 10px; background: var(--surface-secondary); }
+.progress-rail-top { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 6px; }
+.progress-rail-top strong { color: var(--navy); }
+.progress-rail-track { height: 6px; background: white; border-radius: 4px; overflow: hidden; }
+.progress-rail-fill { height: 100%; background: var(--navy); border-radius: 4px; }
+.progress-rail-fill.accent { background: var(--accent); }
+
+/* Room chips (navigation between rooms in inspect) */
+.room-chips { display: flex; gap: 6px; padding: 10px 16px; overflow-x: auto; }
+.room-chip { font-size: 11px; padding: 7px 12px; border-radius: 20px; background: white; color: var(--gray-600); font-weight: 600; border: 1px solid var(--gray-200); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.room-chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+.room-chip.done { background: var(--success-50); color: var(--success-700); border-color: var(--success-100); }
+.room-chip .rc-check { width: 10px; height: 10px; }
+
+/* Photo tiles (camera-captured images) */
+.photo-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; padding: 10px 16px; }
+.photo-tile { aspect-ratio: 1; border-radius: 8px; background: linear-gradient(135deg, #a7b9d1, #8ea3c0); position: relative; overflow: hidden; }
+.photo-tile.add { background: var(--surface-secondary); border: 2px dashed var(--gray-300); display: flex; align-items: center; justify-content: center; color: var(--gray-400); }
+.photo-tile .photo-tag { position: absolute; bottom: 4px; left: 4px; font-size: 8px; padding: 2px 5px; background: rgba(17,24,39,0.7); color: white; border-radius: 3px; font-weight: 600; }
+.photo-tile.defect { background: linear-gradient(135deg, #b09487, #846b5e); }
+.photo-tile.defect::before { content: ''; position: absolute; top: 4px; right: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--danger-600); box-shadow: 0 0 0 2px white; }
+
+/* Defect list */
+.defect-card { margin: 0 16px 10px; padding: 12px; background: white; border-radius: 12px; box-shadow: var(--shadow-soft); border-left: 3px solid var(--warning-600); display: flex; gap: 10px; align-items: flex-start; }
+.defect-card.red { border-left-color: var(--danger-600); }
+.defect-card-photo { width: 48px; height: 48px; border-radius: 8px; background: linear-gradient(135deg, #b09487, #846b5e); flex-shrink: 0; }
+.defect-card-body { flex: 1; }
+.defect-card-title { font-size: 12px; font-weight: 700; color: var(--gray-900); }
+.defect-card-meta { font-size: 10px; color: var(--gray-500); margin-top: 2px; }
+.defect-badge { font-size: 9px; padding: 2px 6px; border-radius: 6px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+.defect-badge.amber { background: var(--warning-100); color: var(--warning-700); }
+.defect-badge.red { background: var(--danger-100); color: var(--danger-700); }
+
+/* Camera frame (on ID / FICA capture) */
+.cam-frame { margin: 16px; aspect-ratio: 4/3; background: linear-gradient(135deg, #1a1d2b, #0f131c); border-radius: 14px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.cam-frame::before, .cam-frame::after { content: ''; position: absolute; width: 24px; height: 24px; border: 3px solid white; }
+.cam-frame::before { top: 12px; left: 12px; border-right: none; border-bottom: none; border-top-left-radius: 4px; }
+.cam-frame::after { bottom: 12px; right: 12px; border-left: none; border-top: none; border-bottom-right-radius: 4px; }
+.cam-guide { position: absolute; inset: 18%; border: 2px dashed rgba(255,255,255,0.5); border-radius: 8px; }
+.cam-hint { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: white; font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.9; }
+.cam-controls { display: flex; justify-content: center; gap: 20px; padding: 0 16px 14px; align-items: center; }
+.cam-shutter { width: 56px; height: 56px; border-radius: 50%; background: white; border: 4px solid var(--navy); box-shadow: 0 4px 12px rgba(43,45,110,0.3); }
+.cam-ico-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--surface-secondary); display: flex; align-items: center; justify-content: center; color: var(--navy); }
+
+/* Signature pad */
+.sig-pad { margin: 0 16px 10px; height: 140px; background: white; border: 2px dashed var(--gray-300); border-radius: 12px; position: relative; overflow: hidden; }
+.sig-pad::before { content: ''; position: absolute; bottom: 22px; left: 16px; right: 16px; height: 1px; background: var(--gray-300); }
+.sig-pad-label { position: absolute; bottom: 6px; left: 16px; font-size: 9px; color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.sig-line { position: absolute; top: 36px; left: 36px; right: 90px; height: 60px; }
+.sig-line svg { width: 100%; height: 100%; }
+.sig-line path { fill: none; stroke: var(--navy); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Visit log row */
+.log-row { display: flex; gap: 10px; padding: 12px 14px; background: white; margin: 0 16px 8px; border-radius: 12px; box-shadow: var(--shadow-soft); align-items: center; }
+.log-thumb { width: 44px; height: 44px; border-radius: 10px; background: linear-gradient(135deg, #c9d5e6, #8ea3c0); flex-shrink: 0; }
+.log-thumb.thumb2 { background: linear-gradient(135deg, #d8c9bb, #9b8775); }
+.log-thumb.thumb3 { background: linear-gradient(135deg, #bdd3c5, #708a79); }
+.log-thumb.thumb4 { background: linear-gradient(135deg, #e6c9d0, #b57c8a); }
+.log-body { flex: 1; min-width: 0; }
+.log-title { font-size: 12px; font-weight: 700; color: var(--gray-900); }
+.log-sub { font-size: 10px; color: var(--gray-500); margin-top: 2px; display: flex; align-items: center; gap: 6px; }
+.log-badge { font-size: 9px; padding: 2px 6px; border-radius: 5px; font-weight: 700; text-transform: uppercase; }
+.log-badge.green { background: var(--success-100); color: var(--success-700); }
+.log-badge.amber { background: var(--warning-100); color: var(--warning-700); }
+
+/* Emergency sheet (full overlay) */
+.emrg-hero { padding: 18px 18px 14px; background: linear-gradient(135deg, var(--danger-600) 0%, #7f1d1d 100%); color: white; position: relative; }
+.emrg-hero-label { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.9; display: flex; align-items: center; gap: 6px; }
+.emrg-hero-title { font-family: 'Fraunces', Georgia, serif; font-size: 19px; font-weight: 500; margin-top: 4px; }
+.emrg-hero-sub { font-size: 11px; margin-top: 4px; opacity: 0.85; }
+.emrg-pulse { width: 8px; height: 8px; border-radius: 50%; background: white; animation: pulse 1.4s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,255,255,0.5); } 70% { box-shadow: 0 0 0 8px rgba(255,255,255,0); } }
+
+.supplier-row { margin: 0 16px 8px; padding: 12px; background: white; border-radius: 12px; box-shadow: var(--shadow-soft); display: flex; gap: 10px; align-items: center; }
+.supplier-row.best { border: 2px solid var(--success-600); }
+.supplier-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg,#647296,#3c4668); color: white; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+.supplier-body { flex: 1; }
+.supplier-name { font-size: 12px; font-weight: 700; color: var(--gray-900); }
+.supplier-meta { font-size: 10px; color: var(--gray-500); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.supplier-stars { color: var(--warning-600); font-size: 9px; letter-spacing: 1px; }
+.best-badge { position: absolute; top: -8px; right: 12px; font-size: 9px; font-weight: 700; background: var(--success-600); color: white; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+.supplier-row-wrap { position: relative; margin: 0 16px 8px; }
+.supplier-row-wrap .supplier-row { margin: 0; }
+
+/* Empty-state */
+.empty { text-align: center; padding: 32px 24px; }
+.empty-ico { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+.empty h3 { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 500; color: var(--gray-800); margin-bottom: 4px; }
+.empty p { font-size: 11px; color: var(--gray-500); max-width: 220px; margin: 0 auto; line-height: 1.5; }
+
+/* Checklist */
+.checklist { margin: 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.check-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: white; border-radius: 10px; box-shadow: var(--shadow-soft); }
+.check-box { width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--gray-300); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.check-box.done { background: var(--success-600); border-color: var(--success-600); }
+.check-box.done svg { color: white; stroke-width: 3; }
+.check-text { font-size: 12px; color: var(--gray-900); flex: 1; }
+.check-text.done { color: var(--gray-400); text-decoration: line-through; }
+
+/* Bottom action strip (replaces tab bar on active flow) */
+.bottom-action { position: absolute; bottom: 0; left: 0; right: 0; padding: 12px 16px 24px; background: white; border-top: 1px solid var(--gray-100); box-shadow: 0 -8px 20px rgba(15,17,57,0.06); }
+.bottom-action .btn-big { width: 100%; }
+
+/* Sys-card (thread snippet on supplier dispatched) */
+.sys-card { margin: 0 16px 8px; background: var(--surface-secondary); border-radius: 10px; padding: 10px 12px; font-size: 11px; color: var(--gray-700); display: flex; align-items: center; gap: 6px; }
+.sys-card.success { background: var(--success-50); color: var(--success-700); }
+.sys-card svg { color: var(--navy); }
+
+/* Map mini */
+.map-mini { margin: 0 16px 10px; height: 120px; border-radius: 12px; background: linear-gradient(135deg, #d4e2f4 0%, #c5d5ed 40%, #dfe5f0 100%); position: relative; overflow: hidden; }
+.map-mini::before { content: ''; position: absolute; top: 40%; left: 15%; right: 25%; height: 2px; background: rgba(43,45,110,0.3); border-radius: 2px; transform: rotate(12deg); }
+.map-mini .mp-pin { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.map-mini .mp-pin.home { bottom: 20%; right: 26%; }
+.map-mini .mp-pin.supplier { top: 25%; left: 18%; background: var(--navy); }
+.map-mini .mp-eta { position: absolute; bottom: 10px; right: 10px; background: white; padding: 5px 9px; border-radius: 6px; font-size: 10px; font-weight: 700; color: var(--navy); box-shadow: var(--shadow-soft); }
+</style>
+</head>
+<body>
+
+<!-- ═══ ICON SPRITES (Lucide) ═══ -->
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-5h-2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
+    <symbol id="i-clipboard-check" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></symbol>
+    <symbol id="i-pen" viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></symbol>
+    <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-nav" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10a7 7 0 0 1-14 0M12 19v3"/></symbol>
+    <symbol id="i-flash" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-wifi-off" viewBox="0 0 24 24"><path d="M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10Z"/></symbol>
+    <symbol id="i-id" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M15 9h3M15 13h3"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92Z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 1 1 5.3 5.3L9 22.6a1.4 1.4 0 0 1-2-2L17.7 9.8a4 4 0 0 1-3-3.5Z"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4M12 17h.01"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M16 13H8M16 17H8M10 9H8"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.34 6.34l2.83 2.83M14.83 14.83l2.83 2.83M6.34 17.66l2.83-2.83M14.83 9.17l2.83-2.83"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></symbol>
+  </defs>
+</svg>
+
+<!-- ═══ PAGE HEADER ═══ -->
+<div class="page-header">
+  <h1>Klikk Agent — Mobile</h1>
+  <p>Identity: <strong style="color:var(--navy)">"I'm at a property."</strong> A site tool, not a dashboard. Camera-first. Offline-first. Big-tap. 12 frames across 4 sections — <strong style="color:var(--navy)">Now · Inspect · Sign · Log</strong>.</p>
+  <span class="tag">SITE TOOL · AGENT APP</span>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SECTION 1 — NOW (the home state · 3 frames)
+     ══════════════════════════════════════════ -->
+<div class="section-label"><h2>Now — the home state</h2><span>context-aware · one property at a time</span><div class="rule"></div></div>
+<div class="grid">
+
+<!-- ═══ FRAME 1 · Quiet morning ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">1</span><span class="state-name">Quiet morning</span><span class="state-desc">No site visit yet · today's agenda below</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span>100%</span></div>
+    <div class="app-hd">
+      <div class="role-pill"><span class="dot"></span>Agent · MD</div>
+      <div class="hd-icons">
+        <span class="offline-chip"><svg class="ico-sm" style="width:10px;height:10px"><use href="#i-cloud"/></svg>Synced</span>
+        <div class="hd-btn"><svg class="ico"><use href="#i-bell"/></svg><span class="dot-bell"></span></div>
+      </div>
+    </div>
+    <div class="ambient"><svg class="ico-sm"><use href="#i-map-pin"/></svg>You're at <strong>Office · 15 Dorp St</strong></div>
+    <div class="body-scroll">
+      <div class="empty" style="padding-top: 20px;">
+        <div class="empty-ico"><svg class="ico-xl"><use href="#i-map-pin"/></svg></div>
+        <h3>Not at a property yet</h3>
+        <p>Your day starts at 11:00 — here's what's on the list.</p>
+      </div>
+      <div class="grp"><span class="grp-lbl">Today · 3 visits</span><span class="grp-rule"></span></div>
+      <div class="agenda">
+        <div class="agenda-row">
+          <div class="agenda-time">11:00</div>
+          <div class="agenda-dot amber"></div>
+          <div class="agenda-body">
+            <div class="agenda-title">Move-out inspection</div>
+            <div class="agenda-sub">7 Dorp St, Unit 3 · Sarah van der Merwe</div>
+          </div>
+        </div>
+        <div class="agenda-row">
+          <div class="agenda-time">14:00</div>
+          <div class="agenda-dot navy"></div>
+          <div class="agenda-body">
+            <div class="agenda-title">Viewing · prospect</div>
+            <div class="agenda-sub">56 Andringa St · Nomsa Mthembu</div>
+          </div>
+        </div>
+        <div class="agenda-row">
+          <div class="agenda-time">16:30</div>
+          <div class="agenda-dot green"></div>
+          <div class="agenda-body">
+            <div class="agenda-title">Supplier sign-off</div>
+            <div class="agenda-sub">9 Bird St · John · Cape Plumbing</div>
+          </div>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Quick actions</span><span class="grp-rule"></span></div>
+      <div class="quick-tiles">
+        <div class="quick-tile"><div class="quick-tile-ico accent"><svg class="ico"><use href="#i-alert"/></svg></div><div class="quick-tile-title">Emergency</div><div class="quick-tile-sub">Dispatch a supplier</div></div>
+        <div class="quick-tile"><div class="quick-tile-ico"><svg class="ico"><use href="#i-clipboard"/></svg></div><div class="quick-tile-title">Unplanned inspection</div><div class="quick-tile-sub">Pick a property</div></div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-home"/></svg></div><span>Now</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-clipboard"/></svg><span>Inspect</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-pen"/></svg><span>Sign</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-list"/></svg><span>Log</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 2 · Event approaching ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">2</span><span class="state-name">Event approaching</span><span class="state-desc">GPS + calendar → property card auto-loaded</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>10:48</span><span>92%</span></div>
+    <div class="app-hd">
+      <div class="role-pill"><span class="dot"></span>Agent · MD</div>
+      <div class="hd-icons">
+        <span class="offline-chip"><svg class="ico-sm" style="width:10px;height:10px"><use href="#i-cloud"/></svg>Synced</span>
+        <div class="hd-btn"><svg class="ico"><use href="#i-bell"/></svg><span class="dot-bell"></span></div>
+      </div>
+    </div>
+    <div class="ambient"><svg class="ico-sm"><use href="#i-nav"/></svg>Arriving at <strong>7 Dorp St</strong> · 2 min away</div>
+    <div class="body-scroll">
+      <div class="prop-card">
+        <div class="prop-card-img unit3"></div>
+        <div class="prop-card-body">
+          <div class="prop-card-eyebrow"><svg class="ico-sm"><use href="#i-map-pin"/></svg>Today · move-out</div>
+          <div class="prop-card-title">7 Dorp St, Unit 3</div>
+          <div class="prop-card-sub"><span>Stellenbosch</span><span class="divider">·</span><span>Sarah v.d. Merwe</span><span class="divider">·</span><span>R14,500/mo</span></div>
+        </div>
+      </div>
+      <div class="evt-banner">
+        <div class="evt-banner-label">Move-out inspection</div>
+        <div class="evt-banner-title">Starts in 12 min</div>
+        <div class="evt-banner-meta"><svg class="ico-sm"><use href="#i-users"/></svg>Sarah is on her way · joint inspection</div>
+        <div class="evt-banner-cta"><svg class="ico-sm"><use href="#i-play"/></svg>Start inspection now</div>
+      </div>
+      <div class="btn-row-2" style="margin-bottom:10px;">
+        <button class="btn-big outline"><svg class="ico-sm"><use href="#i-phone"/></svg>Call Sarah</button>
+        <button class="btn-big outline"><svg class="ico-sm"><use href="#i-nav"/></svg>Directions</button>
+      </div>
+      <div class="grp"><span class="grp-lbl">Recent on this property</span><span class="grp-rule"></span></div>
+      <div class="recent-strip">
+        <div class="recent-row"><svg class="ico-sm"><use href="#i-check-circle"/></svg>Rent paid · 3 Apr · R14,500</div>
+        <div class="recent-row"><svg class="ico-sm"><use href="#i-wrench"/></svg>Geyser replaced · 2 Mar · R4,200</div>
+        <div class="recent-row"><svg class="ico-sm"><use href="#i-file-text"/></svg>Lease ends 30 Apr · 13 days</div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-home"/></svg></div><span>Now</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-clipboard"/></svg><span>Inspect</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-pen"/></svg><span>Sign</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-list"/></svg><span>Log</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 3 · Offline at the property ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">3</span><span class="state-name">Offline at property</span><span class="state-desc">No signal · app keeps working · sync later</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>11:02</span><span>88%</span></div>
+    <div class="app-hd">
+      <div class="role-pill"><span class="dot"></span>Agent · MD</div>
+      <div class="hd-icons">
+        <span class="offline-chip" style="color:var(--danger-700);background:var(--danger-50);"><svg class="ico-sm" style="width:10px;height:10px"><use href="#i-wifi-off"/></svg>Offline</span>
+        <div class="hd-btn"><svg class="ico"><use href="#i-bell"/></svg></div>
+      </div>
+    </div>
+    <div class="ambient"><svg class="ico-sm"><use href="#i-map-pin"/></svg>You're at <strong>7 Dorp St, Unit 3</strong></div>
+    <div class="body-scroll">
+      <div class="prop-card">
+        <div class="prop-card-img unit3"></div>
+        <div class="prop-card-body">
+          <div class="prop-card-eyebrow"><svg class="ico-sm"><use href="#i-check-circle"/></svg>On site · GPS confirmed</div>
+          <div class="prop-card-title">7 Dorp St, Unit 3</div>
+          <div class="prop-card-sub"><span>Stellenbosch</span><span class="divider">·</span><span>Sarah v.d. Merwe</span></div>
+        </div>
+      </div>
+      <div class="sys-card" style="background:var(--warning-50);color:var(--warning-700)">
+        <svg class="ico-sm"><use href="#i-wifi-off"/></svg>No signal · photos &amp; notes save locally · sync when back online
+      </div>
+      <div class="evt-banner navy">
+        <div class="evt-banner-label">Ready to start</div>
+        <div class="evt-banner-title">Move-out inspection</div>
+        <div class="evt-banner-meta"><svg class="ico-sm"><use href="#i-users"/></svg>Joint with Sarah · 45 min estimated</div>
+        <div class="evt-banner-cta"><svg class="ico-sm"><use href="#i-play"/></svg>Begin — 6 rooms</div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Pre-check</span><span class="grp-rule"></span></div>
+      <div class="checklist">
+        <div class="check-row"><div class="check-box done"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text done">Phone charged · 88%</div></div>
+        <div class="check-row"><div class="check-box done"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text done">Inspection template loaded</div></div>
+        <div class="check-row"><div class="check-box"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text">Confirm tenant present</div></div>
+        <div class="check-row"><div class="check-box"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text">Record meter readings first</div></div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-home"/></svg></div><span>Now</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-clipboard"/></svg><span>Inspect</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-pen"/></svg><span>Sign</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-list"/></svg><span>Log</span></div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+<!-- end section 1 -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 2 — INSPECT (room-by-room · 3 frames)
+     ══════════════════════════════════════════ -->
+<div class="section-label"><h2>Inspect — room by room</h2><span>camera-first · defect capture · tenant signs at the end</span><div class="rule"></div></div>
+<div class="grid">
+
+<!-- ═══ FRAME 4 · Pre-inspection ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">4</span><span class="state-name">Pre-inspection</span><span class="state-desc">Tenant confirmed · meter readings first</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>11:07</span><span>88%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Move-out inspection</div><div class="sheet-title-main">7 Dorp St · Unit 3</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-more"/></svg></div>
+    </div>
+    <div class="progress-rail">
+      <div class="progress-rail-top"><span>Step 1 of 8 · <strong>Pre-check</strong></span><span>0 defects</span></div>
+      <div class="progress-rail-track"><div class="progress-rail-fill" style="width:12%"></div></div>
+    </div>
+    <div class="body-scroll">
+      <div class="grp"><span class="grp-lbl">Who's present</span><span class="grp-rule"></span></div>
+      <div style="padding: 0 16px 10px;">
+        <div style="display:flex;gap:10px;align-items:center;padding:12px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);">
+          <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#5a5d90,#23255a);color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">S</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-900)">Sarah v.d. Merwe</div>
+            <div style="font-size:10px;color:var(--gray-500)">Tenant · confirmed present · tap to edit</div>
+          </div>
+          <svg class="ico-sm" style="color:var(--success-600)"><use href="#i-check-circle"/></svg>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Meter readings</span><span class="grp-rule"></span></div>
+      <div style="padding: 0 16px 10px; display:flex; flex-direction:column; gap:8px;">
+        <div style="display:flex;gap:10px;align-items:center;padding:12px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--warning-50);color:var(--warning-700);display:flex;align-items:center;justify-content:center"><svg class="ico"><use href="#i-flash"/></svg></div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-900)">Electricity</div>
+            <div style="font-size:10px;color:var(--gray-500)">Prepaid meter · photo required</div>
+          </div>
+          <button style="font-size:11px;font-weight:700;padding:7px 10px;background:var(--navy);color:white;border:none;border-radius:8px;display:flex;align-items:center;gap:4px;"><svg class="ico-sm"><use href="#i-camera"/></svg>Capture</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;padding:12px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--success-50);color:var(--success-600);display:flex;align-items:center;justify-content:center">💧</div>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-900)">Water</div>
+            <div style="font-size:10px;color:var(--gray-500)">Municipal · photo required</div>
+          </div>
+          <button style="font-size:11px;font-weight:700;padding:7px 10px;background:var(--navy);color:white;border:none;border-radius:8px;display:flex;align-items:center;gap:4px;"><svg class="ico-sm"><use href="#i-camera"/></svg>Capture</button>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn-big primary"><svg class="ico-sm"><use href="#i-chevron-right"/></svg>Next · start with kitchen</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 5 · Kitchen in progress ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">5</span><span class="state-name">Kitchen · in progress</span><span class="state-desc">3 photos · 1 defect captured</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>11:24</span><span>84%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Room 2 of 6 · Kitchen</div><div class="sheet-title-main">7 Dorp St · Unit 3</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-mic"/></svg></div>
+    </div>
+    <div class="progress-rail">
+      <div class="progress-rail-top"><span>Step 3 of 8 · <strong>Kitchen</strong></span><span style="color:var(--warning-600)">1 defect</span></div>
+      <div class="progress-rail-track"><div class="progress-rail-fill accent" style="width:38%"></div></div>
+    </div>
+    <div class="room-chips">
+      <div class="room-chip done"><svg class="rc-check"><use href="#i-check"/></svg>Entrance</div>
+      <div class="room-chip active">Kitchen</div>
+      <div class="room-chip">Living</div>
+      <div class="room-chip">Bedroom 1</div>
+      <div class="room-chip">Bathroom</div>
+    </div>
+    <div class="body-scroll">
+      <div class="grp"><span class="grp-lbl">Photos · 3</span><span class="grp-rule"></span></div>
+      <div class="photo-grid">
+        <div class="photo-tile"><span class="photo-tag">Wide</span></div>
+        <div class="photo-tile" style="background:linear-gradient(135deg,#bab6a8,#8a8477)"><span class="photo-tag">Cupboards</span></div>
+        <div class="photo-tile defect"><span class="photo-tag">Stove</span></div>
+      </div>
+      <div style="padding: 0 16px 8px;">
+        <button class="btn-big outline" style="padding:10px 16px;"><svg class="ico-sm"><use href="#i-camera"/></svg>Add photo</button>
+      </div>
+      <div class="grp"><span class="grp-lbl">Defects · 1</span><span class="grp-rule"></span></div>
+      <div class="defect-card">
+        <div class="defect-card-photo"></div>
+        <div class="defect-card-body">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <div class="defect-card-title">Stove element broken</div>
+            <span class="defect-badge amber">Repair</span>
+          </div>
+          <div class="defect-card-meta">Front-left burner · no response · R350 est.</div>
+        </div>
+      </div>
+      <div style="padding: 0 16px 10px;">
+        <button class="btn-big outline" style="padding:10px 16px;"><svg class="ico-sm"><use href="#i-plus"/></svg>Log another defect</button>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <div class="btn-row-2" style="padding: 0;">
+        <button class="btn-big outline">Back</button>
+        <button class="btn-big primary">Next room <svg class="ico-sm"><use href="#i-chevron-right"/></svg></button>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 6 · Summary + tenant signature ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">6</span><span class="state-name">Summary + sign-off</span><span class="state-desc">Tenant signs on phone · PDF sent automatically</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>11:52</span><span>78%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Ready to close</div><div class="sheet-title-main">Inspection summary</div></div>
+    </div>
+    <div class="progress-rail">
+      <div class="progress-rail-top"><span>Step 8 of 8 · <strong>Sign-off</strong></span><span style="color:var(--warning-600)">3 defects</span></div>
+      <div class="progress-rail-track"><div class="progress-rail-fill accent" style="width:100%"></div></div>
+    </div>
+    <div class="body-scroll">
+      <div style="padding: 12px 16px 8px;">
+        <div style="display:flex;gap:10px;padding:12px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);">
+          <div style="flex:1;text-align:center;"><div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--navy)">6</div><div style="font-size:9px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;margin-top:2px;">Rooms</div></div>
+          <div style="width:1px;background:var(--gray-100)"></div>
+          <div style="flex:1;text-align:center;"><div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--navy)">18</div><div style="font-size:9px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;margin-top:2px;">Photos</div></div>
+          <div style="width:1px;background:var(--gray-100)"></div>
+          <div style="flex:1;text-align:center;"><div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;color:var(--warning-600)">3</div><div style="font-size:9px;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.04em;margin-top:2px;">Defects</div></div>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Deductions · R1,890</span><span class="grp-rule"></span></div>
+      <div style="padding: 0 16px 8px; font-size: 11px;">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:var(--gray-600)">Stove element repair</span><span style="color:var(--gray-900);font-weight:600">R 350</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-600)">Bedroom wall repaint</span><span style="color:var(--gray-900);font-weight:600">R 1,200</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-600)">Broken blind slat</span><span style="color:var(--gray-900);font-weight:600">R 340</span></div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Tenant signature · Sarah v.d. Merwe</span><span class="grp-rule"></span></div>
+      <div class="sig-pad">
+        <div class="sig-line">
+          <svg viewBox="0 0 200 50" preserveAspectRatio="none">
+            <path d="M10,35 Q18,10 28,30 T50,32 Q62,18 70,28 Q80,40 92,22 T120,28 Q135,12 145,30 Q158,42 172,26"/>
+          </svg>
+        </div>
+        <span class="sig-pad-label">Signed · tap to re-sign</span>
+      </div>
+      <div style="padding: 0 16px 8px;">
+        <div class="sys-card success"><svg class="ico-sm"><use href="#i-check-circle"/></svg>PDF will be emailed to Sarah, Sarah (agent), landlord</div>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn-big primary"><svg class="ico-sm"><use href="#i-send"/></svg>Close inspection &amp; send</button>
+    </div>
+  </div></div>
+</div>
+
+</div>
+<!-- end section 2 -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 3 — SIGN (viewing → FICA → lease · 3 frames)
+     ══════════════════════════════════════════ -->
+<div class="section-label"><h2>Sign — viewing to lease in one visit</h2><span>qualify on-site · capture ID · send lease before they leave</span><div class="rule"></div></div>
+<div class="grid">
+
+<!-- ═══ FRAME 7 · Viewing · prospect arriving ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">7</span><span class="state-name">Viewing · prospect</span><span class="state-desc">Prospect profile · on-site checklist</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>14:02</span><span>72%</span></div>
+    <div class="app-hd">
+      <div class="role-pill"><span class="dot"></span>Agent · MD</div>
+      <div class="hd-icons">
+        <span class="offline-chip"><svg class="ico-sm" style="width:10px;height:10px"><use href="#i-cloud"/></svg>Synced</span>
+        <div class="hd-btn"><svg class="ico"><use href="#i-bell"/></svg></div>
+      </div>
+    </div>
+    <div class="ambient"><svg class="ico-sm"><use href="#i-map-pin"/></svg>You're at <strong>56 Andringa St</strong></div>
+    <div class="body-scroll">
+      <div class="prop-card">
+        <div class="prop-card-img unit2"></div>
+        <div class="prop-card-body">
+          <div class="prop-card-eyebrow"><svg class="ico-sm"><use href="#i-eye" style="display:none"/><use href="#i-users"/></svg>Viewing · 14:00</div>
+          <div class="prop-card-title">56 Andringa St, Unit 4</div>
+          <div class="prop-card-sub"><span>R11,000/mo</span><span class="divider">·</span><span>2 bed · 1 bath</span><span class="divider">·</span><span>Vacant</span></div>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Prospect</span><span class="grp-rule"></span></div>
+      <div style="padding: 0 16px 10px;">
+        <div style="display:flex;gap:10px;align-items:center;padding:12px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);">
+          <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#647296,#3c4668);color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0">NM</div>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:700;color:var(--gray-900)">Nomsa Mthembu</div>
+            <div style="font-size:10px;color:var(--gray-500);margin-top:2px">Registered interest 3 days ago · via Property24</div>
+            <div style="display:flex;gap:4px;margin-top:4px;">
+              <span style="font-size:9px;font-weight:700;padding:2px 6px;background:var(--success-50);color:var(--success-700);border-radius:4px;text-transform:uppercase;letter-spacing:0.04em">Pre-screened</span>
+              <span style="font-size:9px;font-weight:700;padding:2px 6px;background:var(--navy);color:white;border-radius:4px;text-transform:uppercase;letter-spacing:0.04em">3× rule</span>
+            </div>
+          </div>
+          <button style="width:32px;height:32px;border-radius:50%;background:var(--success-50);color:var(--success-600);border:none;display:flex;align-items:center;justify-content:center"><svg class="ico-sm"><use href="#i-phone"/></svg></button>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">On-site checklist · 1/4</span><span class="grp-rule"></span></div>
+      <div class="checklist">
+        <div class="check-row"><div class="check-box done"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text done">Unit unlocked &amp; aired</div></div>
+        <div class="check-row"><div class="check-box"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text">Walk the unit · highlight geyser, parking</div></div>
+        <div class="check-row"><div class="check-box"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text">Capture ID for FICA (if applying)</div></div>
+        <div class="check-row"><div class="check-box"><svg class="ico-sm"><use href="#i-check"/></svg></div><div class="check-text">Send lease link before they leave</div></div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg><span>Now</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-clipboard"/></svg><span>Inspect</span></div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-pen"/></svg></div><span>Sign</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-list"/></svg><span>Log</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 8 · FICA · ID capture ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">8</span><span class="state-name">FICA · ID capture</span><span class="state-desc">Camera frame · OCR extracts ID number</span></div>
+  <div class="phone"><div class="screen" style="background:#0f131c;">
+    <div class="status-bar" style="color:white;"><span>14:17</span><span>70%</span></div>
+    <div class="sheet-head" style="background:rgba(0,0,0,0.4);border-bottom:none;">
+      <div class="sheet-back" style="background:rgba(255,255,255,0.12);color:white;"><svg class="ico"><use href="#i-x"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub" style="color:rgba(255,255,255,0.6)">FICA · step 1 of 2</div><div class="sheet-title-main" style="color:white;">Scan ID document</div></div>
+    </div>
+    <div class="body-scroll" style="padding-bottom:140px;">
+      <div class="cam-frame" style="aspect-ratio:4/3;">
+        <div class="cam-guide"></div>
+        <!-- ID silhouette -->
+        <div style="position:absolute;inset:22%;background:linear-gradient(135deg,#5a6b89,#3a4863);border-radius:6px;opacity:0.45;display:flex;align-items:center;justify-content:center;">
+          <div style="width:40%;height:55%;border-radius:3px;background:rgba(255,255,255,0.35);"></div>
+        </div>
+        <div class="cam-hint">Align ID within the frame</div>
+      </div>
+      <div class="grp" style="padding:4px 16px 6px;"><span class="grp-lbl" style="color:white;">Auto-extracted</span><span class="grp-rule" style="background:linear-gradient(to right,rgba(255,255,255,0.2),transparent)"></span></div>
+      <div style="padding: 0 16px 10px; display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,0.08);border-radius:8px;font-size:11px;"><span style="color:rgba(255,255,255,0.55)">ID number</span><span style="color:white;font-weight:600">880514 2745 083</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,0.08);border-radius:8px;font-size:11px;"><span style="color:rgba(255,255,255,0.55)">Full name</span><span style="color:white;font-weight:600">Nomsa P. Mthembu</span></div>
+        <div style="display:flex;justify-content:space-between;padding:9px 12px;background:rgba(255,255,255,0.08);border-radius:8px;font-size:11px;"><span style="color:rgba(255,255,255,0.55)">DOB</span><span style="color:white;font-weight:600">14 May 1988</span></div>
+      </div>
+      <div style="padding: 0 16px; font-size:10px; color:rgba(255,255,255,0.55); line-height:1.5;">
+        <svg class="ico-sm" style="color:var(--accent);vertical-align:middle;margin-right:2px;"><use href="#i-sparkles"/></svg>
+        POPIA · ID stored encrypted · auto-deleted if not leased within 30 days
+      </div>
+    </div>
+    <div class="cam-controls" style="position:absolute;bottom:12px;left:0;right:0;padding:14px 16px;">
+      <div class="cam-ico-btn" style="background:rgba(255,255,255,0.12);color:white;"><svg class="ico"><use href="#i-rotate"/></svg></div>
+      <div class="cam-shutter"></div>
+      <div class="cam-ico-btn" style="background:rgba(255,255,255,0.12);color:white;"><svg class="ico"><use href="#i-flash"/></svg></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 9 · Lease sent · confirmation ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">9</span><span class="state-name">Lease sent</span><span class="state-desc">One tap · e-sign link WhatsApp'd before they leave</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>14:23</span><span>68%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">FICA · step 2 of 2</div><div class="sheet-title-main">Send lease to Nomsa</div></div>
+    </div>
+    <div class="body-scroll">
+      <div style="padding: 16px 16px 4px;">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:20px 16px;background:linear-gradient(135deg, var(--success-50), white);border-radius:14px;border:1px solid var(--success-100);">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--success-600);color:white;display:flex;align-items:center;justify-content:center;"><svg class="ico-lg"><use href="#i-check"/></svg></div>
+          <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:500;color:var(--gray-900);margin-top:10px;">Lease sent to Nomsa</div>
+          <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">WhatsApp delivered · e-sign link valid 48h</div>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Lease summary</span><span class="grp-rule"></span></div>
+      <div style="padding: 0 16px 10px;">
+        <div style="padding:14px;background:white;border-radius:12px;box-shadow:var(--shadow-soft);font-size:11px;">
+          <div style="display:flex;justify-content:space-between;padding:5px 0;"><span style="color:var(--gray-500)">Property</span><span style="color:var(--gray-900);font-weight:600">56 Andringa St, Unit 4</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-500)">Rent</span><span style="color:var(--gray-900);font-weight:600">R 11,000/mo</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-500)">Deposit</span><span style="color:var(--gray-900);font-weight:600">R 22,000</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-500)">Start</span><span style="color:var(--gray-900);font-weight:600">1 May 2026 · 12 months</span></div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--gray-100);"><span style="color:var(--gray-500)">Template</span><span style="color:var(--gray-900);font-weight:600">Stellenbosch Std · RHA v3</span></div>
+        </div>
+      </div>
+      <div class="sys-card"><svg class="ico-sm"><use href="#i-sparkles"/></svg>Klikk AI pre-filled from FICA scan · tenant's legal name matches ID</div>
+      <div class="grp"><span class="grp-lbl">Track status</span><span class="grp-rule"></span></div>
+      <div class="agenda">
+        <div class="agenda-row"><div class="agenda-time">Now</div><div class="agenda-dot green"></div><div class="agenda-body"><div class="agenda-title">Lease delivered</div><div class="agenda-sub">Via WhatsApp · also email backup</div></div></div>
+        <div class="agenda-row"><div class="agenda-time">Next</div><div class="agenda-dot amber"></div><div class="agenda-body"><div class="agenda-title">Awaiting Nomsa's signature</div><div class="agenda-sub">You'll get a push when she signs</div></div></div>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn-big primary"><svg class="ico-sm"><use href="#i-home"/></svg>Done · back to Now</button>
+    </div>
+  </div></div>
+</div>
+
+</div>
+<!-- end section 3 -->
+
+<!-- ══════════════════════════════════════════
+     SECTION 4 — LOG & EMERGENCY (reactive · 3 frames)
+     ══════════════════════════════════════════ -->
+<div class="section-label"><h2>Log &amp; emergency</h2><span>proof-of-visit history · and the 60-second dispatch</span><div class="rule"></div></div>
+<div class="grid">
+
+<!-- ═══ FRAME 10 · Visit log ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">10</span><span class="state-name">Visit log</span><span class="state-desc">Every visit timestamped, photographed, GPS-proven</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>17:04</span><span>62%</span></div>
+    <div class="app-hd">
+      <div class="role-pill"><span class="dot"></span>Agent · MD</div>
+      <div class="hd-icons">
+        <span class="offline-chip"><svg class="ico-sm" style="width:10px;height:10px"><use href="#i-cloud"/></svg>All synced</span>
+        <div class="hd-btn"><svg class="ico"><use href="#i-bell"/></svg></div>
+      </div>
+    </div>
+    <div class="ambient"><svg class="ico-sm"><use href="#i-clock"/></svg>Your week · <strong>12 visits · 38 photos · 4 signed docs</strong></div>
+    <div class="body-scroll">
+      <div class="grp"><span class="grp-lbl">Today</span><span class="grp-rule"></span></div>
+      <div class="log-row">
+        <div class="log-thumb thumb3"></div>
+        <div class="log-body">
+          <div class="log-title">Move-out inspection</div>
+          <div class="log-sub"><span>7 Dorp St, Unit 3</span><span class="log-badge green">Signed</span></div>
+          <div class="log-sub" style="margin-top:2px;"><span>11:07 – 11:52 · 45 min</span><span class="divider" style="color:var(--gray-300)">·</span><span>18 photos</span></div>
+        </div>
+        <svg class="ico-sm" style="color:var(--gray-400)"><use href="#i-chevron-right"/></svg>
+      </div>
+      <div class="log-row">
+        <div class="log-thumb thumb2"></div>
+        <div class="log-body">
+          <div class="log-title">Viewing · Nomsa Mthembu</div>
+          <div class="log-sub"><span>56 Andringa St</span><span class="log-badge amber">Lease sent</span></div>
+          <div class="log-sub" style="margin-top:2px;"><span>14:02 – 14:24 · 22 min</span><span class="divider" style="color:var(--gray-300)">·</span><span>FICA done</span></div>
+        </div>
+        <svg class="ico-sm" style="color:var(--gray-400)"><use href="#i-chevron-right"/></svg>
+      </div>
+      <div class="log-row">
+        <div class="log-thumb thumb4"></div>
+        <div class="log-body">
+          <div class="log-title">Supplier sign-off · John</div>
+          <div class="log-sub"><span>9 Bird St</span><span class="log-badge green">Approved · R4,700</span></div>
+          <div class="log-sub" style="margin-top:2px;"><span>16:31 – 16:48</span><span class="divider" style="color:var(--gray-300)">·</span><span>3 line items</span></div>
+        </div>
+        <svg class="ico-sm" style="color:var(--gray-400)"><use href="#i-chevron-right"/></svg>
+      </div>
+      <div class="grp"><span class="grp-lbl">Yesterday</span><span class="grp-rule"></span></div>
+      <div class="log-row">
+        <div class="log-thumb"></div>
+        <div class="log-body">
+          <div class="log-title">Periodic inspection</div>
+          <div class="log-sub"><span>44 Church St, Unit 2</span><span class="log-badge green">Signed</span></div>
+          <div class="log-sub" style="margin-top:2px;"><span>10:15 – 10:38</span><span class="divider" style="color:var(--gray-300)">·</span><span>No defects</span></div>
+        </div>
+        <svg class="ico-sm" style="color:var(--gray-400)"><use href="#i-chevron-right"/></svg>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg><span>Now</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-clipboard"/></svg><span>Inspect</span></div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-pen"/></svg><span>Sign</span></div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-list"/></svg></div><span>Log</span></div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 11 · Emergency dispatch sheet ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">11</span><span class="state-name">Emergency dispatch</span><span class="state-desc">Tenant called · pick a supplier · in under 60s</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>19:22</span><span>44%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-x"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Tenant emergency</div><div class="sheet-title-main">Dispatch supplier</div></div>
+    </div>
+    <div class="emrg-hero">
+      <div class="emrg-hero-label"><span class="emrg-pulse"></span>URGENT · Geyser leak</div>
+      <div class="emrg-hero-title">12 Dorp St, Unit 1</div>
+      <div class="emrg-hero-sub">Michael D. · tenant called · water in ceiling · isolator off</div>
+    </div>
+    <div class="body-scroll" style="padding-top:10px;">
+      <div class="grp"><span class="grp-lbl">Approved plumbers · sorted by ETA</span><span class="grp-rule"></span></div>
+      <div class="supplier-row-wrap">
+        <span class="best-badge">Best pick</span>
+        <div class="supplier-row best">
+          <div class="supplier-avatar">J</div>
+          <div class="supplier-body">
+            <div class="supplier-name">John · Cape Plumbing</div>
+            <div class="supplier-meta"><span>ETA 22 min</span><span class="divider" style="color:var(--gray-300)">·</span><span class="supplier-stars">★★★★★</span><span>4.9 · 34 jobs</span></div>
+            <div class="supplier-meta"><span style="color:var(--success-700);font-weight:700">Approved by owner</span><span class="divider" style="color:var(--gray-300)">·</span><span>Geyser specialist</span></div>
+          </div>
+          <button style="width:40px;height:40px;border-radius:50%;background:var(--navy);color:white;border:none;display:flex;align-items:center;justify-content:center"><svg class="ico"><use href="#i-send"/></svg></button>
+        </div>
+      </div>
+      <div class="supplier-row">
+        <div class="supplier-avatar">T</div>
+        <div class="supplier-body">
+          <div class="supplier-name">Thabo · Winelands Plumbing</div>
+          <div class="supplier-meta"><span>ETA 34 min</span><span class="divider" style="color:var(--gray-300)">·</span><span class="supplier-stars">★★★★☆</span><span>4.6 · 18 jobs</span></div>
+        </div>
+        <button style="width:40px;height:40px;border-radius:50%;background:var(--surface-secondary);color:var(--navy);border:none;display:flex;align-items:center;justify-content:center"><svg class="ico"><use href="#i-send"/></svg></button>
+      </div>
+      <div class="supplier-row">
+        <div class="supplier-avatar">P</div>
+        <div class="supplier-body">
+          <div class="supplier-name">Pieter · After-Hours SOS</div>
+          <div class="supplier-meta"><span>ETA 48 min</span><span class="divider" style="color:var(--gray-300)">·</span><span class="supplier-stars">★★★★☆</span><span>4.4 · 12 jobs</span><span class="divider" style="color:var(--gray-300)">·</span><span style="color:var(--warning-700);font-weight:700">Call-out R350</span></div>
+        </div>
+        <button style="width:40px;height:40px;border-radius:50%;background:var(--surface-secondary);color:var(--navy);border:none;display:flex;align-items:center;justify-content:center"><svg class="ico"><use href="#i-send"/></svg></button>
+      </div>
+      <div style="padding: 10px 16px 6px;">
+        <button class="btn-big outline" style="padding:10px;"><svg class="ico-sm"><use href="#i-phone"/></svg>Call Michael first</button>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn-big danger"><svg class="ico-sm"><use href="#i-send"/></svg>Dispatch John · notify tenant</button>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ FRAME 12 · Dispatched confirmation ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">12</span><span class="state-name">Dispatched</span><span class="state-desc">Ticket opened in tenant app · live ETA</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>19:23</span><span>44%</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Dispatched · 12 sec ago</div><div class="sheet-title-main">John · en route</div></div>
+    </div>
+    <div class="body-scroll">
+      <div style="padding: 14px 16px 6px;">
+        <div style="display:flex;flex-direction:column;align-items:center;text-align:center;padding:18px 16px;background:linear-gradient(135deg, var(--success-50), white);border-radius:14px;border:1px solid var(--success-100);">
+          <div style="width:52px;height:52px;border-radius:50%;background:var(--success-600);color:white;display:flex;align-items:center;justify-content:center;"><svg class="ico-lg"><use href="#i-check"/></svg></div>
+          <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:500;color:var(--gray-900);margin-top:8px;">Dispatch sent</div>
+          <div style="font-size:11px;color:var(--gray-600);margin-top:4px;">John accepted · tenant notified · ticket KL-0489 opened</div>
+        </div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Live ETA</span><span class="grp-rule"></span></div>
+      <div class="map-mini">
+        <div class="mp-pin supplier"></div>
+        <div class="mp-pin home"></div>
+        <div class="mp-eta">22 min · 8.4 km</div>
+      </div>
+      <div class="grp"><span class="grp-lbl">Thread updates · auto</span><span class="grp-rule"></span></div>
+      <div class="sys-card"><svg class="ico-sm"><use href="#i-sparkles"/></svg>Klikk AI messaged Michael: "John from Cape Plumbing on the way, 22 min. Gate open by 19:45."</div>
+      <div class="sys-card success"><svg class="ico-sm"><use href="#i-check-circle"/></svg>John confirmed · R0 call-out (approved contract)</div>
+      <div class="sys-card"><svg class="ico-sm"><use href="#i-file-text"/></svg>Owner auto-notified · geyser under warranty (expires 12 Jun)</div>
+      <div style="padding: 10px 16px 6px;">
+        <button class="btn-big outline" style="padding:10px;"><svg class="ico-sm"><use href="#i-phone"/></svg>Call John now</button>
+      </div>
+    </div>
+    <div class="bottom-action">
+      <button class="btn-big primary"><svg class="ico-sm"><use href="#i-home"/></svg>Back to Now</button>
+    </div>
+  </div></div>
+</div>
+
+</div>
+<!-- end section 4 -->
+
+<!-- ═══ FOOTER ═══ -->
+<div class="footer">
+  <p><strong>12 frames across 4 sections</strong> — Now · Inspect · Sign · Log. Identity: site tool. Camera-first, offline-first, big-tap, short-session.</p>
+  <p style="margin-top:8px;">The app is a site tool, not a dashboard. <strong>If it's not something the agent does standing up at a property, it's not in this app.</strong></p>
+</div>
+
+</body>
+</html>

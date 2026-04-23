@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klikk · Portfolio Timeline — State › Stage › Property × Months</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #2B2D6E;
+    --navy-soft: #F0EFF8;
+    --pink: #FF3D7F;
+    --pink-soft: #FFE4EF;
+    --green: #16A34A;
+    --green-soft: #E6F4EB;
+    --orange: #D97706;
+    --orange-soft: #FDF3E0;
+    --amber: #F59E0B;
+    --red: #DC2626;
+    --ink: #0E0F2A;
+    --ink-2: #4A4D6E;
+    --ink-3: #8A8DA8;
+    --line: #E5E7F0;
+    --bg: #FAFAFC;
+    --card: #FFFFFF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: 'DM Sans', system-ui, sans-serif; font-size: 14px; }
+  h1, h2, h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+
+  .topbar { position: sticky; top: 0; z-index: 40; background: #fff; border-bottom: 1px solid var(--line); padding: 14px 24px; display: flex; align-items: center; gap: 24px; }
+  .logo { font-family: 'Fraunces', serif; font-weight: 700; font-size: 22px; color: var(--navy); letter-spacing: -0.02em; }
+  .logo span { color: var(--pink); }
+  .crumb { color: var(--ink-3); font-size: 13px; }
+  .crumb b { color: var(--ink); font-weight: 600; }
+  .topbar-right { margin-left: auto; display: flex; gap: 14px; align-items: center; }
+  .who { display:flex; align-items:center; gap: 10px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 999px; }
+  .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--navy); color: #fff; display:flex; align-items:center; justify-content:center; font-weight: 700; font-size: 12px; }
+
+  /* Compact single-widget summary — replaces 6-KPI row */
+  .summary-bar { padding: 14px 24px; border-bottom: 1px solid var(--line); background: #fff; display: flex; align-items: center; gap: 18px; }
+  .summary { display: inline-flex; align-items: center; gap: 18px; padding: 10px 18px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .metric { display: flex; align-items: baseline; gap: 8px; }
+  .metric .num { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1; }
+  .metric .num.alert { color: var(--red); }
+  .metric .num .of { color: var(--ink-3); font-weight: 500; }
+  .metric .label { font-size: 12px; color: var(--ink-3); letter-spacing: 0.02em; }
+  .summary .v-divider { width: 1px; height: 22px; background: var(--line); }
+
+  /* Month range toggle */
+  .seg-group { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .btn-seg { padding: 7px 14px; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--ink-2); transition: background 0.12s, color 0.12s; }
+  .btn-seg:not(:last-child) { border-right: 1px solid var(--line); }
+  .btn-seg.active { background: var(--navy); color: #fff; font-weight: 600; }
+  .summary-bar .spacer { flex: 1; }
+
+  /* Legend */
+  .legend { display: inline-flex; gap: 14px; align-items: center; font-size: 12px; color: var(--ink-3); }
+  .legend .sw { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  .layout { display: grid; grid-template-columns: 1fr 360px; gap: 0; }
+  .wrap { padding: 18px 24px 28px; overflow: auto; max-height: calc(100vh - 160px); }
+  .side { position: sticky; top: 0; height: calc(100vh - 60px); padding: 22px 22px 32px; border-left: 1px solid var(--line); background: #fff; overflow-y: auto; }
+
+  /* Matrix — label column + timeline column (single track per row, variable months) */
+  .matrix { background: #fff; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+
+  .hdr-row { display: grid; background: #FAFAFC; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
+  .hdr-corner { padding: 10px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: var(--ink-3); display: flex; align-items: center; }
+  .hdr-months { position: relative; display: grid; align-items: center; }
+  .hdr-months .mo { text-align: center; padding: 10px 0; font-size: 11px; font-weight: 600; color: var(--ink-2); letter-spacing: 0.02em; border-left: 1px solid var(--line); }
+  .hdr-months .mo.now { color: var(--navy); font-weight: 700; }
+
+  /* Collapsible state group */
+  .state-head { display: grid; grid-template-columns: 360px 1fr; border-top: 1px solid var(--line); background: #FAFAFC; cursor: pointer; user-select: none; }
+  .state-head:first-of-type { border-top: 0; }
+  .state-head-inner { padding: 14px 16px 10px; display: flex; align-items: center; gap: 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 700; color: var(--ink-2); }
+  .state-head .rule { width: 3px; align-self: stretch; border-radius: 2px; }
+  .state-head.pre .rule { background: var(--navy); }
+  .state-head.turn .rule { background: var(--pink); }
+  .state-head.active .rule { background: var(--green); }
+  .state-head.close .rule { background: var(--orange); }
+  .state-head .count { font-family: 'Fraunces', serif; font-size: 15px; font-weight: 600; color: var(--ink); text-transform: none; letter-spacing: -0.01em; }
+  .state-head .desc { font-size: 11px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-3); margin-left: auto; }
+  .chev { width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center; transition: transform 0.15s; color: var(--ink-3); flex-shrink: 0; }
+  .chev svg { width: 100%; height: 100%; }
+  .collapsed .chev { transform: rotate(-90deg); }
+
+  /* Collapsible stage sub-header */
+  .stage-head { display: grid; grid-template-columns: 360px 1fr; cursor: pointer; user-select: none; background: #fff; border-top: 1px solid #F5F6FB; }
+  .stage-head-inner { padding: 9px 16px 9px 28px; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-3); }
+  .stage-head-inner .step { font-variant-numeric: tabular-nums; font-size: 11px; font-weight: 600; color: var(--ink-3); min-width: 20px; }
+  .stage-head-inner .title-ft { font-family: 'Fraunces', serif; color: var(--ink); font-weight: 600; font-size: 13px; }
+  .stage-head-inner .n { color: var(--ink-3); font-weight: 500; margin-left: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+
+  /* Property row */
+  .prow { display: grid; grid-template-columns: 360px 1fr; border-top: 1px solid #F5F6FB; }
+  .plabel { padding: 10px 14px 10px 44px; display: flex; align-items: center; gap: 8px; cursor: pointer; background: #fff; transition: background 0.08s; }
+  .plabel:hover { background: #FAFAFC; }
+  .plabel.selected { background: var(--navy); }
+  .plabel.selected .addr, .plabel.selected .sub { color: #fff; }
+  .plabel.selected .sub { opacity: 0.75; }
+  .plabel .main { flex: 1; min-width: 0; }
+  .plabel .addr { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink); }
+  .plabel .sub { font-size: 11px; color: var(--ink-3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .plabel .alert-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+
+  /* Track — 2 lanes of event bars */
+  .track { position: relative; height: 52px; cursor: pointer; border-bottom: 1px solid transparent; }
+  .track .gridcol { position: absolute; top: 0; bottom: 0; border-left: 1px solid #F5F6FB; }
+  .track .now-line { position: absolute; top: 0; bottom: 0; width: 1.5px; background: var(--amber); opacity: 0.55; pointer-events: none; z-index: 3; }
+  .bar { position: absolute; height: 18px; border-radius: 4px; padding: 0 8px; display: flex; align-items: center; font-size: 11px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 1px 0 rgba(0,0,0,0.04); z-index: 2; }
+  .bar.lane-0 { top: 7px; }
+  .bar.lane-1 { top: 27px; }
+  .bar.pre { background: var(--navy); }
+  .bar.turn { background: var(--pink); }
+  .bar.active { background: var(--green); }
+  .bar.close { background: var(--orange); }
+  .bar.clipped-start { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .bar.clipped-end { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .alertmark { position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; border-radius: 50%; background: var(--red); z-index: 4; box-shadow: 0 0 0 1.5px #fff; }
+
+  /* Side panel */
+  .side h2 { font-size: 22px; color: var(--ink); letter-spacing: -0.015em; }
+  .side .addr-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  .side .phase-chip { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
+  .side .phase-chip .pc-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .side .phase-chip.pre { background: var(--navy-soft); color: var(--navy); }
+  .side .phase-chip.pre .pc-dot { background: var(--navy); }
+  .side .phase-chip.turn { background: var(--pink-soft); color: var(--pink); }
+  .side .phase-chip.turn .pc-dot { background: var(--pink); }
+  .side .phase-chip.active { background: var(--green-soft); color: var(--green); }
+  .side .phase-chip.active .pc-dot { background: var(--green); }
+  .side .phase-chip.close { background: var(--orange-soft); color: var(--orange); }
+  .side .phase-chip.close .pc-dot { background: var(--orange); }
+  .stage-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 600; margin-top: 10px; color: var(--ink); }
+  .stage-desc { font-size: 13px; color: var(--ink-2); margin-top: 6px; line-height: 1.55; }
+  .stage-legal { margin-top: 8px; font-size: 11px; color: var(--ink-3); }
+  .stage-legal code { background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 10px; color: var(--ink-2); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 22px; border-top: 1px solid var(--line); }
+  .stat { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  .stat:nth-child(odd) { border-right: 1px solid var(--line); }
+  .stat .l { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.06em; }
+  .stat .v { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 600; color: var(--ink); margin-top: 2px; letter-spacing: -0.01em; }
+  .stat .v.dm { font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600; }
+
+  .btn { padding: 9px 14px; border-radius: 8px; font: inherit; font-weight: 600; font-size: 13px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--ink); }
+  .btn.primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .actions { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .alerts { margin-top: 14px; padding: 12px 14px; background: #FEF2F2; border-left: 3px solid var(--red); border-radius: 0 8px 8px 0; font-size: 13px; color: #991B1B; }
+  .alerts b { display: block; margin-bottom: 2px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">klikk<span>.</span></div>
+  <div class="crumb"><b>Greenwood Realty</b> · Portfolio</div>
+  <div class="topbar-right">
+    <div class="seg-group" id="seg">
+      <button class="btn-seg" data-n="1">1 month</button>
+      <button class="btn-seg active" data-n="3">3 months</button>
+      <button class="btn-seg" data-n="12">12 months</button>
+    </div>
+    <div class="who"><div class="avatar">SM</div><span>Sipho M.</span></div>
+  </div>
+</div>
+
+<div class="summary-bar">
+  <div class="summary">
+    <div class="metric"><span class="num"><span id="k-occ">0</span><span class="of">/<span id="k-total">0</span></span></span><span class="label">Occupied</span></div>
+    <div class="v-divider"></div>
+    <div class="metric"><span class="num alert" id="k-alert">0</span><span class="label">Need action</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="legend">
+    <span class="sw"><i style="background:var(--navy)"></i>Pre-tenancy</span>
+    <span class="sw"><i style="background:var(--pink)"></i>Turnaround</span>
+    <span class="sw"><i style="background:var(--green)"></i>Active</span>
+    <span class="sw"><i style="background:var(--orange)"></i>Closeout</span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="wrap">
+    <div class="matrix" id="matrix"></div>
+  </div>
+  <aside class="side" id="side"></aside>
+</div>
+
+<script>
+  const stages = [
+    { step: 1,  phase: 'pre',    title: 'Notice',    desc: 'Tenant or landlord gives 2-month written notice — triggers marketing.', legal: 'RHA s5(2)(b)' },
+    { step: 2,  phase: 'pre',    title: 'Market',    desc: 'List vacancy on Property24, Private Property, social media.', legal: 'POPIA s69' },
+    { step: 3,  phase: 'pre',    title: 'Viewings',  desc: 'Schedule and conduct viewings while previous tenant occupies.', legal: 'POPIA s11(1)(b), s18' },
+    { step: 4,  phase: 'pre',    title: 'Screen',    desc: 'AI scores applicants: credit, criminal, ID, employment, rental history.', legal: 'POPIA s27+s35, s71' },
+    { step: 5,  phase: 'pre',    title: 'Lease',     desc: 'AI generates RHA-compliant lease, e-sign from any device.', legal: 'RHA s5(3), ECTA s13' },
+    { step: 6,  phase: 'pre',    title: 'Invoicing', desc: 'Configure recurring rent schedule, escalation, payment method.', legal: 'RHA s4A(2)(b)' },
+    { step: 7,  phase: 'pre',    title: 'Deposit',   desc: 'Collect deposit + first month; lodge in interest-bearing account.', legal: 'RHA s5(3)(b)–(c)' },
+    { step: 8,  phase: 'turn',   title: 'Move-Out',  desc: 'Joint outgoing inspection, photos, signed report, keys returned.', legal: 'RHA s5(3)(g)' },
+    { step: 9,  phase: 'turn',   title: 'Repairs',   desc: 'Overnight contractors work from snag list — clean, paint, fix.', legal: 'POPIA s20–21' },
+    { step: 10, phase: 'turn',   title: 'Move-In',   desc: 'Joint incoming inspection with photo evidence, signed report.', legal: 'RHA s5(3)(e)–(f)' },
+    { step: 11, phase: 'turn',   title: 'Onboard',   desc: 'Keys, utilities transfer, welcome pack, tenant portal setup.', legal: 'POPIA s18' },
+    { step: 12, phase: 'active', title: 'Rent',      desc: 'Monthly invoices, payment tracking, receipts on request.', legal: 'RHA s5(3)(d)' },
+    { step: 13, phase: 'active', title: 'Maintain',  desc: 'AI triage, supplier matching, dispatch, tenant app tickets.', legal: 'RHA s4A(2)(c)' },
+    { step: 14, phase: 'active', title: 'Renew',     desc: 'Renewal at 80 biz days; renew, month-to-month, or vacate → stage 1.', legal: 'RHA s4A(2)(d), CPA s14' },
+    { step: 15, phase: 'close',  title: 'Refund',    desc: 'Itemised deposit refund with all accrued interest within 7/14/21 days.', legal: 'RHA s5(3)(g)–(i)' },
+  ];
+  const phaseLabels = { pre: 'Pre-tenancy', turn: 'Turnaround', active: 'Active tenancy', close: 'Closeout' };
+  const phaseDesc = {
+    pre: 'Stages 1–7 · previous tenant still occupies',
+    turn: 'Stages 8–11 · overnight PM move-out → AM move-in',
+    active: 'Stages 12–14 · 12-month lease running',
+    close: 'Stage 15 · deposit refund with interest'
+  };
+  const phaseOf = (step) => stages[step - 1].phase;
+
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const YEAR = 2026;
+  const NOW_MONTH = 3; // April
+
+  function seeded(i) { let x = Math.sin(i * 9301 + 49297) * 233280; return x - Math.floor(x); }
+  const suburbs = ['Stellenbosch','Sea Point','Claremont','Gardens','Rondebosch','Observatory','Newlands','Woodstock','Green Point','Sandton','Rosebank','Parkhurst','Melville','Bryanston','Morningside','Umhlanga','Ballito','Durbanville','Table View','Somerset West'];
+  const streets = ['Oak','Main','Church','Victoria','High','Long','Bree','Loop','Kloof','Orange','Adderley','Plein','Strand','Beach','Dorp','Ryneveld','Protea','Jacaranda','Acacia','Cedar'];
+  const types   = ['1-Bed Apt','2-Bed Apt','3-Bed House','Studio','2-Bed Townhouse','3-Bed Townhouse','4-Bed House','Penthouse','Loft'];
+  const tenants = ['Nomvula D.','Thabo M.','Hendrik P.','Ayesha K.','Lerato N.','Rowan S.','Farai C.','Jenna W.','Kgomotso L.','Daniel V.','Priya R.','Sibusiso Z.','Anke van R.','Tumi B.','Claire O.','Bongani N.','Maryam E.','Johan du P.','Nadia H.','Sipho G.'];
+
+  function pickStage(i) {
+    const r = seeded(i);
+    if (r < 0.70) return 12 + Math.floor(seeded(i*3) * 3);
+    if (r < 0.78) return 8 + Math.floor(seeded(i*7) * 4);
+    if (r < 0.92) return 1 + Math.floor(seeded(i*11) * 7);
+    if (r < 0.97) return 15;
+    return 1 + Math.floor(seeded(i*13) * 15);
+  }
+
+  const properties = [];
+  for (let i = 1; i <= 60; i++) {
+    const streetNum = 1 + Math.floor(seeded(i) * 180);
+    const st = streets[Math.floor(seeded(i*2) * streets.length)];
+    const sub = suburbs[Math.floor(seeded(i*5) * suburbs.length)];
+    const type = types[Math.floor(seeded(i*8) * types.length)];
+    const rent = 6500 + Math.floor(seeded(i*17) * 44) * 500;
+    const tenant = tenants[Math.floor(seeded(i*23) * tenants.length)];
+    const current = pickStage(i);
+    const alert = seeded(i*29) < 0.22;
+
+    const ph = phaseOf(current);
+    let leaseStartMonth;
+    if (ph === 'active') {
+      const monthsIn = current === 12 ? 1 + Math.floor(seeded(i*31)*3)
+                    : current === 13 ? 4 + Math.floor(seeded(i*31)*5)
+                    : 10 + Math.floor(seeded(i*31)*2);
+      leaseStartMonth = NOW_MONTH - monthsIn;
+    } else if (ph === 'turn') {
+      leaseStartMonth = NOW_MONTH;
+    } else if (ph === 'pre') {
+      leaseStartMonth = NOW_MONTH + (current <= 2 ? 2 : 1);
+    } else {
+      leaseStartMonth = NOW_MONTH - 12;
+    }
+
+    properties.push({
+      id: i,
+      address: `${streetNum} ${st} Street`,
+      suburb: sub, type, rent, tenant, current, alert, leaseStartMonth,
+      deposit: rent * 2,
+      alertReason: alert ? (['Rent arrears · 7 days','Renewal notice due in 4 days','Inspection report unsigned','Deposit refund deadline tomorrow','Contractor overdue','Tenant ticket SLA breach'][i % 6]) : null
+    });
+  }
+
+  // Events per property — fractional-month spans, 2 lanes, can overlap & roll over.
+  function buildEvents(p) {
+    const s = p.leaseStartMonth;
+    return [
+      { phase: 'pre',    title: 'Market',   start: s - 2.0,  end: s - 0.4,  lane: 0 },
+      { phase: 'pre',    title: 'Lease',    start: s - 1.1,  end: s - 0.1,  lane: 1 },
+      { phase: 'turn',   title: 'Move-out', start: s - 0.25, end: s + 0.1,  lane: 0 },
+      { phase: 'turn',   title: 'Repairs',  start: s - 0.1,  end: s + 0.25, lane: 1 },
+      { phase: 'turn',   title: 'Move-in',  start: s + 0.2,  end: s + 0.5,  lane: 0 },
+      { phase: 'active', title: 'Rent',     start: s + 0.4,  end: s + 10,   lane: 1 },
+      { phase: 'active', title: 'Renew',    start: s + 10,   end: s + 12,   lane: 0 },
+      { phase: 'close',  title: 'Refund',   start: s + 12,   end: s + 12.5, lane: 1 },
+    ];
+  }
+
+  const buckets = { pre: {}, turn: {}, active: {}, close: {} };
+  stages.forEach(s => { buckets[s.phase][s.step] = []; });
+  properties.forEach(p => { buckets[phaseOf(p.current)][p.current].push(p); });
+  Object.values(buckets).forEach(st => {
+    Object.values(st).forEach(arr => arr.sort((a,b) => a.id - b.id));
+  });
+
+  const phaseCounts = { pre: 0, turn: 0, active: 0, close: 0 };
+  properties.forEach(p => { phaseCounts[phaseOf(p.current)]++; });
+  const occupied = phaseCounts.active + phaseCounts.close;
+  document.getElementById('k-total').textContent = properties.length;
+  document.getElementById('k-occ').textContent = occupied;
+  document.getElementById('k-alert').textContent = properties.filter(p => p.alert).length;
+
+  const matrix = document.getElementById('matrix');
+  let selectedId = properties.find(p => p.alert)?.id || buckets.active[12]?.[0]?.id || 1;
+  let monthRange = 3; // 1 | 3 | 12
+  const collapsedStates = new Set();
+  const collapsedStages = new Set();
+
+  document.querySelectorAll('#seg .btn-seg').forEach(btn => {
+    btn.addEventListener('click', () => {
+      monthRange = parseInt(btn.dataset.n, 10);
+      document.querySelectorAll('#seg .btn-seg').forEach(b => b.classList.toggle('active', b === btn));
+      render();
+    });
+  });
+
+  function monthWindow() {
+    if (monthRange === 1) return { start: NOW_MONTH, end: NOW_MONTH + 1 };
+    if (monthRange === 3) return { start: NOW_MONTH - 1, end: NOW_MONTH + 2 };
+    return { start: 0, end: 12 };
+  }
+
+  function chevSvg() {
+    return '<span class="chev"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></span>';
+  }
+
+  function render() {
+    matrix.innerHTML = '';
+    const { start, end } = monthWindow();
+    const span = end - start;
+    const gridCols = `repeat(${span}, 1fr)`;
+
+    const hdr = document.createElement('div');
+    hdr.className = 'hdr-row';
+    hdr.style.gridTemplateColumns = '360px 1fr';
+    const corner = document.createElement('div');
+    corner.className = 'hdr-corner';
+    corner.textContent = 'Property · Stage';
+    hdr.appendChild(corner);
+    const moWrap = document.createElement('div');
+    moWrap.className = 'hdr-months';
+    moWrap.style.gridTemplateColumns = gridCols;
+    for (let m = start; m < end; m++) {
+      const cell = document.createElement('div');
+      cell.className = 'mo' + (m === NOW_MONTH ? ' now' : '');
+      const mi = ((m % 12) + 12) % 12;
+      const yr = YEAR + Math.floor(m / 12);
+      cell.textContent = (span <= 3 ? `${MONTHS[mi]} ${yr}` : MONTHS[mi]);
+      moWrap.appendChild(cell);
+    }
+    hdr.appendChild(moWrap);
+    matrix.appendChild(hdr);
+
+    const order = ['pre', 'turn', 'active', 'close'];
+    order.forEach(phase => {
+      const count = phaseCounts[phase];
+      if (count === 0) return;
+
+      const sh = document.createElement('div');
+      sh.className = 'state-head ' + phase + (collapsedStates.has(phase) ? ' collapsed' : '');
+      sh.innerHTML = `
+        <div class="state-head-inner">
+          ${chevSvg()}
+          <span class="rule"></span>
+          <span class="count">${count}</span>
+          <span>${phaseLabels[phase]}</span>
+        </div>
+        <div class="state-head-inner"><span class="desc">${phaseDesc[phase]}</span></div>`;
+      sh.addEventListener('click', () => {
+        if (collapsedStates.has(phase)) collapsedStates.delete(phase); else collapsedStates.add(phase);
+        render();
+      });
+      matrix.appendChild(sh);
+      if (collapsedStates.has(phase)) return;
+
+      stages.filter(s => s.phase === phase).forEach(s => {
+        const props = buckets[phase][s.step];
+        if (!props || props.length === 0) return;
+        const stageKey = `${phase}-${s.step}`;
+        const stCollapsed = collapsedStages.has(stageKey);
+
+        const stg = document.createElement('div');
+        stg.className = 'stage-head' + (stCollapsed ? ' collapsed' : '');
+        stg.innerHTML = `
+          <div class="stage-head-inner">
+            ${chevSvg()}
+            <span class="step">${s.step}</span>
+            <span class="title-ft">${s.title}</span>
+            <span class="n">${props.length}</span>
+          </div>
+          <div></div>`;
+        stg.addEventListener('click', () => {
+          if (collapsedStages.has(stageKey)) collapsedStages.delete(stageKey); else collapsedStages.add(stageKey);
+          render();
+        });
+        matrix.appendChild(stg);
+        if (stCollapsed) return;
+
+        props.forEach(p => {
+          const row = document.createElement('div');
+          row.className = 'prow';
+
+          const lbl = document.createElement('div');
+          lbl.className = 'plabel' + (p.id === selectedId ? ' selected' : '');
+          lbl.innerHTML = `${p.alert ? '<span class="alert-dot"></span>' : ''}
+            <div class="main">
+              <div class="addr">${p.address}</div>
+              <div class="sub">${p.suburb} · ${p.type}</div>
+            </div>`;
+          lbl.addEventListener('click', () => { selectedId = p.id; render(); renderSide(); });
+          row.appendChild(lbl);
+
+          const track = document.createElement('div');
+          track.className = 'track';
+          track.addEventListener('click', () => { selectedId = p.id; render(); renderSide(); });
+
+          for (let m = start + 1; m < end; m++) {
+            const g = document.createElement('div');
+            g.className = 'gridcol';
+            g.style.left = `${((m - start) / span) * 100}%`;
+            track.appendChild(g);
+          }
+          if (NOW_MONTH + 0.5 >= start && NOW_MONTH + 0.5 <= end) {
+            const nl = document.createElement('div');
+            nl.className = 'now-line';
+            nl.style.left = `${((NOW_MONTH + 0.5 - start) / span) * 100}%`;
+            track.appendChild(nl);
+          }
+
+          buildEvents(p).forEach(ev => {
+            const a = Math.max(ev.start, start);
+            const b = Math.min(ev.end, end);
+            if (b <= a) return;
+            const left = ((a - start) / span) * 100;
+            const width = ((b - a) / span) * 100;
+            if (width < 0.5) return;
+            const bar = document.createElement('div');
+            const clipS = ev.start < start ? ' clipped-start' : '';
+            const clipE = ev.end > end ? ' clipped-end' : '';
+            bar.className = `bar lane-${ev.lane} ${ev.phase}${clipS}${clipE}`;
+            bar.style.left = `${left}%`;
+            bar.style.width = `${width}%`;
+            bar.textContent = width >= 6 ? ev.title : '';
+            bar.title = `${p.address} · ${ev.title}`;
+            track.appendChild(bar);
+          });
+
+          if (p.alert) {
+            const am = document.createElement('div');
+            am.className = 'alertmark';
+            track.appendChild(am);
+          }
+
+          row.appendChild(track);
+          matrix.appendChild(row);
+        });
+      });
+    });
+  }
+
+  function renderSide() {
+    const p = properties.find(x => x.id === selectedId);
+    if (!p) return;
+    const s = stages[p.current - 1];
+    const phCls = s.phase;
+    const primaryAction = s.phase === 'turn' ? 'Dispatch contractor'
+                         : s.phase === 'close' ? 'Process refund'
+                         : s.phase === 'pre' ? 'Review applicants'
+                         : 'Send receipt';
+    const startMi = ((p.leaseStartMonth % 12) + 12) % 12;
+    const startYr = YEAR + Math.floor(p.leaseStartMonth / 12);
+    document.getElementById('side').innerHTML = `
+      <h2>${p.address}</h2>
+      <div class="addr-sub">${p.suburb} · ${p.type}</div>
+      <div class="phase-chip ${phCls}"><span class="pc-dot"></span>${phaseLabels[phCls]} · stage ${s.step} of 15</div>
+
+      <div class="stage-title">${s.title}</div>
+      <div class="stage-desc">${s.desc}</div>
+      <div class="stage-legal">Legal anchor · <code>${s.legal}</code></div>
+
+      ${p.alert ? `<div class="alerts"><b>Action needed today</b>${p.alertReason}</div>` : ''}
+
+      <div class="actions">
+        <button class="btn primary">${primaryAction}</button>
+        <button class="btn">Open property</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="l">Tenant</div><div class="v dm">${p.tenant}</div></div>
+        <div class="stat"><div class="l">Rent / month</div><div class="v">R${p.rent.toLocaleString()}</div></div>
+        <div class="stat"><div class="l">Deposit held</div><div class="v">R${p.deposit.toLocaleString()}</div></div>
+        <div class="stat"><div class="l">Lease start</div><div class="v dm">${MONTHS[startMi]} ${startYr}</div></div>
+      </div>
+    `;
+  }
+
+  render();
+  renderSide();
+</script>
+</body>
+</html>

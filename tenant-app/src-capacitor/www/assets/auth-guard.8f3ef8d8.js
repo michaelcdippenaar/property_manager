@@ -1,0 +1,1 @@
+import{b as u}from"./index.b502c376.js";import{u as a}from"./auth.f146b98a.js";import"./axios.76c2eae2.js";var c=u(({router:r})=>{r.beforeEach(async e=>{const t=a();if(e.meta.public)return!0;if(!t.isAuthenticated)return"/login";if(!t.user)try{await t.fetchMe()}catch{return t.logout(),"/login"}return!0})});export{c as default};

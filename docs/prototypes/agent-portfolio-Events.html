@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Klikk · Portfolio Events — Action Queue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* Klikk admin design tokens — mirrors admin/tailwind.config.js + admin/src/assets/main.css */
+  :root {
+    --navy:        #2B2D6E;
+    --navy-dark:   #23255a;
+    --navy-light:  #3b3e8f;
+    --accent:      #FF3D7F;
+    --accent-light:#FF6B9D;
+    --accent-dark: #E02D6B;
+    --surface:     #F5F5F8;
+    --surface-2:   #F0EFF8;
+    --white:       #FFFFFF;
+    --gray-50:  #F9FAFB;
+    --gray-100: #F3F4F6;
+    --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB;
+    --gray-400: #9CA3AF;
+    --gray-500: #6B7280;
+    --gray-600: #4B5563;
+    --gray-700: #374151;
+    --gray-800: #1F2937;
+    --gray-900: #111827;
+    --success-50:  #ECFDF5; --success-100: #D1FAE5; --success-500: #10B981; --success-600: #059669; --success-700: #047857;
+    --warning-50:  #FFFBEB; --warning-100: #FEF3C7; --warning-500: #F59E0B; --warning-600: #D97706; --warning-700: #B45309;
+    --danger-50:   #FEF2F2; --danger-100: #FEE2E2; --danger-500: #EF4444; --danger-600: #DC2626; --danger-700: #B91C1C;
+    --info-50:     #EFF6FF; --info-100: #DBEAFE; --info-500: #3B82F6; --info-600: #2563EB; --info-700: #1D4ED8;
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+    --shadow-soft: 0 1px 3px 0 rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--surface); color: var(--gray-900); font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -0.01em; color: var(--gray-900); }
+
+  .text-xs    { font-size: 12px; line-height: 1.4; }
+  .text-sm    { font-size: 13.1px; line-height: 1.45; }
+  .text-base  { font-size: 15px;   line-height: 1.5; }
+  .text-lg    { font-size: 17px;   line-height: 1.45; }
+  .text-xl    { font-size: 19px;   line-height: 1.35; letter-spacing: -0.015em; }
+  .text-2xl   { font-size: 22px;   line-height: 1.3;  letter-spacing: -0.02em; }
+  .text-micro { font-size: 11px; font-weight: 500; letter-spacing: 0.02em; }
+  .label-upper{ font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); }
+
+  /* ── Top nav (admin shell) ── */
+  .appbar { background: #fff; border-bottom: 1px solid var(--gray-200); position: sticky; top: 0; z-index: 40; }
+  .appbar-inner { max-width: 1400px; margin: 0 auto; padding: 0 20px; display: flex; align-items: center; gap: 20px; height: 56px; }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 4px 4px; border-radius: 999px; background: var(--navy); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
+  .brand-dot { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); display: inline-flex; align-items: center; justify-content: center; color: #fff; font-size: 13px; font-weight: 800; }
+  .nav-links { display: flex; align-items: center; gap: 2px; }
+  .nav-link { font-size: 13.1px; font-weight: 500; color: var(--gray-600); padding: 7px 12px; border-radius: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .nav-link:hover { background: var(--gray-100); color: var(--gray-900); }
+  .nav-link.active { background: var(--navy); color: #fff; font-weight: 600; }
+  .appbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .role-pill { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--navy); }
+  .user-chip { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border: 1px solid var(--gray-200); border-radius: 999px; font-size: 13.1px; color: var(--gray-700); }
+  .avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; }
+
+  /* ── Page wrap ── */
+  .page { max-width: 1400px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* PageHeader */
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .crumbs { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--gray-500); margin-bottom: 6px; }
+  .crumbs a { color: var(--gray-500); text-decoration: none; }
+  .crumbs a:hover { color: var(--gray-700); }
+  .crumbs .sep { color: var(--gray-300); }
+  .page-title { font-size: 22px; font-weight: 700; color: var(--gray-900); letter-spacing: -0.02em; }
+  .page-subtitle { font-size: 13.1px; color: var(--gray-500); margin-top: 4px; }
+  .page-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* Tabs (pills) — matches admin ?tab= pattern */
+  .tabs { display: inline-flex; gap: 4px; padding: 3px; background: var(--gray-100); border-radius: 10px; }
+  .tab { padding: 6px 14px; font-size: 13.1px; font-weight: 500; color: var(--gray-600); border: 0; background: transparent; cursor: pointer; border-radius: 7px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .tab:hover { color: var(--gray-900); }
+  .tab.active { background: #fff; color: var(--navy); font-weight: 600; box-shadow: var(--shadow-sm); }
+
+  /* KPI cards */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi { background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; box-shadow: var(--shadow-sm); padding: 16px 18px; display: flex; align-items: center; gap: 14px; }
+  .kpi-ico { width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .kpi-ico svg { width: 20px; height: 20px; }
+  .kpi-body { min-width: 0; }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.06em; }
+  .kpi-value { font-size: 22px; font-weight: 700; color: var(--gray-900); letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi-value.danger { color: var(--danger-600); }
+  .kpi-value.warning { color: var(--warning-600); }
+  .kpi.danger .kpi-ico { background: var(--danger-50); color: var(--danger-600); }
+  .kpi.warning .kpi-ico { background: var(--warning-50); color: var(--warning-600); }
+  .kpi.info .kpi-ico { background: var(--info-50); color: var(--info-600); }
+  .kpi.navy .kpi-ico { background: var(--surface-2); color: var(--navy); }
+
+  /* Two-col layout: events widget + Upcoming sidebar */
+  .layout-2 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+
+  /* Card (admin .card pattern) */
+  .card { background: #fff; border: 1px solid var(--gray-200); border-radius: 12px; box-shadow: var(--shadow-sm); overflow: hidden; }
+  .card-header { padding: 12px 20px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 10px; }
+  .card-header .hd-ico { color: var(--navy); display: inline-flex; }
+  .card-header .hd-ico svg { width: 14px; height: 14px; }
+  .card-header .hd-title { font-size: 12px; font-weight: 600; color: var(--navy); text-transform: uppercase; letter-spacing: 0.06em; }
+  .card-header .hd-sub { margin-left: auto; font-size: 12px; color: var(--gray-500); font-variant-numeric: tabular-nums; }
+  .card-body { padding: 0; }
+
+  /* Events widget grid */
+  .events-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 560px; }
+  .ev-menu { border-right: 1px solid var(--gray-200); background: var(--gray-50); padding: 8px 0 16px; }
+  .ev-menu h4 { font-size: 11px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.08em; padding: 14px 18px 6px; }
+  .ev-item { display: flex; align-items: center; gap: 10px; padding: 9px 16px 9px 18px; font-size: 13.1px; color: var(--gray-700); cursor: pointer; transition: background .1s, color .1s; border-left: 3px solid transparent; }
+  .ev-item:hover { background: var(--gray-100); color: var(--gray-900); }
+  .ev-item.active { background: #fff; color: var(--navy); font-weight: 600; border-left-color: var(--navy); }
+  .ev-item.active .ev-count { background: var(--navy); color: #fff; }
+  .ev-ico-sq { width: 26px; height: 26px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .ev-ico-sq svg { width: 14px; height: 14px; }
+  .ev-label { flex: 1; }
+  .ev-count { background: var(--gray-200); color: var(--gray-700); font-size: 11px; font-weight: 600; min-width: 24px; padding: 2px 8px; border-radius: 999px; text-align: center; font-variant-numeric: tabular-nums; }
+
+  /* Events widget right */
+  .ev-widget { display: flex; flex-direction: column; min-width: 0; }
+  .ev-widget-head { padding: 14px 20px 12px; border-bottom: 1px solid var(--gray-100); display: flex; align-items: center; gap: 12px; }
+  .ev-widget-head .eh-pill { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; background: var(--surface-2); border-radius: 999px; }
+  .ev-widget-head .eh-pill .eh-ico { width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; }
+  .ev-widget-head .eh-pill .eh-ico svg { width: 12px; height: 12px; }
+  .ev-widget-head .eh-pill .eh-name { font-size: 12px; font-weight: 600; color: var(--navy); }
+  .ev-widget-head h3 { font-size: 15px; font-weight: 600; color: var(--gray-900); }
+  .ev-widget-head .eh-sub { margin-left: auto; font-size: 12px; color: var(--gray-500); font-variant-numeric: tabular-nums; }
+  .ev-list { flex: 1; overflow-y: auto; }
+  .ev-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--gray-100); cursor: pointer; transition: background .08s; }
+  .ev-row:first-child { border-top: 0; }
+  .ev-row:hover { background: var(--gray-50); }
+  .ev-row.selected { background: var(--surface-2); }
+
+  .when-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .when-pill.overdue { background: var(--danger-50); color: var(--danger-700); }
+  .when-pill.today   { background: var(--warning-50); color: var(--warning-700); }
+  .when-pill.soon    { background: var(--info-50); color: var(--info-700); }
+  .when-pill.future  { background: var(--gray-100); color: var(--gray-600); }
+
+  .ev-info { min-width: 0; }
+  .ev-addr { font-size: 13.1px; font-weight: 600; color: var(--gray-900); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ev-ctx { font-size: 12px; color: var(--gray-500); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; font-family: inherit; font-size: 13.1px; font-weight: 500; cursor: pointer; border: 1px solid transparent; transition: box-shadow .12s, background .12s, color .12s; white-space: nowrap; }
+  .btn svg { width: 14px; height: 14px; }
+  .btn-primary { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .btn-primary:hover { background: var(--navy-dark); box-shadow: 0 0 0 2px rgba(255, 61, 127, 0.35); }
+  .btn-ghost { background: #fff; color: var(--gray-700); border-color: var(--gray-300); }
+  .btn-ghost:hover { background: var(--gray-50); color: var(--gray-900); box-shadow: 0 0 0 2px rgba(255, 61, 127, 0.35); }
+  .btn-xs { padding: 4px 10px; font-size: 12px; border-radius: 7px; }
+  .btn-action { background: var(--navy); color: #fff; border-color: var(--navy); padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; }
+  .btn-action:hover { background: var(--navy-dark); box-shadow: 0 0 0 2px rgba(255, 61, 127, 0.35); }
+
+  .ev-empty { padding: 60px 24px; text-align: center; color: var(--gray-400); font-size: 13.1px; }
+
+  /* Upcoming sidebar card */
+  .up-card { position: sticky; top: 76px; }
+  .up-list { max-height: calc(100vh - 220px); overflow-y: auto; }
+  .up-row { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--gray-100); cursor: pointer; transition: background .08s; align-items: flex-start; }
+  .up-row:first-child { border-top: 0; }
+  .up-row:hover { background: var(--gray-50); }
+  .up-ico-sq { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: #fff; margin-top: 1px; }
+  .up-ico-sq svg { width: 14px; height: 14px; }
+  .up-body { min-width: 0; }
+  .up-top-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .up-type { font-size: 12px; color: var(--gray-500); }
+  .up-addr { font-size: 13.1px; color: var(--gray-900); font-weight: 500; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Event color dot (for status communication beyond color-alone) */
+  .ico-color-1  { background: var(--navy); }
+  .ico-color-3  { background: #5E7CE0; }
+  .ico-color-4  { background: #0891B2; }
+  .ico-color-5  { background: #7C3AED; }
+  .ico-color-8  { background: var(--accent); }
+  .ico-color-9  { background: var(--danger-600); }
+  .ico-color-10 { background: #EA580C; }
+  .ico-color-11 { background: var(--warning-600); }
+  .ico-color-14 { background: var(--info-600); }
+  .ico-color-15 { background: var(--warning-500); }
+  .ico-color-maint { background: var(--warning-600); }
+  .ico-color-vac   { background: var(--danger-600); }
+
+  @media (max-width: 1024px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .layout-2 { grid-template-columns: 1fr; }
+    .up-card { position: static; }
+  }
+  @media (max-width: 720px) {
+    .events-grid { grid-template-columns: 1fr; }
+    .ev-menu { border-right: 0; border-bottom: 1px solid var(--gray-200); }
+  }
+</style>
+</head>
+<body>
+
+<!-- App shell -->
+<header class="appbar">
+  <div class="appbar-inner">
+    <div class="brand"><span class="brand-dot">k</span>klikk</div>
+    <nav class="nav-links">
+      <a class="nav-link" href="#">Dashboard</a>
+      <a class="nav-link active" href="#">Portfolio</a>
+      <a class="nav-link" href="#">Leases</a>
+      <a class="nav-link" href="#">Tenants</a>
+      <a class="nav-link" href="#">Maintenance</a>
+      <a class="nav-link" href="#">Reports</a>
+    </nav>
+    <div class="appbar-right">
+      <span class="role-pill">Agent</span>
+      <div class="user-chip"><span class="avatar">SM</span>Sipho M.</div>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <div class="crumbs"><a href="#">Home</a><span class="sep">/</span><a href="#">Portfolio</a><span class="sep">/</span><span>Events</span></div>
+      <h1 class="page-title">Portfolio</h1>
+      <p class="page-subtitle">Greenwood Realty · 60 properties · action queue for today and the next 14 days.</p>
+    </div>
+    <div class="page-actions">
+      <div class="tabs">
+        <a class="tab" href="agent-portfolio-timeline.html">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18"/><path d="M3 6h18"/><path d="M3 18h18"/></svg>
+          By property
+        </a>
+        <a class="tab active" href="agent-portfolio-Events.html">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2"/><circle cx="12" cy="12" r="9"/></svg>
+          Events
+        </a>
+      </div>
+      <button class="btn btn-ghost">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Export
+      </button>
+      <button class="btn btn-primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+        New action
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="kpi-grid">
+    <div class="kpi navy">
+      <div class="kpi-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      </div>
+      <div class="kpi-body"><div class="kpi-label">Open actions</div><div class="kpi-value" id="k-total-events">0</div></div>
+    </div>
+    <div class="kpi danger">
+      <div class="kpi-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </div>
+      <div class="kpi-body"><div class="kpi-label">Overdue</div><div class="kpi-value danger" id="k-overdue">0</div></div>
+    </div>
+    <div class="kpi warning">
+      <div class="kpi-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="kpi-body"><div class="kpi-label">Due today / tomorrow</div><div class="kpi-value warning" id="k-today">0</div></div>
+    </div>
+    <div class="kpi info">
+      <div class="kpi-ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <div class="kpi-body"><div class="kpi-label">This week</div><div class="kpi-value" id="k-week">0</div></div>
+    </div>
+  </div>
+
+  <!-- Main 2-column layout -->
+  <div class="layout-2">
+    <section class="card">
+      <div class="card-header">
+        <span class="hd-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        </span>
+        <span class="hd-title">Action Queue</span>
+        <span class="hd-sub" id="queue-sub">—</span>
+      </div>
+      <div class="card-body">
+        <div class="events-grid">
+          <aside class="ev-menu" id="ev-menu"></aside>
+          <section class="ev-widget">
+            <div class="ev-widget-head" id="ev-widget-head"></div>
+            <div class="ev-list" id="ev-list"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card up-card">
+      <div class="card-header">
+        <span class="hd-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </span>
+        <span class="hd-title">Upcoming Tasks</span>
+        <span class="hd-sub" id="up-sub">—</span>
+      </div>
+      <div class="up-list" id="up-list"></div>
+    </aside>
+  </div>
+</main>
+
+<script>
+  // Step → semantic color token class name (for icons)
+  const stepIcoCls = {
+    1:'ico-color-1', 3:'ico-color-3', 4:'ico-color-4', 5:'ico-color-5',
+    8:'ico-color-8', 9:'ico-color-9', 10:'ico-color-10', 11:'ico-color-11',
+    14:'ico-color-14', 15:'ico-color-15',
+  };
+  const stages = [
+    { step: 1,  phase: 'pre' }, { step: 2,  phase: 'pre' }, { step: 3,  phase: 'pre' },
+    { step: 4,  phase: 'pre' }, { step: 5,  phase: 'pre' }, { step: 6,  phase: 'pre' }, { step: 7,  phase: 'pre' },
+    { step: 8,  phase: 'turn' }, { step: 9,  phase: 'turn' }, { step: 10, phase: 'turn' }, { step: 11, phase: 'turn' },
+    { step: 12, phase: 'active' }, { step: 13, phase: 'active' }, { step: 14, phase: 'active' },
+    { step: 15, phase: 'close' },
+  ];
+  const phaseOf = (step) => stages[step - 1].phase;
+  const NOW_MONTH = 3;
+  function seeded(i) { let x = Math.sin(i * 9301 + 49297) * 233280; return x - Math.floor(x); }
+
+  const suburbs = ['Stellenbosch','Sea Point','Claremont','Gardens','Rondebosch','Observatory','Newlands','Woodstock','Green Point','Sandton','Rosebank','Parkhurst','Melville','Bryanston','Morningside','Umhlanga','Ballito','Durbanville','Table View','Somerset West'];
+  const streets = ['Oak','Main','Church','Victoria','High','Long','Bree','Loop','Kloof','Orange','Adderley','Plein','Strand','Beach','Dorp','Ryneveld','Protea','Jacaranda','Acacia','Cedar'];
+  const types   = ['1-Bed Apt','2-Bed Apt','3-Bed House','Studio','2-Bed Townhouse','3-Bed Townhouse','4-Bed House','Penthouse','Loft'];
+  const tenants = ['Nomvula D.','Thabo M.','Hendrik P.','Ayesha K.','Lerato N.','Rowan S.','Farai C.','Jenna W.','Kgomotso L.','Daniel V.','Priya R.','Sibusiso Z.','Anke van R.','Tumi B.','Claire O.','Bongani N.','Maryam E.','Johan du P.','Nadia H.','Sipho G.'];
+
+  function pickStage(i) {
+    const r = seeded(i);
+    if (r < 0.70) return 12 + Math.floor(seeded(i*3) * 3);
+    if (r < 0.78) return 8 + Math.floor(seeded(i*7) * 4);
+    if (r < 0.92) return 1 + Math.floor(seeded(i*11) * 7);
+    if (r < 0.97) return 15;
+    return 1 + Math.floor(seeded(i*13) * 15);
+  }
+
+  const properties = [];
+  for (let i = 1; i <= 60; i++) {
+    const streetNum = 1 + Math.floor(seeded(i) * 180);
+    const st = streets[Math.floor(seeded(i*2) * streets.length)];
+    const sub = suburbs[Math.floor(seeded(i*5) * suburbs.length)];
+    const type = types[Math.floor(seeded(i*8) * types.length)];
+    const rent = 6500 + Math.floor(seeded(i*17) * 44) * 500;
+    const tenant = tenants[Math.floor(seeded(i*23) * tenants.length)];
+    const current = pickStage(i);
+    const alert = seeded(i*29) < 0.22;
+    const noContract = i % 9 === 0 || (seeded(i*37) < 0.08 && phaseOf(current) !== 'active');
+    properties.push({
+      id: i, address: `${streetNum} ${st} Street`, suburb: sub, type, rent, tenant,
+      current, alert, noContract, deposit: rent * 2,
+      alertReason: alert ? (['Rent arrears · 7 days','Renewal notice due in 4 days','Inspection report unsigned','Deposit refund deadline tomorrow','Contractor overdue','Tenant ticket SLA breach'][i % 6]) : null
+    });
+  }
+
+  // Lucide-style icon paths
+  const ICONS = {
+    'rent-overdue':   '<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',
+    'deposit-refund': '<path d="M3 7h13a5 5 0 010 10h-3"/><path d="M6 20l-3-3 3-3"/>',
+    'move-out':       '<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>',
+    'move-in':        '<path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l-5-5 5-5"/><path d="M15 12H3"/>',
+    'sign-contract':  '<path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/>',
+    'notice':         '<path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/>',
+    'viewings':       '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
+    'screen':         '<path d="M20 6L9 17l-5-5"/>',
+    'owner-approval': '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    'renewal-due':    '<path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/>',
+    'maintenance':    '<path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>',
+    'no-contract':    '<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><path d="M3 3l18 18"/>',
+  };
+  function iconSvg(key) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${ICONS[key] || ICONS.maintenance}</svg>`;
+  }
+
+  const EVENT_TYPES = [
+    { key: 'rent-overdue',   label: 'Rent overdue',   icoCls: 'ico-color-9',   action: 'Collect',     match: p => !p.noContract && p.alert && p.alertReason && p.alertReason.includes('arrears') },
+    { key: 'deposit-refund', label: 'Deposit refund', icoCls: 'ico-color-15',  action: 'Refund',      match: p => p.current === 15 || (p.alert && p.alertReason && p.alertReason.includes('Deposit refund')) },
+    { key: 'move-out',       label: 'Move-out',       icoCls: 'ico-color-8',   action: 'Inspect',     match: p => p.current === 8 && !p.noContract },
+    { key: 'move-in',        label: 'Move-in',        icoCls: 'ico-color-10',  action: 'Inspect',     match: p => p.current === 10 },
+    { key: 'sign-contract',  label: 'Sign contract',  icoCls: 'ico-color-5',   action: 'Send to sign',match: p => p.current === 5 },
+    { key: 'notice',         label: 'Notice',         icoCls: 'ico-color-1',   action: 'Acknowledge', match: p => p.current === 1 && !p.noContract },
+    { key: 'viewings',       label: 'Viewings',       icoCls: 'ico-color-3',   action: 'Host',        match: p => p.current === 3 },
+    { key: 'screen',         label: 'Screen',         icoCls: 'ico-color-4',   action: 'Review',      match: p => p.current === 4 },
+    { key: 'owner-approval', label: 'Owner approval', icoCls: 'ico-color-11',  action: 'Chase owner', match: p => p.alert && p.alertReason && p.alertReason.includes('Inspection report unsigned') },
+    { key: 'renewal-due',    label: 'Renewal due',    icoCls: 'ico-color-14',  action: 'Draft offer', match: p => p.current === 14 || (p.alert && p.alertReason && p.alertReason.includes('Renewal notice')) },
+    { key: 'maintenance',    label: 'Maintenance',    icoCls: 'ico-color-maint', action: 'Dispatch',  match: p => p.alert && p.alertReason && (p.alertReason.includes('Contractor') || p.alertReason.includes('ticket')) },
+    { key: 'no-contract',    label: 'No contract',    icoCls: 'ico-color-vac', action: 'List',        match: p => p.noContract },
+  ];
+
+  function eventOffsetDays(p, key) {
+    const h = seeded(p.id * 41 + key.length);
+    const offsets = {
+      'rent-overdue':   -Math.ceil(h * 14) - 1,
+      'deposit-refund': Math.ceil(h * 7) - 3,
+      'move-out':       Math.ceil(h * 10) - 2,
+      'move-in':        Math.ceil(h * 10),
+      'sign-contract':  Math.ceil(h * 6) - 1,
+      'notice':         Math.ceil(h * 20) - 5,
+      'viewings':       Math.ceil(h * 14),
+      'screen':         Math.ceil(h * 5) - 1,
+      'owner-approval': Math.ceil(h * 10) - 4,
+      'renewal-due':    Math.ceil(h * 60) + 5,
+      'maintenance':    Math.ceil(h * 8) - 3,
+      'no-contract':    Math.ceil(h * 30) - 10,
+    };
+    return offsets[key] ?? 0;
+  }
+  function whenLabel(days) {
+    if (days < 0) return { text: `Overdue ${-days}d`, cls: 'overdue' };
+    if (days === 0) return { text: 'Today', cls: 'today' };
+    if (days === 1) return { text: 'Tomorrow', cls: 'today' };
+    if (days <= 7) return { text: `in ${days}d`, cls: 'soon' };
+    return { text: `in ${days}d`, cls: 'future' };
+  }
+  function contextFor(p, key) {
+    switch (key) {
+      case 'rent-overdue':   return `R${p.rent.toLocaleString()} unpaid · ${p.tenant}`;
+      case 'deposit-refund': return `R${p.deposit.toLocaleString()} held · ${p.tenant}`;
+      case 'move-out':       return `Outgoing · ${p.tenant} vacating`;
+      case 'move-in':        return `Incoming inspection · ${p.tenant}`;
+      case 'sign-contract':  return `Lease ready · awaiting ${p.tenant}`;
+      case 'notice':         return `2-month notice from ${p.tenant}`;
+      case 'viewings':       return `Scheduled viewing slot`;
+      case 'screen':         return `Applicant screening · ${p.tenant}`;
+      case 'owner-approval': return `Owner gate pending · inspection report`;
+      case 'renewal-due':    return `Lease ends in 80 business days · ${p.tenant}`;
+      case 'maintenance':    return p.alertReason || 'Open ticket';
+      case 'no-contract':    return `Vacant · R${p.rent.toLocaleString()}/mo potential`;
+    }
+    return '';
+  }
+  function matchesForType(key) {
+    const t = EVENT_TYPES.find(t => t.key === key);
+    if (!t) return [];
+    return properties.filter(t.match).map(p => {
+      const days = eventOffsetDays(p, key);
+      return { p, days, when: whenLabel(days), ctx: contextFor(p, key), t };
+    }).sort((a, b) => a.days - b.days);
+  }
+  function allUpcoming() {
+    const rows = [];
+    EVENT_TYPES.forEach(t => {
+      properties.filter(t.match).forEach(p => {
+        const days = eventOffsetDays(p, t.key);
+        rows.push({ t, p, days, when: whenLabel(days) });
+      });
+    });
+    return rows.sort((a, b) => a.days - b.days);
+  }
+
+  let selectedKey = 'rent-overdue';
+  let selectedPropId = null;
+
+  function renderKPIs() {
+    const all = allUpcoming();
+    document.getElementById('k-total-events').textContent = all.length;
+    document.getElementById('k-overdue').textContent = all.filter(r => r.days < 0).length;
+    document.getElementById('k-today').textContent = all.filter(r => r.days === 0 || r.days === 1).length;
+    document.getElementById('k-week').textContent = all.filter(r => r.days >= 0 && r.days <= 7).length;
+  }
+
+  function renderMenu() {
+    const menu = document.getElementById('ev-menu');
+    const counts = {};
+    EVENT_TYPES.forEach(t => { counts[t.key] = properties.filter(t.match).length; });
+    const groups = [
+      { h: 'Urgent',     keys: ['rent-overdue','maintenance','owner-approval','deposit-refund'] },
+      { h: 'Turnaround', keys: ['move-out','move-in','sign-contract'] },
+      { h: 'Pipeline',   keys: ['notice','viewings','screen','renewal-due'] },
+      { h: 'Vacancy',    keys: ['no-contract'] },
+    ];
+    menu.innerHTML = groups.map(g => `
+      <h4>${g.h}</h4>
+      ${g.keys.map(k => {
+        const t = EVENT_TYPES.find(e => e.key === k);
+        const n = counts[k] || 0;
+        return `
+          <div class="ev-item ${k === selectedKey ? 'active' : ''}" data-key="${k}">
+            <span class="ev-ico-sq ${t.icoCls}" style="color:#fff">${iconSvg(k)}</span>
+            <span class="ev-label">${t.label}</span>
+            <span class="ev-count">${n}</span>
+          </div>`;
+      }).join('')}
+    `).join('');
+    menu.querySelectorAll('.ev-item').forEach(el => {
+      el.addEventListener('click', () => {
+        selectedKey = el.dataset.key;
+        selectedPropId = null;
+        renderMenu();
+        renderList();
+      });
+    });
+  }
+
+  function renderList() {
+    const t = EVENT_TYPES.find(e => e.key === selectedKey);
+    const rows = matchesForType(selectedKey);
+    const overdue = rows.filter(r => r.days < 0).length;
+    document.getElementById('queue-sub').textContent = `${rows.length} ${rows.length === 1 ? 'action' : 'actions'}${overdue ? ` · ${overdue} overdue` : ''}`;
+    document.getElementById('ev-widget-head').innerHTML = `
+      <div class="eh-pill"><span class="eh-ico ${t.icoCls}" style="color:#fff">${iconSvg(t.key)}</span><span class="eh-name">${t.label}</span></div>
+      <h3>${rows.length ? (rows.length + ' ' + (rows.length === 1 ? 'property needs' : 'properties need') + ' your attention') : 'No actions right now'}</h3>
+      <span class="eh-sub">${overdue ? `${overdue} overdue` : ''}</span>
+    `;
+    const list = document.getElementById('ev-list');
+    if (!rows.length) {
+      list.innerHTML = `<div class="ev-empty">Nothing in this queue — great work.</div>`;
+      return;
+    }
+    list.innerHTML = rows.map(r => `
+      <div class="ev-row ${r.p.id === selectedPropId ? 'selected' : ''}" data-id="${r.p.id}">
+        <span class="when-pill ${r.when.cls}">${r.when.text}</span>
+        <div class="ev-info">
+          <div class="ev-addr">${r.p.address}, ${r.p.suburb}</div>
+          <div class="ev-ctx">${r.ctx}</div>
+        </div>
+        <button class="btn-action">${t.action}</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.ev-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-action')) return;
+        selectedPropId = parseInt(row.dataset.id, 10);
+        renderList();
+      });
+    });
+  }
+
+  function renderUpcoming() {
+    const el = document.getElementById('up-list');
+    const allRows = allUpcoming();
+    const rows = allRows.slice(0, 30);
+    const overdue = allRows.filter(r => r.days < 0).length;
+    document.getElementById('up-sub').textContent = `${allRows.length} total${overdue ? ' · ' + overdue + ' overdue' : ''}`;
+    el.innerHTML = rows.map(r => `
+      <div class="up-row" data-key="${r.t.key}" data-id="${r.p.id}">
+        <span class="up-ico-sq ${r.t.icoCls}" style="color:#fff">${iconSvg(r.t.key)}</span>
+        <div class="up-body">
+          <div class="up-top-row">
+            <span class="when-pill ${r.when.cls}">${r.when.text}</span>
+            <span class="up-type">${r.t.label}</span>
+          </div>
+          <div class="up-addr">${r.p.address}, ${r.p.suburb}</div>
+        </div>
+      </div>
+    `).join('');
+    el.querySelectorAll('.up-row').forEach(row => {
+      row.addEventListener('click', () => {
+        selectedKey = row.dataset.key;
+        selectedPropId = parseInt(row.dataset.id, 10);
+        renderMenu();
+        renderList();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  }
+
+  renderKPIs();
+  renderMenu();
+  renderList();
+  renderUpcoming();
+</script>
+</body>
+</html>

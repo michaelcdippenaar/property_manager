@@ -1,0 +1,13 @@
+{
+  "name": "klikk-tenant-app",
+  "version": "1.0.0",
+  "description": "Klikk Tenant App — maintenance, AI chat, lease, property info",
+  "author": "Klikk",
+  "private": true,
+  "dependencies": {
+    "@capacitor/app": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0"
+  }
+}

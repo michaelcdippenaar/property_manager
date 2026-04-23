@@ -1,0 +1,39 @@
+[
+  {
+    "address": "12 Dorp Street",
+    "suburb": "Stellenbosch Central",
+    "price": "R 18 500 / month",
+    "beds": 2,
+    "baths": 1,
+    "sizeSqm": 78,
+    "parking": 1,
+    "photos": [
+      { "src": "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=1600" },
+      { "src": "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1600" },
+      { "src": "https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=1600" },
+      { "src": "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=1600" }
+    ],
+    "agentName": "Sarah van der Merwe",
+    "agentPhone": "+27 82 555 0123",
+    "ctaUrl": "klikk.co.za/listing/dorp-12",
+    "tagline": "Now available"
+  },
+  {
+    "address": "7 Papegaaiberg Close",
+    "suburb": "Welgelegen, Stellenbosch",
+    "price": "R 32 000 / month",
+    "beds": 3,
+    "baths": 2,
+    "sizeSqm": 145,
+    "parking": 2,
+    "photos": [
+      { "src": "https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=1600" },
+      { "src": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1600" },
+      { "src": "https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1600" }
+    ],
+    "agentName": "Pieter Botha",
+    "agentPhone": "+27 83 555 0456",
+    "ctaUrl": "klikk.co.za/listing/papegaai-7",
+    "tagline": "New to market"
+  }
+]

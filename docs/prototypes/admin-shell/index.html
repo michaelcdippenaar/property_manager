@@ -1,0 +1,2163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Klikk · Admin SPA mockup</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+<style>
+:root{
+  --navy:#2B2D6E; --navy-700:#1F215A; --navy-soft:#E9EAF4;
+  --accent:#FF3D7F; --accent-soft:#FFE4EE;
+  --ink:#1A1A2E; --muted:#6B6D82; --muted-2:#9EA0B4;
+  --paper:#FAFAFC; --line:#EFEFF5; --line-2:#E4E4EE;
+  --ok:#10956B; --ok-soft:#E2F4EC;
+  --warn:#C97A00; --warn-soft:#FFF1DC;
+  --danger:#CC2E52; --danger-soft:#FFE0E7;
+  --info:#3B5BD9; --info-soft:#E5EBFB;
+  --radius:10px; --radius-lg:14px;
+  --shadow:0 1px 2px rgba(26,26,46,0.04),0 2px 8px rgba(26,26,46,0.04);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--paper);color:var(--ink);font-family:'DM Sans',system-ui,sans-serif;font-size:14px;line-height:1.5}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,h4{font-family:'Fraunces',serif;color:var(--navy);margin:0;font-weight:600;letter-spacing:-0.01em}
+h1{font-size:28px}
+h2{font-size:20px}
+h3{font-size:16px}
+
+/* === APP SHELL === */
+.app{display:grid;grid-template-columns:248px 1fr;grid-template-rows:56px 1fr;min-height:100vh}
+.topbar{grid-column:1/-1;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;padding:0 20px;gap:20px;z-index:10}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Fraunces',serif;font-weight:700;font-size:20px;color:var(--navy);width:200px}
+.logo .dot{width:28px;height:28px;border-radius:8px;background:var(--navy);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif}
+.agency{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:#fff;font-size:13px;font-weight:500}
+.agency:hover{border-color:var(--line-2)}
+.search{flex:1;max-width:480px;position:relative}
+.search input{width:100%;padding:8px 12px 8px 36px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-family:inherit;font-size:13px;outline:none}
+.search input:focus{border-color:var(--navy);background:#fff}
+.search i{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px}
+.kbd{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);background:#fff;padding:2px 6px;border:1px solid var(--line);border-radius:4px}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:14px}
+.icon-btn{position:relative;width:36px;height:36px;border-radius:8px;border:none;background:transparent;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink);font-size:18px}
+.icon-btn:hover{background:var(--paper)}
+.icon-btn .dot-alert{position:absolute;top:7px;right:8px;width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px #fff}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--navy),var(--accent));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;cursor:pointer}
+
+/* === SIDEBAR === */
+.sidebar{background:#fff;border-right:1px solid var(--line);padding:16px 10px;overflow-y:auto}
+.nav-group-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted-2);padding:14px 12px 6px;font-weight:600}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--ink);font-weight:500;font-size:14px;cursor:pointer;margin-bottom:2px;border:none;background:transparent;width:100%;text-align:left;font-family:inherit}
+.nav-item i{font-size:18px;color:var(--muted);width:20px}
+.nav-item:hover{background:var(--paper)}
+.nav-item.active{background:var(--navy);color:#fff}
+.nav-item.active i{color:#fff}
+.nav-item .count{margin-left:auto;font-size:11px;background:var(--line);color:var(--muted);padding:2px 7px;border-radius:10px;font-weight:600}
+.nav-item.active .count{background:rgba(255,255,255,0.2);color:#fff}
+.nav-divider{height:1px;background:var(--line);margin:10px 4px}
+
+/* === MAIN === */
+.main{overflow-y:auto;padding:0}
+.page-header{padding:24px 32px 16px;border-bottom:1px solid var(--line);background:#fff}
+.breadcrumb{font-size:12px;color:var(--muted);margin-bottom:6px}
+.breadcrumb a{color:var(--muted)}
+.breadcrumb span{color:var(--ink)}
+.page-header-row{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.page-header p.sub{color:var(--muted);margin:4px 0 0;font-size:13px}
+.page-actions{display:flex;gap:8px;align-items:center}
+.btn{padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;cursor:pointer;font-family:inherit;font-weight:500;font-size:13px;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn:hover{border-color:var(--line-2);background:var(--paper)}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.primary:hover{background:var(--navy-700)}
+.btn.accent{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.ghost{border-color:transparent}
+.btn i{font-size:14px}
+
+/* === DASHBOARD TOGGLE === */
+.view-toggle{display:inline-flex;gap:4px;padding:3px;background:var(--line);border-radius:10px;margin-left:auto}
+.view-toggle button{padding:6px 14px;font-size:13px;font-weight:500;color:var(--muted);border:0;background:transparent;cursor:pointer;border-radius:7px;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.view-toggle button.active{background:#fff;color:var(--navy);font-weight:600;box-shadow:var(--shadow)}
+.view-pane{display:none}
+.view-pane.active{display:block}
+
+/* === EVENTS VIEW === */
+.events-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:20px;padding:20px 32px;align-items:start}
+.events-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.events-head{padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.events-head-title{font-size:11px;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:0.06em}
+.events-head-sub{margin-left:auto;font-size:12px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.events-grid{display:grid;grid-template-columns:260px minmax(0,1fr);min-height:560px}
+.ev-menu{border-right:1px solid var(--line);background:var(--paper);padding:8px 0 16px}
+.ev-menu h4{font-size:11px;font-weight:600;color:var(--muted-2);text-transform:uppercase;letter-spacing:0.08em;padding:14px 18px 6px;margin:0}
+.ev-item{display:flex;align-items:center;gap:10px;padding:9px 16px 9px 18px;font-size:13px;color:var(--ink);cursor:pointer;border-left:3px solid transparent;border:none;background:transparent;width:100%;text-align:left;font-family:inherit}
+.ev-item:hover{background:var(--line)}
+.ev-item.active{background:#fff;color:var(--navy);font-weight:600;border-left-color:var(--navy)}
+.ev-ico-sq{width:24px;height:24px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0}
+.ev-count{margin-left:auto;font-size:11px;background:var(--line);color:var(--muted);padding:2px 7px;border-radius:10px;font-weight:600;min-width:22px;text-align:center}
+.ev-item.active .ev-count{background:var(--navy);color:#fff}
+.ev-list{padding:0}
+.ev-row{display:grid;grid-template-columns:110px minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);transition:background .1s}
+.ev-row:hover{background:var(--paper)}
+.ev-row:last-child{border-bottom:none}
+.ev-when{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;display:inline-flex;align-items:center;gap:6px}
+.ev-when.overdue{color:var(--danger)}
+.ev-when.today{color:var(--warn)}
+.ev-when.soon{color:var(--info)}
+.ev-when.future{color:var(--muted)}
+.ev-when .bullet{width:6px;height:6px;border-radius:50%;background:currentColor}
+.ev-ctx-addr{font-weight:600;font-size:14px;color:var(--ink);margin-bottom:2px}
+.ev-ctx-sub{font-size:12px;color:var(--muted)}
+.ev-act{padding:6px 12px;font-size:12px;font-weight:500;border:1px solid var(--line);background:#fff;border-radius:6px;cursor:pointer;font-family:inherit;color:var(--navy)}
+.ev-act:hover{background:var(--navy);color:#fff;border-color:var(--navy)}
+
+.ev-ico-urgent{background:var(--danger)}
+.ev-ico-maint{background:var(--warn)}
+.ev-ico-gate{background:#8B5CF6}
+.ev-ico-refund{background:var(--accent)}
+.ev-ico-moveout{background:#D97706}
+.ev-ico-movein{background:var(--ok)}
+.ev-ico-sign{background:var(--info)}
+.ev-ico-notice{background:#6B7280}
+.ev-ico-view{background:#14B8A6}
+.ev-ico-screen{background:var(--navy)}
+.ev-ico-renew{background:#EA580C}
+.ev-ico-vacancy{background:var(--muted)}
+
+.up-card{padding:0}
+.up-list{padding:4px 0}
+.up-day{padding:12px 18px;border-bottom:1px solid var(--line)}
+.up-day:last-child{border-bottom:none}
+.up-day-label{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.up-day-label .count{color:var(--muted);font-size:11px;font-family:'JetBrains Mono',monospace}
+.up-day-items{font-size:12px;color:var(--muted);line-height:1.7}
+.up-day-items .ev-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+/* === STATE BOARD === */
+.board{padding:20px 32px;overflow-x:auto}
+.board-cols{display:grid;grid-template-columns:repeat(8,minmax(260px,1fr));gap:14px;min-width:2200px}
+.col{background:var(--paper);border-radius:var(--radius-lg);padding:12px;min-height:500px;border:1px solid var(--line)}
+.col-head{display:flex;align-items:center;justify-content:space-between;padding:4px 6px 10px}
+.col-title{font-weight:600;font-size:13px;color:var(--ink);display:flex;align-items:center;gap:7px}
+.col-title .bullet{width:8px;height:8px;border-radius:50%}
+.col-count{font-size:11px;color:var(--muted);font-weight:500;font-family:'JetBrains Mono',monospace}
+.state-bullet-vacant{background:#9EA0B4}
+.state-bullet-marketing{background:var(--info)}
+.state-bullet-applied{background:#8B5CF6}
+.state-bullet-signing{background:var(--warn)}
+.state-bullet-active{background:var(--ok)}
+.state-bullet-renewal{background:#D97706}
+.state-bullet-moveout{background:var(--accent)}
+.state-bullet-refund{background:var(--danger)}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;cursor:pointer;transition:all .12s}
+.card:hover{border-color:var(--navy);box-shadow:var(--shadow);transform:translateY(-1px)}
+.card-addr{font-weight:600;font-size:13px;color:var(--ink);margin-bottom:4px}
+.card-meta{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;gap:10px;flex-wrap:wrap}
+.card-meta .tag{display:inline-flex;align-items:center;gap:3px}
+.card-action{font-size:12px;padding:6px 8px;background:var(--accent-soft);color:var(--accent);border-radius:6px;font-weight:500;display:flex;align-items:center;gap:5px}
+.card-action.neutral{background:var(--navy-soft);color:var(--navy)}
+.card-action.warn{background:var(--warn-soft);color:var(--warn)}
+.card-action.ok{background:var(--ok-soft);color:var(--ok)}
+
+/* === TABLES === */
+.table-wrap{padding:20px 32px}
+table.data{width:100%;border-collapse:separate;border-spacing:0;background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+table.data thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--muted);font-weight:600;padding:12px 14px;background:var(--paper);border-bottom:1px solid var(--line)}
+table.data tbody td{padding:14px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+table.data tbody tr:last-child td{border-bottom:none}
+table.data tbody tr:hover{background:var(--paper);cursor:pointer}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.badge .bullet{width:6px;height:6px;border-radius:50%}
+.badge.active{background:var(--ok-soft);color:var(--ok)}
+.badge.marketing{background:var(--info-soft);color:var(--info)}
+.badge.signing{background:var(--warn-soft);color:var(--warn)}
+.badge.vacant{background:var(--line);color:var(--muted)}
+.badge.refund{background:var(--danger-soft);color:var(--danger)}
+.badge.renewal{background:#FDEBD0;color:#9A5B00}
+.money{font-family:'JetBrains Mono',monospace;font-weight:500}
+.muted{color:var(--muted)}
+
+/* === STAT TILES === */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;padding:20px 32px}
+.stat{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.stat .label{font-size:12px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em;font-weight:600}
+.stat .value{font-family:'Fraunces',serif;font-size:26px;color:var(--navy);font-weight:600}
+.stat .delta{font-size:12px;color:var(--ok);margin-top:2px}
+.stat .delta.down{color:var(--danger)}
+
+/* === TIMELINE (property god view) === */
+.timeline{padding:20px 32px;background:#fff;border-bottom:1px solid var(--line)}
+.timeline-label{font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:0.06em;font-weight:600;margin-bottom:10px}
+.timeline-bar{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;position:relative;height:50px}
+.tl-month{background:var(--paper);border-radius:6px;position:relative;display:flex;align-items:flex-end;justify-content:center;padding:4px;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+.tl-month.active{background:var(--ok-soft);color:var(--ok)}
+.tl-month.past{background:var(--navy-soft);color:var(--navy)}
+.tl-month.today{background:var(--navy);color:#fff;font-weight:600}
+.tl-month .marker{position:absolute;top:-6px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.tl-legend{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--muted)}
+.tl-legend i{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+
+/* === TABS === */
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 32px;background:#fff;gap:20px;position:sticky;top:0;z-index:2}
+.tab{padding:14px 2px;font-size:13px;color:var(--muted);font-weight:500;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--navy);border-bottom-color:var(--accent)}
+
+/* === PROPERTY GOD VIEW === */
+.pgrid{display:grid;grid-template-columns:1fr 320px;gap:20px;padding:20px 32px}
+.pcard{background:#fff;border:1px solid var(--line);border-radius:var(--radius-lg);padding:18px}
+.pcard h3{margin-bottom:12px;font-size:15px;color:var(--navy);display:flex;align-items:center;gap:8px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:13px}
+.kv dt{color:var(--muted);font-size:12px}
+.kv dd{margin:0;font-weight:500}
+
+.action-card{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-700) 100%);color:#fff;border-radius:var(--radius-lg);padding:20px;margin-bottom:14px}
+.action-card h3{color:#fff;font-size:15px;margin-bottom:4px}
+.action-card p{color:rgba(255,255,255,0.75);font-size:13px;margin:0 0 14px}
+.action-card .btn{background:var(--accent);color:#fff;border-color:var(--accent)}
+.action-card .btn:hover{background:#E0366F}
+
+/* === KANBAN (maintenance) === */
+.kanban{padding:20px 32px;display:grid;grid-template-columns:repeat(5,1fr);gap:14px;min-height:500px}
+.kcol{background:var(--paper);border-radius:var(--radius-lg);padding:12px;min-height:500px;border:1px solid var(--line)}
+
+/* === ALERTS / STRIPS === */
+.alert-strip{padding:10px 32px;background:var(--warn-soft);color:var(--warn);border-bottom:1px solid #FBD9A7;font-size:13px;display:flex;align-items:center;gap:10px}
+.alert-strip.danger{background:var(--danger-soft);color:var(--danger);border-color:#F5B9C5}
+
+/* === GATES === */
+.gate{background:#fff;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.gate-meta{font-size:12px;color:var(--muted);margin-top:3px}
+.gate .sla{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--warn);font-weight:500}
+
+/* Ledger rows */
+.ledger{width:100%;border-collapse:collapse}
+.ledger th{text-align:left;font-size:11px;text-transform:uppercase;color:var(--muted);padding:8px 14px;border-bottom:1px solid var(--line)}
+.ledger td{padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.ledger td.amt{text-align:right;font-family:'JetBrains Mono',monospace}
+
+/* === Empty state (placeholder for non-built pages) === */
+.empty{padding:80px 32px;text-align:center;color:var(--muted)}
+.empty i{font-size:48px;color:var(--line-2);margin-bottom:12px;display:block}
+.empty h2{color:var(--muted);font-size:18px;margin-bottom:4px}
+
+/* Hidden */
+.route{display:none}
+.route.active{display:block}
+.pg-pane{display:none}
+.pg-pane.active{display:block}
+.mt-pane{display:none}
+.mt-pane.active{display:block}
+.view-pane{display:none}
+.view-pane.active{display:block}
+
+/* Tiny responsive stub */
+@media(max-width:900px){.app{grid-template-columns:1fr}.sidebar{display:none}.board-cols{grid-template-columns:repeat(8,280px)}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="dot">K</div>
+      <span>Klikk</span>
+    </div>
+    <button class="agency">
+      <i class="ph ph-buildings"></i>
+      <span>Winelands Property Co.</span>
+      <i class="ph ph-caret-down" style="font-size:12px;color:var(--muted)"></i>
+    </button>
+    <div class="search">
+      <i class="ph ph-magnifying-glass"></i>
+      <input placeholder="Search properties, tenants, leases, documents…">
+      <span class="kbd">⌘K</span>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" title="Help"><i class="ph ph-question"></i></button>
+      <button class="icon-btn" title="Notifications">
+        <i class="ph ph-bell"></i>
+        <span class="dot-alert"></span>
+      </button>
+      <div class="avatar" title="MC Dippenaar">MC</div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" id="sidebar">
+    <div class="nav-group-label">Operations</div>
+    <button class="nav-item" data-route="dashboard"><i class="ph ph-squares-four"></i>Dashboard</button>
+    <button class="nav-item" data-route="properties"><i class="ph ph-house"></i>Properties<span class="count">47</span></button>
+    <button class="nav-item" data-route="leases"><i class="ph ph-file-text"></i>Leases<span class="count">38</span></button>
+    <button class="nav-item" data-route="deposits"><i class="ph ph-vault"></i>Deposits</button>
+    <button class="nav-item" data-route="maintenance"><i class="ph ph-wrench"></i>Maintenance<span class="count">12</span></button>
+    <button class="nav-item" data-route="inspections"><i class="ph ph-clipboard-text"></i>Inspections</button>
+    <button class="nav-item" data-route="contacts"><i class="ph ph-users-three"></i>Contacts</button>
+    <button class="nav-item" data-route="documents"><i class="ph ph-folder-lock"></i>Vault33</button>
+    <button class="nav-item" data-route="messaging"><i class="ph ph-chat-circle-dots"></i>Messaging<span class="count">3</span></button>
+
+    <div class="nav-divider"></div>
+    <div class="nav-group-label">Product lines</div>
+    <button class="nav-item" data-route="sales"><i class="ph ph-house-simple"></i>Real Estate</button>
+    <button class="nav-item" data-route="bi"><i class="ph ph-chart-line-up"></i>BI</button>
+
+    <div class="nav-divider"></div>
+    <button class="nav-item" data-route="settings"><i class="ph ph-gear-six"></i>Settings</button>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main" id="main">
+
+    <!-- DASHBOARD -->
+    <section class="route" id="route-dashboard">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Dashboard</span></div>
+        <div class="page-header-row">
+          <div>
+            <h1>Good morning, MC</h1>
+            <p class="sub">47 properties · 89.4% occupied · 6 items need you today</p>
+          </div>
+          <div class="page-actions">
+            <div class="view-toggle" id="view-toggle">
+              <button data-view="events" class="active"><i class="ph ph-lightning"></i>Events</button>
+              <button data-view="board"><i class="ph ph-squares-four"></i>Board</button>
+              <button data-view="list"><i class="ph ph-list"></i>List</button>
+            </div>
+            <button class="btn primary"><i class="ph ph-plus"></i>Add property</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Total events</div><div class="value" id="k-total">47</div><div class="delta">across portfolio</div></div>
+        <div class="stat"><div class="label">Overdue</div><div class="value" id="k-overdue" style="color:var(--danger)">6</div><div class="delta down">needs attention</div></div>
+        <div class="stat"><div class="label">Today + tomorrow</div><div class="value" id="k-today" style="color:var(--warn)">12</div><div class="delta">next 48h</div></div>
+        <div class="stat"><div class="label">This week</div><div class="value" id="k-week">23</div><div class="delta">7-day outlook</div></div>
+      </div>
+
+      <!-- EVENTS VIEW -->
+      <div class="view-pane active" id="view-events">
+        <div class="events-layout">
+          <div class="events-card">
+            <div class="events-head">
+              <i class="ph ph-lightning" style="color:var(--navy);font-size:14px"></i>
+              <span class="events-head-title">Action Queue</span>
+              <span class="events-head-sub" id="ev-sub">—</span>
+            </div>
+            <div class="events-grid">
+              <div class="ev-menu" id="ev-menu"></div>
+              <div class="ev-list" id="ev-list"></div>
+            </div>
+          </div>
+
+          <aside class="events-card up-card">
+            <div class="events-head">
+              <i class="ph ph-calendar" style="color:var(--navy);font-size:14px"></i>
+              <span class="events-head-title">14-day Outlook</span>
+            </div>
+            <div class="up-list" id="up-list"></div>
+          </aside>
+        </div>
+      </div>
+
+      <!-- BOARD VIEW -->
+      <div class="view-pane" id="view-board">
+      <div class="board">
+        <div class="board-cols">
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-vacant"></span>Vacant</div><div class="col-count">4</div></div>
+            <div class="card" data-goto="property">
+              <div class="card-addr">12 Dorp St, Stellenbosch</div>
+              <div class="card-meta"><span class="tag"><i class="ph ph-bed"></i>2</span><span class="tag"><i class="ph ph-bathtub"></i>1</span><span class="tag">R 12 500</span></div>
+              <div class="card-action warn"><i class="ph ph-clock"></i>Vacant 12 days</div>
+            </div>
+            <div class="card">
+              <div class="card-addr">7A Paul Kruger, Paarl</div>
+              <div class="card-meta"><span class="tag"><i class="ph ph-bed"></i>3</span><span class="tag">R 17 800</span></div>
+              <div class="card-action neutral"><i class="ph ph-arrow-right"></i>List for marketing</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-marketing"></span>Marketing</div><div class="col-count">6</div></div>
+            <div class="card">
+              <div class="card-addr">33 Ryneveld, Stellenbosch</div>
+              <div class="card-meta"><span class="tag"><i class="ph ph-bed"></i>2</span><span class="tag">R 14 000</span></div>
+              <div class="card-action"><i class="ph ph-calendar"></i>3 viewings booked</div>
+            </div>
+            <div class="card">
+              <div class="card-addr">Unit 5, Kloofzicht</div>
+              <div class="card-meta"><span class="tag"><i class="ph ph-bed"></i>1</span><span class="tag">R 9 500</span></div>
+              <div class="card-action neutral"><i class="ph ph-eye"></i>18 listing views</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-applied"></span>Applied</div><div class="col-count">3</div></div>
+            <div class="card">
+              <div class="card-addr">8 Lourens St, Somerset W.</div>
+              <div class="card-meta"><span class="tag">2 applications</span></div>
+              <div class="card-action"><i class="ph ph-user-check"></i>Review credit checks</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-signing"></span>Signing</div><div class="col-count">2</div></div>
+            <div class="card">
+              <div class="card-addr">22 Plein, Stellenbosch</div>
+              <div class="card-meta"><span class="tag">Awaiting countersign</span></div>
+              <div class="card-action warn"><i class="ph ph-clock-countdown"></i>SLA 18h</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-active"></span>Active</div><div class="col-count">28</div></div>
+            <div class="card" data-goto="property">
+              <div class="card-addr">15 Andringa, Stellenbosch</div>
+              <div class="card-meta"><span class="tag">Vink family</span><span class="tag">R 15 200/mo</span></div>
+              <div class="card-action ok"><i class="ph ph-check"></i>Rent paid</div>
+            </div>
+            <div class="card">
+              <div class="card-addr">4 Church, Franschhoek</div>
+              <div class="card-meta"><span class="tag">Abrahams</span><span class="tag">R 18 750/mo</span></div>
+              <div class="card-action warn"><i class="ph ph-warning"></i>Rent 3d late</div>
+            </div>
+            <div class="card">
+              <div class="card-addr">Unit 12, Winelands Estate</div>
+              <div class="card-meta"><span class="tag">Nel</span><span class="tag">R 11 000/mo</span></div>
+              <div class="card-action ok"><i class="ph ph-check"></i>Rent paid</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-renewal"></span>Renewal due</div><div class="col-count">2</div></div>
+            <div class="card">
+              <div class="card-addr">19 Main, Stellenbosch</div>
+              <div class="card-meta"><span class="tag">Lease ends 30 Jun</span></div>
+              <div class="card-action"><i class="ph ph-arrow-clockwise"></i>Send offer (T-60)</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-moveout"></span>Move-out</div><div class="col-count">1</div></div>
+            <div class="card">
+              <div class="card-addr">25 Bird, Stellenbosch</div>
+              <div class="card-meta"><span class="tag">Notice given 14 Apr</span></div>
+              <div class="card-action"><i class="ph ph-clipboard-text"></i>Book outgoing insp.</div>
+            </div>
+          </div>
+
+          <div class="col">
+            <div class="col-head"><div class="col-title"><span class="bullet state-bullet-refund"></span>Refund</div><div class="col-count">1</div></div>
+            <div class="card">
+              <div class="card-addr">3 Dorp, Stellenbosch</div>
+              <div class="card-meta"><span class="tag">Deposit R 24 000</span></div>
+              <div class="card-action warn"><i class="ph ph-clock-countdown"></i>RHA clock: 14d left</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      </div><!-- /view-board -->
+
+      <!-- LIST VIEW (mini) -->
+      <div class="view-pane" id="view-list">
+        <div class="table-wrap" style="padding-top:12px">
+          <table class="data">
+            <thead>
+              <tr><th>Address</th><th>State</th><th>Tenant</th><th>Rent</th><th>Next action</th><th>Agent</th></tr>
+            </thead>
+            <tbody id="list-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- PROPERTIES -->
+    <section class="route" id="route-properties">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Properties</span></div>
+        <div class="page-header-row">
+          <div>
+            <h1>Portfolio</h1>
+            <p class="sub">47 properties · filter by state, agent, suburb, owner</p>
+          </div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-funnel"></i>Filter</button>
+            <button class="btn"><i class="ph ph-download-simple"></i>Export</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>Add property</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>Address</th><th>Type</th><th>State</th><th>Tenant</th><th>Rent</th><th>Next action</th><th>Agent</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-goto="property">
+              <td><strong>15 Andringa, Stellenbosch</strong><div class="muted">Erf 1420</div></td>
+              <td>House · 3 bed</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Active</span></td>
+              <td>Vink family</td>
+              <td class="money">R 15 200</td>
+              <td class="muted">Statement 30 Apr</td>
+              <td>Sarah N.</td>
+            </tr>
+            <tr>
+              <td><strong>22 Plein, Stellenbosch</strong><div class="muted">Unit 4A</div></td>
+              <td>Apartment · 2 bed</td>
+              <td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Signing</span></td>
+              <td>Jacobs, K.</td>
+              <td class="money">R 13 500</td>
+              <td><strong style="color:var(--warn)">Owner countersign · SLA 18h</strong></td>
+              <td>Sarah N.</td>
+            </tr>
+            <tr>
+              <td><strong>12 Dorp, Stellenbosch</strong><div class="muted">Erf 892</div></td>
+              <td>House · 2 bed</td>
+              <td><span class="badge vacant"><span class="bullet" style="background:var(--muted-2)"></span>Vacant</span></td>
+              <td class="muted">—</td>
+              <td class="money">R 12 500</td>
+              <td><strong style="color:var(--warn)">Vacant 12d · list for marketing</strong></td>
+              <td>Sarah N.</td>
+            </tr>
+            <tr>
+              <td><strong>33 Ryneveld, Stellenbosch</strong><div class="muted">Erf 1701</div></td>
+              <td>Cottage · 2 bed</td>
+              <td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Marketing</span></td>
+              <td class="muted">3 applications</td>
+              <td class="money">R 14 000</td>
+              <td>Review applications</td>
+              <td>Dan T.</td>
+            </tr>
+            <tr>
+              <td><strong>4 Church, Franschhoek</strong><div class="muted">Erf 205</div></td>
+              <td>Cottage · 3 bed</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Active</span></td>
+              <td>Abrahams family</td>
+              <td class="money">R 18 750</td>
+              <td><strong style="color:var(--danger)">Rent 3d late</strong></td>
+              <td>Dan T.</td>
+            </tr>
+            <tr>
+              <td><strong>19 Main, Stellenbosch</strong><div class="muted">Unit 2</div></td>
+              <td>Apartment · 1 bed</td>
+              <td><span class="badge renewal"><span class="bullet" style="background:#D97706"></span>Renewal due</span></td>
+              <td>Mthembu, L.</td>
+              <td class="money">R 9 800</td>
+              <td>Send offer (T-60)</td>
+              <td>Sarah N.</td>
+            </tr>
+            <tr>
+              <td><strong>25 Bird, Stellenbosch</strong><div class="muted">Erf 1180</div></td>
+              <td>House · 3 bed</td>
+              <td><span class="badge" style="background:var(--accent-soft);color:var(--accent)"><span class="bullet" style="background:var(--accent)"></span>Move-out</span></td>
+              <td>Smit, R.</td>
+              <td class="money">R 16 900</td>
+              <td>Book outgoing inspection</td>
+              <td>Dan T.</td>
+            </tr>
+            <tr>
+              <td><strong>3 Dorp, Stellenbosch</strong><div class="muted">Erf 54</div></td>
+              <td>Cottage · 2 bed</td>
+              <td><span class="badge refund"><span class="bullet" style="background:var(--danger)"></span>Refund</span></td>
+              <td class="muted">Previously: Pienaar</td>
+              <td class="money">R 13 200</td>
+              <td><strong style="color:var(--danger)">14 days to refund · Gate 6</strong></td>
+              <td>Sarah N.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- PROPERTY GOD VIEW -->
+    <section class="route" id="route-property">
+      <div class="page-header">
+        <div class="breadcrumb"><a data-route="properties">Properties</a> · <span>15 Andringa, Stellenbosch</span></div>
+        <div class="page-header-row">
+          <div>
+            <h1>15 Andringa, Stellenbosch</h1>
+            <p class="sub">
+              <span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Active</span>
+              &nbsp;·&nbsp; Erf 1420 · 3 bed · 2 bath · 180m² · R 15 200/mo
+            </p>
+          </div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-chat-circle-dots"></i>Message tenant</button>
+            <button class="btn"><i class="ph ph-file-text"></i>Generate statement</button>
+            <button class="btn primary"><i class="ph ph-lightning"></i>Action</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-label">12-month tenancy window · Mar 2026 → Feb 2027</div>
+        <div class="timeline-bar">
+          <div class="tl-month past">Mar</div>
+          <div class="tl-month today">Apr</div>
+          <div class="tl-month">May</div>
+          <div class="tl-month">Jun<span class="marker" title="Rent escalation"></span></div>
+          <div class="tl-month">Jul</div>
+          <div class="tl-month">Aug</div>
+          <div class="tl-month">Sep</div>
+          <div class="tl-month">Oct</div>
+          <div class="tl-month">Nov</div>
+          <div class="tl-month">Dec<span class="marker" title="Renewal window T-90"></span></div>
+          <div class="tl-month">Jan</div>
+          <div class="tl-month">Feb<span class="marker" title="Lease end"></span></div>
+        </div>
+        <div class="tl-legend"><span><i style="background:var(--accent)"></i>Events: escalation · renewal window · lease end</span></div>
+      </div>
+
+      <div class="tabs" id="pg-tabs">
+        <div class="tab active" data-pane="overview">Overview</div>
+        <div class="tab" data-pane="lease">Lease</div>
+        <div class="tab" data-pane="tenants">Tenants</div>
+        <div class="tab" data-pane="inspections">Inspections</div>
+        <div class="tab" data-pane="maintenance">Maintenance <span class="count" style="margin-left:4px">2</span></div>
+        <div class="tab" data-pane="ledger">Ledger</div>
+        <div class="tab" data-pane="pg-docs">Documents</div>
+        <div class="tab" data-pane="pg-msg">Messages</div>
+        <div class="tab" data-pane="audit">Audit</div>
+      </div>
+
+      <!-- TAB: Overview -->
+      <div class="pg-pane active" id="pg-overview">
+        <div class="pgrid">
+          <div>
+            <div class="action-card">
+              <h3>Next action</h3>
+              <p>Monthly statement due to owner on 30 Apr (in 3 days). All rent received · no deductions pending.</p>
+              <button class="btn"><i class="ph ph-file-text"></i>Generate statement now</button>
+            </div>
+
+            <div class="pcard">
+              <h3><i class="ph ph-info"></i>Property</h3>
+              <dl class="kv">
+                <dt>Address</dt><dd>15 Andringa St, Stellenbosch 7600</dd>
+                <dt>Erf / portion</dt><dd>1420 / 0</dd>
+                <dt>Type</dt><dd>House · 3 bed · 2 bath</dd>
+                <dt>Size</dt><dd>180 m² erf / 142 m² under roof</dd>
+                <dt>Owner</dt><dd>J. van der Merwe <span class="muted">(since 2019)</span></dd>
+                <dt>Mandate</dt><dd>Exclusive · 12 months · auto-renewing</dd>
+                <dt>Rates acc.</dt><dd>SB-108441</dd>
+              </dl>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-users-three"></i>Current tenancy</h3>
+              <dl class="kv">
+                <dt>Tenant</dt><dd>Vink family (Piet & Anna + 2)</dd>
+                <dt>Lease</dt><dd>1 Mar 2026 → 28 Feb 2027</dd>
+                <dt>Rent</dt><dd>R 15 200/mo · escalates 6% 1 Mar</dd>
+                <dt>Deposit</dt><dd>R 30 400 (held · interest accruing)</dd>
+                <dt>Payment day</dt><dd>1st of month · EFT</dd>
+                <dt>Consents</dt><dd>Credit ✓ · Marketing ✗ · Maintenance photos ✓</dd>
+              </dl>
+            </div>
+          </div>
+
+          <div>
+            <div class="pcard">
+              <h3><i class="ph ph-clock"></i>Recent activity</h3>
+              <div style="font-size:13px;color:var(--ink)">
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Rent received</strong> R 15 200<div class="muted" style="font-size:12px">1 Apr · bank reconciliation</div></div>
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Maintenance closed</strong> Geyser element<div class="muted" style="font-size:12px">28 Mar · R 2 400</div></div>
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Statement sent</strong> to owner<div class="muted" style="font-size:12px">31 Mar</div></div>
+                <div style="padding:8px 0"><strong>Message</strong> from tenant<div class="muted" style="font-size:12px">26 Mar · thanks for quick geyser fix</div></div>
+              </div>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-folder-lock"></i>Vault33</h3>
+              <div style="font-size:13px">
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>Lease 2026-27.pdf</span><i class="ph ph-check-circle" style="color:var(--ok)"></i></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>Ingoing inspection.pdf</span><i class="ph ph-check-circle" style="color:var(--ok)"></i></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>FICA — tenant ID</span><i class="ph ph-check-circle" style="color:var(--ok)"></i></div>
+                <div style="display:flex;justify-content:space-between;padding:6px 0"><span>Payslips (3 months)</span><i class="ph ph-check-circle" style="color:var(--ok)"></i></div>
+              </div>
+              <button class="btn" style="width:100%;margin-top:10px"><i class="ph ph-plus"></i>Upload document</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Lease -->
+      <div class="pg-pane" id="pg-lease">
+        <div class="pgrid">
+          <div>
+            <div class="pcard">
+              <h3><i class="ph ph-file-text"></i>Lease — 2026/27 · v2</h3>
+              <dl class="kv">
+                <dt>Term</dt><dd>12 months · 1 Mar 2026 → 28 Feb 2027</dd>
+                <dt>Rent</dt><dd>R 15 200/month · payable 1st · EFT</dd>
+                <dt>Escalation</dt><dd>6% annually on renewal date</dd>
+                <dt>Deposit</dt><dd>R 30 400 (2× rent)</dd>
+                <dt>Utilities</dt><dd>Prepaid electricity · water on municipal account</dd>
+                <dt>Template</dt><dd>WC Residential Fixed-Term v4.2</dd>
+                <dt>Parties signed</dt><dd>Tenant ✓ 12 Jan · Owner ✓ 14 Jan · Agent ✓ 14 Jan</dd>
+                <dt>PDF integrity</dt><dd><code style="font-family:'JetBrains Mono',monospace;font-size:11px">sha256: a7f2d3…</code></dd>
+              </dl>
+              <div style="margin-top:14px;display:flex;gap:8px"><button class="btn"><i class="ph ph-download-simple"></i>Download PDF</button><button class="btn"><i class="ph ph-file-plus"></i>Add addendum</button><button class="btn"><i class="ph ph-arrow-clockwise"></i>Draft renewal</button></div>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-list-checks"></i>Clauses · 28 active</h3>
+              <table class="data" style="border:none">
+                <thead><tr><th>#</th><th>Clause</th><th>Status</th></tr></thead>
+                <tbody>
+                  <tr><td>1</td><td>Parties & definitions</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Standard</span></td></tr>
+                  <tr><td>4</td><td>Rent & escalation</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Standard</span></td></tr>
+                  <tr><td>7</td><td>Deposit & interest (RHA s5)</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Standard</span></td></tr>
+                  <tr><td>12</td><td>Pet clause · dog approved</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Custom</span></td></tr>
+                  <tr><td>19</td><td>Early termination · 2-month notice</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Standard</span></td></tr>
+                  <tr><td>24</td><td>CPA cooling-off waiver</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Standard</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="pcard">
+              <h3><i class="ph ph-signature"></i>Signing audit</h3>
+              <div style="font-size:13px">
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Owner counter-signed</strong><div class="muted" style="font-size:12px">14 Jan · OTP · IP 41.0.245.x · Chrome</div></div>
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Agent signed</strong><div class="muted" style="font-size:12px">14 Jan · mobile · Sarah N.</div></div>
+                <div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>Tenant signed</strong><div class="muted" style="font-size:12px">12 Jan · drawn · OTP 4421</div></div>
+                <div style="padding:8px 0"><strong>Envelope sent</strong><div class="muted" style="font-size:12px">10 Jan · Sarah N.</div></div>
+              </div>
+              <button class="btn" style="width:100%;margin-top:10px"><i class="ph ph-shield-check"></i>Integrity report</button>
+            </div>
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-paperclip"></i>Addenda</h3>
+              <div style="font-size:13px;color:var(--muted)">No addenda yet.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Tenants -->
+      <div class="pg-pane" id="pg-tenants">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-users-three"></i>Current tenants (2 adults + 2 children)</h3>
+            <table class="data" style="border:none;margin-top:10px">
+              <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>FICA</th><th>Credit</th><th>Consents</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Piet Vink</strong><div class="muted">ID 8603105122088</div></td><td>Primary</td><td>082 451 9928</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i> 12/1/26</td><td>TU 742 <span class="muted">(12/1/26)</span></td><td>Credit ✓ · Market ✗ · Media ✓</td></tr>
+                <tr><td><strong>Anna Vink</strong><div class="muted">ID 8811030098082</div></td><td>Co-tenant</td><td>083 118 4429</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i> 12/1/26</td><td>TU 698</td><td>Credit ✓ · Market ✓ · Media ✓</td></tr>
+                <tr><td>Kai Vink <span class="muted">(14)</span></td><td>Minor</td><td>—</td><td class="muted">n/a</td><td class="muted">n/a</td><td>Parental consent on file</td></tr>
+                <tr><td>Lea Vink <span class="muted">(11)</span></td><td>Minor</td><td>—</td><td class="muted">n/a</td><td class="muted">n/a</td><td>Parental consent on file</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pcard" style="margin-top:14px">
+            <h3><i class="ph ph-clock-counter-clockwise"></i>Previous tenants</h3>
+            <table class="data" style="border:none;margin-top:10px">
+              <thead><tr><th>Name</th><th>Period</th><th>Rent</th><th>Outcome</th></tr></thead>
+              <tbody>
+                <tr><td>H. Stofberg</td><td>1 Mar 2023 → 28 Feb 2026</td><td class="money">R 13 200–14 400</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Clean exit · full refund</span></td></tr>
+                <tr><td>M. Scholtz (lodger)</td><td>1 Jun 2022 → 30 Nov 2022</td><td class="money">R 4 500 (room)</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Short-term · no dispute</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Inspections -->
+      <div class="pg-pane" id="pg-inspections">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-clipboard-text"></i>Inspection history</h3>
+            <table class="data" style="border:none;margin-top:10px">
+              <thead><tr><th>Date</th><th>Type</th><th>Outcome</th><th>Deductions</th><th>Agent</th><th>PDF</th></tr></thead>
+              <tbody>
+                <tr><td><strong>15 Jan 2026 · 09:00</strong></td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Ingoing</span></td><td>Clean · 1 note (stove knob loose)</td><td class="muted">—</td><td>Sarah N.</td><td><a href="#" style="color:var(--navy)">ingoing.pdf</a></td></tr>
+                <tr><td>1 Sep 2025</td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Mid</span></td><td>Noted damp patch bathroom · scheduled repair</td><td class="muted">—</td><td>Dan T.</td><td><a href="#" style="color:var(--navy)">mid.pdf</a></td></tr>
+                <tr><td>28 Feb 2023</td><td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">Outgoing</span></td><td>Clean (previous tenant Stofberg)</td><td class="muted">—</td><td>Sarah N.</td><td><a href="#" style="color:var(--navy)">outgoing.pdf</a></td></tr>
+                <tr><td>1 Mar 2023</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Ingoing</span></td><td>Clean</td><td class="muted">—</td><td>Sarah N.</td><td><a href="#" style="color:var(--navy)">ingoing.pdf</a></td></tr>
+              </tbody>
+            </table>
+            <button class="btn" style="margin-top:14px"><i class="ph ph-plus"></i>Schedule mid-tenancy inspection</button>
+          </div>
+          <div class="pcard" style="margin-top:14px">
+            <h3><i class="ph ph-image"></i>Ingoing photo set (excerpt)</h3>
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px">
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Kitchen</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Living</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Bedroom 1</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Bedroom 2</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Bathroom</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#E4E4EE,#EFEFF5);border-radius:8px;display:flex;align-items:flex-end;padding:6px;font-size:10px;color:var(--muted)">Meter</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Maintenance -->
+      <div class="pg-pane" id="pg-maintenance">
+        <div style="padding:20px 32px">
+          <div class="stats" style="padding:0;margin-bottom:14px">
+            <div class="stat"><div class="label">Open</div><div class="value">2</div><div class="delta">1 dispatched · 1 quoted</div></div>
+            <div class="stat"><div class="label">Closed YTD</div><div class="value">7</div><div class="delta">avg 4.2d to close</div></div>
+            <div class="stat"><div class="label">Spend YTD</div><div class="value">R 12 840</div><div class="delta">6% of rent collected</div></div>
+            <div class="stat"><div class="label">Tenant rating</div><div class="value">4.8★</div><div class="delta">across 7 jobs</div></div>
+          </div>
+          <div class="pcard">
+            <h3><i class="ph ph-wrench"></i>Tickets</h3>
+            <table class="data" style="border:none;margin-top:10px">
+              <thead><tr><th>#</th><th>Issue</th><th>Category</th><th>Supplier</th><th>State</th><th>Cost</th><th>Closed</th></tr></thead>
+              <tbody>
+                <tr><td>#228</td><td>Door lock failure</td><td>Locks/security</td><td>EZ Locksmith</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Dispatched · ETA 11:00</span></td><td class="money">R 1 850</td><td class="muted">—</td></tr>
+                <tr><td>#224</td><td>Kitchen tap drip</td><td>Plumbing</td><td>SAPlumb</td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Quoted · under threshold</span></td><td class="money">R 780</td><td class="muted">—</td></tr>
+                <tr><td>#219</td><td>Geyser element</td><td>Plumbing</td><td>SAPlumb</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Closed</span></td><td class="money">R 2 400</td><td>28 Mar 2026</td></tr>
+                <tr><td>#207</td><td>Paint touch-ups</td><td>Handyman</td><td>Quick Fix Co.</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Closed</span></td><td class="money">R 1 200</td><td>14 Feb 2026</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Ledger -->
+      <div class="pg-pane" id="pg-ledger">
+        <div style="padding:20px 32px">
+          <div class="stats" style="padding:0;margin-bottom:14px">
+            <div class="stat"><div class="label">Rent collected YTD</div><div class="value">R 121 600</div><div class="delta">8 months paid on time</div></div>
+            <div class="stat"><div class="label">Commission earned</div><div class="value">R 9 728</div><div class="delta">8% of collected</div></div>
+            <div class="stat"><div class="label">Maintenance deducted</div><div class="value">R 3 600</div><div class="delta">from owner account</div></div>
+            <div class="stat"><div class="label">Net to owner YTD</div><div class="value">R 108 272</div><div class="delta">via EFT monthly</div></div>
+          </div>
+          <div class="pcard">
+            <h3><i class="ph ph-receipt"></i>Journal entries (last 10)</h3>
+            <table class="ledger" style="margin-top:10px">
+              <thead><tr><th>Date</th><th>Description</th><th>Debit</th><th>Credit</th><th class="amt">Amount</th></tr></thead>
+              <tbody>
+                <tr><td>1 Apr 2026</td><td>Rent received · Vink</td><td>Trust: Owner</td><td>Rent income</td><td class="amt money">R 15 200.00</td></tr>
+                <tr><td>1 Apr 2026</td><td>Commission · 8%</td><td>Trust: Owner</td><td>Business: Commission</td><td class="amt money">−R 1 216.00</td></tr>
+                <tr><td>1 Apr 2026</td><td>Maintenance #219 · geyser</td><td>Trust: Owner</td><td>Supplier: SAPlumb</td><td class="amt money">−R 2 400.00</td></tr>
+                <tr><td>1 Apr 2026</td><td>EFT to owner</td><td>Trust: Owner</td><td>Bank: Disbursement</td><td class="amt money">−R 11 584.00</td></tr>
+                <tr><td>28 Mar 2026</td><td>Invoice · SAPlumb #219</td><td>Expense</td><td>Supplier: SAPlumb</td><td class="amt money">R 2 400.00</td></tr>
+                <tr><td>1 Mar 2026</td><td>Rent received · Vink</td><td>Trust: Owner</td><td>Rent income</td><td class="amt money">R 15 200.00</td></tr>
+                <tr><td>1 Mar 2026</td><td>Deposit interest accrual</td><td>Trust: Interest</td><td>Tenant: Vink</td><td class="amt money">R 142.00</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Documents -->
+      <div class="pg-pane" id="pg-pg-docs">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-folder-lock"></i>Vault33 · documents for this property (23)</h3>
+            <table class="data" style="border:none;margin-top:10px">
+              <thead><tr><th>Document</th><th>Type</th><th>Added</th><th>Retention</th><th>Reads</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><strong>Lease 2026-27.pdf</strong><div class="muted">sha: a7f2… · 3.2 MB</div></td><td>signed_lease</td><td>14 Jan 2026</td><td>rha_lease_5y → 2032</td><td>7</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Ingoing inspection.pdf</strong><div class="muted">42 photos · dual-signed</div></td><td>inspection</td><td>15 Jan 2026</td><td>inspection_3y</td><td>2</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>ID copy · P. Vink</strong></td><td>identity</td><td>13 Jan 2026</td><td>fica_5y</td><td>3</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>ID copy · A. Vink</strong></td><td>identity</td><td>13 Jan 2026</td><td>fica_5y</td><td>2</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Payslips · P. Vink (3mo)</strong></td><td>proof_income</td><td>13 Jan 2026</td><td>fica_5y</td><td>4</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Credit report · P. Vink</strong><div class="muted">TransUnion · 742</div></td><td>credit_report</td><td>12 Jan 2026</td><td><strong style="color:var(--warn)">bureau_18m → Jul 2027</strong></td><td>1</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Invoice · SAPlumb #219</strong></td><td>supplier_invoice</td><td>28 Mar 2026</td><td>tax_5y</td><td>2</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Statement · March 2026</strong></td><td>owner_statement</td><td>31 Mar 2026</td><td>tax_5y</td><td>1 <span class="muted">(owner)</span></td><td><a href="#" style="color:var(--navy)"><i class="ph ph-eye"></i></a></td></tr>
+                <tr><td><strong>Consent artefacts (4)</strong></td><td>consent</td><td>12–15 Jan 2026</td><td>relationship+3y</td><td>—</td><td><a href="#" style="color:var(--navy)"><i class="ph ph-list"></i></a></td></tr>
+              </tbody>
+            </table>
+            <div style="display:flex;gap:8px;margin-top:14px"><button class="btn"><i class="ph ph-upload-simple"></i>Upload</button><button class="btn"><i class="ph ph-download-simple"></i>DSAR bundle</button><button class="btn"><i class="ph ph-share-network"></i>Gateway share</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Messages -->
+      <div class="pg-pane" id="pg-pg-msg">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-chat-circle-dots"></i>All threads involving this property (3)</h3>
+            <div style="margin-top:14px">
+              <div style="padding:14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center">
+                <div class="avatar" style="width:36px;height:36px;font-size:12px">PV</div>
+                <div><strong>Piet Vink (tenant) · 14 msgs · 3 channels</strong><div class="muted" style="font-size:12px">Latest: "Will do, 5 stars already 👍" · WhatsApp · 2m ago</div></div>
+                <button class="btn ghost"><i class="ph ph-arrow-right"></i></button>
+              </div>
+              <div style="padding:14px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center">
+                <div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#3B5BD9,var(--ok))">JvdM</div>
+                <div><strong>J. van der Merwe (owner) · 8 msgs · email</strong><div class="muted" style="font-size:12px">Latest: "Approved the quote…" · Email · 1h ago</div></div>
+                <button class="btn ghost"><i class="ph ph-arrow-right"></i></button>
+              </div>
+              <div style="padding:14px;border:1px solid var(--line);border-radius:10px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center">
+                <div class="avatar" style="width:36px;height:36px;font-size:12px;background:linear-gradient(135deg,#8B5CF6,#F59E0B)">EZ</div>
+                <div><strong>EZ Locksmith · ticket #228 · 5 msgs · SMS</strong><div class="muted" style="font-size:12px">Latest: "ETA 11:00 today. Bringing spare cylinder." · 2h ago</div></div>
+                <button class="btn ghost"><i class="ph ph-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="pcard" style="margin-top:14px">
+            <h3><i class="ph ph-note-pencil"></i>Internal notes (team-only · 2)</h3>
+            <div style="background:var(--warn-soft);border-left:3px solid var(--warn);padding:10px 14px;border-radius:6px;font-size:13px;margin-top:10px"><strong>Sarah N · 14 Apr 09:20</strong><br>Tenant very happy with geyser response — worth flagging for renewal discussion.</div>
+            <div style="background:var(--warn-soft);border-left:3px solid var(--warn);padding:10px 14px;border-radius:6px;font-size:13px;margin-top:8px"><strong>Dan T · 2 Apr 15:12</strong><br>Owner prefers email over calls — update mandate.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: Audit -->
+      <div class="pg-pane" id="pg-audit">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-list-magnifying-glass"></i>Full audit trail (last 30 events)</h3>
+            <div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:12px">
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">17 Apr · 09:14:22</span><span style="color:var(--info);font-weight:600">READ</span><span>Sarah N. opened Lease 2026-27.pdf · purpose="renewal prep" · via=admin_ui</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Apr · 09:20:11</span><span style="color:var(--navy);font-weight:600">WRITE</span><span>Sarah N. added internal note on thread thr_8a21</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Apr · 09:16:08</span><span style="color:var(--ok);font-weight:600">MSG</span><span>WhatsApp inbound · tenant Piet Vink · msg_7g1h</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Apr · 09:15:02</span><span style="color:var(--ok);font-weight:600">MSG</span><span>In-app outbound · Sarah N → Piet Vink</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Apr · 09:12:55</span><span style="color:var(--ok);font-weight:600">MSG</span><span>WhatsApp inbound · tenant · "geyser fixed"</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">1 Apr · 08:04:21</span><span style="color:var(--accent);font-weight:600">LEDGER</span><span>System: bank match · R 15 200 · ref VINK-APR</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">1 Apr · 08:04:22</span><span style="color:var(--accent);font-weight:600">LEDGER</span><span>System: journal #j_1184 · rent-received</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">28 Mar · 16:42:08</span><span style="color:var(--warn);font-weight:600">GATE</span><span>Gate 3 · auto-approved · under threshold · ticket #219</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">28 Mar · 14:10:44</span><span style="color:var(--navy);font-weight:600">WRITE</span><span>Supplier SAPlumb uploaded invoice · #219 · R 2 400</span></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Jan · 11:22:17</span><span style="color:var(--navy);font-weight:600">WRITE</span><span>Owner countersigned lease · OTP · ip_hash=3c8a…</span></div>
+              <div style="padding:10px 0;display:grid;grid-template-columns:180px 120px 1fr;gap:12px;color:var(--ink)"><span style="color:var(--muted)">14 Jan · 11:21:02</span><span style="color:var(--info);font-weight:600">STATE</span><span>Transition SIGNING → ACTIVE · actor=system</span></div>
+            </div>
+            <button class="btn" style="margin-top:14px"><i class="ph ph-download-simple"></i>Export full log (CSV)</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- LEASES -->
+    <section class="route" id="route-leases">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Leases</span></div>
+        <div class="page-header-row">
+          <div><h1>Leases</h1><p class="sub">38 active · 2 in signing · 1 awaiting countersign</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-file-search"></i>Templates</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>New lease</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert-strip">
+        <i class="ph ph-clock-countdown"></i>
+        <strong>1 lease awaiting owner countersign · 22 Plein · SLA breaches in 18h</strong>
+        <button class="btn ghost" style="margin-left:auto"><i class="ph ph-arrow-right"></i>Go to gate</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Property</th><th>Tenant</th><th>Start</th><th>End</th><th>Rent</th><th>Status</th><th>Signed</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>22 Plein, Stellenbosch</strong></td>
+              <td>Jacobs, K.</td>
+              <td>1 May 2026</td>
+              <td>30 Apr 2027</td>
+              <td class="money">R 13 500</td>
+              <td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Countersign pending</span></td>
+              <td>Tenant ✓ · Owner ⏳</td>
+            </tr>
+            <tr>
+              <td><strong>15 Andringa, Stellenbosch</strong></td>
+              <td>Vink family</td>
+              <td>1 Mar 2026</td>
+              <td>28 Feb 2027</td>
+              <td class="money">R 15 200</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Executed</span></td>
+              <td>All parties ✓</td>
+            </tr>
+            <tr>
+              <td><strong>4 Church, Franschhoek</strong></td>
+              <td>Abrahams family</td>
+              <td>1 Sep 2025</td>
+              <td>31 Aug 2026</td>
+              <td class="money">R 18 750</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Executed</span></td>
+              <td>All parties ✓</td>
+            </tr>
+            <tr>
+              <td><strong>19 Main, Stellenbosch</strong></td>
+              <td>Mthembu, L.</td>
+              <td>1 Jul 2025</td>
+              <td>30 Jun 2026</td>
+              <td class="money">R 9 800</td>
+              <td><span class="badge renewal"><span class="bullet" style="background:#D97706"></span>Renewal due</span></td>
+              <td>All parties ✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- DEPOSITS -->
+    <section class="route" id="route-deposits">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Deposits</span></div>
+        <div class="page-header-row">
+          <div><h1>Trust account</h1><p class="sub">Separate interest-bearing account · ABSA-4412 · R 892 450 held across 38 leases</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-arrows-clockwise"></i>Reconcile</button>
+            <button class="btn"><i class="ph ph-download-simple"></i>Statement</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Total held</div><div class="value">R 892 450</div><div class="delta">across 38 leases</div></div>
+        <div class="stat"><div class="label">Interest accrued YTD</div><div class="value">R 18 740</div><div class="delta">Pro-rata to tenants</div></div>
+        <div class="stat"><div class="label">Pending refunds</div><div class="value">1</div><div class="delta down">3 Dorp · 14d left</div></div>
+        <div class="stat"><div class="label">Disputed</div><div class="value">0</div><div class="delta">—</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr><th>Property</th><th>Tenant</th><th>Principal</th><th>Interest</th><th>Status</th><th>Refund by</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>3 Dorp, Stellenbosch</strong></td>
+              <td>Pienaar (outgoing)</td>
+              <td class="money">R 24 000</td>
+              <td class="money">R 842</td>
+              <td><span class="badge refund"><span class="bullet" style="background:var(--danger)"></span>Refund · Gate 6</span></td>
+              <td><strong style="color:var(--danger)">14 days</strong></td>
+            </tr>
+            <tr>
+              <td><strong>15 Andringa, Stellenbosch</strong></td>
+              <td>Vink family</td>
+              <td class="money">R 30 400</td>
+              <td class="money">R 612</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Held</span></td>
+              <td class="muted">28 Feb 2027</td>
+            </tr>
+            <tr>
+              <td><strong>4 Church, Franschhoek</strong></td>
+              <td>Abrahams family</td>
+              <td class="money">R 37 500</td>
+              <td class="money">R 1 205</td>
+              <td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Held</span></td>
+              <td class="muted">31 Aug 2026</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MAINTENANCE -->
+    <section class="route" id="route-maintenance">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Maintenance</span></div>
+        <div class="page-header-row">
+          <div><h1>Work orders</h1><p class="sub">12 open · 1 awaiting owner approval · 1 supplier en route · R 38 420 spend YTD</p></div>
+          <div class="page-actions">
+            <button class="btn" data-route="suppliers"><i class="ph ph-users-three"></i>Suppliers</button>
+            <button class="btn"><i class="ph ph-download-simple"></i>Export</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>New ticket</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Open tickets</div><div class="value">12</div><div class="delta">4 new · 3 quoted · 2 dispatched · 2 in progress · 1 done</div></div>
+        <div class="stat"><div class="label">Gate 3 waiting</div><div class="value" style="color:var(--warn)">1</div><div class="delta down">22 Plein · Geyser · owner silent 25h</div></div>
+        <div class="stat"><div class="label">Avg close time</div><div class="value">4.2d</div><div class="delta">within SLA</div></div>
+        <div class="stat"><div class="label">Spend MTD</div><div class="value">R 8 240</div><div class="delta">from trust · 6 invoices</div></div>
+      </div>
+
+      <!-- Gate 3 alert strip -->
+      <div class="alert-strip">
+        <i class="ph ph-shield-check"></i>
+        <strong>1 Gate 3 awaiting owner decision</strong> · 22 Plein geyser · R 8 200 · quote received 25h ago · SLA breach in 23h
+        <button class="btn ghost" style="margin-left:auto" data-route="maintenance-ticket"><i class="ph ph-arrow-right"></i>Review & chase</button>
+      </div>
+
+      <!-- View toolbar -->
+      <div style="padding:20px 32px 12px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--line)">
+        <div class="view-toggle" id="m-view-toggle" style="margin-left:0">
+          <button data-mview="kanban" class="active"><i class="ph ph-kanban"></i>Kanban</button>
+          <button data-mview="table"><i class="ph ph-list"></i>Table</button>
+          <button data-mview="calendar"><i class="ph ph-calendar"></i>Calendar</button>
+        </div>
+        <button class="btn"><i class="ph ph-funnel"></i>All categories</button>
+        <button class="btn"><i class="ph ph-map-pin"></i>All suburbs</button>
+        <button class="btn"><i class="ph ph-users-three"></i>All suppliers</button>
+        <div class="search" style="flex:1;max-width:none"><i class="ph ph-magnifying-glass"></i><input placeholder="Search tickets by property, issue, supplier…"></div>
+      </div>
+
+      <!-- Kanban -->
+      <div class="view-pane active" id="m-view-kanban">
+        <div class="kanban" style="grid-template-columns:repeat(6,minmax(220px,1fr));min-width:1400px;overflow-x:auto">
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--muted)"></span>New</div><div class="col-count">4</div></div>
+            <div class="card" data-goto="maintenance-ticket"><div class="card-addr">#232 · 12 Dorp</div><div class="card-meta"><span class="tag">Plumbing</span><span class="tag">Low</span><span class="tag muted">2h ago</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Leaking tap in kitchen</div><div class="card-action"><i class="ph ph-arrow-right"></i>Triage</div></div>
+            <div class="card"><div class="card-addr">#231 · 4 Church</div><div class="card-meta"><span class="tag">Electrical</span><span class="tag" style="color:var(--warn)">High</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Gate motor not responding</div><div class="card-action"><i class="ph ph-arrow-right"></i>Request quote</div></div>
+            <div class="card"><div class="card-addr">#229 · Unit 5 Kloof.</div><div class="card-meta"><span class="tag">Pest</span><span class="tag">Medium</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Rats in ceiling</div><div class="card-action"><i class="ph ph-arrow-right"></i>Triage</div></div>
+            <div class="card"><div class="card-addr">#227 · 19 Main</div><div class="card-meta"><span class="tag">Handyman</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Cupboard door off hinges</div><div class="card-action"><i class="ph ph-arrow-right"></i>Triage</div></div>
+          </div>
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--info)"></span>Quoted</div><div class="col-count">3</div></div>
+            <div class="card" data-goto="maintenance-ticket" style="border-color:var(--warn);border-width:2px"><div class="card-addr">#230 · 22 Plein</div><div class="card-meta"><span class="tag">Plumbing</span><span class="tag money">R 8 200</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Geyser replacement</div><div class="card-action warn"><i class="ph ph-shield-check"></i>Gate 3 · owner silent 25h</div></div>
+            <div class="card"><div class="card-addr">#226 · 33 Ryneveld</div><div class="card-meta"><span class="tag">Handyman</span><span class="tag money">R 3 600</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Interior paint touch-up</div><div class="card-action ok"><i class="ph ph-check"></i>Auto-approved · dispatch</div></div>
+            <div class="card"><div class="card-addr">#225 · 8 Lourens</div><div class="card-meta"><span class="tag">Roofing</span><span class="tag money">R 4 800</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Gutter cleaning + downpipe</div><div class="card-action"><i class="ph ph-envelope"></i>Sent to owner</div></div>
+          </div>
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--warn)"></span>Dispatched</div><div class="col-count">2</div></div>
+            <div class="card" data-goto="maintenance-ticket"><div class="card-addr">#228 · 15 Andringa</div><div class="card-meta"><span class="tag">Locks</span><span class="tag">EZ Locksmith</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Door lock failure</div><div class="card-action"><i class="ph ph-van"></i>ETA 11:00 today</div></div>
+            <div class="card"><div class="card-addr">#223 · 7A Paul Kruger</div><div class="card-meta"><span class="tag">Pool</span><span class="tag">BluWater</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Pool pump service</div><div class="card-action"><i class="ph ph-van"></i>Tomorrow 09:00</div></div>
+          </div>
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--ok)"></span>In progress</div><div class="col-count">2</div></div>
+            <div class="card"><div class="card-addr">#220 · 8 Lourens</div><div class="card-meta"><span class="tag">Damp</span><span class="tag">Kaap Damp</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Damp repair — bathroom wall</div><div class="card-action ok"><i class="ph ph-wrench"></i>Day 2/3 on site</div></div>
+            <div class="card"><div class="card-addr">#218 · Unit 12 WE</div><div class="card-meta"><span class="tag">Electrical</span><span class="tag">SparkWise</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">DB board upgrade</div><div class="card-action ok"><i class="ph ph-wrench"></i>Day 1/2</div></div>
+          </div>
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--accent)"></span>Done · awaiting invoice</div><div class="col-count">1</div></div>
+            <div class="card"><div class="card-addr">#219 · 15 Andringa</div><div class="card-meta"><span class="tag">Plumbing</span><span class="tag money">R 2 400</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Geyser element</div><div class="card-action"><i class="ph ph-receipt"></i>Invoice uploaded · pay</div></div>
+          </div>
+          <div class="kcol">
+            <div class="col-head"><div class="col-title"><span class="bullet" style="background:var(--navy)"></span>Closed</div><div class="col-count">27</div></div>
+            <div class="card"><div class="card-addr">#217 · 4 Church</div><div class="card-meta"><span class="tag money">R 1 850</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Garden service (monthly)</div><div class="card-action ok"><i class="ph ph-check"></i>Paid · 4.9★</div></div>
+            <div class="card"><div class="card-addr">#214 · 19 Main</div><div class="card-meta"><span class="tag money">R 780</span></div><div style="font-size:12px;color:var(--muted);margin-bottom:8px">Kitchen tap washer</div><div class="card-action ok"><i class="ph ph-check"></i>Paid · 5★</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table view -->
+      <div class="view-pane" id="m-view-table">
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>#</th><th>Property</th><th>Issue</th><th>Category</th><th>Urgency</th><th>Supplier</th><th>Amount</th><th>State</th><th>Age</th><th>Bearer</th></tr></thead>
+            <tbody>
+              <tr data-goto="maintenance-ticket"><td><strong>#232</strong></td><td>12 Dorp, Stellenbosch</td><td>Leaking tap — kitchen</td><td>Plumbing</td><td><span class="badge vacant">Low</span></td><td class="muted">—</td><td class="muted">—</td><td><span class="badge" style="background:var(--line);color:var(--muted)"><span class="bullet" style="background:var(--muted)"></span>New</span></td><td>2h</td><td>Owner</td></tr>
+              <tr><td><strong>#231</strong></td><td>4 Church, Franschhoek</td><td>Gate motor failure</td><td>Electrical</td><td><span class="badge signing">High</span></td><td class="muted">—</td><td class="muted">—</td><td><span class="badge" style="background:var(--line);color:var(--muted)"><span class="bullet" style="background:var(--muted)"></span>New</span></td><td>5h</td><td>Owner</td></tr>
+              <tr data-goto="maintenance-ticket"><td><strong>#230</strong></td><td>22 Plein, Stellenbosch</td><td>Geyser replacement</td><td>Plumbing</td><td><span class="badge signing">High</span></td><td>SAPlumb</td><td class="money">R 8 200</td><td><span class="badge" style="background:#F3E8FF;color:#7C3AED"><span class="bullet" style="background:#7C3AED"></span>Gate 3</span></td><td>1d 1h</td><td>Owner</td></tr>
+              <tr><td><strong>#228</strong></td><td>15 Andringa, Stellenbosch</td><td>Door lock failure</td><td>Locks/security</td><td><span class="badge signing">Medium</span></td><td>EZ Locksmith</td><td class="money">R 1 850</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Dispatched</span></td><td>1d</td><td>Owner</td></tr>
+              <tr><td><strong>#226</strong></td><td>33 Ryneveld, Stellenbosch</td><td>Paint touch-up</td><td>Handyman</td><td><span class="badge vacant">Low</span></td><td>Quick Fix Co.</td><td class="money">R 3 600</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Approved</span></td><td>2d</td><td>Owner</td></tr>
+              <tr><td><strong>#220</strong></td><td>8 Lourens, Somerset W.</td><td>Damp repair · bathroom</td><td>Roofing</td><td><span class="badge signing">Medium</span></td><td>Kaap Damp</td><td class="money">R 4 600</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>In progress</span></td><td>3d</td><td>Owner</td></tr>
+              <tr><td><strong>#219</strong></td><td>15 Andringa, Stellenbosch</td><td>Geyser element</td><td>Plumbing</td><td><span class="badge vacant">Low</span></td><td>SAPlumb</td><td class="money">R 2 400</td><td><span class="badge" style="background:var(--accent-soft);color:var(--accent)"><span class="bullet" style="background:var(--accent)"></span>Awaiting payment</span></td><td>21d</td><td>Owner</td></tr>
+              <tr><td>#218</td><td>Unit 12, Winelands Est.</td><td>DB board upgrade</td><td>Electrical</td><td><span class="badge signing">Medium</span></td><td>SparkWise</td><td class="money">R 6 200</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>In progress</span></td><td>2d</td><td>Owner</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Calendar view stub -->
+      <div class="view-pane" id="m-view-calendar">
+        <div class="table-wrap">
+          <div class="pcard">
+            <h3><i class="ph ph-calendar"></i>Upcoming supplier visits · next 14 days</h3>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:12px">
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:140px 1fr auto;gap:14px;align-items:center"><strong>Today 11:00</strong><span><strong>EZ Locksmith</strong> · 15 Andringa · door lock #228 · tenant P. Vink on site</span><button class="btn ghost" data-route="maintenance-ticket">Detail →</button></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:140px 1fr auto;gap:14px;align-items:center"><strong>Today 14:00</strong><span><strong>Kaap Damp</strong> · 8 Lourens · damp repair #220 · day 2/3 · no tenant access needed</span><button class="btn ghost">Detail →</button></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:140px 1fr auto;gap:14px;align-items:center"><strong>Fri 19 Apr 09:00</strong><span><strong>BluWater Pool</strong> · 7A Paul Kruger · pump service #223 · coordinate key pickup</span><button class="btn ghost">Detail →</button></div>
+              <div style="padding:10px 0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:140px 1fr auto;gap:14px;align-items:center"><strong>Sat 20 Apr 10:00</strong><span><strong>Quick Fix Co.</strong> · 33 Ryneveld · paint touch-up #226 · vacant property</span><button class="btn ghost">Detail →</button></div>
+              <div style="padding:10px 0;display:grid;grid-template-columns:140px 1fr auto;gap:14px;align-items:center"><strong>Mon 22 Apr 08:00</strong><span><strong>SparkWise</strong> · Unit 12 WE · DB board #218 · day 2/2 · power will be off 2h</span><button class="btn ghost">Detail →</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAINTENANCE TICKET (detail) -->
+    <section class="route" id="route-maintenance-ticket">
+      <div class="page-header">
+        <div class="breadcrumb"><a data-route="maintenance">Maintenance</a> · <span>#230 · 22 Plein geyser</span></div>
+        <div class="page-header-row">
+          <div>
+            <h1>#230 · Geyser replacement — 22 Plein</h1>
+            <p class="sub">
+              <span class="badge" style="background:#F3E8FF;color:#7C3AED"><span class="bullet" style="background:#7C3AED"></span>Gate 3 · owner decision pending</span>
+              &nbsp;·&nbsp; <i class="ph ph-wrench"></i> Plumbing &nbsp;·&nbsp; <i class="ph ph-warning" style="color:var(--warn)"></i> High urgency &nbsp;·&nbsp; Logged 1d 1h ago by tenant K. Jacobs
+            </p>
+          </div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-chat-circle-dots"></i>Message tenant</button>
+            <button class="btn"><i class="ph ph-phone"></i>Call owner</button>
+            <button class="btn primary"><i class="ph ph-lightning"></i>Actions</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gate 3 prominence strip -->
+      <div class="alert-strip danger">
+        <i class="ph ph-shield-check"></i>
+        <strong>Gate 3 — owner approval required</strong> · quote R 8 200 exceeds R 3 000 threshold · owner J. van der Merwe silent 25h (SLA breach in 23h)
+        <button class="btn" style="margin-left:auto;border-color:var(--danger);color:var(--danger)"><i class="ph ph-envelope"></i>Chase owner</button>
+        <button class="btn primary" style="background:var(--danger);border-color:var(--danger)"><i class="ph ph-shield-check"></i>Override (emergency)</button>
+      </div>
+
+      <!-- Ticket tabs -->
+      <div class="tabs" id="mt-tabs">
+        <div class="tab active" data-mtpane="overview">Overview</div>
+        <div class="tab" data-mtpane="quote">Quote <span class="count" style="margin-left:4px">1</span></div>
+        <div class="tab" data-mtpane="dispatch">Dispatch</div>
+        <div class="tab" data-mtpane="photos">Photos <span class="count" style="margin-left:4px">6</span></div>
+        <div class="tab" data-mtpane="invoice">Invoice</div>
+        <div class="tab" data-mtpane="timeline">Timeline</div>
+        <div class="tab" data-mtpane="messages">Messages <span class="count" style="margin-left:4px">8</span></div>
+      </div>
+
+      <!-- TICKET · Overview -->
+      <div class="mt-pane active" id="mt-overview">
+        <div class="pgrid">
+          <div>
+            <div class="action-card">
+              <h3>Next action</h3>
+              <p>Owner silent for 25h — SLA breaches in 23h. Chase via phone + WhatsApp. If no response in 12h and tenant has no hot water overnight, emergency override possible per mandate clause 8.2.</p>
+              <div style="display:flex;gap:8px"><button class="btn"><i class="ph ph-phone"></i>Call owner</button><button class="btn"><i class="ph ph-envelope"></i>WhatsApp chase</button></div>
+            </div>
+
+            <div class="pcard">
+              <h3><i class="ph ph-info"></i>Problem</h3>
+              <div style="font-size:13px;margin-bottom:12px">Geyser stopped heating. Tenant reports no hot water since yesterday morning. Element tested — short to earth. Geyser is 9 years old (original install per ingoing inspection) so replacement rather than repair is recommended. Quote includes Kwikot 150L vertical, isolator, drip tray, SANS compliance certificate.</div>
+              <dl class="kv">
+                <dt>Property</dt><dd><a href="#" style="color:var(--navy);font-weight:500">22 Plein, Stellenbosch · Unit 4A</a></dd>
+                <dt>Tenant</dt><dd>K. Jacobs <span class="muted">(lease starts 1 May — currently in signing)</span></dd>
+                <dt>Owner</dt><dd>J. van der Merwe</dd>
+                <dt>Logged by</dt><dd>Tenant · in-app · 16 Apr 09:42</dd>
+                <dt>Category</dt><dd>Plumbing · geyser</dd>
+                <dt>Urgency</dt><dd>High (no hot water)</dd>
+                <dt>Cost bearer</dt><dd>Owner <span class="muted">(fair wear and tear · 9-year-old unit)</span></dd>
+                <dt>Insurance?</dt><dd>Check — owner's home contents may cover water damage, not replacement</dd>
+              </dl>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-list-checks"></i>Lifecycle</h3>
+              <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px">
+                <div style="padding:10px;background:var(--ok-soft);border-radius:8px;text-align:center;font-size:12px"><i class="ph ph-check-circle" style="color:var(--ok);font-size:18px"></i><div style="font-weight:600;margin-top:4px">Logged</div><div class="muted" style="font-size:11px">16 Apr 09:42</div></div>
+                <div style="padding:10px;background:var(--ok-soft);border-radius:8px;text-align:center;font-size:12px"><i class="ph ph-check-circle" style="color:var(--ok);font-size:18px"></i><div style="font-weight:600;margin-top:4px">Triaged</div><div class="muted" style="font-size:11px">16 Apr 10:15 · Sarah</div></div>
+                <div style="padding:10px;background:var(--ok-soft);border-radius:8px;text-align:center;font-size:12px"><i class="ph ph-check-circle" style="color:var(--ok);font-size:18px"></i><div style="font-weight:600;margin-top:4px">Quoted</div><div class="muted" style="font-size:11px">16 Apr 14:20 · SAPlumb</div></div>
+                <div style="padding:10px;background:#F3E8FF;border:2px solid #7C3AED;border-radius:8px;text-align:center;font-size:12px"><i class="ph ph-shield-check" style="color:#7C3AED;font-size:18px"></i><div style="font-weight:600;margin-top:4px">Gate 3</div><div style="color:#7C3AED;font-size:11px;font-weight:500">Pending · 25h</div></div>
+                <div style="padding:10px;background:var(--line);border-radius:8px;text-align:center;font-size:12px;opacity:.5"><i class="ph ph-circle" style="font-size:18px"></i><div style="font-weight:600;margin-top:4px">Dispatch</div><div class="muted" style="font-size:11px">—</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div class="pcard">
+              <h3><i class="ph ph-image"></i>Tenant photos (3)</h3>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:10px">
+                <div style="aspect-ratio:1;background:linear-gradient(135deg,#334,#556);border-radius:8px;display:flex;align-items:flex-end;padding:6px;color:#fff;font-size:10px;position:relative"><span>Geyser cupboard</span><i class="ph ph-play-circle" style="position:absolute;top:6px;right:6px;font-size:14px"></i></div>
+                <div style="aspect-ratio:1;background:linear-gradient(135deg,#433,#655);border-radius:8px;display:flex;align-items:flex-end;padding:6px;color:#fff;font-size:10px">Element</div>
+                <div style="aspect-ratio:1;background:linear-gradient(135deg,#343,#565);border-radius:8px;display:flex;align-items:flex-end;padding:6px;color:#fff;font-size:10px;grid-column:1/-1">Drip tray (wet)</div>
+              </div>
+              <div style="margin-top:10px;font-size:12px;color:var(--muted)"><i class="ph ph-microphone" style="color:var(--accent)"></i> Voice note · 14s · "No hot water since yesterday, tried tripping the DB but no change…" <a href="#" style="color:var(--navy);margin-left:8px">▶ Play</a></div>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-user"></i>Tenant</h3>
+              <dl class="kv">
+                <dt>Name</dt><dd>K. Jacobs</dd>
+                <dt>Phone</dt><dd>084 007 1144</dd>
+                <dt>Lease</dt><dd>Pending · starts 1 May</dd>
+                <dt>Note</dt><dd class="muted" style="font-size:12px">Not yet tenant of record — issue reported during walk-through. Landlord is liable regardless.</dd>
+              </dl>
+              <button class="btn" style="width:100%;margin-top:10px"><i class="ph ph-chat-circle-dots"></i>Open thread</button>
+            </div>
+
+            <div class="pcard" style="margin-top:14px">
+              <h3><i class="ph ph-buildings"></i>Property history</h3>
+              <div style="font-size:12px">
+                <div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>#158</strong> · Mar 2024 · Paint · R 2 800 · Quick Fix</div>
+                <div style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>#097</strong> · Aug 2023 · Geyser valve · R 1 200 · SAPlumb</div>
+                <div style="padding:6px 0"><strong>#042</strong> · Feb 2023 · Paint · R 3 400 · Quick Fix</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Quote -->
+      <div class="mt-pane" id="mt-quote">
+        <div class="pgrid">
+          <div>
+            <div class="pcard">
+              <h3><i class="ph ph-file-text"></i>Quote — SAPlumb · #Q-2026-0418</h3>
+              <dl class="kv">
+                <dt>Received</dt><dd>16 Apr 14:20 · via supplier portal</dd>
+                <dt>Valid until</dt><dd>23 Apr 2026 <span class="muted">(7 days)</span></dd>
+                <dt>Supplier</dt><dd>SAPlumb (Pty) Ltd · 4.6★ · 47 jobs with this agency</dd>
+                <dt>VAT status</dt><dd>Registered · 4150228812</dd>
+                <dt>PDF</dt><dd><a href="#" style="color:var(--navy)"><i class="ph ph-file-pdf"></i> quote-2026-0418.pdf</a> · 247 KB</dd>
+              </dl>
+
+              <table class="data" style="border:none;margin-top:14px">
+                <thead><tr><th>Item</th><th>Qty</th><th class="amt">Unit</th><th class="amt">Total</th></tr></thead>
+                <tbody>
+                  <tr><td><strong>Kwikot 150L vertical geyser</strong><div class="muted" style="font-size:12px">5-yr warranty · SANS compliant</div></td><td>1</td><td class="amt money">R 4 200</td><td class="amt money">R 4 200</td></tr>
+                  <tr><td>Isolator switch + electrical</td><td>1</td><td class="amt money">R 420</td><td class="amt money">R 420</td></tr>
+                  <tr><td>Drip tray + overflow pipe</td><td>1</td><td class="amt money">R 380</td><td class="amt money">R 380</td></tr>
+                  <tr><td>Vacuum breaker + isolation valve</td><td>1</td><td class="amt money">R 290</td><td class="amt money">R 290</td></tr>
+                  <tr><td>Labour (4h · 2 technicians)</td><td>8</td><td class="amt money">R 220</td><td class="amt money">R 1 760</td></tr>
+                  <tr><td>SANS 10254 electrical CoC</td><td>1</td><td class="amt money">R 450</td><td class="amt money">R 450</td></tr>
+                  <tr><td>Disposal · old geyser</td><td>1</td><td class="amt money">R 150</td><td class="amt money">R 150</td></tr>
+                  <tr style="background:var(--paper)"><td colspan="3"><strong>Subtotal (excl VAT)</strong></td><td class="amt money"><strong>R 7 130.43</strong></td></tr>
+                  <tr style="background:var(--paper)"><td colspan="3">VAT @ 15%</td><td class="amt money">R 1 069.57</td></tr>
+                  <tr style="background:var(--navy-soft)"><td colspan="3"><strong>Total (incl VAT)</strong></td><td class="amt money"><strong style="font-size:15px;color:var(--navy)">R 8 200.00</strong></td></tr>
+                </tbody>
+              </table>
+
+              <div style="display:flex;gap:8px;margin-top:14px">
+                <button class="btn"><i class="ph ph-arrows-counter-clockwise"></i>Request revision</button>
+                <button class="btn"><i class="ph ph-plus-circle"></i>Add 2nd quote</button>
+                <button class="btn" style="margin-left:auto"><i class="ph ph-x-circle"></i>Reject quote</button>
+                <button class="btn primary"><i class="ph ph-check-circle"></i>Accept & dispatch</button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <!-- Gate 3 widget -->
+            <div class="pcard" style="border-left:3px solid #7C3AED">
+              <h3><i class="ph ph-shield-check" style="color:#7C3AED"></i>Gate 3 · owner approval</h3>
+              <dl class="kv">
+                <dt>Threshold</dt><dd>R 3 000 per mandate</dd>
+                <dt>Quote</dt><dd class="money" style="color:var(--navy);font-weight:600">R 8 200.00</dd>
+                <dt>Gate required</dt><dd>Yes (2.7× threshold)</dd>
+                <dt>Sent</dt><dd>16 Apr 14:35 · email + WhatsApp</dd>
+                <dt>Owner</dt><dd>J. van der Merwe</dd>
+                <dt>Response</dt><dd><strong style="color:var(--warn)">Silent 25h</strong></dd>
+                <dt>SLA</dt><dd><strong style="color:var(--danger)">Breach in 23h</strong></dd>
+              </dl>
+
+              <div style="margin-top:14px;padding:10px 12px;background:var(--paper);border-radius:8px;font-size:12px">
+                <strong style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em">Owner chase log</strong>
+                <div style="margin-top:6px"><i class="ph ph-envelope"></i> 16 Apr 14:35 · Email sent · delivered ✓ · opened ✗</div>
+                <div><i class="ph ph-whatsapp-logo"></i> 16 Apr 14:35 · WhatsApp sent · delivered ✓ · read ✓ 15:02</div>
+                <div><i class="ph ph-bell-ringing"></i> 17 Apr 09:00 · Reminder sent · no response</div>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:6px;margin-top:14px">
+                <button class="btn"><i class="ph ph-phone"></i>Call owner now</button>
+                <button class="btn"><i class="ph ph-envelope"></i>Send SLA warning</button>
+                <button class="btn" style="border-color:var(--danger);color:var(--danger)"><i class="ph ph-shield-check"></i>Emergency override</button>
+              </div>
+
+              <div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.5"><strong>Override basis:</strong> mandate clause 8.2 — agent may authorise up to R 10 000 without owner consent for "any loss of habitability including no hot water &gt; 48h". Audit-logged. Owner notified post-facto.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Dispatch -->
+      <div class="mt-pane" id="mt-dispatch">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-van"></i>Dispatch (pending Gate 3 approval)</h3>
+            <p class="muted" style="font-size:13px;margin-top:8px">Once owner approves (or agent overrides), SAPlumb will be auto-dispatched and this pane populates with live tracking.</p>
+
+            <div style="margin-top:20px;padding:16px;background:var(--paper);border-radius:10px">
+              <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:10px">Planned dispatch</div>
+              <dl class="kv">
+                <dt>Supplier</dt><dd>SAPlumb (Pty) Ltd · 4.6★</dd>
+                <dt>Primary contact</dt><dd>J. Adams · 082 118 4420</dd>
+                <dt>Proposed date</dt><dd>Fri 19 Apr · 08:00–12:00 slot</dd>
+                <dt>Access</dt><dd>Coordinate with K. Jacobs (tenant) · 084 007 1144</dd>
+                <dt>Access notes</dt><dd class="muted" style="font-size:12px">Geyser cupboard in passage · water main shutoff at gate · DB board in kitchen</dd>
+                <dt>Special instructions</dt><dd class="muted" style="font-size:12px">Take photos of removed unit for owner (possible insurance claim)</dd>
+                <dt>Estimated duration</dt><dd>4 hours</dd>
+                <dt>Water off</dt><dd>2 hours (tenant informed)</dd>
+                <dt>Power off</dt><dd>1 hour during isolator swap</dd>
+              </dl>
+            </div>
+
+            <div style="margin-top:14px;font-size:12px;color:var(--muted)"><i class="ph ph-info"></i> Before/after photos are mandatory for this job value. Supplier prompted in their app.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Photos -->
+      <div class="mt-pane" id="mt-photos">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-image"></i>Photos · 6 total</h3>
+
+            <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin:14px 0 8px">Tenant submitted (3) · 16 Apr 09:42</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#334,#556);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Geyser cupboard</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#433,#655);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Element close-up</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#343,#565);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Drip tray wet</div>
+            </div>
+
+            <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin:20px 0 8px">Supplier quote (3) · SAPlumb · 16 Apr 14:20</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#335,#557);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Current geyser</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#353,#575);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Install angle</div>
+              <div style="aspect-ratio:1;background:linear-gradient(135deg,#533,#755);border-radius:8px;display:flex;align-items:flex-end;padding:8px;color:#fff;font-size:11px;cursor:pointer">Ingoing insp (2026)</div>
+            </div>
+
+            <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin:20px 0 8px">Before/after (on dispatch) · not yet available</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+              <div style="aspect-ratio:1;background:var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted-2);font-size:11px;border:2px dashed var(--line-2)">Before</div>
+              <div style="aspect-ratio:1;background:var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted-2);font-size:11px;border:2px dashed var(--line-2)">After</div>
+              <div style="aspect-ratio:1;background:var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted-2);font-size:11px;border:2px dashed var(--line-2)">CoC</div>
+              <div style="aspect-ratio:1;background:var(--line);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted-2);font-size:11px;border:2px dashed var(--line-2)">Disposal</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Invoice -->
+      <div class="mt-pane" id="mt-invoice">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-receipt"></i>Invoice (awaits job completion)</h3>
+            <div class="empty" style="padding:40px 0"><i class="ph ph-receipt"></i><h2>Not yet invoiced</h2><p>Invoice auto-requested when supplier marks Done + tenant confirms. Match against quote; &gt;10% variance triggers re-approval.</p></div>
+
+            <div style="margin-top:10px;padding:16px;background:var(--paper);border-radius:10px">
+              <div style="font-size:11px;text-transform:uppercase;color:var(--muted);letter-spacing:.06em;margin-bottom:10px">Payment rules (per mandate)</div>
+              <dl class="kv">
+                <dt>Payment from</dt><dd>Owner trust balance · ABSA-4412</dd>
+                <dt>Terms</dt><dd>14 days from invoice</dd>
+                <dt>Reconcile</dt><dd>Appears on April owner statement as separate line</dd>
+                <dt>Variance rule</dt><dd>&gt;10% over quote → re-approval required</dd>
+                <dt>Supplier payment history</dt><dd>47 jobs · all paid on time · no disputes</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Timeline -->
+      <div class="mt-pane" id="mt-timeline">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-clock-counter-clockwise"></i>Ticket timeline</h3>
+            <div style="margin-top:14px;font-size:13px">
+              <div style="padding:12px 14px;border-left:2px solid var(--warn);background:var(--warn-soft);border-radius:0 8px 8px 0;margin-bottom:10px"><strong>17 Apr 09:00</strong> · Reminder sent to owner<div class="muted" style="font-size:12px">No response · SLA warning escalated to Sarah N.</div></div>
+              <div style="padding:12px 14px;border-left:2px solid var(--info);background:var(--info-soft);border-radius:0 8px 8px 0;margin-bottom:10px"><strong>16 Apr 15:02</strong> · Owner read WhatsApp<div class="muted" style="font-size:12px">Delivered ✓ · Read ✓ · no reply</div></div>
+              <div style="padding:12px 14px;border-left:2px solid #7C3AED;background:#F3E8FF;border-radius:0 8px 8px 0;margin-bottom:10px"><strong>16 Apr 14:35</strong> · Gate 3 raised<div class="muted" style="font-size:12px">Quote R 8 200 &gt; R 3 000 threshold · owner notified by email + WhatsApp · SLA 48h</div></div>
+              <div style="padding:12px 14px;border-left:2px solid var(--ok);background:var(--ok-soft);border-radius:0 8px 8px 0;margin-bottom:10px"><strong>16 Apr 14:20</strong> · Quote received<div class="muted" style="font-size:12px">SAPlumb · R 8 200 incl VAT · valid 7 days · PDF attached</div></div>
+              <div style="padding:12px 14px;border-left:2px solid var(--ok);background:var(--ok-soft);border-radius:0 8px 8px 0;margin-bottom:10px"><strong>16 Apr 10:15</strong> · Triaged · SAPlumb assigned<div class="muted" style="font-size:12px">Sarah N. confirmed plumbing · high urgency · assigned to SAPlumb (historical geyser expertise on this property)</div></div>
+              <div style="padding:12px 14px;border-left:2px solid var(--ok);background:var(--ok-soft);border-radius:0 8px 8px 0"><strong>16 Apr 09:42</strong> · Ticket logged by K. Jacobs<div class="muted" style="font-size:12px">In-app · 3 photos · voice note 14s · urgency: high</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKET · Messages -->
+      <div class="mt-pane" id="mt-messages">
+        <div style="padding:20px 32px">
+          <div class="pcard">
+            <h3><i class="ph ph-chat-circle-dots"></i>Ticket thread (tenant + supplier + owner + team · 8 msgs)</h3>
+
+            <div style="margin-top:14px">
+              <div style="font-size:11px;color:var(--muted);text-align:center;margin:8px 0">16 Apr · 09:42 · tenant · in-app</div>
+              <div style="background:var(--paper);padding:10px 14px;border-radius:10px 10px 10px 2px;max-width:70%;font-size:13px">Hi there, geyser stopped heating overnight. Three photos attached. No hot water at all. [voice note]</div>
+
+              <div style="font-size:11px;color:var(--muted);text-align:right;margin:8px 0">16 Apr · 10:15 · Sarah N · in-app</div>
+              <div style="text-align:right"><div style="display:inline-block;background:var(--navy);color:#fff;padding:10px 14px;border-radius:10px 10px 2px 10px;max-width:70%;font-size:13px;text-align:left">Thanks K. — SAPlumb coming out today for assessment, quote by EOD. I'll keep you posted.</div></div>
+
+              <div style="font-size:11px;color:var(--muted);text-align:center;margin:8px 0">16 Apr · 14:25 · SAPlumb · supplier portal</div>
+              <div style="background:#E4E4EE;padding:10px 14px;border-radius:10px 10px 10px 2px;max-width:70%;font-size:13px"><strong>SAPlumb</strong> · Quote uploaded · R 8 200 · 150L Kwikot + CoC + disposal · 5yr warranty. Recommend replace not repair (9yr old unit).</div>
+
+              <div style="background:var(--warn-soft);border-left:3px solid var(--warn);padding:10px 14px;border-radius:6px;font-size:12px;margin:14px 0"><i class="ph ph-note-pencil"></i> <strong>Internal · Sarah N · 14:30</strong><br>Going to send to owner. Given no hot water I'll push for fast turnaround. If owner silent past 48h, emergency override under mandate clause 8.2.</div>
+
+              <div style="font-size:11px;color:var(--muted);text-align:right;margin:8px 0">16 Apr · 14:35 · Sarah N → J. van der Merwe · email + WhatsApp</div>
+              <div style="text-align:right"><div style="display:inline-block;background:var(--navy);color:#fff;padding:10px 14px;border-radius:10px 10px 2px 10px;max-width:70%;font-size:13px;text-align:left">J — geyser replacement needed at 22 Plein. Tenant has no hot water. Quote R 8 200 from SAPlumb (the guys who did your unit 12 job last year). Please respond ASAP.</div></div>
+
+              <div style="font-size:11px;color:var(--muted);text-align:right;margin:8px 0">17 Apr · 09:00 · Sarah N → owner · reminder</div>
+              <div style="text-align:right"><div style="display:inline-block;background:var(--warn-soft);color:var(--warn);padding:10px 14px;border-radius:10px 10px 2px 10px;max-width:70%;font-size:13px;text-align:left">Following up — 20h since the Gate 3 was sent. Please approve or call me. SLA breaches at 14:35 today.</div></div>
+
+              <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:20px">
+                <textarea placeholder="Reply…" style="width:100%;border:none;outline:none;resize:none;font-family:inherit;font-size:13px;min-height:50px"></textarea>
+                <div style="display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12px">
+                  <span style="color:var(--muted)">To:</span>
+                  <label><input type="radio" name="to"> Tenant</label>
+                  <label><input type="radio" name="to" checked> Owner</label>
+                  <label><input type="radio" name="to"> Supplier</label>
+                  <label><input type="radio" name="to"> Internal note</label>
+                  <button class="btn primary" style="margin-left:auto"><i class="ph ph-paper-plane-tilt"></i>Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SUPPLIERS -->
+    <section class="route" id="route-suppliers">
+      <div class="page-header">
+        <div class="breadcrumb"><a data-route="maintenance">Maintenance</a> · <span>Suppliers</span></div>
+        <div class="page-header-row">
+          <div><h1>Supplier panel</h1><p class="sub">14 active suppliers · rolling 6-month ratings · FICA + banking on file in Vault33.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-funnel"></i>Category</button>
+            <button class="btn"><i class="ph ph-map-pin"></i>Area</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>Invite supplier</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Active suppliers</div><div class="value">14</div><div class="delta">+1 this quarter</div></div>
+        <div class="stat"><div class="label">Avg rating</div><div class="value">4.6★</div><div class="delta">across 89 jobs</div></div>
+        <div class="stat"><div class="label">Spend YTD</div><div class="value">R 38 420</div><div class="delta">via supplier panel</div></div>
+        <div class="stat"><div class="label">FICA gaps</div><div class="value" style="color:var(--warn)">1</div><div class="delta down">Kaap Damp · missing CIPC</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Supplier</th><th>Categories</th><th>Area</th><th>Rating</th><th>Jobs</th><th>Open</th><th>FICA</th><th>Rate</th></tr></thead>
+          <tbody>
+            <tr><td><strong>SAPlumb (Pty) Ltd</strong><div class="muted">VAT 4150228812</div></td><td>Plumbing · Geyser</td><td>Stellenbosch · Somerset W.</td><td><strong>4.6★</strong> <span class="muted">(47)</span></td><td>47</td><td>2</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 220/hr</td></tr>
+            <tr><td><strong>EZ Locksmith (Pty) Ltd</strong><div class="muted">VAT 4150119283</div></td><td>Locks · Security</td><td>Winelands-wide</td><td><strong>4.8★</strong> <span class="muted">(14)</span></td><td>14</td><td>1</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 380 call-out</td></tr>
+            <tr><td><strong>Kaap Damp Solutions</strong><div class="muted">CC 2020/4456/07</div></td><td>Damp · Roofing</td><td>Stellenbosch · Paarl</td><td><strong>4.3★</strong> <span class="muted">(8)</span></td><td>8</td><td>1</td><td><i class="ph ph-warning-circle" style="color:var(--warn)"></i></td><td class="money">Quote per job</td></tr>
+            <tr><td><strong>Quick Fix Co.</strong><div class="muted">Sole prop · J. Moodley</div></td><td>Handyman · Paint · Minor electrical</td><td>Stellenbosch</td><td><strong>4.7★</strong> <span class="muted">(22)</span></td><td>22</td><td>1</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 180/hr</td></tr>
+            <tr><td><strong>SparkWise Electrical</strong><div class="muted">VAT 4150338271</div></td><td>Electrical · CoC · DB board</td><td>Winelands · Helderberg</td><td><strong>4.5★</strong> <span class="muted">(11)</span></td><td>11</td><td>1</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 280/hr + CoC</td></tr>
+            <tr><td><strong>BluWater Pool Services</strong><div class="muted">VAT 4150442166</div></td><td>Pool · Irrigation</td><td>Stellenbosch · Paarl</td><td><strong>4.6★</strong> <span class="muted">(6)</span></td><td>6</td><td>1</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 450/visit</td></tr>
+            <tr><td><strong>Winelands Pest</strong><div class="muted">VAT 4150776221</div></td><td>Pest · Fumigation</td><td>Winelands-wide</td><td><strong>4.4★</strong> <span class="muted">(5)</span></td><td>5</td><td>0</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 650 standard</td></tr>
+            <tr><td><strong>GreenTouch Gardens</strong><div class="muted">Sole prop · T. Ndlovu</div></td><td>Garden · Lawn</td><td>Stellenbosch</td><td><strong>4.9★</strong> <span class="muted">(18)</span></td><td>18</td><td>0</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td class="money">R 380/visit</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="padding:0 32px 40px">
+        <div class="pcard">
+          <h3><i class="ph ph-info"></i>Routing rules</h3>
+          <div style="font-size:13px;margin-top:10px">
+            <p><strong>Default pick:</strong> highest rating within category + area, after filtering out any supplier with open dispute or FICA gap.</p>
+            <p><strong>Competitive quotes:</strong> agent can request 3 quotes if job estimate &gt; R 15 000 (system auto-invites top 3 in category).</p>
+            <p><strong>Auto-demote:</strong> 6-month rolling rating &lt; 3.5 → supplier dropped from routing pool, flagged for review.</p>
+            <p><strong>Owner preferred:</strong> owner can nominate a specific supplier in their mandate — that supplier always routed first regardless of rating.</p>
+            <p><strong>FICA gap:</strong> supplier can still quote but payment blocked until FICA complete.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- INSPECTIONS -->
+    <section class="route" id="route-inspections">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Inspections</span></div>
+        <div class="page-header-row">
+          <div><h1>Inspections</h1><p class="sub">Ingoing · outgoing · mid-tenancy — mobile app, co-signed, side-by-side diff.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-calendar"></i>Calendar view</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>Schedule</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Next 7 days</div><div class="value">4</div><div class="delta">2 ingoing · 1 outgoing · 1 mid</div></div>
+        <div class="stat"><div class="label">This month</div><div class="value">11</div><div class="delta">vs 9 last month</div></div>
+        <div class="stat"><div class="label">Avg turnaround</div><div class="value">2.3d</div><div class="delta">outgoing → refund path</div></div>
+        <div class="stat"><div class="label">Completion rate</div><div class="value">98%</div><div class="delta">1 rescheduled this month</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>When</th><th>Property</th><th>Type</th><th>Party</th><th>Agent</th><th>Status</th><th>PDF</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Thu 25 Apr · 11:00</strong></td><td>25 Bird, Stellenbosch</td><td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">Outgoing</span></td><td>Smit, R.</td><td>Dan T.</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Scheduled</span></td><td class="muted">—</td></tr>
+            <tr><td><strong>Mon 1 May · 09:00</strong></td><td>22 Plein, Stellenbosch</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Ingoing</span></td><td>Jacobs, K.</td><td>Sarah N.</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Scheduled</span></td><td class="muted">—</td></tr>
+            <tr><td><strong>Wed 3 May · 14:00</strong></td><td>4 Church, Franschhoek</td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Mid</span></td><td>Abrahams</td><td>Dan T.</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Scheduled</span></td><td class="muted">—</td></tr>
+            <tr><td><strong>Wed 8 May · 10:00</strong></td><td>19 Main, Stellenbosch</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Ingoing</span></td><td>Mthembu (renewal)</td><td>Sarah N.</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Scheduled</span></td><td class="muted">—</td></tr>
+            <tr><td>15 Mar · 09:00</td><td>15 Andringa, Stellenbosch</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Ingoing</span></td><td>Vink family</td><td>Sarah N.</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Signed · clean</span></td><td><a href="#" style="color:var(--navy)">ingoing.pdf</a></td></tr>
+            <tr><td>8 Apr · 14:00</td><td>3 Dorp, Stellenbosch</td><td><span class="badge" style="background:var(--accent-soft);color:var(--accent)">Outgoing</span></td><td>Pienaar (prev)</td><td>Sarah N.</td><td><span class="badge refund"><span class="bullet" style="background:var(--danger)"></span>3 damage items</span></td><td><a href="#" style="color:var(--navy)">outgoing.pdf</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CONTACTS -->
+    <section class="route" id="route-contacts">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Contacts</span></div>
+        <div class="page-header-row">
+          <div><h1>Contacts</h1><p class="sub">Owners · tenants · suppliers · applicants — unified CRM, one person, one record.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-funnel"></i>Filter</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>Add contact</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Owners</div><div class="value">47</div><div class="delta">42 with active mandate</div></div>
+        <div class="stat"><div class="label">Tenants (active)</div><div class="value">38</div><div class="delta">+3 this quarter</div></div>
+        <div class="stat"><div class="label">Suppliers</div><div class="value">14</div><div class="delta">4.6★ avg rating</div></div>
+        <div class="stat"><div class="label">Applicants (open)</div><div class="value">11</div><div class="delta">5 screening · 6 viewings</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Name</th><th>Role</th><th>Phone</th><th>Email</th><th>POPIA</th><th>FICA</th><th>Linked</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Piet Vink</strong><div class="muted">ID 8603…·Born 1986</div></td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>Tenant</span></td><td>082 451 9928</td><td>piet@v…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td>15 Andringa (lease)</td></tr>
+            <tr><td><strong>J. van der Merwe</strong><div class="muted">ID 5511…</div></td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Owner</span></td><td>083 229 1144</td><td>jvdm@…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td>15 Andringa · 4 Church (2 mandates)</td></tr>
+            <tr><td><strong>EZ Locksmith (Pty) Ltd</strong><div class="muted">2018/127833/07</div></td><td><span class="badge" style="background:#F3E8FF;color:#7C3AED"><span class="bullet" style="background:#7C3AED"></span>Supplier</span></td><td>021 883 0119</td><td>ops@ez…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td>14 jobs · locks · 4.8★</td></tr>
+            <tr><td><strong>Kaap Damp Solutions</strong><div class="muted">2020/4456/07</div></td><td><span class="badge" style="background:#F3E8FF;color:#7C3AED"><span class="bullet" style="background:#7C3AED"></span>Supplier</span></td><td>021 776 2002</td><td>work@k…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-warning-circle" style="color:var(--warn)"></i></td><td>3 jobs · damp/roof · 4.3★</td></tr>
+            <tr><td><strong>K. Jacobs</strong><div class="muted">ID 9012…</div></td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Tenant (pending)</span></td><td>084 007 1144</td><td>kj@…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td>22 Plein (lease signing)</td></tr>
+            <tr><td><strong>Applicant · L. Thembi</strong><div class="muted">New · 3 days ago</div></td><td><span class="badge vacant"><span class="bullet" style="background:var(--muted-2)"></span>Applicant</span></td><td>076 228 4471</td><td>lt@…</td><td><i class="ph ph-check-circle" style="color:var(--ok)"></i></td><td><i class="ph ph-clock" style="color:var(--muted)"></i></td><td>8 Lourens (application)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VAULT33 / DOCUMENTS -->
+    <section class="route" id="route-documents">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Vault33</span></div>
+        <div class="page-header-row">
+          <div><h1>Vault33</h1><p class="sub">Encrypted document store · Fernet per agency · every read audit-logged · retention automated.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-download-simple"></i>DSAR bundle</button>
+            <button class="btn"><i class="ph ph-upload-simple"></i>Upload</button>
+            <button class="btn primary"><i class="ph ph-shield-check"></i>Retention report</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Total documents</div><div class="value">2 148</div><div class="delta">+34 this week</div></div>
+        <div class="stat"><div class="label">Purging this week</div><div class="value">12</div><div class="delta">bureau_18m · applicant_denied_18m</div></div>
+        <div class="stat"><div class="label">Legal holds</div><div class="value">1</div><div class="delta">Tribunal · 3 Dorp refund</div></div>
+        <div class="stat"><div class="label">DSAR requests YTD</div><div class="value">3</div><div class="delta">all fulfilled within 24h</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Document</th><th>Type</th><th>Linked to</th><th>Added</th><th>Retention</th><th>Reads</th><th>Purge due</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Lease · 15 Andringa (2026-27)</strong><div class="muted">sha: a7f2…·3.2 MB</div></td><td>signed_lease</td><td>Vink family</td><td>15 Jan 2026</td><td>rha_lease_5y</td><td>7</td><td class="muted">28 Feb 2032</td></tr>
+            <tr><td><strong>Ingoing inspection · 15 Andringa</strong><div class="muted">42 photos · signed</div></td><td>inspection</td><td>Vink family</td><td>15 Jan 2026</td><td>inspection_3y</td><td>2</td><td class="muted">28 Feb 2030</td></tr>
+            <tr><td><strong>ID copy · P. Vink</strong><div class="muted">PDF · FICA verified</div></td><td>identity</td><td>Piet Vink</td><td>13 Jan 2026</td><td>fica_5y</td><td>3</td><td class="muted">13 Jan 2031</td></tr>
+            <tr><td><strong>Credit report · L. Thembi</strong><div class="muted">TransUnion · score 712</div></td><td>credit_report</td><td>Applicant · Thembi</td><td>12 Apr 2026</td><td>bureau_18m</td><td>1</td><td><strong style="color:var(--warn)">12 Oct 2027</strong></td></tr>
+            <tr><td><strong>Outgoing inspection · 3 Dorp</strong><div class="muted">🔒 Tribunal hold</div></td><td>inspection</td><td>Pienaar refund</td><td>8 Apr 2026</td><td>legal_hold</td><td>5</td><td><span class="badge refund">Held · Tribunal</span></td></tr>
+            <tr><td><strong>Mandate · J. van der Merwe</strong><div class="muted">Signed 4 Jan 2019 · renewed annually</div></td><td>mandate</td><td>van der Merwe</td><td>4 Jan 2019</td><td>mandate_5y</td><td>12</td><td class="muted">Rolling + 5y</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- MESSAGING -->
+    <section class="route" id="route-messaging">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Messaging</span></div>
+        <div class="page-header-row">
+          <div><h1>Unified inbox</h1><p class="sub">In-app · email · SMS · WhatsApp — same thread, every channel audit-logged.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-funnel"></i>Filter</button>
+            <button class="btn"><i class="ph ph-note-pencil"></i>Templates</button>
+            <button class="btn primary"><i class="ph ph-pencil-simple"></i>New message</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:340px 1fr;gap:0;padding:20px 32px">
+        <div style="border:1px solid var(--line);border-right:none;border-radius:var(--radius-lg) 0 0 var(--radius-lg);background:#fff;overflow:hidden">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--line);background:var(--paper);font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600">Threads · 3 unread</div>
+          <div style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;background:var(--navy-soft)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><strong style="font-size:13px">Piet Vink</strong><span style="margin-left:auto;font-size:11px;color:var(--muted)">2m</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">15 Andringa · WhatsApp</div>
+            <div style="font-size:13px;color:var(--ink)">Hi, geyser fixed, all good now. Tx for the quick turnaround 🙏</div>
+          </div>
+          <div style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><strong style="font-size:13px">J. van der Merwe</strong><span style="margin-left:auto;font-size:11px;color:var(--muted)">1h</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">15 Andringa · Email</div>
+            <div style="font-size:13px;color:var(--ink)">Approved the quote. Please proceed — invoice to me as usual.</div>
+          </div>
+          <div style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span><strong style="font-size:13px">EZ Locksmith</strong><span style="margin-left:auto;font-size:11px;color:var(--muted)">2h</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Ticket #228 · SMS</div>
+            <div style="font-size:13px;color:var(--ink)">ETA 11:00 today. Bringing spare cylinder + keys.</div>
+          </div>
+          <div style="padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;opacity:.6">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px"><strong style="font-size:13px">K. Jacobs</strong><span style="margin-left:auto;font-size:11px;color:var(--muted)">1d</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:4px">22 Plein · In-app</div>
+            <div style="font-size:13px;color:var(--muted)">Questions about sign-up fees…</div>
+          </div>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:0 var(--radius-lg) var(--radius-lg) 0;background:#fff;min-height:560px;padding:20px">
+          <div style="display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:14px">
+            <div class="avatar" style="width:36px;height:36px;font-size:13px">PV</div>
+            <div>
+              <strong style="font-size:15px">Piet Vink</strong>
+              <div style="font-size:12px;color:var(--muted)">Tenant · 15 Andringa · 3 channels active</div>
+            </div>
+            <button class="btn ghost" style="margin-left:auto"><i class="ph ph-arrow-square-out"></i>God view</button>
+          </div>
+
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:center">Mon 14 Apr · 09:12 · WhatsApp inbound</div>
+          <div style="display:inline-block;max-width:70%;background:#DCF8C6;padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:13px;margin-bottom:14px">Hi Sarah, geyser fixed, all good now. Tx for the quick turnaround 🙏</div>
+
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:right">Mon 14 Apr · 09:15 · In-app outbound</div>
+          <div style="display:block;text-align:right;margin-bottom:14px"><div style="display:inline-block;max-width:70%;background:var(--navy);color:#fff;padding:10px 14px;border-radius:14px 14px 4px 14px;font-size:13px;text-align:left">Great! Please rate the supplier when you get a chance.</div></div>
+
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;text-align:center">Mon 14 Apr · 09:16 · WhatsApp inbound</div>
+          <div style="display:inline-block;max-width:70%;background:#DCF8C6;padding:10px 14px;border-radius:14px 14px 14px 4px;font-size:13px;margin-bottom:14px">Will do, 5 stars already 👍</div>
+
+          <div style="background:var(--warn-soft);border-left:3px solid var(--warn);padding:10px 14px;border-radius:6px;font-size:12px;color:var(--ink);margin:14px 0"><i class="ph ph-note-pencil" style="color:var(--warn)"></i> <strong>Internal note · Sarah N · 09:20</strong><br>Tenant very happy with response — worth flagging for renewal discussion.</div>
+
+          <div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:20px">
+            <textarea placeholder="Reply in this thread..." style="width:100%;border:none;outline:none;resize:none;font-family:inherit;font-size:13px;min-height:50px"></textarea>
+            <div style="display:flex;align-items:center;gap:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12px">
+              <span style="color:var(--muted)">Channel:</span>
+              <label><input type="radio" name="ch" checked> In-app</label>
+              <label><input type="radio" name="ch"> WhatsApp</label>
+              <label><input type="radio" name="ch"> SMS</label>
+              <label><input type="radio" name="ch"> Email</label>
+              <button class="btn primary" style="margin-left:auto"><i class="ph ph-paper-plane-tilt"></i>Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REAL ESTATE -->
+    <section class="route" id="route-sales">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Real Estate</span></div>
+        <div class="page-header-row">
+          <div><h1>Real Estate</h1><p class="sub">Sales mandates · buyer CRM · offer-to-transfer. Separate product line, same Vault33.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-toggle-right"></i>Switch to Rentals</button>
+            <button class="btn primary"><i class="ph ph-plus"></i>New mandate</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Sales mandates</div><div class="value">8</div><div class="delta">2 new this month</div></div>
+        <div class="stat"><div class="label">Under offer</div><div class="value">3</div><div class="delta">R 14.2m aggregate</div></div>
+        <div class="stat"><div class="label">In transfer</div><div class="value">2</div><div class="delta">avg 87d to register</div></div>
+        <div class="stat"><div class="label">Commission pipeline</div><div class="value">R 512k</div><div class="delta">next 90 days</div></div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>Property</th><th>Owner</th><th>List price</th><th>Offers</th><th>Stage</th><th>Conveyancer</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Erf 1042, Paarl</strong><div class="muted">4 bed · 340m²</div></td><td>Basson Trust</td><td class="money">R 6 850 000</td><td>1 accepted</td><td><span class="badge signing"><span class="bullet" style="background:var(--warn)"></span>Offer signed · suspensive</span></td><td>Faber Inc.</td></tr>
+            <tr><td><strong>12 Berg, Stellenbosch</strong><div class="muted">3 bed · 210m²</div></td><td>Nkosi family</td><td class="money">R 4 200 000</td><td>2 live</td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Negotiating</span></td><td class="muted">—</td></tr>
+            <tr><td><strong>Unit 3, Winelands Estate</strong><div class="muted">Sectional title · 98m²</div></td><td>Smit, R.</td><td class="money">R 2 150 000</td><td class="muted">0</td><td><span class="badge marketing"><span class="bullet" style="background:var(--info)"></span>Marketing · 14d</span></td><td class="muted">—</td></tr>
+            <tr><td><strong>Erf 702, Franschhoek</strong><div class="muted">Vacant land · 812m²</div></td><td>Le Roux</td><td class="money">R 1 800 000</td><td>1 signed</td><td><span class="badge active"><span class="bullet" style="background:var(--ok)"></span>In transfer · day 62</span></td><td>Cilliers Attorneys</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- BI -->
+    <section class="route" id="route-bi">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Business Intelligence</span></div>
+        <div class="page-header-row">
+          <div><h1>Business intelligence</h1><p class="sub">Commission trends · vacancy · arrears · cohort retention. Metabase-embedded + Klikk native views.</p></div>
+          <div class="page-actions">
+            <button class="btn"><i class="ph ph-calendar"></i>Last 90d</button>
+            <button class="btn"><i class="ph ph-download-simple"></i>Export</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat"><div class="label">Commission MTD</div><div class="value">R 142 800</div><div class="delta">+8.3% vs last month</div></div>
+        <div class="stat"><div class="label">Portfolio GMV</div><div class="value">R 612k</div><div class="delta">rent collected monthly</div></div>
+        <div class="stat"><div class="label">Occupancy</div><div class="value">89.4%</div><div class="delta">42 of 47 properties</div></div>
+        <div class="stat"><div class="label">Avg days vacant</div><div class="value">18</div><div class="delta down">vs Stellenbosch median 14d</div></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;padding:0 32px 20px">
+        <div class="pcard">
+          <h3><i class="ph ph-chart-line-up"></i>Commission — 12 months</h3>
+          <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;height:180px;align-items:end;margin:14px 0 6px">
+            <div style="background:var(--navy-soft);height:40%;border-radius:4px 4px 0 0" title="May R 98k"></div>
+            <div style="background:var(--navy-soft);height:52%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:58%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:61%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:67%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:72%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:74%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:78%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:81%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:84%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy-soft);height:88%;border-radius:4px 4px 0 0"></div>
+            <div style="background:var(--navy);height:95%;border-radius:4px 4px 0 0" title="Apr R 142.8k"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(12,1fr);gap:4px;font-size:10px;color:var(--muted);font-family:'JetBrains Mono',monospace;text-align:center"><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><strong style="color:var(--navy)">Apr</strong></div>
+        </div>
+        <div class="pcard">
+          <h3><i class="ph ph-map-pin"></i>Vacancy by suburb</h3>
+          <div style="font-size:13px">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>Stellenbosch</span><strong>2 / 28 · 7.1%</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>Paarl</span><strong>1 / 9 · 11.1%</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>Franschhoek</span><strong>1 / 5 · 20.0%</strong></div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0"><span>Somerset West</span><strong>1 / 5 · 20.0%</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:0 32px 40px">
+        <div class="pcard">
+          <h3><i class="ph ph-warning-circle"></i>Arrears aging</h3>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px">
+            <div style="background:var(--paper);padding:14px;border-radius:10px;text-align:center"><div style="font-family:'Fraunces',serif;font-size:22px;color:var(--ok);font-weight:600">35</div><div style="font-size:11px;color:var(--muted)">Paid on time</div></div>
+            <div style="background:var(--paper);padding:14px;border-radius:10px;text-align:center"><div style="font-family:'Fraunces',serif;font-size:22px;color:var(--warn);font-weight:600">2</div><div style="font-size:11px;color:var(--muted)">1–7 days late</div></div>
+            <div style="background:var(--paper);padding:14px;border-radius:10px;text-align:center"><div style="font-family:'Fraunces',serif;font-size:22px;color:var(--warn);font-weight:600">1</div><div style="font-size:11px;color:var(--muted)">8–14 days</div></div>
+            <div style="background:var(--paper);padding:14px;border-radius:10px;text-align:center"><div style="font-family:'Fraunces',serif;font-size:22px;color:var(--danger);font-weight:600">0</div><div style="font-size:11px;color:var(--muted)">15–30 days</div></div>
+            <div style="background:var(--paper);padding:14px;border-radius:10px;text-align:center"><div style="font-family:'Fraunces',serif;font-size:22px;color:var(--danger);font-weight:600">0</div><div style="font-size:11px;color:var(--muted)">30+ days (notice)</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="route" id="route-settings">
+      <div class="page-header">
+        <div class="breadcrumb"><span>Settings</span></div>
+        <div class="page-header-row">
+          <div><h1>Settings</h1><p class="sub">Agency profile · team · fee defaults · integrations · compliance.</p></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:240px 1fr;gap:0;padding:20px 32px;min-height:500px">
+        <div style="border:1px solid var(--line);border-right:none;border-radius:var(--radius-lg) 0 0 var(--radius-lg);background:#fff;padding:10px 0">
+          <div style="padding:8px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600">Agency</div>
+          <button class="nav-item active" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-buildings"></i>Profile</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-users"></i>Team</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-percent"></i>Fees & commission</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-bank"></i>Trust account</button>
+          <div style="padding:8px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-top:10px">Compliance</div>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-certificate"></i>FFC & PPRA</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-shield-check"></i>POPIA / PAIA</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-file-lock"></i>Retention rules</button>
+          <div style="padding:8px 16px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-top:10px">Platform</div>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-plug"></i>Integrations</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-palette"></i>Branding</button>
+          <button class="nav-item" style="border-radius:0;margin:0;padding:10px 16px"><i class="ph ph-code"></i>API & webhooks</button>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:0 var(--radius-lg) var(--radius-lg) 0;background:#fff;padding:24px 28px">
+          <h2 style="margin-bottom:4px">Winelands Property Co.</h2>
+          <p class="sub" style="margin-bottom:20px;color:var(--muted)">Active since 2024 · 7-step onboarding complete · FFC valid to 31 Oct 2026</p>
+
+          <div class="pcard" style="margin-bottom:14px">
+            <h3><i class="ph ph-info"></i>Agency profile</h3>
+            <dl class="kv">
+              <dt>Trading name</dt><dd>Winelands Property Co.</dd>
+              <dt>Legal entity</dt><dd>Winelands Realty (Pty) Ltd · 2019/114883/07</dd>
+              <dt>VAT number</dt><dd>4150278822</dd>
+              <dt>Principal agent</dt><dd>MC Dippenaar · FFC WCPR-22491</dd>
+              <dt>PPRA registration</dt><dd>PPRA-2024-117288</dd>
+              <dt>Registered office</dt><dd>Unit 3, De Zicht, Stellenbosch 7600</dd>
+            </dl>
+          </div>
+
+          <div class="pcard" style="margin-bottom:14px">
+            <h3><i class="ph ph-shield-check"></i>Compliance status</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
+              <div><i class="ph ph-check-circle" style="color:var(--ok)"></i> <strong>FFC</strong> · valid to 31 Oct 2026</div>
+              <div><i class="ph ph-check-circle" style="color:var(--ok)"></i> <strong>PAIA Manual</strong> · lodged 14 Feb 2025</div>
+              <div><i class="ph ph-check-circle" style="color:var(--ok)"></i> <strong>Information Officer</strong> · registered</div>
+              <div><i class="ph ph-check-circle" style="color:var(--ok)"></i> <strong>FICA Risk Programme</strong> · signed</div>
+              <div><i class="ph ph-check-circle" style="color:var(--ok)"></i> <strong>Trust account</strong> · ABSA-4412</div>
+              <div><i class="ph ph-warning-circle" style="color:var(--warn)"></i> <strong>Annual audit</strong> · due 31 May</div>
+            </div>
+          </div>
+
+          <div class="pcard">
+            <h3><i class="ph ph-plug"></i>Integrations</h3>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;font-size:13px">
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px"><div style="width:28px;height:28px;border-radius:6px;background:var(--info-soft);color:var(--info);display:flex;align-items:center;justify-content:center;font-weight:600">T</div><div><div style="font-weight:500">TransUnion</div><div class="muted" style="font-size:11px">Credit checks · 42 YTD</div></div><i class="ph ph-check-circle" style="margin-left:auto;color:var(--ok)"></i></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px"><div style="width:28px;height:28px;border-radius:6px;background:var(--ok-soft);color:var(--ok);display:flex;align-items:center;justify-content:center;font-weight:600">W</div><div><div style="font-weight:500">WhatsApp Business</div><div class="muted" style="font-size:11px">Twilio · 318 msgs/mo</div></div><i class="ph ph-check-circle" style="margin-left:auto;color:var(--ok)"></i></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px"><div style="width:28px;height:28px;border-radius:6px;background:var(--navy-soft);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:600">A</div><div><div style="font-weight:500">ABSA Trust</div><div class="muted" style="font-size:11px">Bank feed · reconciled daily</div></div><i class="ph ph-check-circle" style="margin-left:auto;color:var(--ok)"></i></div>
+              <div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:8px"><div style="width:28px;height:28px;border-radius:6px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600">P</div><div><div style="font-weight:500">Property24</div><div class="muted" style="font-size:11px">Listing sync · 6 active</div></div><i class="ph ph-check-circle" style="margin-left:auto;color:var(--ok)"></i></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script>
+// ============ EVENT DATA MODEL ============
+const EVENT_TYPES = [
+  { key:'rent-overdue',   label:'Rent overdue',   group:'urgent',     ico:'warning-circle',      icoCls:'ev-ico-urgent',  action:'Collect' },
+  { key:'maintenance',    label:'Maintenance',    group:'urgent',     ico:'wrench',              icoCls:'ev-ico-maint',   action:'Dispatch' },
+  { key:'owner-approval', label:'Owner approval', group:'urgent',     ico:'user-check',          icoCls:'ev-ico-gate',    action:'Chase owner' },
+  { key:'deposit-refund', label:'Deposit refund', group:'urgent',     ico:'arrow-u-up-left',     icoCls:'ev-ico-refund',  action:'Refund' },
+  { key:'move-out',       label:'Move-out',       group:'turnaround', ico:'sign-out',            icoCls:'ev-ico-moveout', action:'Inspect' },
+  { key:'move-in',        label:'Move-in',        group:'turnaround', ico:'sign-in',             icoCls:'ev-ico-movein',  action:'Inspect' },
+  { key:'sign-contract',  label:'Sign contract',  group:'turnaround', ico:'signature',           icoCls:'ev-ico-sign',    action:'Send to sign' },
+  { key:'notice',         label:'Notice',         group:'pipeline',   ico:'bell-ringing',        icoCls:'ev-ico-notice',  action:'Acknowledge' },
+  { key:'viewings',       label:'Viewings',       group:'pipeline',   ico:'eye',                 icoCls:'ev-ico-view',    action:'Host' },
+  { key:'screen',         label:'Screen',         group:'pipeline',   ico:'check-square',        icoCls:'ev-ico-screen',  action:'Review' },
+  { key:'renewal-due',    label:'Renewal due',    group:'pipeline',   ico:'arrows-clockwise',    icoCls:'ev-ico-renew',   action:'Draft offer' },
+  { key:'no-contract',    label:'No contract',    group:'vacancy',    ico:'house-slash',         icoCls:'ev-ico-vacancy', action:'List' },
+];
+const GROUPS = [
+  { key:'urgent',     label:'Urgent' },
+  { key:'turnaround', label:'Turnaround' },
+  { key:'pipeline',   label:'Pipeline' },
+  { key:'vacancy',    label:'Vacancy' },
+];
+
+// Hard-coded fixture — 30-odd realistic events from our state machine
+const EVENTS = [
+  // Urgent — rent overdue
+  { type:'rent-overdue',   days:-7, addr:'4 Church, Franschhoek',      ctx:'R 18 750 unpaid · Abrahams family' },
+  { type:'rent-overdue',   days:-3, addr:'22 Plein, Stellenbosch',     ctx:'R 13 500 unpaid · Jacobs, K.' },
+  { type:'rent-overdue',   days:-1, addr:'Unit 5, Kloofzicht',         ctx:'R 9 500 unpaid · Mthembu, L.' },
+  // Urgent — maintenance
+  { type:'maintenance',    days:-2, addr:'8 Lourens, Somerset West',   ctx:'Kaap Damp · day 4 on site · SLA breach' },
+  { type:'maintenance',    days:0,  addr:'4 Church, Franschhoek',      ctx:'Gate motor quote overdue from supplier' },
+  { type:'maintenance',    days:1,  addr:'15 Andringa, Stellenbosch',  ctx:'EZ Locksmith · ETA 11:00' },
+  { type:'maintenance',    days:2,  addr:'12 Dorp, Stellenbosch',      ctx:'Leaking tap · no quote yet' },
+  // Urgent — owner approval
+  { type:'owner-approval', days:-1, addr:'22 Plein, Stellenbosch',     ctx:'Gate 3 · Geyser R 8 200 · owner unresponsive 25h' },
+  { type:'owner-approval', days:0,  addr:'33 Ryneveld, Stellenbosch',  ctx:'Gate 1 · listing approval · draft ready' },
+  // Urgent — deposit refund
+  { type:'deposit-refund', days:-4, addr:'3 Dorp, Stellenbosch',       ctx:'R 24 000 held · Pienaar · RHA 14d left' },
+  // Turnaround — move-out
+  { type:'move-out',       days:2,  addr:'25 Bird, Stellenbosch',      ctx:'Outgoing · Smit vacating 25 Apr' },
+  // Turnaround — move-in
+  { type:'move-in',        days:5,  addr:'22 Plein, Stellenbosch',     ctx:'Ingoing inspection · Jacobs 1 May' },
+  { type:'move-in',        days:12, addr:'19 Main, Stellenbosch',      ctx:'Ingoing · Mthembu renewal 8 May' },
+  // Turnaround — sign
+  { type:'sign-contract',  days:-1, addr:'22 Plein, Stellenbosch',     ctx:'Tenant signed · owner countersign · SLA 18h' },
+  { type:'sign-contract',  days:3,  addr:'8 Lourens, Somerset West',   ctx:'Lease ready · send to tenant' },
+  // Pipeline — notice
+  { type:'notice',         days:-5, addr:'25 Bird, Stellenbosch',      ctx:'2-month notice from Smit · acknowledge' },
+  // Pipeline — viewings
+  { type:'viewings',       days:1,  addr:'33 Ryneveld, Stellenbosch',  ctx:'Open house · 3 booked · Sarah host' },
+  { type:'viewings',       days:3,  addr:'Unit 5, Kloofzicht',         ctx:'Individual slot · 1 booked' },
+  { type:'viewings',       days:4,  addr:'7A Paul Kruger, Paarl',      ctx:'Open house · 2 booked' },
+  { type:'viewings',       days:8,  addr:'12 Dorp, Stellenbosch',      ctx:'Individual slots · 4 booked' },
+  { type:'viewings',       days:10, addr:'33 Ryneveld, Stellenbosch',  ctx:'Second open house' },
+  // Pipeline — screen
+  { type:'screen',         days:0,  addr:'8 Lourens, Somerset West',   ctx:'2 applications · run credit check' },
+  { type:'screen',         days:1,  addr:'33 Ryneveld, Stellenbosch',  ctx:'3 applications · shortlist review' },
+  { type:'screen',         days:4,  addr:'Unit 5, Kloofzicht',         ctx:'1 application · waiting on payslips' },
+  // Pipeline — renewal
+  { type:'renewal-due',    days:14, addr:'19 Main, Stellenbosch',      ctx:'Lease ends 30 Jun · Mthembu · draft offer' },
+  { type:'renewal-due',    days:45, addr:'4 Church, Franschhoek',      ctx:'Lease ends 31 Aug · Abrahams' },
+  // Vacancy
+  { type:'no-contract',    days:-12, addr:'12 Dorp, Stellenbosch',     ctx:'Vacant 12 days · R 12 500/mo potential' },
+  { type:'no-contract',    days:-3,  addr:'7A Paul Kruger, Paarl',     ctx:'Vacant 3 days · list for marketing' },
+  { type:'no-contract',    days:-21, addr:'Erf 702, Franschhoek',      ctx:'DRAFT · mandate not signed' },
+  { type:'no-contract',    days:-5,  addr:'Unit 11, Winelands Est.',   ctx:'ON_HOLD · owner paused 5 days' },
+];
+
+// ============ HELPERS ============
+function phIcon(name){return `<i class="ph ph-${name}"></i>`;}
+function whenFmt(days){
+  if(days<0) return {text:`Overdue ${-days}d`, cls:'overdue'};
+  if(days===0) return {text:'Today', cls:'today'};
+  if(days===1) return {text:'Tomorrow', cls:'today'};
+  if(days<=7) return {text:`in ${days}d`, cls:'soon'};
+  return {text:`in ${days}d`, cls:'future'};
+}
+function groupDayLabel(days){
+  if(days<0) return 'Overdue';
+  if(days===0) return 'Today';
+  if(days===1) return 'Tomorrow';
+  const d = new Date(); d.setDate(d.getDate()+days);
+  return d.toLocaleDateString('en-ZA',{weekday:'short', day:'numeric', month:'short'});
+}
+
+// ============ EVENTS RENDER ============
+let selectedKey = 'rent-overdue';
+
+function renderKPIs(){
+  const all=EVENTS.length;
+  const overdue=EVENTS.filter(e=>e.days<0).length;
+  const today=EVENTS.filter(e=>e.days>=0&&e.days<=1).length;
+  const week=EVENTS.filter(e=>e.days>=0&&e.days<=7).length;
+  document.getElementById('k-total').textContent=all;
+  document.getElementById('k-overdue').textContent=overdue;
+  document.getElementById('k-today').textContent=today;
+  document.getElementById('k-week').textContent=week;
+}
+
+function renderEventMenu(){
+  const menu=document.getElementById('ev-menu');
+  const counts={};
+  EVENT_TYPES.forEach(t=>{counts[t.key]=EVENTS.filter(e=>e.type===t.key).length;});
+  menu.innerHTML=GROUPS.map(g=>{
+    const items=EVENT_TYPES.filter(t=>t.group===g.key);
+    return `<h4>${g.label}</h4>`+items.map(t=>`
+      <button class="ev-item ${t.key===selectedKey?'active':''}" data-key="${t.key}">
+        <span class="ev-ico-sq ${t.icoCls}">${phIcon(t.ico)}</span>
+        <span>${t.label}</span>
+        <span class="ev-count">${counts[t.key]||0}</span>
+      </button>
+    `).join('');
+  }).join('');
+  menu.querySelectorAll('.ev-item').forEach(el=>{
+    el.addEventListener('click',()=>{selectedKey=el.dataset.key;renderEventMenu();renderEventList();});
+  });
+}
+
+function renderEventList(){
+  const list=document.getElementById('ev-list');
+  const t=EVENT_TYPES.find(x=>x.key===selectedKey);
+  const rows=EVENTS.filter(e=>e.type===selectedKey).sort((a,b)=>a.days-b.days);
+  document.getElementById('ev-sub').textContent=`${rows.length} · ${t.label}`;
+  if(!rows.length){list.innerHTML=`<div style="padding:40px;text-align:center;color:var(--muted)"><i class="ph ph-check-circle" style="font-size:32px"></i><p>All clear. Nothing pending in "${t.label}".</p></div>`;return;}
+  list.innerHTML=rows.map(r=>{
+    const w=whenFmt(r.days);
+    return `<div class="ev-row" data-goto="property">
+      <span class="ev-when ${w.cls}"><span class="bullet"></span>${w.text}</span>
+      <div>
+        <div class="ev-ctx-addr">${r.addr}</div>
+        <div class="ev-ctx-sub">${r.ctx}</div>
+      </div>
+      <button class="ev-act">${t.action} →</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-goto="property"]').forEach(el=>{
+    el.addEventListener('click',e=>{if(!e.target.closest('.ev-act')) location.hash='#/property';});
+  });
+  list.querySelectorAll('.ev-act').forEach(el=>{
+    el.addEventListener('click',e=>{e.stopPropagation();location.hash='#/property';});
+  });
+}
+
+function renderUpcoming(){
+  const list=document.getElementById('up-list');
+  // Group events by day bucket (next 14 days + overdue)
+  const bucket={};
+  EVENTS.forEach(e=>{
+    if(e.days>14) return;
+    const key=Math.max(e.days,-1); // collapse overdue
+    if(!bucket[key]) bucket[key]=[];
+    bucket[key].push(e);
+  });
+  const keys=Object.keys(bucket).map(Number).sort((a,b)=>a-b);
+  list.innerHTML=keys.map(k=>{
+    const items=bucket[k];
+    const label=k===-1?'Overdue':groupDayLabel(k);
+    const dots=items.slice(0,6).map(i=>{const t=EVENT_TYPES.find(x=>x.key===i.type);return `<span class="ev-dot" style="background:${getComputedStyle(document.documentElement).getPropertyValue(cssVarFor(t.icoCls))||'#999'}" title="${t.label}"></span>`;}).join('');
+    return `<div class="up-day"><div class="up-day-label"><span>${label}</span><span class="count">${items.length}</span></div><div class="up-day-items">${dots} ${items.slice(0,3).map(i=>i.addr.split(',')[0]).join(' · ')}${items.length>3?` +${items.length-3}`:''}</div></div>`;
+  }).join('');
+}
+
+// Map .ev-ico-* class to a real colour (cheap lookup)
+function cssVarFor(cls){
+  const map={
+    'ev-ico-urgent':'--danger','ev-ico-maint':'--warn','ev-ico-gate':'--navy',
+    'ev-ico-refund':'--accent','ev-ico-moveout':'--warn','ev-ico-movein':'--ok',
+    'ev-ico-sign':'--info','ev-ico-notice':'--muted','ev-ico-view':'--ok',
+    'ev-ico-screen':'--navy','ev-ico-renew':'--warn','ev-ico-vacancy':'--muted'
+  };
+  return map[cls]||'--muted';
+}
+
+// ============ LIST VIEW (mini) ============
+function renderList(){
+  const body=document.getElementById('list-body');
+  if(!body) return;
+  const stateMap={
+    'rent-overdue':['Active','var(--ok)'],'maintenance':['Active','var(--ok)'],
+    'sign-contract':['Signing','var(--warn)'],'screen':['Applied','#8B5CF6'],
+    'viewings':['Marketing','var(--info)'],'move-in':['Active','var(--ok)'],
+    'move-out':['Move-out','var(--accent)'],'deposit-refund':['Refund','var(--danger)'],
+    'no-contract':['Vacant','var(--muted-2)'],'renewal-due':['Renewal','#D97706'],
+    'notice':['Active','var(--ok)'],'owner-approval':['Signing','var(--warn)']
+  };
+  body.innerHTML=EVENTS.slice(0,20).map(e=>{
+    const [s,c]=stateMap[e.type]||['—','var(--muted)'];
+    const t=EVENT_TYPES.find(x=>x.key===e.type);
+    const w=whenFmt(e.days);
+    return `<tr data-goto="property">
+      <td><strong>${e.addr}</strong></td>
+      <td><span class="badge"><span class="bullet" style="background:${c}"></span>${s}</span></td>
+      <td>${e.ctx.split('·')[1]?.trim()||'—'}</td>
+      <td class="money">—</td>
+      <td><span style="color:${w.cls==='overdue'?'var(--danger)':w.cls==='today'?'var(--warn)':'var(--ink)'}">${t.action} · ${w.text}</span></td>
+      <td>Sarah N.</td>
+    </tr>`;
+  }).join('');
+  body.querySelectorAll('[data-goto="property"]').forEach(el=>{
+    el.addEventListener('click',()=>{location.hash='#/property';});
+  });
+}
+
+// ============ VIEW TOGGLE ============
+document.getElementById('view-toggle')?.addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-view]');
+  if(!btn) return;
+  document.querySelectorAll('#view-toggle button').forEach(b=>b.classList.toggle('active',b===btn));
+  document.querySelectorAll('.view-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.view).classList.add('active');
+});
+
+// ============ PROPERTY GOD VIEW TABS ============
+document.getElementById('pg-tabs')?.addEventListener('click',e=>{
+  const tab=e.target.closest('.tab[data-pane]');
+  if(!tab) return;
+  document.querySelectorAll('#pg-tabs .tab').forEach(t=>t.classList.toggle('active',t===tab));
+  document.querySelectorAll('.pg-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('pg-'+tab.dataset.pane)?.classList.add('active');
+});
+
+// ============ MAINTENANCE TICKET TABS ============
+document.getElementById('mt-tabs')?.addEventListener('click',e=>{
+  const tab=e.target.closest('.tab[data-mtpane]');
+  if(!tab) return;
+  document.querySelectorAll('#mt-tabs .tab').forEach(t=>t.classList.toggle('active',t===tab));
+  document.querySelectorAll('.mt-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('mt-'+tab.dataset.mtpane)?.classList.add('active');
+});
+
+// ============ MAINTENANCE KANBAN/TABLE/CALENDAR TOGGLE ============
+document.getElementById('m-view-toggle')?.addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-mview]');
+  if(!btn) return;
+  document.querySelectorAll('#m-view-toggle button').forEach(b=>b.classList.toggle('active',b===btn));
+  ['kanban','table','calendar'].forEach(v=>{
+    document.getElementById('m-view-'+v)?.classList.toggle('active',v===btn.dataset.mview);
+  });
+});
+
+// Cards with data-goto="maintenance-ticket"
+document.querySelectorAll('[data-goto="maintenance-ticket"]').forEach(el=>{
+  el.addEventListener('click',()=>{location.hash='#/maintenance-ticket';});
+});
+
+// ============ ROUTER ============
+const routes = ['dashboard','properties','property','leases','deposits','maintenance','maintenance-ticket','suppliers','inspections','contacts','documents','messaging','sales','bi','settings'];
+function show(route){
+  if(!routes.includes(route)) route='dashboard';
+  document.querySelectorAll('.route').forEach(el=>el.classList.remove('active'));
+  document.getElementById('route-'+route)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.route===route));
+  document.getElementById('main').scrollTop=0;
+}
+function parse(){
+  const h=location.hash.replace(/^#\//,'')||'dashboard';
+  show(h.split('/')[0]);
+}
+document.querySelectorAll('[data-route]').forEach(el=>{
+  el.addEventListener('click',e=>{e.preventDefault();location.hash='#/'+el.dataset.route;});
+});
+document.querySelectorAll('[data-goto="property"]').forEach(el=>{
+  el.addEventListener('click',()=>{location.hash='#/property';});
+});
+window.addEventListener('hashchange',parse);
+
+// ============ INIT ============
+renderKPIs();
+renderEventMenu();
+renderEventList();
+renderUpcoming();
+renderList();
+parse();
+</script>
+</body>
+</html>

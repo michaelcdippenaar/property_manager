@@ -1,0 +1,64 @@
+# Plausible CE — self-hosted analytics for analytics.klikk.co.za
+#
+# Prerequisites:
+#   1. Main stack is up:  docker compose -f deploy/docker-compose.prod.yml up -d
+#   2. Copy env file:     cp deploy/env.plausible.example deploy/env.plausible
+#   3. Fill in secrets (see env.plausible.example for generation commands)
+#
+# Start Plausible:
+#   docker compose -f deploy/docker-compose.plausible.yml up -d
+#
+# After first boot, log in at https://analytics.klikk.co.za and create sites:
+#   - klikk.co.za           (marketing)
+#   - app.klikk.co.za       (admin / agent portal)
+#
+# NOTE: Uses the existing `db` and `edge` networks from docker-compose.prod.yml.
+# External network names assume project name = "deploy" (compose file in deploy/).
+
+services:
+  # ── Plausible events DB (ClickHouse) ──────────────────────────────────────
+  plausible_events_db:
+    image: clickhouse/clickhouse-server:24-alpine
+    restart: unless-stopped
+    volumes:
+      - plausible_clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+      - ./clickhouse/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/logging.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks: [plausible_internal]
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 1G
+
+  # ── Plausible CE app ──────────────────────────────────────────────────────
+  plausible:
+    image: ghcr.io/plausible/community-edition:v2
+    restart: unless-stopped
+    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
+    env_file: [./env.plausible]
+    depends_on:
+      plausible_events_db:
+        condition: service_started
+    networks: [plausible_internal, internal, edge]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
+networks:
+  plausible_internal: {}
+  internal:
+    external: true
+    name: deploy_internal  # existing db container lives here
+  edge:
+    external: true
+    name: deploy_edge      # Caddy lives here
+
+volumes:
+  plausible_clickhouse_data: {}

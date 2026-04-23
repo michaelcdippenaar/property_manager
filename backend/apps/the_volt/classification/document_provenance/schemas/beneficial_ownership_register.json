@@ -1,0 +1,576 @@
+{
+  "$schema_version": "volt.bo_register@v1",
+  "$schema": {
+    "entity": {
+      "entity_type": {
+        "type": "string",
+        "enum": ["COMPANY", "TRUST", "CLOSE_CORPORATION", "NPC", "SOC", "CO_OPERATIVE"],
+        "required": true,
+        "description": "Legal entity type per CIPC classification"
+      },
+      "registration_number": {
+        "type": "string",
+        "required": true,
+        "description": "CIPC registration number (format: YYYY/NNNNNN/ZZ)"
+      },
+      "registered_name": {
+        "type": "string",
+        "required": true,
+        "description": "Entity legal name as registered with CIPC"
+      },
+      "trade_name": {
+        "type": ["string", "null"],
+        "required": false,
+        "description": "Trading name if different from registered name"
+      },
+      "registered_address": {
+        "type": "object",
+        "required": true,
+        "description": "Physical address on file with CIPC",
+        "properties": {
+          "street_number": { "type": ["string", "null"] },
+          "street_name": { "type": ["string", "null"] },
+          "suburb": { "type": ["string", "null"] },
+          "city": { "type": ["string", "null"] },
+          "province": { "type": ["string", "null"] },
+          "postal_code": { "type": ["string", "null"] },
+          "country": { "type": ["string", "null"] }
+        }
+      },
+      "postal_address": {
+        "type": ["object", "null"],
+        "required": false,
+        "description": "Postal address if different from registered",
+        "properties": {
+          "street_number": { "type": ["string", "null"] },
+          "street_name": { "type": ["string", "null"] },
+          "po_box": { "type": ["string", "null"] },
+          "suburb": { "type": ["string", "null"] },
+          "city": { "type": ["string", "null"] },
+          "province": { "type": ["string", "null"] },
+          "postal_code": { "type": ["string", "null"] },
+          "country": { "type": ["string", "null"] }
+        }
+      },
+      "tax_number": {
+        "type": ["string", "null"],
+        "required": false,
+        "description": "South African tax number (9 digits)"
+      },
+      "vat_number": {
+        "type": ["string", "null"],
+        "required": false,
+        "description": "VAT registration number if applicable"
+      },
+      "paye_number": {
+        "type": ["string", "null"],
+        "required": false,
+        "description": "PAYE reference number if employer"
+      },
+      "financial_year_end": {
+        "type": ["string", "null"],
+        "format": "date",
+        "required": false,
+        "description": "Financial year end date (YYYY-MM-DD)"
+      },
+      "incorporation_date": {
+        "type": ["string", "null"],
+        "format": "date",
+        "required": false,
+        "description": "Date of incorporation/registration (YYYY-MM-DD)"
+      },
+      "as_at_date": {
+        "type": "string",
+        "format": "date",
+        "required": true,
+        "description": "Date this register was compiled (YYYY-MM-DD)"
+      },
+      "beneficial_owners": {
+        "type": "array",
+        "required": true,
+        "description": "List of natural persons with beneficial ownership interests",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id_type": {
+              "type": "string",
+              "enum": ["SA_ID", "PASSPORT", "ASYLUM", "REFUGEE_PERMIT"],
+              "required": true,
+              "description": "Type of identification document"
+            },
+            "id_number": {
+              "type": "string",
+              "required": true,
+              "description": "ID document number (SA ID: 13 digits; Passport/Asylum/Refugee: alphanumeric)"
+            },
+            "country_of_issue": {
+              "type": ["string", "null"],
+              "required": false,
+              "description": "Country of issue (required for passport; ZA for SA ID)"
+            },
+            "given_names": {
+              "type": "string",
+              "required": true,
+              "description": "Given/first names of beneficial owner"
+            },
+            "surname": {
+              "type": "string",
+              "required": true,
+              "description": "Surname/family name"
+            },
+            "former_names": {
+              "type": ["array", "null"],
+              "required": false,
+              "description": "List of former legal names",
+              "items": { "type": "string" }
+            },
+            "date_of_birth": {
+              "type": ["string", "null"],
+              "format": "date",
+              "required": false,
+              "description": "Date of birth (YYYY-MM-DD)"
+            },
+            "nationality": {
+              "type": ["string", "null"],
+              "required": false,
+              "description": "Nationality (e.g. 'South African', 'British')"
+            },
+            "country_of_residence": {
+              "type": ["string", "null"],
+              "required": false,
+              "description": "Country of residence for tax purposes"
+            },
+            "residential_address": {
+              "type": ["object", "null"],
+              "required": false,
+              "description": "Physical residential address",
+              "properties": {
+                "street_number": { "type": ["string", "null"] },
+                "street_name": { "type": ["string", "null"] },
+                "suburb": { "type": ["string", "null"] },
+                "city": { "type": ["string", "null"] },
+                "province": { "type": ["string", "null"] },
+                "postal_code": { "type": ["string", "null"] },
+                "country": { "type": ["string", "null"] }
+              }
+            },
+            "postal_address": {
+              "type": ["object", "null"],
+              "required": false,
+              "description": "Postal address if different from residential",
+              "properties": {
+                "street_number": { "type": ["string", "null"] },
+                "street_name": { "type": ["string", "null"] },
+                "po_box": { "type": ["string", "null"] },
+                "suburb": { "type": ["string", "null"] },
+                "city": { "type": ["string", "null"] },
+                "province": { "type": ["string", "null"] },
+                "postal_code": { "type": ["string", "null"] },
+                "country": { "type": ["string", "null"] }
+              }
+            },
+            "tax_number": {
+              "type": ["string", "null"],
+              "required": false,
+              "description": "SA tax number if tax resident (9 digits)"
+            },
+            "contact": {
+              "type": ["object", "null"],
+              "required": false,
+              "description": "Contact details for beneficial owner",
+              "properties": {
+                "email": { "type": ["string", "null"] },
+                "phone": { "type": ["string", "null"] }
+              }
+            },
+            "interests": {
+              "type": "array",
+              "required": true,
+              "description": "List of beneficial ownership interests",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "nature": {
+                    "type": "string",
+                    "enum": ["SHAREHOLDING", "VOTING_RIGHTS", "RIGHT_TO_APPOINT_DIRECTORS", "RIGHT_TO_DISTRIBUTIONS", "OTHER_CONTROL"],
+                    "required": true,
+                    "description": "Nature of beneficial ownership interest"
+                  },
+                  "percentage": {
+                    "type": "number",
+                    "required": true,
+                    "description": "Percentage of ownership/control (0.0–100.0)"
+                  },
+                  "voting_rights_percentage": {
+                    "type": ["number", "null"],
+                    "required": false,
+                    "description": "Percentage of voting rights if different from ownership (0.0–100.0)"
+                  },
+                  "control_type": {
+                    "type": "string",
+                    "enum": ["DIRECT", "INDIRECT"],
+                    "required": true,
+                    "description": "Whether ownership is direct or through interposed entity"
+                  },
+                  "effective_date": {
+                    "type": ["string", "null"],
+                    "format": "date",
+                    "required": false,
+                    "description": "Date interest became effective (YYYY-MM-DD)"
+                  },
+                  "via_chain": {
+                    "type": ["array", "null"],
+                    "required": false,
+                    "description": "Ownership chain for indirect interests (ordered from immediate parent to ultimate shareholder)",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "entity_name": { "type": "string", "required": true },
+                        "registration_number": { "type": ["string", "null"] },
+                        "percentage_held": { "type": "number", "required": true, "description": "Percentage held in this link" }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "is_pep": {
+              "type": "boolean",
+              "required": true,
+              "description": "Whether person is a Politically Exposed Person (FICA requirement)"
+            },
+            "is_director": {
+              "type": "boolean",
+              "required": true,
+              "description": "Whether person is a director of the entity"
+            },
+            "is_company_secretary": {
+              "type": "boolean",
+              "required": true,
+              "description": "Whether person is company secretary or equivalent officer"
+            },
+            "is_public_officer": {
+              "type": "boolean",
+              "required": true,
+              "description": "Whether person is public officer per Companies Act"
+            },
+            "evidence_documents": {
+              "type": ["array", "null"],
+              "required": false,
+              "description": "Supporting documents stored in The Volt (VCN references)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "doc_type": { "type": "string", "required": true, "description": "Document type code (e.g. SA_SMART_ID_CARD, SA_PASSPORT, PROOF_OF_ADDRESS)" },
+                  "vcn": { "type": "string", "required": true, "description": "Volt VCN identifier" }
+                }
+              }
+            }
+          }
+        }
+      },
+      "interposed_entities": {
+        "type": ["array", "null"],
+        "required": false,
+        "description": "Legal entities through which ownership is held (for indirect ownership chains)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "entity_type": {
+              "type": "string",
+              "enum": ["COMPANY", "TRUST", "CLOSE_CORPORATION", "NPC", "SOC", "CO_OPERATIVE", "FOREIGN_COMPANY"],
+              "required": true
+            },
+            "registration_number": {
+              "type": ["string", "null"],
+              "required": false,
+              "description": "CIPC registration or foreign company number"
+            },
+            "entity_name": {
+              "type": "string",
+              "required": true,
+              "description": "Legal name of interposed entity"
+            },
+            "country_of_incorporation": {
+              "type": "string",
+              "required": true,
+              "description": "Country where entity is incorporated/registered"
+            },
+            "percentage_held_in_parent": {
+              "type": "number",
+              "required": true,
+              "description": "Percentage this entity holds in the parent company (0.0–100.0)"
+            },
+            "own_beneficial_owners": {
+              "type": ["array", "null"],
+              "required": false,
+              "description": "Beneficial owners of this interposed entity (recursive structure to trace ownership to natural persons)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "given_names": { "type": "string", "required": true },
+                  "surname": { "type": "string", "required": true },
+                  "id_number": { "type": "string", "required": true },
+                  "percentage": { "type": "number", "required": true }
+                }
+              }
+            }
+          }
+        }
+      },
+      "directors": {
+        "type": ["array", "null"],
+        "required": false,
+        "description": "Directors register (cross-reference with beneficial owners register)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id_number": {
+              "type": "string",
+              "required": true,
+              "description": "ID/Passport number of director"
+            },
+            "given_names": {
+              "type": "string",
+              "required": true
+            },
+            "surname": {
+              "type": "string",
+              "required": true
+            },
+            "appointment_date": {
+              "type": ["string", "null"],
+              "format": "date",
+              "required": false,
+              "description": "Date appointed as director (YYYY-MM-DD)"
+            },
+            "is_active": {
+              "type": "boolean",
+              "required": true,
+              "description": "Whether director is currently active"
+            }
+          }
+        }
+      },
+      "evidence_documents": {
+        "type": ["object", "null"],
+        "required": false,
+        "description": "Top-level supporting documents (entity-level, not beneficial owner-specific)",
+        "properties": {
+          "certificate_of_registration": { "type": ["string", "null"], "description": "VCN for CIPC CoR or certification (e.g. VOLT-CR43-...)" },
+          "memorandum_of_incorporation": { "type": ["string", "null"], "description": "VCN for MOI/Founding Document (VOLT-CRPK-...)" },
+          "share_register": { "type": ["string", "null"], "description": "VCN for shares/ownership register" },
+          "securities_register": { "type": ["string", "null"], "description": "VCN for securities register" },
+          "beneficial_ownership_register": { "type": ["string", "null"], "description": "VCN for the BO register itself (VOLT-BORE-...)" },
+          "directors_register": { "type": ["string", "null"], "description": "VCN for directors register" },
+          "compliance_affidavit": { "type": ["string", "null"], "description": "VCN for director compliance affidavit" },
+          "resolution_approving_register": { "type": ["string", "null"], "description": "VCN for board resolution approving BO register" },
+          "other_supporting_docs": {
+            "type": ["array", "null"],
+            "items": {
+              "type": "object",
+              "properties": {
+                "doc_label": { "type": "string", "required": true },
+                "vcn": { "type": "string", "required": true }
+              }
+            }
+          }
+        }
+      },
+      "register_metadata": {
+        "type": "object",
+        "required": true,
+        "description": "Metadata about the beneficial ownership register itself",
+        "properties": {
+          "compiled_at": {
+            "type": "string",
+            "format": "date-time",
+            "required": true,
+            "description": "Timestamp when register was compiled (ISO 8601)"
+          },
+          "compiled_by": {
+            "type": "string",
+            "required": true,
+            "description": "Name and title of director or company secretary who compiled register"
+          },
+          "register_version": {
+            "type": "string",
+            "required": true,
+            "description": "Version identifier (e.g. '1.0', '1.1 – revised')"
+          },
+          "regulatory_basis": {
+            "type": "array",
+            "required": true,
+            "description": "Citing specific statutory requirements",
+            "items": {
+              "type": "object",
+              "properties": {
+                "statute": { "type": "string", "required": true, "description": "e.g. 'Companies Act 71 of 2008'" },
+                "section": { "type": "string", "required": true, "description": "e.g. 'section 56(7)'" },
+                "requirement": { "type": "string", "required": false, "description": "Brief description of requirement" }
+              }
+            }
+          },
+          "next_required_update": {
+            "type": ["string", "null"],
+            "format": "date",
+            "required": false,
+            "description": "Date by which register must next be updated/filed (YYYY-MM-DD)"
+          },
+          "notes": {
+            "type": ["string", "null"],
+            "required": false,
+            "description": "Any additional notes or qualifications"
+          }
+        }
+      }
+    }
+  },
+  "$example": {
+    "entity": {
+      "entity_type": "COMPANY",
+      "registration_number": "2020/123456/07",
+      "registered_name": "KLIKK (PTY) LTD",
+      "trade_name": "Klikk Property Management",
+      "registered_address": {
+        "street_number": "12",
+        "street_name": "Church Street",
+        "suburb": "Stellenbosch",
+        "city": "Stellenbosch",
+        "province": "Western Cape",
+        "postal_code": "7600",
+        "country": "South Africa"
+      },
+      "postal_address": {
+        "street_number": "12",
+        "street_name": "Church Street",
+        "po_box": null,
+        "suburb": "Stellenbosch",
+        "city": "Stellenbosch",
+        "province": "Western Cape",
+        "postal_code": "7600",
+        "country": "South Africa"
+      },
+      "tax_number": "9876543210",
+      "vat_number": "4012345678901",
+      "paye_number": "701234/999",
+      "financial_year_end": "2025-12-31",
+      "incorporation_date": "2020-06-15",
+      "as_at_date": "2026-04-16",
+      "beneficial_owners": [
+        {
+          "id_type": "SA_ID",
+          "id_number": "8001015009087",
+          "country_of_issue": "ZA",
+          "given_names": "Michael",
+          "surname": "Dippenaar",
+          "former_names": null,
+          "date_of_birth": "1980-01-15",
+          "nationality": "South African",
+          "country_of_residence": "South Africa",
+          "residential_address": {
+            "street_number": "42",
+            "street_name": "Dorp Street",
+            "suburb": "Stellenbosch",
+            "city": "Stellenbosch",
+            "province": "Western Cape",
+            "postal_code": "7600",
+            "country": "South Africa"
+          },
+          "postal_address": null,
+          "tax_number": "9876543210",
+          "contact": {
+            "email": "michael@klikk.co.za",
+            "phone": "+27 21 887 6001"
+          },
+          "interests": [
+            {
+              "nature": "SHAREHOLDING",
+              "percentage": 100.0,
+              "voting_rights_percentage": 100.0,
+              "control_type": "DIRECT",
+              "effective_date": "2020-06-15",
+              "via_chain": null
+            },
+            {
+              "nature": "RIGHT_TO_APPOINT_DIRECTORS",
+              "percentage": 100.0,
+              "voting_rights_percentage": null,
+              "control_type": "DIRECT",
+              "effective_date": "2020-06-15",
+              "via_chain": null
+            }
+          ],
+          "is_pep": false,
+          "is_director": true,
+          "is_company_secretary": false,
+          "is_public_officer": true,
+          "evidence_documents": [
+            {
+              "doc_type": "SA_SMART_ID_CARD",
+              "vcn": "VOLT-SAID-2026-04-0001-5390"
+            },
+            {
+              "doc_type": "PROOF_OF_RESIDENTIAL_ADDRESS",
+              "vcn": "VOLT-ADDR-2026-04-0001-5419"
+            }
+          ]
+        }
+      ],
+      "interposed_entities": null,
+      "directors": [
+        {
+          "id_number": "8001015009087",
+          "given_names": "Michael",
+          "surname": "Dippenaar",
+          "appointment_date": "2020-06-15",
+          "is_active": true
+        }
+      ],
+      "evidence_documents": {
+        "certificate_of_registration": "VOLT-CR43-2026-04-0001-5277",
+        "memorandum_of_incorporation": "VOLT-CRPK-2026-04-0001-5457",
+        "share_register": "VOLT-SHRG-2026-04-0001-5388",
+        "securities_register": null,
+        "beneficial_ownership_register": "VOLT-BORE-2026-04-0001-5501",
+        "directors_register": "VOLT-DIRR-2026-04-0001-5502",
+        "compliance_affidavit": "VOLT-COMP-2026-04-0001-5503",
+        "resolution_approving_register": "VOLT-RESO-2026-04-0001-5504",
+        "other_supporting_docs": [
+          {
+            "doc_label": "FICA verification (ID and address)",
+            "vcn": "VOLT-FICA-2026-04-0001-5505"
+          },
+          {
+            "doc_label": "Board minutes approving BO register compilation",
+            "vcn": "VOLT-MINS-2026-04-0001-5506"
+          }
+        ]
+      },
+      "register_metadata": {
+        "compiled_at": "2026-04-16T14:30:00Z",
+        "compiled_by": "Michael Dippenaar, Director and Public Officer",
+        "register_version": "1.0",
+        "regulatory_basis": [
+          {
+            "statute": "Companies Act 71 of 2008",
+            "section": "section 56(7)",
+            "requirement": "Company must prepare and maintain a beneficial ownership register containing prescribed details of each beneficial owner"
+          },
+          {
+            "statute": "General Laws (Anti-Money Laundering and Combating Terrorism Financing) Amendment Act, 2022",
+            "section": "section 36A",
+            "requirement": "Beneficial ownership register required as part of AML/CFT regulatory obligations under FICA"
+          },
+          {
+            "statute": "CIPC Beneficial Ownership Regulations 2023",
+            "section": "Regulation 3",
+            "requirement": "Prescribed details and format for beneficial ownership registers"
+          }
+        ],
+        "next_required_update": "2027-04-16",
+        "notes": "Register compiled in accordance with the Companies Act and CIPC beneficial ownership requirements. No changes to beneficial ownership occurred during the reporting period. Annual update required 12 months from date of this compilation or within 30 days of any material change in beneficial ownership."
+      }
+    }
+  }
+}

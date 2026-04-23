@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: reviewer
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214229901336165"
 created: 2026-04-23
-updated: 2026-04-23T18:30:00
+updated: 2026-04-23T19:30:00
 ---
 
 ## Goal
@@ -127,3 +127,17 @@ Two files changed to raise the iOS deployment target from 13.0 to 15.0:
 - `agent-app/ios/App/App.xcodeproj/project.pbxproj`: all four `IPHONEOS_DEPLOYMENT_TARGET = 13.0` entries (project-level Debug + Release, target-level Debug + Release) updated to `15.0` via `replace_all`.
 
 `LANG=en_US.UTF-8 npx cap sync ios` ran clean: pod install resolved all 5 Capacitor v8 pods (`@capacitor/app@8.1.0`, `@capacitor/keyboard@8.0.3`, `@capacitor/splash-screen@8.0.1`, `@capacitor/status-bar@8.0.2`, `@sentry/capacitor@3.2.1`) — "Sync finished in 15.041s". The UTF-8 locale must be set when running `cap sync` locally (CocoaPods on Ruby 4.0 requires it); CI already sets `LANG=en_US.UTF-8` by default. No other code changes made. Simulator smoke-test deferred to tester (requires Xcode).
+
+2026-04-23 (tester — re-run after iOS deployment target fix):
+
+### Test run
+
+| Test | Result |
+|------|--------|
+| `npm audit --audit-level=high` | PASS — found 0 vulnerabilities |
+| `npm run build` (Quasar SPA) | PASS — 574 KB JS, 254 KB CSS, Build succeeded |
+| `LANG=en_US.UTF-8 npx cap sync ios` | PASS — all 5 Capacitor v8 pods resolved, Sync finished in 4.888s |
+| Simulator smoke-test (iOS) | DEFERRED — requires Xcode (human tester) |
+| Simulator smoke-test (Android) | DEFERRED — android platform not added (pre-existing condition) |
+
+All automated/scriptable checks pass. `cap sync ios` now resolves all 5 pods cleanly after iOS deployment target raised to 15.0. SASS `darken()` deprecation warnings during build are cosmetic only (pre-existing, not introduced by this upgrade). Simulator smoke-tests deferred to human per original plan.

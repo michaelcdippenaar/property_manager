@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Klikk Tenant App — Calendar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #2B2D6E;
+  --navy-dark: #23255a;
+  --navy-light: #3b3e8f;
+  --accent: #FF3D7F;
+  --accent-light: #FF6B9D;
+  --surface: #F5F5F8;
+  --surface-secondary: #F0EFF8;
+  --white: #FFFFFF;
+  --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+  --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+  --gray-800:#1f2937;--gray-900:#111827;
+  --success-50:#f0fdfa;--success-100:#ccfbf1;--success-600:#0d9488;
+  --warning-50:#fffbeb;--warning-100:#fef3c7;--warning-600:#d97706;
+  --danger-50:#fef2f2;--danger-100:#fee2e2;--danger-600:#dc2626;
+  --info-50:#eff6ff;--info-100:#dbeafe;--info-600:#2563eb;
+  --shadow-soft: 0 1px 2px rgba(15,17,57,0.04), 0 2px 6px rgba(15,17,57,0.04);
+  --shadow-lifted: 0 4px 12px rgba(15,17,57,0.08), 0 12px 24px rgba(15,17,57,0.06);
+  --shadow-phone: 0 20px 48px rgba(15,17,57,0.14), 0 8px 16px rgba(15,17,57,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { font-size: 15px; }
+body {
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  background-color: #EEEDF4;
+  background-image: radial-gradient(#2B2D6E14 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #111;
+  min-height: 100vh;
+  padding: 40px 24px 80px;
+}
+
+.page-header { max-width: 1200px; margin: 0 auto 48px; text-align: center; }
+.page-header h1 { font-family: 'Fraunces', Georgia, serif; font-size: 2.5rem; font-weight: 600; color: var(--navy); letter-spacing: -0.02em; margin-bottom: 8px; }
+.page-header p { color: var(--gray-600); font-size: 1rem; max-width: 640px; margin: 0 auto; }
+
+.section-label { max-width: 1200px; margin: 56px auto 24px; display: flex; align-items: baseline; gap: 12px; padding: 0 8px; }
+.section-label h2 { font-family: 'Fraunces', Georgia, serif; font-size: 1.4rem; font-weight: 500; color: var(--navy); }
+.section-label span { color: var(--gray-500); font-size: 0.875rem; }
+.section-label .rule { flex: 1; height: 1px; background: linear-gradient(to right, var(--gray-300), transparent); }
+
+.grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 32px; }
+.frame-wrap { display: flex; flex-direction: column; align-items: center; }
+.frame-label { margin-bottom: 12px; text-align: center; }
+.frame-label .state-num { display: inline-block; background: var(--navy); color: white; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; line-height: 22px; margin-right: 8px; vertical-align: middle; }
+.frame-label .state-name { font-weight: 600; color: var(--navy); font-size: 0.95rem; vertical-align: middle; }
+.frame-label .state-desc { display: block; color: var(--gray-500); font-size: 0.8rem; margin-top: 4px; }
+
+/* ═══ PHONE ═══ */
+.phone { width: 320px; height: 658px; background: #000; border-radius: 44px; padding: 10px; box-shadow: var(--shadow-phone); position: relative; flex-shrink: 0; }
+.phone::before { content: ''; position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 100px; height: 28px; background: #000; border-radius: 20px; z-index: 10; }
+.screen { width: 100%; height: 100%; background: var(--surface); border-radius: 34px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+.status-bar { height: 44px; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 24px 6px; font-size: 13px; font-weight: 600; color: var(--gray-900); }
+
+/* ═══ APP HEADER (with menu + bell) ═══ */
+.app-hd { padding: 10px 18px 8px; display: flex; justify-content: space-between; align-items: center; }
+.hd-btn { width: 34px; height: 34px; border-radius: 50%; background: var(--white); display: flex; align-items: center; justify-content: center; color: var(--navy); box-shadow: var(--shadow-soft); position: relative; }
+.hd-btn .dot-bell { position: absolute; top: 5px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger-600); box-shadow: 0 0 0 2px white; }
+.hd-title-wrap { text-align: center; }
+.hd-title-sub { font-size: 10px; color: var(--gray-500); font-weight: 500; text-transform: uppercase; letter-spacing: 0.08em; }
+.hd-title-main { font-family: 'Fraunces', Georgia, serif; font-size: 20px; font-weight: 500; color: var(--gray-900); letter-spacing: -0.01em; margin-top: 1px; }
+
+/* Property context pill */
+.prop-pill { margin: 6px 18px 8px; padding: 8px 14px; background: var(--white); border-radius: 999px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-soft); }
+.prop-pill-ico { width: 18px; height: 18px; color: var(--navy); }
+.prop-pill-txt { flex: 1; font-size: 12px; color: var(--gray-700); font-weight: 500; }
+.prop-pill-txt strong { color: var(--navy); font-weight: 600; }
+.prop-pill-switch { font-size: 10px; color: var(--gray-400); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Filter chips row */
+.chips { display: flex; gap: 6px; padding: 4px 18px 10px; overflow-x: auto; }
+.chip { font-size: 11px; padding: 6px 12px; border-radius: 20px; background: var(--white); color: var(--gray-600); font-weight: 600; border: 1px solid var(--gray-200); white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.chip.active { background: var(--navy); color: white; border-color: var(--navy); }
+.chip .chip-count { font-size: 9px; padding: 1px 5px; background: rgba(255,255,255,0.25); border-radius: 10px; font-weight: 700; }
+.chip:not(.active) .chip-count { background: var(--gray-100); color: var(--gray-500); }
+
+/* ═══ TIMELINE ═══ */
+.tl-scroll { flex: 1; overflow: hidden; padding: 4px 18px 90px; position: relative; }
+
+/* Date-group header: "TOMORROW", "NEXT 2 DAYS", etc. */
+.tl-group { margin-top: 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; padding-left: 32px; }
+.tl-group:first-child { margin-top: 4px; }
+.tl-group-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--navy); }
+.tl-group-count { font-size: 10px; color: var(--gray-400); font-weight: 600; }
+.tl-group-rule { flex: 1; height: 1px; background: linear-gradient(to right, var(--gray-200), transparent); }
+
+/* Timeline event row: rail on left, card on right */
+.tl-row { display: flex; gap: 0; position: relative; margin-bottom: 10px; align-items: stretch; }
+.tl-rail { width: 24px; position: relative; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; padding-top: 6px; }
+.tl-rail::before { content: ''; position: absolute; top: 18px; bottom: -16px; left: 50%; width: 2px; background: var(--gray-200); transform: translateX(-50%); }
+.tl-row:last-child .tl-rail::before { display: none; }
+.tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gray-400); flex-shrink: 0; z-index: 1; border: 2px solid var(--surface); box-shadow: 0 0 0 2px white; }
+.tl-dot.red { background: var(--danger-600); box-shadow: 0 0 0 2px white, 0 0 0 5px rgba(220,38,38,0.15); }
+.tl-dot.amber { background: var(--warning-600); box-shadow: 0 0 0 2px white, 0 0 0 5px rgba(217,119,6,0.15); }
+.tl-dot.green { background: var(--success-600); box-shadow: 0 0 0 2px white, 0 0 0 5px rgba(13,148,136,0.15); }
+.tl-dot.gray { background: var(--gray-400); }
+.tl-dot.lg { width: 16px; height: 16px; }
+
+.tl-card { flex: 1; margin-left: 12px; background: var(--white); border-radius: 12px; padding: 10px 12px; box-shadow: var(--shadow-soft); border-left: 3px solid transparent; }
+.tl-card.red { border-left-color: var(--danger-600); }
+.tl-card.amber { border-left-color: var(--warning-600); }
+.tl-card.green { border-left-color: var(--success-600); }
+.tl-time { font-size: 10px; font-weight: 700; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; }
+.tl-time .tl-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 20px; letter-spacing: 0.04em; }
+.tl-time .tl-badge.red { background: var(--danger-100); color: var(--danger-600); }
+.tl-time .tl-badge.amber { background: var(--warning-100); color: var(--warning-600); }
+.tl-time .tl-badge.green { background: var(--success-100); color: var(--success-600); }
+.tl-title { font-size: 13px; font-weight: 600; color: var(--gray-900); line-height: 1.35; margin-bottom: 4px; }
+.tl-sub { font-size: 11px; color: var(--gray-500); line-height: 1.4; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tl-sub .avatar-mini { width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(135deg,#7b7ea8,#5a5d90); color: white; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: 700; }
+.tl-sub .avatar-mini.supplier { background: linear-gradient(135deg,#647296,#3c4668); }
+.tl-sub .avatar-mini.agent { background: linear-gradient(135deg,#5a5d90,#23255a); }
+.tl-sub .chip-sub { background: var(--gray-100); color: var(--gray-600); font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Day header variant (e.g. Fri 18 Apr) inside a group */
+.tl-day-hd { font-size: 11px; font-weight: 700; color: var(--gray-700); margin-bottom: 6px; padding-left: 4px; }
+
+/* ═══ DETAIL DRAWER VARIANT ═══ */
+.sheet-head { padding: 12px 18px; display: flex; align-items: center; gap: 10px; background: var(--white); border-bottom: 1px solid var(--gray-100); }
+.sheet-back { width: 32px; height: 32px; border-radius: 50%; background: var(--gray-100); display: flex; align-items: center; justify-content: center; color: var(--navy); }
+.sheet-title { flex: 1; }
+.sheet-title-main { font-family: 'Fraunces', Georgia, serif; font-size: 16px; font-weight: 500; color: var(--gray-900); letter-spacing: -0.01em; }
+.sheet-title-sub { font-size: 10px; color: var(--gray-500); font-weight: 500; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.detail-hero { padding: 20px 18px 16px; background: linear-gradient(135deg, var(--navy) 0%, var(--navy-dark) 100%); color: white; position: relative; }
+.detail-hero.red { background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%); }
+.detail-hero.amber { background: linear-gradient(135deg, #d97706 0%, #92400e 100%); }
+.detail-hero.green { background: linear-gradient(135deg, #0d9488 0%, #115e59 100%); }
+.detail-hero-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; opacity: 0.7; }
+.detail-hero-title { font-family: 'Fraunces', Georgia, serif; font-size: 22px; font-weight: 500; letter-spacing: -0.01em; margin-top: 4px; line-height: 1.15; }
+.detail-hero-meta { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; opacity: 0.85; }
+.detail-hero-amount { font-family: 'Fraunces', Georgia, serif; font-size: 32px; font-weight: 500; margin-top: 12px; letter-spacing: -0.02em; }
+.detail-hero-amount-sub { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+
+.detail-body { flex: 1; padding: 14px 18px 90px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
+
+.detail-card { background: var(--white); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-soft); }
+.detail-card-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--navy); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.detail-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
+.detail-row + .detail-row { border-top: 1px dashed var(--gray-100); }
+.detail-row-lbl { color: var(--gray-500); }
+.detail-row-val { color: var(--gray-900); font-weight: 500; text-align: right; }
+.detail-row-val.green { color: var(--success-600); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 12px; border: none; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: var(--navy); color: white; }
+.btn-accent { background: var(--accent); color: white; }
+.btn-outline { background: white; color: var(--navy); border: 1px solid var(--gray-200); }
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { flex: 1; }
+
+/* Map preview */
+.map-preview { height: 96px; border-radius: 12px; background: linear-gradient(135deg, #d4e2f4 0%, #c5d5ed 40%, #dfe5f0 100%); position: relative; overflow: hidden; }
+.map-preview::before { content: ''; position: absolute; top: 20%; left: 10%; right: 20%; height: 2px; background: rgba(43,45,110,0.3); border-radius: 2px; transform: rotate(8deg); }
+.map-preview .pin { position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+.map-preview .pin.home { bottom: 20%; right: 24%; }
+.map-preview .pin.supplier { top: 25%; left: 22%; background: var(--navy); }
+
+/* Mini-chat quote */
+.chat-quote { background: var(--surface-secondary); border-left: 3px solid var(--navy-light); padding: 10px 12px; border-radius: 0 10px 10px 0; font-size: 11px; color: var(--gray-700); line-height: 1.5; }
+.chat-quote-who { font-size: 9px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+
+/* System card */
+.sys-card { background: var(--surface-secondary); border-radius: 10px; padding: 8px 10px; font-size: 11px; color: var(--gray-700); display: flex; align-items: center; gap: 6px; }
+.sys-card svg { width: 13px; height: 13px; stroke: var(--navy); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Empty state */
+.empty { text-align: center; padding: 40px 24px; }
+.empty-ico { width: 56px; height: 56px; border-radius: 50%; background: var(--surface-secondary); color: var(--navy); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; }
+.empty h3 { font-family: 'Fraunces', Georgia, serif; font-size: 17px; font-weight: 500; color: var(--gray-800); margin-bottom: 4px; }
+.empty p { font-size: 12px; color: var(--gray-500); line-height: 1.5; max-width: 220px; margin: 0 auto; }
+
+/* ═══ NOTIFICATION FLYOUT ═══ */
+.notif-backdrop { position: absolute; inset: 0; background: rgba(17,24,39,0.4); backdrop-filter: blur(2px); z-index: 5; }
+.notif-flyout { position: absolute; top: 84px; right: 14px; width: 240px; background: white; border-radius: 14px; box-shadow: 0 12px 32px rgba(15,17,57,0.18); z-index: 6; padding: 10px; }
+.notif-flyout-hd { font-size: 10px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: 0.08em; padding: 6px 8px; }
+.notif-item { padding: 10px 8px; display: flex; gap: 8px; border-top: 1px solid var(--gray-100); }
+.notif-item:first-of-type { border-top: none; }
+.notif-item-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 4px; flex-shrink: 0; }
+.notif-item-dot.grey { background: var(--gray-300); }
+.notif-item-body { flex: 1; font-size: 11px; color: var(--gray-700); line-height: 1.4; }
+.notif-item-time { font-size: 10px; color: var(--gray-400); margin-top: 2px; }
+
+/* ═══ TAB BAR (matches tenant-support) ═══ */
+.tab-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 78px; background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-top: 1px solid var(--gray-100); display: flex; justify-content: space-around; align-items: flex-start; padding: 10px 0 20px; }
+.tab { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 10px; color: var(--gray-400); font-weight: 600; }
+.tab .tab-ico { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active { color: var(--navy); font-weight: 700; }
+.tab.active .tab-ico-wrap { width: 36px; height: 36px; border-radius: 50%; background: var(--navy); display: flex; align-items: center; justify-content: center; transform: translateY(-10px); box-shadow: 0 6px 14px rgba(43,45,110,0.35); margin-bottom: -8px; position: relative; }
+.tab.active .tab-ico-wrap::before { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 54px; height: 54px; border-radius: 50%; background: radial-gradient(circle, rgba(255,61,127,0.18) 30%, transparent 70%); z-index: -1; }
+.tab.active .tab-ico { stroke: white; color: white; stroke-width: 2; width: 18px; height: 18px; }
+
+/* Icons */
+.ico { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.ico-sm { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.ico-xl { width: 28px; height: 28px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+.footer { max-width: 1200px; margin: 56px auto 0; padding: 24px; text-align: center; color: var(--gray-500); font-size: 0.85rem; line-height: 1.6; }
+.footer strong { color: var(--navy); }
+</style>
+</head>
+<body>
+
+<!-- ═══ ICON SPRITES ═══ -->
+<svg width="0" height="0" style="position:absolute;">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-5h-2v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 1 1 5.3 5.3L9 22.6a1.4 1.4 0 0 1-2-2L17.7 9.8a4 4 0 0 1-3-3.5Z"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+    <symbol id="i-message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></symbol>
+    <symbol id="i-map-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+    <symbol id="i-card" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h2M12 15h4"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M1 3h15v13H1zM16 8h4l3 3v5h-7"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19.2 2.96c1.5 3.54.71 8.12-1.45 10.87C16 16.17 13 17 11 20ZM2 22c1.75-3.75 4.17-6.25 7-8"/></symbol>
+    <symbol id="i-bug" viewBox="0 0 24 24"><path d="M8 2 6 4M16 2l2 2M12 20v-9M7.5 8h9l1 4H6.5zM9 12h6v5a3 3 0 0 1-6 0zM6.5 12H3M17.5 12H21M9 18l-3 2M15 18l3 2"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78Zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></symbol>
+    <symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.34 6.34l2.83 2.83M14.83 14.83l2.83 2.83M6.34 17.66l2.83-2.83M14.83 9.17l2.83-2.83"/></symbol>
+    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92Z"/></symbol>
+    <symbol id="i-nav" viewBox="0 0 24 24"><polygon points="3 11 22 2 13 21 11 13 3 11"/></symbol>
+    <symbol id="i-door" viewBox="0 0 24 24"><path d="M4 22h16"/><path d="M6 2h12v20H6z"/><path d="M14 12h.01"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 14l2 2 4-4"/></symbol>
+  </defs>
+</svg>
+
+<!-- ═══ PAGE HEADER ═══ -->
+<div class="page-header">
+  <h1>Klikk Tenant — Calendar</h1>
+  <p>Timeline view · coloured dots (red/amber/green) · relative-time grouping · filter chips · detail drawers — 9 frames across 3 sections.</p>
+</div>
+
+<!-- ═══ SECTION 1: TIMELINE CORE ═══ -->
+<div class="section-label"><h2>Calendar tab — timeline view</h2><span>the rhythm of your rental, one vertical thread</span><div class="rule"></div></div>
+
+<div class="grid">
+
+<!-- ═══ 1. DEFAULT TIMELINE (All) ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">1</span><span class="state-name">Default · All filter</span><span class="state-desc">Everything on one rail · status = colour</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar</div><div class="hd-title-main">Upcoming</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg><span class="dot-bell"></span></div>
+    </div>
+    <div class="prop-pill">
+      <svg class="prop-pill-ico ico-sm"><use href="#i-map-pin"/></svg>
+      <div class="prop-pill-txt"><strong>12 Dorp St</strong> · Stellenbosch</div>
+      <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+    </div>
+    <div class="chips">
+      <div class="chip active">All <span class="chip-count">9</span></div>
+      <div class="chip">Occupation <span class="chip-count">4</span></div>
+      <div class="chip">Viewings <span class="chip-count">2</span></div>
+      <div class="chip">Suppliers <span class="chip-count">3</span></div>
+    </div>
+    <div class="tl-scroll">
+      <!-- TOMORROW -->
+      <div class="tl-group"><span class="tl-group-label">Tomorrow</span><span class="tl-group-count">1 event</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red lg"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Thu 17 Apr · 09:00</span><span class="tl-badge red">Due</span></div>
+          <div class="tl-title">Rent due · April</div>
+          <div class="tl-sub"><span>R 14,500 · EFT to Klikk trust</span></div>
+        </div>
+      </div>
+      <!-- NEXT 2 DAYS -->
+      <div class="tl-group"><span class="tl-group-label">Next 2 days</span><span class="tl-group-count">2 events</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Fri 18 Apr · 14:00–16:00</span></div>
+          <div class="tl-title">Plumber · Cape Plumbing</div>
+          <div class="tl-sub"><div class="avatar-mini supplier">J</div>John · geyser follow-up</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Sat 19 Apr · 10:00</span><span class="tl-badge amber">Access</span></div>
+          <div class="tl-title">Annual inspection</div>
+          <div class="tl-sub"><div class="avatar-mini agent">S</div>Sarah (Agent) · be home</div>
+        </div>
+      </div>
+      <!-- NEXT 30 DAYS -->
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">4 events</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot green"></div></div>
+        <div class="tl-card green">
+          <div class="tl-time"><span>Fri 24 Apr · 08:00</span></div>
+          <div class="tl-title">Garden service</div>
+          <div class="tl-sub"><span class="chip-sub">Routine</span>DeepGreen · no access needed</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Fri 1 May · 09:00</span><span class="tl-badge red">Recurs</span></div>
+          <div class="tl-title">Rent due · May</div>
+          <div class="tl-sub"><span>R 14,500 · debit order</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 2. QUIET WEEK ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">2</span><span class="state-name">Quiet week</span><span class="state-desc">One event · rest of week empty</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar</div><div class="hd-title-main">This week</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="prop-pill">
+      <svg class="prop-pill-ico ico-sm"><use href="#i-map-pin"/></svg>
+      <div class="prop-pill-txt"><strong>12 Dorp St</strong> · Stellenbosch</div>
+      <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+    </div>
+    <div class="chips">
+      <div class="chip active">All <span class="chip-count">1</span></div>
+      <div class="chip">Occupation <span class="chip-count">1</span></div>
+      <div class="chip">Viewings <span class="chip-count">0</span></div>
+      <div class="chip">Suppliers <span class="chip-count">0</span></div>
+    </div>
+    <div class="tl-scroll">
+      <div class="tl-group"><span class="tl-group-label">Tomorrow</span><span class="tl-group-count">1 event</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red lg"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Thu 17 Apr · 09:00</span><span class="tl-badge red">Due</span></div>
+          <div class="tl-title">Rent due · April</div>
+          <div class="tl-sub"><span>R 14,500</span></div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 days</span><span class="tl-group-count">Nothing</span><span class="tl-group-rule"></span></div>
+      <div class="empty" style="padding:24px 16px;">
+        <div class="empty-ico" style="width:44px;height:44px;"><svg class="ico"><use href="#i-check-circle"/></svg></div>
+        <h3 style="font-size:14px;">Clear diary</h3>
+        <p style="font-size:11px;">Fri + Sat look quiet. Enjoy the weekend.</p>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">2 events</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot green"></div></div>
+        <div class="tl-card green">
+          <div class="tl-time"><span>Fri 24 Apr · 08:00</span></div>
+          <div class="tl-title">Garden service</div>
+          <div class="tl-sub">DeepGreen</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 3. SCROLLED: NEXT 2 MONTHS ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">3</span><span class="state-name">Next 2 months</span><span class="state-desc">Scrolled · lease milestones appear</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar</div><div class="hd-title-main">Looking ahead</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="chips">
+      <div class="chip active">All <span class="chip-count">12</span></div>
+      <div class="chip">Occupation <span class="chip-count">5</span></div>
+      <div class="chip">Viewings <span class="chip-count">2</span></div>
+      <div class="chip">Suppliers <span class="chip-count">5</span></div>
+    </div>
+    <div class="tl-scroll">
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">6 events</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Fri 1 May · 09:00</span></div>
+          <div class="tl-title">Rent · May</div>
+          <div class="tl-sub"><span>R 14,500</span></div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Mon 6 May · 10:00</span></div>
+          <div class="tl-title">Pest control · quarterly</div>
+          <div class="tl-sub"><div class="avatar-mini supplier">D</div>Dieter · ±45 min</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Wed 15 May · 17:00</span><span class="tl-badge amber">Decision</span></div>
+          <div class="tl-title">Lease renewal window opens</div>
+          <div class="tl-sub">Sarah will send terms · you have 14 days</div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 months</span><span class="tl-group-count">6 events</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Sun 1 Jun · 09:00</span></div>
+          <div class="tl-title">Rent · June</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Thu 12 Jun · 11:00</span></div>
+          <div class="tl-title">Geyser check · winter</div>
+          <div class="tl-sub"><span class="chip-sub">Proactive</span>Klikk AI booked · confirm ±</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<!-- ═══ SECTION 2: FILTERED VIEWS ═══ -->
+<div class="section-label"><h2>Filter chips — one stream at a time</h2><span>Occupation · Viewings · Suppliers</span><div class="rule"></div></div>
+
+<div class="grid">
+
+<!-- ═══ 4. OCCUPATION FILTER ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">4</span><span class="state-name">Occupation</span><span class="state-desc">Rent · inspections · lease milestones</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar · Occupation</div><div class="hd-title-main">Tenancy</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="chips">
+      <div class="chip">All <span class="chip-count">9</span></div>
+      <div class="chip active">Occupation <span class="chip-count">4</span></div>
+      <div class="chip">Viewings <span class="chip-count">2</span></div>
+      <div class="chip">Suppliers <span class="chip-count">3</span></div>
+    </div>
+    <div class="tl-scroll">
+      <div class="tl-group"><span class="tl-group-label">Tomorrow</span><span class="tl-group-count">1</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red lg"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Thu 17 Apr · 09:00</span><span class="tl-badge red">Due</span></div>
+          <div class="tl-title">Rent · April</div>
+          <div class="tl-sub"><svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-card"/></svg>R 14,500 · Klikk trust</div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 days</span><span class="tl-group-count">1</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Sat 19 Apr · 10:00</span></div>
+          <div class="tl-title">Annual inspection</div>
+          <div class="tl-sub"><div class="avatar-mini agent">S</div>Sarah · 45 min · be home</div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">2</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red"></div></div>
+        <div class="tl-card red">
+          <div class="tl-time"><span>Fri 1 May · 09:00</span></div>
+          <div class="tl-title">Rent · May</div>
+          <div class="tl-sub">R 14,500 · debit order active</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Wed 15 May · 17:00</span><span class="tl-badge amber">Decision</span></div>
+          <div class="tl-title">Lease renewal window</div>
+          <div class="tl-sub"><svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-key"/></svg>Respond within 14 days</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 5. VIEWINGS FILTER ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">5</span><span class="state-name">Viewings</span><span class="state-desc">Tenant is moving out · unit showings</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar · Viewings</div><div class="hd-title-main">Unit shown</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="sys-card" style="margin:4px 18px 8px;">
+      <svg><use href="#i-info"/></svg>
+      <span>Your lease ends 30 Jun. Sarah may show the unit to new prospects in the last 30 days.</span>
+    </div>
+    <div class="chips">
+      <div class="chip">All <span class="chip-count">9</span></div>
+      <div class="chip">Occupation <span class="chip-count">4</span></div>
+      <div class="chip active">Viewings <span class="chip-count">2</span></div>
+      <div class="chip">Suppliers <span class="chip-count">3</span></div>
+    </div>
+    <div class="tl-scroll">
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">2</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Sat 3 May · 10:00–11:00</span><span class="tl-badge amber">Access</span></div>
+          <div class="tl-title">Viewing · prospect</div>
+          <div class="tl-sub"><div class="avatar-mini agent">S</div>Sarah + 1 couple · you can be out</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Wed 14 May · 17:30</span></div>
+          <div class="tl-title">Viewing · prospect</div>
+          <div class="tl-sub"><div class="avatar-mini agent">S</div>Sarah + 2 people · 30 min</div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 months</span><span class="tl-group-count">0</span><span class="tl-group-rule"></span></div>
+      <div class="empty" style="padding:24px 16px;">
+        <div class="empty-ico" style="width:44px;height:44px;"><svg class="ico"><use href="#i-eye"/></svg></div>
+        <h3 style="font-size:14px;">Nothing booked yet</h3>
+        <p style="font-size:11px;">Sarah will request times · you can approve or counter.</p>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 6. SUPPLIERS FILTER ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">6</span><span class="state-name">Suppliers</span><span class="state-desc">Who's coming · when · do you need to be home</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar · Suppliers</div><div class="hd-title-main">On the way</div></div>
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="chips">
+      <div class="chip">All <span class="chip-count">9</span></div>
+      <div class="chip">Occupation <span class="chip-count">4</span></div>
+      <div class="chip">Viewings <span class="chip-count">2</span></div>
+      <div class="chip active">Suppliers <span class="chip-count">3</span></div>
+    </div>
+    <div class="tl-scroll">
+      <div class="tl-group"><span class="tl-group-label">Next 2 days</span><span class="tl-group-count">1</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber lg"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Fri 18 Apr · 14:00–16:00</span><span class="tl-badge amber">Arriving</span></div>
+          <div class="tl-title">John · Plumber</div>
+          <div class="tl-sub"><div class="avatar-mini supplier">J</div>Cape Plumbing · <span class="chip-sub">Access</span></div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 30 days</span><span class="tl-group-count">1</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot green"></div></div>
+        <div class="tl-card green">
+          <div class="tl-time"><span>Fri 24 Apr · 08:00</span></div>
+          <div class="tl-title">Garden service</div>
+          <div class="tl-sub"><svg class="ico-sm" style="color:var(--success-600);"><use href="#i-leaf"/></svg>DeepGreen · no access</div>
+        </div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 months</span><span class="tl-group-count">1</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber">
+          <div class="tl-time"><span>Mon 6 May · 10:00</span></div>
+          <div class="tl-title">Pest control · quarterly</div>
+          <div class="tl-sub"><svg class="ico-sm" style="color:var(--warning-600);"><use href="#i-bug"/></svg>Dieter · ±45 min</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<!-- ═══ SECTION 3: DETAIL DRAWERS ═══ -->
+<div class="section-label"><h2>Event detail — tap to open</h2><span>coloured hero by urgency · linked thread · one-tap action</span><div class="rule"></div></div>
+
+<div class="grid">
+
+<!-- ═══ 7. RENT DUE DETAIL ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">7</span><span class="state-name">Rent due</span><span class="state-desc">Tap "Rent · April" → pay inline</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Occupation</div><div class="sheet-title-main">Rent · April</div></div>
+    </div>
+    <div class="detail-hero red">
+      <div class="detail-hero-eyebrow">Due tomorrow</div>
+      <div class="detail-hero-title">Monthly rent</div>
+      <div class="detail-hero-meta">
+        <svg class="ico-sm"><use href="#i-clock"/></svg>Thu 17 Apr · 09:00
+      </div>
+      <div class="detail-hero-amount">R 14,500<span style="font-size:14px;opacity:0.7;">.00</span></div>
+      <div class="detail-hero-amount-sub">No admin fee · Klikk trust account</div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-card">
+        <div class="detail-card-title"><svg class="ico-sm"><use href="#i-card"/></svg>Payment options</div>
+        <div class="detail-row"><div class="detail-row-lbl">Debit order</div><div class="detail-row-val green">✓ Active</div></div>
+        <div class="detail-row"><div class="detail-row-lbl">Backup account</div><div class="detail-row-val">FNB ···1204</div></div>
+        <div class="detail-row"><div class="detail-row-lbl">Reference</div><div class="detail-row-val">DOR12-APR</div></div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title"><svg class="ico-sm"><use href="#i-message"/></svg>Related thread</div>
+        <div class="chat-quote">
+          <div class="chat-quote-who">Klikk AI</div>
+          Debit order queued for 07:30. You'll get a receipt in Info → Receipts.
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline"><svg class="ico-sm"><use href="#i-clock"/></svg>Reschedule</button>
+        <button class="btn btn-primary">Pay now manually</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 8. SUPPLIER ARRIVING DETAIL ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">8</span><span class="state-name">Supplier arriving</span><span class="state-desc">Tap "John · Plumber" → live ETA + instructions</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="sheet-head">
+      <div class="sheet-back"><svg class="ico-sm"><use href="#i-chevron-left"/></svg></div>
+      <div class="sheet-title"><div class="sheet-title-sub">Supplier visit</div><div class="sheet-title-main">Plumber · Fri 18 Apr</div></div>
+    </div>
+    <div class="detail-hero amber">
+      <div class="detail-hero-eyebrow">Arriving in 28 hours</div>
+      <div class="detail-hero-title">John Mbeki</div>
+      <div class="detail-hero-meta">
+        <svg class="ico-sm"><use href="#i-truck"/></svg>Cape Plumbing · geyser follow-up
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;font-size:12px;"><span><strong>14:00–16:00</strong></span><span style="opacity:0.7;">|</span><span>±2 hr window</span></div>
+    </div>
+    <div class="detail-body">
+      <div class="detail-card" style="padding:0;overflow:hidden;">
+        <div class="map-preview" style="height:110px;"><div class="pin supplier"></div><div class="pin home"></div></div>
+        <div style="padding:10px 12px;font-size:11px;color:var(--gray-600);display:flex;justify-content:space-between;"><span>Tracking from Bellville</span><span style="color:var(--success-600);font-weight:600;">• Live</span></div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title"><svg class="ico-sm"><use href="#i-clipboard"/></svg>Access notes</div>
+        <div style="font-size:12px;color:var(--gray-700);line-height:1.5;">You need to be home. Gate code <strong>*1834</strong>. John has a Cape Plumbing uniform — ID on file in Info → People.</div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title"><svg class="ico-sm"><use href="#i-message"/></svg>Linked ticket</div>
+        <div class="chat-quote">
+          <div class="chat-quote-who">John · Plumber</div>
+          On my way Friday 14:00. Gate open by 14:20 please — I'll ring on arrival.
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-outline"><svg class="ico-sm"><use href="#i-phone"/></svg>Message John</button>
+        <button class="btn btn-primary"><svg class="ico-sm"><use href="#i-nav"/></svg>Directions</button>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+<!-- ═══ 9. NOTIFICATIONS FLYOUT ═══ -->
+<div class="frame-wrap">
+  <div class="frame-label"><span class="state-num">9</span><span class="state-name">Bell tapped</span><span class="state-desc">Inline flyout · tap notification → event detail</span></div>
+  <div class="phone"><div class="screen">
+    <div class="status-bar"><span>9:41</span><span style="font-size:11px;">􀊫 􀋦 􀛨</span></div>
+    <div class="app-hd">
+      <div class="hd-btn"><svg class="ico-sm"><use href="#i-menu"/></svg></div>
+      <div class="hd-title-wrap"><div class="hd-title-sub">Calendar</div><div class="hd-title-main">Upcoming</div></div>
+      <div class="hd-btn" style="background:var(--navy);color:white;"><svg class="ico-sm"><use href="#i-bell"/></svg></div>
+    </div>
+    <div class="prop-pill">
+      <svg class="prop-pill-ico ico-sm"><use href="#i-map-pin"/></svg>
+      <div class="prop-pill-txt"><strong>12 Dorp St</strong> · Stellenbosch</div>
+      <svg class="ico-sm" style="color:var(--gray-400);"><use href="#i-chevron-right"/></svg>
+    </div>
+    <div class="chips">
+      <div class="chip active">All</div>
+      <div class="chip">Occupation</div>
+      <div class="chip">Viewings</div>
+      <div class="chip">Suppliers</div>
+    </div>
+    <div class="tl-scroll" style="filter:blur(1.5px);">
+      <div class="tl-group"><span class="tl-group-label">Tomorrow</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot red lg"></div></div>
+        <div class="tl-card red"><div class="tl-time">Thu 17 Apr · 09:00</div><div class="tl-title">Rent due · April</div></div>
+      </div>
+      <div class="tl-group"><span class="tl-group-label">Next 2 days</span><span class="tl-group-rule"></span></div>
+      <div class="tl-row">
+        <div class="tl-rail"><div class="tl-dot amber"></div></div>
+        <div class="tl-card amber"><div class="tl-time">Fri 18 Apr · 14:00</div><div class="tl-title">Plumber · Cape Plumbing</div></div>
+      </div>
+    </div>
+    <div class="notif-backdrop"></div>
+    <div class="notif-flyout">
+      <div class="notif-flyout-hd">Recent · 3 new</div>
+      <div class="notif-item">
+        <div class="notif-item-dot"></div>
+        <div class="notif-item-body">
+          <strong style="color:var(--navy);">John</strong> confirmed his arrival Friday at 14:00.
+          <div class="notif-item-time">12 min ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-item-dot"></div>
+        <div class="notif-item-body">
+          <strong style="color:var(--navy);">Sarah</strong> booked an inspection for Sat 19 Apr.
+          <div class="notif-item-time">1 hr ago</div>
+        </div>
+      </div>
+      <div class="notif-item">
+        <div class="notif-item-dot grey"></div>
+        <div class="notif-item-body">
+          <strong style="color:var(--navy);">Klikk AI</strong> pinned the plumber visit to your Calendar.
+          <div class="notif-item-time">Yesterday</div>
+        </div>
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab"><svg class="tab-ico"><use href="#i-home"/></svg>Home</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-wrench"/></svg>Problems</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-info"/></svg>Info</div>
+      <div class="tab active"><div class="tab-ico-wrap"><svg class="tab-ico"><use href="#i-calendar"/></svg></div>Calendar</div>
+      <div class="tab"><svg class="tab-ico"><use href="#i-message"/></svg>Chat</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+
+<footer class="footer">
+  <strong>Klikk Tenant · Calendar tab</strong><br>
+  9 frames — timeline view · filter chips · detail drawers · notification flyout<br>
+  Timeline rail is the spine: status = colour, time = position, context = card
+</footer>
+
+</body>
+</html>
