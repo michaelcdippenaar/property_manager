@@ -229,7 +229,7 @@ Each coach mark entry follows this structure:
 | Field | Value |
 |-------|-------|
 | **ID** | CM-011 |
-| **Screen** | Agent app — `/viewings/:id/lease/new` (CreateLeasePage) |
+| **Screen** | Agent app — `/viewings/:id/lease` (CreateLeasePage) |
 | **Element** | Deposit amount field — inline (?) icon |
 | **Trigger** | User taps the (?) icon next to the Deposit field |
 | **Copy** | "RHA requires deposit in an interest-bearing account within 7 days of receipt." |
