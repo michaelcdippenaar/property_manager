@@ -150,7 +150,7 @@ services/tremly-mcp/
 | `esigning_get` | Get submission detail | `{id: number}` |
 | `esigning_signer_status` | Check signer status | `{id: number}` |
 | `esigning_resend` | Resend invite | `{id: number}` |
-| `esigning_public_link` | Create public link | `{id: number, submitter_id: number}` |
+| `esigning_public_link` | Create public link | `{id: number, signer_role: string}` |
 | `esigning_webhook_info` | Get webhook config | `{}` |
 
 ### Document Tools (Priority: MEDIUM)
