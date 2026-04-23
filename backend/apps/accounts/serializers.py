@@ -4,6 +4,7 @@ from django.contrib.auth import authenticate
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from utils.http import get_client_ip
 from .models import User, Person, Agency, PersonDocument
 
 
@@ -103,8 +104,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         ip = None
         ua = ""
         if request:
-            xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-            ip = xff.split(",")[0].strip() if xff else request.META.get("REMOTE_ADDR") or None
+            ip = get_client_ip(request)
             ua = request.META.get("HTTP_USER_AGENT", "")[:500]
         UserConsent.objects.get_or_create(
             user=user,

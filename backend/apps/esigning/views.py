@@ -15,6 +15,8 @@ from apps.accounts.permissions import IsAgentOrAdmin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from utils.http import get_client_ip
+
 from apps.accounts.models import User
 from apps.leases.models import Lease
 from apps.tenant_portal.views import get_tenant_leases
@@ -625,8 +627,7 @@ class ESigningPublicSubmitSignatureView(APIView):
             )
 
         # Collect audit data from request
-        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        ip = forwarded.split(",")[0].strip() if forwarded else request.META.get("REMOTE_ADDR", "")
+        ip = get_client_ip(request)
         audit_data = {
             "ip_address": ip,
             "user_agent": request.META.get("HTTP_USER_AGENT", ""),

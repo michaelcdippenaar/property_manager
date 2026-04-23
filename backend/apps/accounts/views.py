@@ -21,6 +21,7 @@ from .models import (
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
 from .throttles import AuthAnonThrottle, InviteAcceptThrottle, LoginHourlyThrottle, OTPSendThrottle, OTPVerifyThrottle
+from utils.http import get_client_ip
 
 
 class RegisterView(APIView):
@@ -52,15 +53,9 @@ class LoginView(APIView):
     LOCKOUT_THRESHOLD = 5
     LOCKOUT_WINDOW_MINUTES = 30
 
-    def _get_client_ip(self, request):
-        xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if xff:
-            return xff.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR", "")
-
     def post(self, request):
         email = (request.data.get("email") or "").strip().lower()
-        ip = self._get_client_ip(request)
+        ip = get_client_ip(request)
 
         # Check lockout
         if email:

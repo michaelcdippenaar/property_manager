@@ -41,11 +41,14 @@ class LogAuthEventTests(TremlyAPITestCase):
         entry = log_auth_event("login_success", request=self._make_request(remote_addr="10.0.0.1"), user=user)
         self.assertEqual(str(entry.ip_address), "10.0.0.1")
 
-    def test_prefers_first_x_forwarded_for_address(self):
+    def test_uses_get_client_ip_with_proxy_aware_xff(self):
+        # With NUM_PROXIES=1 (default) and XFF="203.0.113.7, 10.0.0.1, 192.168.1.1",
+        # get_client_ip strips the one trusted-proxy hop (192.168.1.1) and returns
+        # the next entry (10.0.0.1) — not the leftmost spoofable entry.
         user = self.create_tenant()
         req = self._make_request(xff="203.0.113.7, 10.0.0.1, 192.168.1.1")
         entry = log_auth_event("login_success", request=req, user=user)
-        self.assertEqual(str(entry.ip_address), "203.0.113.7")
+        self.assertEqual(str(entry.ip_address), "10.0.0.1")
 
     def test_captures_user_agent(self):
         user = self.create_tenant()
