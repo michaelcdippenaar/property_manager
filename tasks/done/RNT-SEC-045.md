@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214241211323911"
 created: 2026-04-23
@@ -49,7 +49,7 @@ Remove hardcoded real credentials (`mc@tremly.com` / `Number55dip`) from the `im
 2026-04-23 rentals-pm: Promoted from discovery `2026-04-23-agent-app-hardcoded-dev-credentials.md` (found by rentals-reviewer during RNT-010). Priority elevated to P0 — potential live production password visible in repo history. MC must rotate password immediately regardless of code fix timeline.
 
 2026-04-24 rentals-implementer: Code fix complete.
-- Replaced hardcoded credentials in `agent-app/src/pages/LoginPage.vue` (lines 119-120, 129) with env-var sourcing (`import.meta.env.VITE_DEV_LOGIN_EMAIL` / `VITE_DEV_LOGIN_PASSWORD`).
+- Replaced hardcoded credentials in `agent-app/src/pages/LoginPage.vue` (lines 119-120, 129) with env-var sourcing (`import.meta.env.VITE_DEV_LOGIN_EMAIL` / `import.meta.env.VITE_DEV_LOGIN_PASSWORD`).
 - Pre-fill now only activates if BOTH `import.meta.env.DEV === true` AND the env var is non-empty (opt-in pattern prevents accidental hardcoding).
 - Updated `agent-app/.env.development.example` with commented-out env vars and security warning.
 - Audited `admin/src/views/auth/LoginView.vue` and `tenant/src/views/auth/LoginView.vue` — both clean, no hardcoded credentials.
@@ -66,3 +66,22 @@ Remove hardcoded real credentials (`mc@tremly.com` / `Number55dip`) from the `im
 - `git log -p -S 'Number55dip'` at HEAD: only the removal commit 2aaa96a9 shows it. Source tree clean.
 - Out-of-scope find: `admin/src/views/leases/ESigningPanel.vue:839` has a dummy default signer `email: 'mc@tremly.com'` — logged as discovery `2026-04-24-esigning-panel-dummy-email-default.md`. Not a credential exposure, does not block this task.
 - Reminder: rotating the live password for `mc@tremly.com` in staging/production remains an MC action; history rewrite deferred per AC.
+
+2026-04-24 rentals-tester: Testing complete — all checks pass.
+**Test run results (2026-04-24):**
+
+| Test | Result | Notes |
+|------|--------|-------|
+| `grep -r 'Number55dip'` source code | **PASS** | No matches in agent-app/src, admin/src, or tenant/src |
+| `grep -r 'mc@tremly.com'` LoginPage files | **PASS** | No matches in agent-app/src/pages/LoginPage.vue, admin/src/views/auth/LoginView.vue, or tenant/src/views/auth/LoginView.vue |
+| Pre-commit hook execution | **PASS** | scripts/check_hardcoded_credentials.sh exits 0 on current tree |
+| agent-app build (SPA mode) | **PASS** | `quasar build -m spa` succeeds with no errors; output folder: dist/spa |
+| Compiled bundle scan | **PASS** | No 'Number55dip' or 'mc@tremly.com' in dist/ directory |
+| Env var sourcing pattern | **PASS** | LoginPage.vue lines 120-121: `const devEmail = import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_EMAIL \|\| '') : ''` + `const devPassword = import.meta.env.DEV ? (import.meta.env.VITE_DEV_LOGIN_PASSWORD \|\| '') : ''` — double-gate (DEV mode + non-empty env var) prevents accidental hardcoding |
+| .env.development.example | **PASS** | File present with `VITE_DEV_LOGIN_EMAIL` and `VITE_DEV_LOGIN_PASSWORD` as commented-out (empty default) with explicit "NEVER commit real credentials" warning |
+| admin LoginView audit | **PASS** | admin/src/views/auth/LoginView.vue: no DEV pre-fill block, no hardcoded credentials |
+| tenant LoginView audit | **PASS** | tenant/src/views/auth/LoginView.vue: no DEV pre-fill block, no hardcoded credentials |
+| git grep at HEAD | **PASS** | `git grep "Number55dip" HEAD -- agent-app/src admin/src tenant/src` returns no results |
+| ESigningPanel discovery | **NOTE** | Found 'mc@tremly.com' at admin/src/views/leases/ESigningPanel.vue:839 as dummy default signer (not a credential exposure); logged as separate discovery 2026-04-24-esigning-panel-dummy-email-default.md per handoff notes — does not block this task |
+
+**Conclusion:** All acceptance criteria met. Code fix is clean, pre-commit hook is working, and the pattern prevents future hardcoding. Ready to move to done.
