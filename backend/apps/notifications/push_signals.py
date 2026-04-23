@@ -83,34 +83,36 @@ def on_lease_status_change(sender, instance, created: bool, **kwargs):
 
     if instance.status == "pending":
         # Lease sent for signing
+        tenant_name = instance.primary_tenant.full_name if instance.primary_tenant else "Unknown"
         _push(
             tenant_user,
             title="Lease ready to sign",
-            body=f"Your lease for {instance.unit_label} has been sent — please review and sign.",
+            body=f"Your lease for {str(instance.unit)} has been sent — please review and sign.",
             data={"screen": "tenant_lease_detail", "lease_id": str(instance.pk)},
             category="lease",
         )
         _push(
             agent_user,
             title="Lease sent for signing",
-            body=f"Lease for {instance.unit_label} ({instance.tenant_name}) awaits signatures.",
+            body=f"Lease for {str(instance.unit)} ({tenant_name}) awaits signatures.",
             data={"screen": "lease_detail", "lease_id": str(instance.pk)},
             category="lease",
         )
 
     elif instance.status == "active":
         # Lease fully signed
+        tenant_name = instance.primary_tenant.full_name if instance.primary_tenant else "Unknown"
         _push(
             tenant_user,
             title="Lease signed",
-            body=f"Your lease for {instance.unit_label} is now active. Welcome!",
+            body=f"Your lease for {str(instance.unit)} is now active. Welcome!",
             data={"screen": "tenant_lease_detail", "lease_id": str(instance.pk)},
             category="lease",
         )
         _push(
             agent_user,
             title="Lease signed",
-            body=f"Lease for {instance.unit_label} ({instance.tenant_name}) is now active.",
+            body=f"Lease for {str(instance.unit)} ({tenant_name}) is now active.",
             data={"screen": "lease_detail", "lease_id": str(instance.pk)},
             category="lease",
         )
@@ -176,7 +178,7 @@ def on_rent_invoice_paid(sender, instance, created: bool, **kwargs):
 
     unit_label = ""
     try:
-        unit_label = instance.lease.unit_label
+        unit_label = str(instance.lease.unit)
     except Exception:
         pass
 
@@ -223,7 +225,7 @@ def dispatch_rent_overdue_push(invoice) -> None:
 
     unit_label = ""
     try:
-        unit_label = invoice.lease.unit_label
+        unit_label = str(invoice.lease.unit)
     except Exception:
         pass
 

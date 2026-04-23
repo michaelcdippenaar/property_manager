@@ -15,10 +15,10 @@ Last updated: 2026-04-23
                         └──────────┬─────────────┘
                                    │ approves budget, signs off, reviews
                                    ▼
-                        ┌────────────────────────┐
-                        │  marketing-director    │◄──┐
-                        │  (opus, orchestrator)  │   │ weekly digest
-                        └──────────┬─────────────┘   │
+                        ┌────────────────────────────┐
+                        │ chief-marketing-officer    │◄──┐
+                        │ (opus, orchestrator)       │   │ weekly digest
+                        └──────────┬─────────────────┘   │
                                    │ spawns              │
          ┌───────────┬─────────────┼─────────────┬────────────┐
          ▼           ▼             ▼             ▼            ▼
@@ -79,11 +79,11 @@ back in marketing loop
 
 | Agent | Model | Reports to | Owns | Primary output |
 |---|---|---|---|---|
-| **marketing-director** | opus | CEO | Strategy, OKRs, weekly digest, budget | `marketing/digests/` + Asana |
-| **copywriter** | opus | marketing-director | All text | `marketing/blog/`, `emails/`, `social/`, `website/`, `sales/`, `campaigns/`, `lead-magnets/` |
-| **brand-creative** | sonnet | marketing-director | All visual/motion | `my-video/src/`, `marketing/creative/` |
-| **analytics-engineer** | sonnet | marketing-director | Measurement, funnels, UTM, experiments | `marketing/digests/<date>-dashboard.md`, `marketing/experiments.md` |
-| **user-researcher** | opus | marketing-director | Qualitative VoC, surveys, interviews, Clarity | `marketing/research/voc-briefs/`, `themes.md` |
+| **chief-marketing-officer** | opus | CEO | Strategy, OKRs, weekly digest, budget | `marketing/digests/` + Asana |
+| **copywriter** | opus | chief-marketing-officer | All text | `marketing/blog/`, `emails/`, `social/`, `website/`, `sales/`, `campaigns/`, `lead-magnets/` |
+| **brand-creative** | sonnet | chief-marketing-officer | All visual/motion | `my-video/src/`, `marketing/creative/` |
+| **analytics-engineer** | sonnet | chief-marketing-officer | Measurement, funnels, UTM, experiments | `marketing/digests/<date>-dashboard.md`, `marketing/experiments.md` |
+| **user-researcher** | opus | chief-marketing-officer | Qualitative VoC, surveys, interviews, Clarity | `marketing/research/voc-briefs/`, `themes.md` |
 
 ## Future hires (unlock conditions)
 
@@ -97,7 +97,7 @@ back in marketing loop
 
 ## Authority & escalation envelope
 
-Encoded in `marketing-director.md`. Summary:
+Encoded in `chief-marketing-officer.md`. Summary:
 
 - Routine output → auto-ship
 - Paid spend > R500/day → CEO approval
@@ -111,7 +111,7 @@ Encoded in `marketing-director.md`. Summary:
 
 | Agent | Existing skills | Missing (to create) |
 |---|---|---|
-| marketing-director | klikk-marketing-strategy, klikk-marketing-sales-enablement, klikk-marketing-competitive-intel, **klikk-marketing-orchestration** | — |
+| chief-marketing-officer | klikk-marketing-strategy, klikk-marketing-sales-enablement, klikk-marketing-competitive-intel, **klikk-marketing-orchestration** | — |
 | copywriter | klikk-marketing-strategy, klikk-marketing-website | — |
 | brand-creative | remotion-best-practices, **klikk-marketing-brand-assets** | — |
 | analytics-engineer | **klikk-marketing-analytics** | — |
@@ -138,7 +138,7 @@ Both report Friday digests to CEO alongside marketing digest.
 This file is human-readable. Long-term plan: represent agents, handoffs, and output artefacts in a graph DB (e.g. Vault33's entity/relationship model) or a vector store for dynamic agent routing. For now: plain markdown.
 
 Entity types:
-- `agent` (marketing-director, copywriter, …)
+- `agent` (chief-marketing-officer, copywriter, …)
 - `artefact` (digest, dashboard, blog post, video, …)
 - `metric` (CVR, reply rate, CPA, …)
 - `experiment` (EXP-2026-W17-LI-01, …)

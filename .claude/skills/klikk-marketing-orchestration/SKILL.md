@@ -2,7 +2,7 @@
 name: klikk-marketing-orchestration
 description: >
   Marketing director orchestration — weekly cycle, agent dispatch, authority envelope, CEO digest.
-  Loads when marketing-director agent runs or when user asks about marketing operations cadence.
+  Loads when chief-marketing-officer agent runs or when user asks about marketing operations cadence.
 ---
 
 # Marketing Orchestration

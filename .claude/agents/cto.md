@@ -74,7 +74,7 @@ Produce a written artefact — incident write-up, security posture assessment, c
 - Run `rentals-implementer`, `rentals-tester`, or `rentals-reviewer` — only the autopilot does that.
 - Create new subagents or alter `.claude/agents/*.md` without CEO instruction.
 - Push to git remote. Local reads + local analysis only.
-- Answer CEO questions about product marketing, sales, or brand — those go to `marketing-director`.
+- Answer CEO questions about product marketing, sales, or brand — those go to `chief-marketing-officer`.
 
 ## Escalation to CEO (MC)
 
