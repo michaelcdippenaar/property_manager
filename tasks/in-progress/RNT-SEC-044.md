@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214241801064718"
 created: 2026-04-23
@@ -77,3 +77,34 @@ Ensure all AI surfaces (AI Guide, Tenant Chat, Agent Assist) comply with POPIA s
 2. Anthropic does not currently offer a standard DPA to API customers; their ToS + Privacy Policy serve as the operator agreement. Legal counsel should confirm this satisfies POPIA s72 before go-live. The README flags this explicitly.
 3. `purge_old_interactions` must be scheduled as a daily cron/Celery beat in production — this is an ops task, noted in README.
 4. The bank account pattern (6–11 digits) will also redact 8-digit dates (e.g. 20241215) — this is an intentional conservative tradeoff documented in scrubber.py.
+
+
+2026-04-23 — rentals-reviewer: **Review requested changes.** Two blockers before re-review.
+
+**Blocker 1 — Tenant Chat notice is missing (AC unmet).**
+The implementer caveat that "tenant web_app is not yet scaffolded" is factually wrong. The tenant app exists at `tenant/` and already ships an AI-backed chat surface:
+- `tenant/src/views/chat/ChatDetailView.vue` (header title "AI Assistant")
+- `tenant/src/views/chat/ChatListView.vue`
+- Router entries: `tenant/src/router/index.ts:97` and `:101` (`/chat` and `/chat/:id`)
+These call into `TenantChatMessageView` (which is the Anthropic-backed surface the backend scrubber already wires into). The AC explicitly requires the disclosure notice on **"all chat widget surfaces (AI Guide, Tenant Chat, Agent Assist)"** — this one is absent. Add the same "Messages you send here are processed by an AI service." notice to the tenant chat surface (welcome / empty state in `ChatListView.vue` is the cleanest spot, or a one-time banner on first open of `ChatDetailView.vue`). Update `backend/apps/ai/README.md:77` — the TODO referencing `web_app/src/components/TenantChat.vue` should be replaced with the actual tenant path.
+
+**Blocker 2 — No automated test exercises `purge_old_interactions`.**
+AC requires "a management command or scheduled task enforces this [retention]". The command at `backend/apps/ai/management/commands/purge_old_interactions.py` is implemented but has zero test coverage (no references outside the command file itself and the README/models docstring). Add a test (either in `apps/ai/tests/` or `apps/test_hub/ai/unit/`) that:
+  1. Seeds `GuideInteraction` rows at `created_at` both inside and outside the 90-day window (and similarly `TenantChatSession` by `updated_at`).
+  2. Runs the command via `call_command("purge_old_interactions")`.
+  3. Asserts only stale rows are deleted.
+  4. Covers the `--dry-run` path (no deletions) and the `--days` override.
+
+**Also noted (not blocking, but action required):**
+3. Opened discovery `tasks/discoveries/2026-04-23-ai-scrubber-overbroad-bank-regex.md` for the `(\d{6,11})` bank pattern collapsing rand amounts, dates, phone numbers, meter readings etc. Documented as a conservative tradeoff, but belongs in a PM-tracked follow-up rather than silently accepted.
+4. Production scheduling of `purge_old_interactions` is correctly deferred to ops, but please add a follow-up note in the task or a `klikk-ops-deployment` TODO so it is not forgotten before go-live (currently only sitting in the README).
+
+**What I checked and is good:**
+- Scrubber is applied before `_call_guide` and before `GuideInteraction.objects.create` in `backend/apps/ai/guide_views.py:189,217` — scrubbed value persisted, not raw.
+- Scrubber applied at `backend/apps/tenant_portal/views.py:1003` as the very first transform on `content`.
+- Scrubber applied in `backend/apps/maintenance/agent_assist_views.py` per diff.
+- Scrubber is ingress-only (not applied to model output) — correct for the task scope.
+- 13-digit SA ID word boundary is correctly exclusive (test `test_14_digit_number_not_redacted_as_id`).
+- No secrets, PII, or tokens logged; ORM queries are parameterised; no raw SQL.
+- README operator register entry for Anthropic is present with legal-counsel flag.
+- Admin notices in `AIGuide.vue`, `MaintenanceDetailView.vue`, `OwnerChatPanel.vue` — verified in diff.
