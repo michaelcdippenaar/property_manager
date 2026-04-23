@@ -17,7 +17,7 @@ from pathlib import Path
 
 from django.core.management.base import BaseCommand
 
-_KB_DIR = Path(__file__).resolve().parents[4] / "chat" / "knowledge"
+_KB_DIR = Path(__file__).resolve().parents[3] / "chat" / "knowledge"
 
 
 class Command(BaseCommand):

@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: blocked
+status: testing
 asana_gid: "1214177309739070"
-assigned_to: null
+assigned_to: tester
 depends_on: [UX-005]
 created: 2026-04-22
 updated: 2026-04-23
@@ -169,3 +169,24 @@ Moving to testing.
 - Blockers: Path calculation bug in `ingest_chat_kb.py` prevents the weekly ingestion workflow from functioning
 
 **Recommendation:** Move to blocked status due to ingest_chat_kb path bug. This is a critical blocker for the "next step for go-live" (from implementer's handoff note at line 80) which explicitly requires running `python manage.py ingest_chat_kb` to vectorize KB articles into ChromaDB.
+
+### 2026-04-23 — implementer (hotfix)
+
+**Path bug fixed:**
+
+Line 20 of `backend/apps/ai/management/commands/ingest_chat_kb.py` used an incorrect parent-level count:
+- Old: `_KB_DIR = Path(__file__).resolve().parents[4] / "chat" / "knowledge"` → resolves to `backend/chat/knowledge` (wrong)
+- New: `_KB_DIR = Path(__file__).resolve().parents[3] / "chat" / "knowledge"` → resolves to `backend/apps/chat/knowledge` (correct)
+
+**Verification:**
+- Ran `python3 manage.py ingest_chat_kb --dry-run` from `backend/` directory
+- Output confirmed: Successfully found KB directory and listed all 6 .md files (18 chunks total):
+  - deposit-rules.md (3 chunks)
+  - lease-renewal.md (3 chunks)
+  - maintenance-reporting.md (3 chunks)
+  - moving-out.md (3 chunks)
+  - popia-data-rights.md (3 chunks)
+  - rent-payment-methods.md (3 chunks)
+- Final output: "Would ingest 6 file(s), 18 chunk(s) into the ChromaDB contracts collection."
+
+**Ready for tester:** All acceptance criteria met. Moving to testing for re-verification of the management command.
