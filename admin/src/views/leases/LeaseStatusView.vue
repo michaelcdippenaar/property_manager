@@ -131,6 +131,11 @@
                 :lease-tenants="selectedTenants"
               />
             </div>
+
+            <!-- Move-in prep checklist (active leases only) -->
+            <div v-if="selected.status === 'active'" class="border-t border-gray-100 pt-4">
+              <MoveInChecklist :key="`mic-${selected.id}`" :lease-id="selected.id" />
+            </div>
           </div>
         </div>
       </div>
@@ -146,6 +151,7 @@ import { Calendar, X, FileText } from 'lucide-vue-next'
 import EmptyState from '../../components/EmptyState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 import ESigningPanel from './ESigningPanel.vue'
+import MoveInChecklist from '../../components/leases/MoveInChecklist.vue'
 import { useLeasesStore } from '../../stores/leases'
 
 const leasesStore = useLeasesStore()

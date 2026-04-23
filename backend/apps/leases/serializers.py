@@ -1,7 +1,7 @@
 import re
 from rest_framework import serializers
 from apps.accounts.models import Person
-from .models import Lease, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession, OnboardingStep, ReusableClause, InventoryItem, InventoryTemplate
+from .models import Lease, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, LeaseDocument, LeaseTemplate, LeaseBuilderSession, OnboardingStep, ReusableClause, InventoryItem, InventoryTemplate, MoveInChecklistItem
 
 
 def _detect_and_group(content_html):
@@ -91,8 +91,28 @@ class LeaseDocumentSerializer(serializers.ModelSerializer):
         return None
 
 
+class MoveInChecklistItemSerializer(serializers.ModelSerializer):
+    key_label = serializers.CharField(source="get_key_display", read_only=True)
+    completed_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MoveInChecklistItem
+        fields = [
+            "id", "key", "key_label", "is_completed",
+            "completed_by", "completed_by_name", "completed_at", "created_at",
+        ]
+        read_only_fields = ["id", "key", "key_label", "completed_by", "completed_by_name", "completed_at", "created_at"]
+
+    def get_completed_by_name(self, obj):
+        if obj.completed_by:
+            full = f"{obj.completed_by.first_name} {obj.completed_by.last_name}".strip()
+            return full or obj.completed_by.email
+        return None
+
+
 class LeaseSerializer(serializers.ModelSerializer):
     documents = LeaseDocumentSerializer(many=True, read_only=True)
+    move_in_checklist = MoveInChecklistItemSerializer(many=True, read_only=True)
     co_tenants = LeaseTenantSerializer(many=True, read_only=True)
     occupants = LeaseOccupantSerializer(many=True, read_only=True)
     guarantors = LeaseGuarantorSerializer(many=True, read_only=True)

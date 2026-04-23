@@ -296,12 +296,17 @@ features:
   tenant_onboarding:
     name: "Tenant Onboarding"
     slug: tenant-onboarding
-    status: BUILT
-    shipped_date: 2026-03-01
+    status: IN_PROGRESS
+    shipped_date: null
     product: rentals
     category: onboarding
-    backend_app: accounts
-    key_files: []
+    backend_app: leases
+    key_files:
+      - backend/apps/leases/models.py
+      - backend/apps/leases/serializers.py
+      - backend/apps/leases/views.py
+      - admin/src/views/leases/LeaseStatusView.vue
+      - admin/src/components/leases/MoveInChecklist.vue
     headline: "Tenant Onboarding"
     tagline: "Welcome pack, app invite, utility setup"
     description: >

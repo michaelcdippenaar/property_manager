@@ -200,6 +200,51 @@ class Lease(models.Model):
         self.save(update_fields=["rha_override"])
 
 
+class MoveInChecklistItem(models.Model):
+    """
+    Tracks completion of a single move-in prep task per lease.
+    Items are created automatically when a lease becomes active.
+    """
+
+    class ItemKey(models.TextChoices):
+        KEYS_HANDOVER = "keys_handover", "Keys handed over"
+        UTILITIES_NOTIFIED = "utilities_notified", "Utilities notified"
+        TENANT_APP_INVITE = "tenant_app_invite", "Tenant app invite sent"
+        WELCOME_PACK = "welcome_pack", "Welcome pack delivered"
+
+    lease = models.ForeignKey(
+        Lease, on_delete=models.CASCADE, related_name="move_in_checklist"
+    )
+    key = models.CharField(max_length=30, choices=ItemKey.choices)
+    is_completed = models.BooleanField(default=False)
+    completed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="move_in_items_completed",
+    )
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("lease", "key")]
+        ordering = ["key"]
+
+    def __str__(self):
+        status = "Done" if self.is_completed else "Pending"
+        return f"{self.get_key_display()} [{status}] — Lease {self.lease_id}"
+
+
+# Default ordered list of move-in checklist items to seed on activation.
+MOVE_IN_CHECKLIST_DEFAULTS = [
+    MoveInChecklistItem.ItemKey.KEYS_HANDOVER,
+    MoveInChecklistItem.ItemKey.UTILITIES_NOTIFIED,
+    MoveInChecklistItem.ItemKey.TENANT_APP_INVITE,
+    MoveInChecklistItem.ItemKey.WELCOME_PACK,
+]
+
+
 class LeaseTemplate(models.Model):
     """Reusable DOCX template for generating lease agreements."""
     name = models.CharField(max_length=200)

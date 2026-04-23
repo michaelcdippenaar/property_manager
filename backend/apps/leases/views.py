@@ -9,11 +9,11 @@ from rest_framework.response import Response
 
 from apps.accounts.models import Person, User
 from apps.accounts.permissions import IsAgentOrAdmin
-from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep, InventoryItem, InventoryTemplate
+from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep, InventoryItem, InventoryTemplate, MoveInChecklistItem, MOVE_IN_CHECKLIST_DEFAULTS
 from .serializers import (
     LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
     LeaseOccupantSerializer, LeaseGuarantorSerializer, OnboardingStepSerializer, PersonSerializer,
-    InventoryItemSerializer, InventoryTemplateSerializer,
+    InventoryItemSerializer, InventoryTemplateSerializer, MoveInChecklistItemSerializer,
 )
 from .events import generate_lease_events, generate_onboarding_steps
 
@@ -45,7 +45,8 @@ class LeaseViewSet(viewsets.ModelViewSet):
         qs = Lease.objects.select_related(
             "unit__property", "unit__property__agent", "primary_tenant"
         ).prefetch_related(
-            "co_tenants__person", "occupants__person", "guarantors__person", "documents"
+            "co_tenants__person", "occupants__person", "guarantors__person", "documents",
+            "move_in_checklist__completed_by",
         )
         if user.role == User.Role.TENANT:
             from apps.tenant_portal.views import get_tenant_leases
@@ -387,6 +388,92 @@ class LeaseViewSet(viewsets.ModelViewSet):
             step.notes = request.data["notes"]
         step.save()
         return Response(OnboardingStepSerializer(step).data)
+
+    # ── Move-in checklist ──
+
+    @action(detail=True, methods=["get"], url_path="move-in-checklist")
+    def move_in_checklist(self, request, pk=None):
+        """
+        GET /api/v1/leases/<id>/move-in-checklist/
+
+        Returns all move-in checklist items for this lease, seeding the defaults
+        if none exist yet. Visible to agents (read/write) and owners (read-only).
+        """
+        lease = self.get_object()
+        self._ensure_checklist_seeded(lease)
+        items = lease.move_in_checklist.select_related("completed_by").all()
+        return Response(MoveInChecklistItemSerializer(items, many=True).data)
+
+    @action(detail=True, methods=["patch"], url_path="move-in-checklist/(?P<item_key>[^/.]+)")
+    def toggle_move_in_item(self, request, pk=None, item_key=None):
+        """
+        PATCH /api/v1/leases/<id>/move-in-checklist/<key>/
+
+        Toggle a checklist item's completion state.
+        Body: { "is_completed": true|false }
+        Only agents and admins may mutate; owners receive 403.
+        """
+        from apps.accounts.models import User as AuthUser
+        user = request.user
+
+        # Owner role is read-only for the checklist
+        if user.role == AuthUser.Role.OWNER:
+            return Response(
+                {"detail": "Owners may not modify the move-in checklist."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # All other non-agent roles also blocked (tenants, suppliers, etc.)
+        agent_roles = {
+            AuthUser.Role.AGENT, AuthUser.Role.ESTATE_AGENT,
+            AuthUser.Role.MANAGING_AGENT, AuthUser.Role.AGENCY_ADMIN, AuthUser.Role.ADMIN,
+        }
+        if user.role not in agent_roles:
+            return Response(
+                {"detail": "Only agents and admins may modify the move-in checklist."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        lease = self.get_object()
+        self._ensure_checklist_seeded(lease)
+        item = get_object_or_404(MoveInChecklistItem, lease=lease, key=item_key)
+
+        is_completed = request.data.get("is_completed")
+        if is_completed is None:
+            return Response(
+                {"detail": "is_completed is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.utils import timezone as tz
+        if is_completed:
+            item.is_completed = True
+            if not item.completed_at:
+                item.completed_at = tz.now()
+                item.completed_by = user
+        else:
+            item.is_completed = False
+            item.completed_at = None
+            item.completed_by = None
+
+        item.save(update_fields=["is_completed", "completed_at", "completed_by"])
+        return Response(MoveInChecklistItemSerializer(item).data)
+
+    @staticmethod
+    def _ensure_checklist_seeded(lease):
+        """Create default checklist items for this lease if they don't exist yet."""
+        existing_keys = set(
+            lease.move_in_checklist.values_list("key", flat=True)
+        )
+        to_create = [
+            MoveInChecklistItem(lease=lease, key=key)
+            for key in MOVE_IN_CHECKLIST_DEFAULTS
+            if key not in existing_keys
+        ]
+        if to_create:
+            MoveInChecklistItem.objects.bulk_create(to_create, ignore_conflicts=True)
+            # Refresh the prefetch cache
+            lease.move_in_checklist._result_cache = None
 
     # ── Inventory ──
 
