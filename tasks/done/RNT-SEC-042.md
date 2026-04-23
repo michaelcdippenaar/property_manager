@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214229920415908"
 created: 2026-04-23
@@ -107,3 +107,48 @@ Other checks passed:
 3. **Verified CI check passes:**
    - `cd admin && bash scripts/check-pii-masking.sh` → exit 0
    - All 7 PII fields now guarded against bare input usage.
+
+2026-04-24 (reviewer re-review) — Review passed (fixes verified).
+
+All three requested fixes in commit 55f19415 verified correct:
+
+1. **trust_branch_code in canonical sources** — Present in both:
+   - `admin/src/composables/piiFields.ts` line 21 (7 fields total)
+   - `admin/scripts/check-pii-masking.sh` line 35 (PII_FIELDS array synced)
+
+2. **MaskedInput.vue comment (lines 27–28)** — Correctly states:
+   "inheritAttrs: false is set so that $attrs are applied only at the explicit v-bind above — prevents double-application on the root element."
+   Code on line 30 confirmed: `defineOptions({ inheritAttrs: false })`
+
+3. **CI script execution** — `bash admin/scripts/check-pii-masking.sh` exits 0 with all 7 PII fields guarded.
+
+Security & POPIA compliance checks passed:
+- No auth bypass risks (this is admin-only PII masking)
+- No new endpoints
+- No secrets/tokens/PII logged
+- No raw SQL
+- User input validation: PII fields already v-modeled to form state (Vue reactivity, no direct DOM)
+- Clarity session masking prevents third-party recording leaks, critical for POPIA s26/s11
+
+Code patterns match existing conventions in admin/src/components/shared/ and composables/.
+
+2026-04-24 (tester) — Test execution passed all checks:
+
+1. **`cd admin && bash scripts/check-pii-masking.sh`** → exit 0
+   - Output: "PASS: all PII fields are masked (checked: id_number account_number branch_code trust_account_number trust_branch_code representative_id_number passport)"
+   - All 7 PII fields guarded.
+
+2. **`cd admin && npx vue-tsc --noEmit`** → Only pre-existing error (focus-trap-keyboard.browser.test.ts line 57), unrelated to this task.
+   - No new TypeScript errors introduced.
+
+3. **Static check: 8 migrated views confirmed using MaskedInput**
+   - LandlordDrawer.vue: 4 matches
+   - LandlordDetailView.vue: 4 matches
+   - PropertyDetailView.vue: 2 matches
+   - AgencySettingsView.vue: 3 matches
+   - SuppliersView.vue (maintenance): 3 matches
+   - DirectoryView.vue (suppliers): 3 matches
+   - SupplierProfileView.vue: 3 matches
+   - EditLeaseDrawer.vue: 4 matches
+
+All acceptance criteria met. Task moves to done.
