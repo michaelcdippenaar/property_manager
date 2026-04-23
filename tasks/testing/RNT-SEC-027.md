@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200629201021"
 created: 2026-04-22
@@ -45,3 +45,7 @@ Added 9 unit tests in `backend/apps/test_hub/accounts/unit/test_requires_feature
 - `TestCBVConvention` (3 tests): allowed/blocked CBV method; CBV with unexpected args also does not silently grant.
 
 All 9 tests pass (`pytest apps/test_hub/accounts/ -k requires_feature`). No DB fixtures required — pure unit tests using `unittest.mock`.
+
+**2026-04-23 — reviewer (approved)**
+
+Checked: decorator source (`backend/apps/accounts/decorators.py`) confirms the hardened `else` branch is live — raises `ImproperlyConfigured` in DEBUG, returns HTTP 500 in production, and does not call the view body in either path. All 9 tests in `test_requires_feature_decorator.py` directly exercise both paths. `_patched_decorator_env` patches `django.conf.settings.DEBUG` — valid target for how the decorator reads it. Call sites (`leases/builder_views.py`, `accounts/tests/test_tier_enforcement.py`) untouched; no regressions. POPIA/security pass: no PII logged, no raw SQL, no auth bypass. AC 1–3 satisfied; AC 4 is moot (approach already hardened, no duck-typing removed needed). Review passed.
