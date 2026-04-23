@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: done
 depends_on: []
 asana_gid: "1214229833102884"
 created: 2026-04-23
@@ -51,3 +51,5 @@ Decision established: the role-assignment logic in `backend/apps/accounts/serial
 Note: the task description said `test_register_default_role_is_admin` "expects admin" — but the test body actually asserts `agency_admin`. The task description was itself stale/incorrect; the tests were already correct and aligned with the code.
 
 Full run: `pytest apps/test_hub/accounts/integration/ -v` → 203 passed, 0 failed. No regressions.
+
+(2026-04-23 reviewer) Review passed — closed as obsolete. Reviewer independently ran both named tests: 2 passed, 0 failed (pytest -k "test_register_default_role_is_admin or test_first_registered_user_is_admin"). No production code was changed; task description contained stale failure info. All ACs satisfied by pre-existing code. Moving directly to done — no tester action required.
