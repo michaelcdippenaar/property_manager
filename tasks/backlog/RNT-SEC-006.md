@@ -35,7 +35,7 @@ Give tenants, owners, and prospects a self-service way to request a copy of thei
 - `web_app/src/views/MyData.vue` (new — tenant self-service)
 - `docs/compliance/popia-dsar.md` (new)
 
-> v1.0 scope note: Flutter tenant mobile deferred to v2. Tenant DSAR self-service is web-only for v1.0.
+> v1.0 scope note: Flutter tenant apps are DEPRECATED (per MC 2026-04-23). Tenant DSAR self-service is web-only for v1.0.
 
 ## Test plan
 **Automated:**

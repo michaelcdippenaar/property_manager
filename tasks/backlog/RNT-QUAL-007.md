@@ -25,7 +25,7 @@ Wire FCM/APNs push on the Quasar agent app and browser Web Push on the tenant we
 - [ ] User preferences: in-app screen to toggle categories per device
 - [ ] Deep-link each notification to the relevant screen (mandate → mandate detail, rent overdue → invoice)
 - [ ] POPIA: only send to devices with active sessions; revoke tokens on logout
-- [ ] v1.0 scope: Flutter tenant mobile deferred to v2 — no FCM on Flutter tenant in v1
+- [ ] v1.0 scope: Flutter tenant apps (`mobile/`, `tenant_app/`) are DEPRECATED — no FCM for Flutter
 
 ## Files likely touched
 - `backend/apps/notifications/*` (new or extend)

@@ -24,7 +24,7 @@ Establish a baseline vulnerability posture across backend (pip), admin (npm), mo
 - [ ] CI job runs these on every PR and fails on regression
 - [ ] Dependabot (or Renovate) enabled on repo with weekly schedule
 - [ ] Document the scan + resolutions in `docs/ops/dependency-audit-2026-04.md`
-- [ ] Flutter (`mobile/`, `tenant_app/`) excluded — deferred to v2
+- [ ] Flutter apps (`mobile/`, `tenant_app/`) are DEPRECATED and excluded from all scans
 
 ## Files likely touched
 - `.github/workflows/security.yml` (new)

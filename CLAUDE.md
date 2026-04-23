@@ -9,9 +9,9 @@ See `CONTEXT.md` for detailed technical architecture.
 |-----------|---------|
 | `backend/` | Django 5 + DRF API, PostgreSQL |
 | `admin/` | Vue 3 admin SPA (agent, supplier, owner portals) |
-| `mobile/` | Flutter tenant app (iOS/Android) |
+| `mobile/` | ~~Flutter tenant app (iOS/Android)~~ **DEPRECATED 2026-04-23 — do not work on** |
 | `web_app/` | Vue 3 tenant web app |
-| `tenant_app/` | Flutter tenant app (alternative) |
+| `tenant_app/` | ~~Flutter tenant app (alternative)~~ **DEPRECATED 2026-04-23 — do not work on** |
 | `services/` | MCP servers (tremly-mcp for E2E testing) |
 | `content/` | **Content hub — single source of truth for features, marketing, sales** |
 | `website-preview/` | Approved static HTML design direction for marketing site |
