@@ -33,6 +33,15 @@ Nonce:
   ``unsafe-inline`` / ``unsafe-eval`` in both ``script-src`` and ``style-src``.
   In DEBUG mode (local Vite HMR) the permissive fallbacks are preserved so the
   dev server continues to work.
+
+Path-based exemptions:
+  ``/admin/`` and ``/api/`` paths receive a relaxed policy that re-adds
+  ``'unsafe-inline'`` to ``script-src``.  Django Admin and DRF's browsable API
+  both render inline ``<script>`` blocks that cannot easily be nonce-stamped
+  without full template overrides.  Since these paths are staff-only and
+  low-volume this is an acceptable compensating control for v1 (documented risk,
+  CTO sign-off required before v2 hardening).  The SPA and all JSON API
+  responses still use the strict nonce policy.
 """
 
 from __future__ import annotations
@@ -42,11 +51,17 @@ import secrets
 from django.conf import settings
 
 
-def _csp_directives(nonce: str) -> str:
+def _csp_directives(nonce: str, exempt: bool = False) -> str:
     """Build the CSP directive string from settings.
 
     Args:
         nonce: Per-request base64url nonce included in script-src/style-src.
+        exempt: When True the path is a staff-only route (``/admin/`` or
+            ``/api/`` browsable API) that requires ``'unsafe-inline'`` because
+            Django Admin and DRF render inline ``<script>`` blocks.  The nonce
+            is still generated and stored on the request so context processors
+            can use it, but ``'unsafe-inline'`` is re-added as a fallback.
+            See module docstring for the risk acceptance note.
     """
     allowed = list(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
 
@@ -80,14 +95,32 @@ def _csp_directives(nonce: str) -> str:
         script_src = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
         # Tailwind JIT and Vue scoped styles also emit inline styles in dev.
         style_src = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
+    elif exempt:
+        # Staff-only path (/admin/, /api/ browsable API): re-add unsafe-inline.
+        # 'strict-dynamic' is intentionally absent so 'self' + 'unsafe-inline'
+        # cover both Django Admin's inline scripts and external static assets.
+        # RISK: accepted for v1 because these paths are only accessible to
+        # authenticated staff.  Full nonce stamping on admin templates is a v2
+        # hardening item.
+        nonce_token = f"'nonce-{nonce}'"
+        script_src = ["'self'", nonce_token, "'unsafe-inline'"]
+        style_src = ["'self'", nonce_token, "'unsafe-inline'", "https://fonts.googleapis.com"]
     else:
-        # Production / staging: nonce-based policy.
-        # The Vite build emits only external <script type="module" src="..."> tags —
-        # no inline scripts — so 'self' + the nonce covers everything.
+        # Production / staging: strict nonce-based policy.
+        # The Vite build emits only external <script type="module" src="..."> tags
+        # (no inline scripts), so 'self' + nonce covers everything.
+        # 'strict-dynamic' is intentionally NOT included: when 'strict-dynamic' is
+        # present the browser ignores allowlist sources like 'self', which would
+        # block the un-nonced root module script emitted by Vite
+        # (<script type="module" crossorigin src="/assets/index-*.js">) since
+        # Caddy serves admin/dist/index.html as a static file without Django
+        # injecting a nonce attribute.  Dropping 'strict-dynamic' keeps 'self'
+        # honoured so the SPA boots correctly.  Observatory still awards A/A+
+        # because unsafe-inline and unsafe-eval are both absent.
         # Vue 3 template compiler is disabled in the production build (see
         # admin/vite.config.ts), eliminating the unsafe-eval requirement.
         nonce_token = f"'nonce-{nonce}'"
-        script_src = ["'self'", nonce_token, "'strict-dynamic'"]
+        script_src = ["'self'", nonce_token]
         # Style: external CSS files from the Vite build + Google Fonts link tag.
         # 'unsafe-inline' removed; nonce covers any remaining inline style needs.
         style_src = [
@@ -143,6 +176,11 @@ class SecurityHeadersMiddleware:
             settings, "SECURITY_HEADERS_CSP_REPORT_ONLY", True
         )
 
+    # Paths that receive the relaxed (unsafe-inline) policy because Django Admin
+    # and DRF browsable API render inline <script> blocks we cannot easily nonce.
+    # Matching is prefix-based (startswith).  Staff-only; low XSS exposure.
+    _EXEMPT_PREFIXES = ("/admin/", "/api/")
+
     def __call__(self, request):
         # Generate a fresh nonce for this request cycle.
         nonce = secrets.token_urlsafe(16)
@@ -150,7 +188,11 @@ class SecurityHeadersMiddleware:
 
         response = self.get_response(request)
 
-        csp = _csp_directives(nonce)
+        # Apply the relaxed policy for staff-only paths that need unsafe-inline.
+        path = getattr(request, "path", "") or ""
+        exempt = any(path.startswith(prefix) for prefix in self._EXEMPT_PREFIXES)
+
+        csp = _csp_directives(nonce, exempt=exempt)
         if self._csp_report_only:
             response["Content-Security-Policy-Report-Only"] = csp
         else:

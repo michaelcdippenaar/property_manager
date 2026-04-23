@@ -32,12 +32,20 @@ www.klikk.co.za {
 # Admin SPA (public login)
 app.klikk.co.za {
   import no_index_headers
-  
+
+  # CSP for the static SPA shell.  No nonce is needed here because the Vite
+  # build emits zero inline scripts — only <script type="module" src="...">
+  # external tags.  'self' therefore covers all module scripts without
+  # 'strict-dynamic' (which would incorrectly shadow 'self').
+  # Django-side SecurityHeadersMiddleware keeps its own nonce for rendered
+  # pages; this header applies only to the Caddy-served SPA origin.
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za https://backend.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
   # Proxy media requests to backend
   handle /media/* {
     reverse_proxy backend:8000
   }
-  
+
   # SPA routes
   reverse_proxy admin_web:80
 }
@@ -57,7 +65,7 @@ backend.klikk.co.za {
       flush_interval -1
     }
   }
-  
+
   # Main Django API proxy — generous timeouts for AI endpoints
   # (parse-document, ai-chat, builder sessions can take 60-120s)
   reverse_proxy backend:8000 {
@@ -71,6 +79,9 @@ backend.klikk.co.za {
 # Agent mobile web (Quasar SPA)
 mobile-agent.klikk.co.za {
   import no_index_headers
+
+  # Same static-SPA CSP rationale as app.klikk.co.za above.
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za https://backend.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
   reverse_proxy agent_app_web:80
 }
-

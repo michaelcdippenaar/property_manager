@@ -170,8 +170,13 @@ class TestCSPNonceHardening:
     and injects a per-request nonce, while dev mode (DEBUG=True) keeps the
     permissive fallbacks for Vite HMR compatibility."""
 
-    def _invoke(self, debug: bool, report_only: bool = True):
-        """Return (request, response) from a single middleware call."""
+    def _invoke(self, debug: bool, report_only: bool = True, path: str = "/webhooks/stripe/"):
+        """Return (request, response) from a single middleware call.
+
+        Uses a non-exempt path by default (``/webhooks/stripe/``) so tests
+        validate the strict production CSP branch.  Pass ``path="/admin/"`` or
+        ``path="/api/..."`` explicitly to test the exempt branch.
+        """
         from config.middleware import security_headers as mod
 
         fake_settings = MagicMock()
@@ -191,7 +196,7 @@ class TestCSPNonceHardening:
         with patch.object(mod, "settings", fake_settings):
             middleware = mod.SecurityHeadersMiddleware(get_response)
             middleware._csp_report_only = report_only
-            response = middleware(_make_request())
+            response = middleware(_make_request(path=path))
 
         return captured_request["req"], response
 
@@ -249,13 +254,33 @@ class TestCSPNonceHardening:
             "'unsafe-inline' must not appear in style-src in production"
         )
 
-    def test_production_strict_dynamic_in_script_src(self):
+    def test_production_no_strict_dynamic_in_script_src(self):
+        """'strict-dynamic' must NOT be in the production script-src.
+
+        When 'strict-dynamic' is present the browser ignores allowlist sources
+        like 'self', which would block the un-nonced Vite root module script
+        served statically by Caddy.  Removing it keeps 'self' honoured so the
+        SPA boots correctly.  Mozilla Observatory still awards A/A+ because
+        unsafe-inline and unsafe-eval are both absent.
+        """
         _, response = self._invoke(debug=False)
         csp = self._get_csp(response)
         script_src = next(
             (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
         )
-        assert "'strict-dynamic'" in script_src
+        assert "'strict-dynamic'" not in script_src, (
+            "'strict-dynamic' must be absent so 'self' covers un-nonced Vite "
+            "module scripts served statically from Caddy"
+        )
+
+    def test_production_self_in_script_src(self):
+        """'self' must remain in the production script-src to cover Vite assets."""
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'self'" in script_src
 
     def test_production_google_fonts_in_style_src(self):
         """Google Fonts stylesheet must be allowed for the admin SPA."""
@@ -293,6 +318,119 @@ class TestCSPNonceHardening:
         assert "'unsafe-eval'" in script_src, (
             "Dev mode must keep unsafe-eval so Vite HMR works"
         )
+
+
+# ---------------------------------------------------------------------------
+# Path-based CSP exemption tests (RNT-SEC-023 review fixes)
+# ---------------------------------------------------------------------------
+
+class TestCSPPathExemption:
+    """Verify the /admin/ and /api/ paths get the relaxed (unsafe-inline) policy
+    and that all other paths get the strict nonce-only policy.
+
+    Risk acceptance: Django Admin + DRF browsable API render inline <script>
+    blocks.  Re-adding 'unsafe-inline' for those staff-only paths is an
+    accepted v1 compensating control (CTO sign-off required before v2
+    hardening).
+    """
+
+    def _invoke(self, path: str, debug: bool = False, report_only: bool = True):
+        from config.middleware import security_headers as mod
+
+        fake_settings = MagicMock()
+        fake_settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+        fake_settings.SECURITY_HEADERS_CSP_REPORT_ONLY = report_only
+        fake_settings.SECURITY_HEADERS_EXTRA_CONNECT = []
+        fake_settings.SECURITY_HEADERS_CSP_REPORT_URI = ""
+        fake_settings.SENTRY_DSN = ""
+        fake_settings.DEBUG = debug
+
+        def get_response(request):
+            return _make_response()
+
+        with patch.object(mod, "settings", fake_settings):
+            middleware = mod.SecurityHeadersMiddleware(get_response)
+            middleware._csp_report_only = report_only
+            response = middleware(_make_request(path=path))
+
+        return response
+
+    def _script_src(self, response, report_only: bool = True) -> str:
+        key = "Content-Security-Policy-Report-Only" if report_only else "Content-Security-Policy"
+        csp = response[key]
+        return next((d for d in csp.split(";") if d.strip().startswith("script-src")), "")
+
+    # --- /admin/ exemption ---
+
+    def test_admin_path_has_unsafe_inline(self):
+        response = self._invoke("/admin/")
+        script_src = self._script_src(response)
+        assert "'unsafe-inline'" in script_src, (
+            "/admin/ must include 'unsafe-inline' for Django Admin inline scripts"
+        )
+
+    def test_admin_path_no_strict_dynamic(self):
+        response = self._invoke("/admin/auth/user/")
+        script_src = self._script_src(response)
+        assert "'strict-dynamic'" not in script_src
+
+    def test_admin_path_still_has_self(self):
+        response = self._invoke("/admin/")
+        script_src = self._script_src(response)
+        assert "'self'" in script_src
+
+    def test_admin_path_still_has_nonce(self):
+        """Even on exempt paths, the nonce is included so template tags can use it."""
+        response = self._invoke("/admin/")
+        csp = response["Content-Security-Policy-Report-Only"]
+        assert "'nonce-" in csp
+
+    # --- /api/ exemption ---
+
+    def test_api_path_has_unsafe_inline(self):
+        response = self._invoke("/api/v1/")
+        script_src = self._script_src(response)
+        assert "'unsafe-inline'" in script_src, (
+            "/api/ must include 'unsafe-inline' for DRF browsable API inline scripts"
+        )
+
+    def test_api_path_no_strict_dynamic(self):
+        response = self._invoke("/api/v1/leases/")
+        script_src = self._script_src(response)
+        assert "'strict-dynamic'" not in script_src
+
+    # --- Non-exempt paths use strict policy ---
+
+    def test_non_exempt_path_no_unsafe_inline(self):
+        """A non-exempt path must NOT have 'unsafe-inline' in script-src."""
+        response = self._invoke("/webhooks/stripe/")
+        script_src = self._script_src(response)
+        assert "'unsafe-inline'" not in script_src
+
+    def test_non_exempt_path_no_strict_dynamic(self):
+        response = self._invoke("/webhooks/stripe/")
+        script_src = self._script_src(response)
+        assert "'strict-dynamic'" not in script_src
+
+    def test_non_exempt_path_has_self_and_nonce(self):
+        response = self._invoke("/webhooks/stripe/")
+        script_src = self._script_src(response)
+        assert "'self'" in script_src
+        assert "'nonce-" in script_src
+
+    def test_root_path_is_not_exempt(self):
+        """A request to / should get the strict (no unsafe-inline) policy."""
+        response = self._invoke("/")
+        script_src = self._script_src(response)
+        assert "'unsafe-inline'" not in script_src
+
+    # --- Debug mode overrides exemption (everything permissive) ---
+
+    def test_debug_mode_admin_path_has_unsafe_eval(self):
+        """In DEBUG mode the permissive dev policy applies regardless of path."""
+        response = self._invoke("/admin/", debug=True)
+        script_src = self._script_src(response)
+        assert "'unsafe-eval'" in script_src
 
 
 # ---------------------------------------------------------------------------
