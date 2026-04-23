@@ -7,8 +7,8 @@ lifecycle_stage: 8
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: [RNT-015]
 asana_gid: "1214197140899873"
 created: 2026-04-22
@@ -60,3 +60,19 @@ rha_check.py review: logic is correct. All 10 blocking code paths tested, ordina
 test_rha_gate.py review: 31 unit tests all pass. Coverage of rha_check module, Lease model methods, and the three new RNT-015 clause fields is adequate. Gap identified: no tests for the view endpoint response shape or RBAC enforcement on `rha-override`. Added `TestRhaCheckEndpoints` (7 integration tests) to close this gap — covers correct response keys, blocking flag surfacing, tenant/agent rejection (403), empty-reason rejection (400), and successful agency_admin override.
 
 Caveats for reviewer: integration tests require a live PostgreSQL test DB; they cannot run in the current dev environment but are structurally correct and consistent with other integration tests in the codebase. The final acceptance criterion (git note tying eed71cb to this task ID) is deferred to post-testing sign-off per the task's own wording.
+
+2026-04-23 — reviewer (RNT-SEC-024) — CHANGES REQUESTED. Sending back to implementer.
+
+The two frontend bug fixes (BUG 1 key rename, BUG 2 canRecordOverride v-if guard) are correct and structurally sound. The migration and rha_check.py reviews are verified clean.
+
+One blocking defect found: all 7 new `TestRhaCheckEndpoints` integration tests fail with HTTP 404.
+
+**Root cause** (`backend/apps/leases/tests/test_rha_gate.py`, `TestRhaCheckEndpoints._make_db_lease`): `LeaseViewSet.get_queryset()` (`backend/apps/leases/views.py:43-60`) scopes leases to `get_accessible_property_ids(user)` for any non-tenant, non-admin role. The test helper creates a fresh `agency_admin` user with no property access assignments, so that user's queryset is empty and `get_object()` returns 404 — not 200. The lease was created but is invisible to the authenticating user.
+
+**Required fix**: In `_make_db_lease`, assign the test admin user to the property that owns the created unit. Look at how other integration tests in `apps/test_hub/` or `test_regression_battery.py` grant property access (likely via `PropertyAccessGrant` or `create_property_access` on the tremly fixture). Pattern-match those and apply the same setup in `_make_db_lease`.
+
+**Numbered fixes required:**
+
+1. `backend/apps/leases/tests/test_rha_gate.py`, `TestRhaCheckEndpoints._make_db_lease` (approx line 495): Grant the calling user access to the unit's property so `get_accessible_property_ids` returns the right property ID. The simplest approach is to pass the `admin` user into `_make_db_lease` and call the appropriate access-grant helper on the tremly fixture before returning the lease. Alternatively, use `create_user(role="admin")` (superuser/ADMIN role bypasses the property filter at `views.py:55-56`) — but only if that matches what the tests are actually trying to assert; prefer the access-grant approach to keep the tests realistic.
+
+2. After the fix, run `pytest apps/leases/tests/test_rha_gate.py -v --reuse-db` and confirm all 38 tests pass before re-submitting.
