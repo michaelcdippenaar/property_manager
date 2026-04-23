@@ -16,6 +16,26 @@ from apps.esigning.pdf_settings import (
 
 logger = logging.getLogger(__name__)
 
+# Canonical mapping from legacy / short-form HTML role values to the tiptap
+# role names used in signer records.  Referenced by both
+# ``_convert_legacy_signing_span`` (write path — normalises new HTML) and
+# ``extract_signer_fields`` (read path — handles pre-existing HTML that was
+# saved before normalisation).
+#
+# Rules:
+#   • "landlord" is the canonical unsuffixed tiptap role for landlord/lessor
+#     (matches SignatureBlockNode.ts default and _role_to_tiptap output).
+#   • Tenant roles are numbered (tenant_1, tenant_2) because multiple tenants
+#     can co-sign the same document.
+#   • "owner" is used by rental-mandate signing and passes through unchanged
+#     (no legacy short-form exists for it, so no alias entry is needed).
+_HTML_ROLE_CANONICAL: dict[str, str] = {
+    'landlord': 'landlord',   # passthrough — keeps lessor→landlord consistent
+    'lessor': 'landlord',
+    'tenant': 'tenant_1',
+    'co-tenant': 'tenant_2',
+    'cotenant': 'tenant_2',
+}
 
 
 def _get_landlord_info(lease) -> dict | None:
@@ -445,16 +465,9 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
             role = signer_role.group(1) if signer_role else 'landlord'
 
             # Normalise short-form aliases to canonical tiptap role names so
-            # extract_signer_fields (which receives the tiptap role, e.g. "tenant_1")
-            # can match them without needing a reverse lookup at query time.
-            _legacy_role_alias = {
-                'tenant': 'tenant_1',
-                'landlord': 'landlord_1',
-                'lessor': 'landlord_1',
-                'co-tenant': 'tenant_2',
-                'cotenant': 'tenant_2',
-            }
-            role = _legacy_role_alias.get(role.lower(), role)
+            # extract_signer_fields (which receives the tiptap role from the
+            # signer record) can match them without needing a reverse lookup.
+            role = _HTML_ROLE_CANONICAL.get(role.lower(), role)
 
             tag_map = {'signature': 'signature-field', 'initials': 'initials-field', 'date': 'date-field'}
             tag = tag_map.get(ftype, 'signature-field')
@@ -614,15 +627,6 @@ def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
     This covers templates where the HTML was saved before the normalisation in
     ``_convert_legacy_signing_span`` was introduced.
     """
-    # Map legacy/short HTML role values to canonical tiptap role names.
-    _html_role_aliases = {
-        'tenant': 'tenant_1',
-        'landlord': 'landlord_1',
-        'lessor': 'landlord_1',
-        'co-tenant': 'tenant_2',
-        'cotenant': 'tenant_2',
-    }
-
     fields = []
     for m in re.finditer(r'<(signature|initials|date|signedat)-field\b([^>]*)>', html):
         tag_type = m.group(1)
@@ -632,8 +636,11 @@ def extract_signer_fields(html: str, signer_role: str) -> list[dict]:
         role_m = re.search(r'role="([^"]+)"', attrs)
         name = name_m.group(1) if name_m else ''
         raw_role = role_m.group(1) if role_m else ''
-        # Normalise legacy alias to canonical before comparing with signer_role.
-        canonical_role = _html_role_aliases.get(raw_role.lower(), raw_role.lower())
+        # Normalise legacy/short-form alias to canonical before comparing with
+        # signer_role.  Uses the module-level _HTML_ROLE_CANONICAL so that
+        # both the write path (_convert_legacy_signing_span) and this read path
+        # are always in sync.
+        canonical_role = _HTML_ROLE_CANONICAL.get(raw_role.lower(), raw_role.lower())
         if canonical_role == signer_role.lower():
             fields.append({
                 'fieldName': name,

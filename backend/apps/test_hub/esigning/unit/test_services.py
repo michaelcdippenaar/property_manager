@@ -90,15 +90,36 @@ class TestExtractSignerFields:
         assert 'tenant_init' in field_names
 
     def test_landlord_alias_matched(self):
-        """Legacy role="landlord" in HTML matches signer_role="landlord_1"."""
+        """Legacy role="landlord" in HTML matches signer_role="landlord".
+
+        _role_to_tiptap maps 'Landlord' / 'lessor' → 'landlord' (unsuffixed),
+        which is the canonical tiptap landlord role used throughout the system
+        (see SignatureBlockNode.ts).  This test mirrors the production call
+        contract: create_native_submission stores role='landlord' in the signer
+        record, then extract_signer_fields is called with 'landlord'.
+
+        Also covers the lessor alias path: both 'landlord' and 'lessor' in HTML
+        must resolve to the same canonical 'landlord' so that either input
+        produces fields for a landlord signer.
+        """
         from apps.esigning.services import extract_signer_fields
+        # Standard legacy landlord field
         html = (
             '<signature-field name="ll_sig" role="landlord" required="true" '
             'format="drawn_or_typed" style="display:inline-block;width:200px;height:60px"> </signature-field>'
+            # Lessor is an alias for landlord — must also match
+            '<initials-field name="ll_init" role="lessor" required="true" '
+            'style="display:inline-block;width:100px;height:40px"> </initials-field>'
         )
-        fields = extract_signer_fields(html, 'landlord_1')
-        assert len(fields) == 1
-        assert fields[0]['fieldName'] == 'll_sig'
+        # signer record carries 'landlord' — exactly what _role_to_tiptap produces
+        fields = extract_signer_fields(html, 'landlord')
+        assert len(fields) == 2, (
+            "Expected 2 fields (signature + initials) for landlord signer "
+            "when HTML uses legacy role='landlord' / role='lessor'"
+        )
+        field_names = {f['fieldName'] for f in fields}
+        assert 'll_sig' in field_names
+        assert 'll_init' in field_names
 
     def test_no_cross_role_contamination(self):
         """Fields for tenant must not appear when querying landlord_1."""
