@@ -1,0 +1,9 @@
+{
+  "name": "klikk-email-templates",
+  "version": "1.0.0",
+  "description": "MJML email templates for Klikk Rentals",
+  "private": true,
+  "devDependencies": {
+    "mjml": "^5.0.1"
+  }
+}

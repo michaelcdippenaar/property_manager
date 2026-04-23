@@ -206,6 +206,10 @@ jobs:
           cache: npm
           cache-dependency-path: email-templates/package-lock.json
 
+      - name: Install email template dependencies
+        working-directory: email-templates
+        run: npm ci
+
       - name: Make scripts executable
         run: chmod +x scripts/compile_email_templates.sh
 
