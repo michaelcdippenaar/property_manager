@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: L
 v1_phase: "1.1"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214195407615213"
 created: 2026-04-22
-updated: 2026-04-24T20:45:00Z
+updated: 2026-04-24T21:30:00Z
 ---
 
 ## Goal
@@ -146,3 +146,16 @@ pytest backend/config/tests/test_security_headers.py -v
 ```
 
 All tests pass. Main API surface (`/api/v1/leases/`, etc.) now keeps strict `script-src 'self' 'nonce-XXX'` in production; only `/admin/` staff paths get the `'unsafe-inline'` carve-out per v1 risk acceptance (CTO sign-off required for v2 hardening).
+
+2026-04-24 (reviewer, pass 3): Review passed. Verified:
+
+1. **`backend/config/settings/base.py:172-179`** — `DEFAULT_RENDERER_CLASSES` is `JSONRenderer`-only when `DEBUG=False`; dev adds `BrowsableAPIRenderer`. Dev UX preserved — local devs still get the browsable API at `http://localhost:8000/api/...`.
+2. **`backend/config/middleware/security_headers.py:188`** — `_EXEMPT_PREFIXES = ("/admin/",)`. `/api/` carve-out removed. Main API surface now under strict nonce-only CSP in production.
+3. **`backend/config/tests/test_security_headers.py:394-401`** — `test_api_path_json_no_unsafe_inline` invokes `/api/v1/leases/` with `debug=False` and asserts `'unsafe-inline'` NOT in `script-src`. Correct inverted assertion proving the main API surface stays strict.
+4. **`pytest config/tests/test_security_headers.py -v`** — 52 passed, 0 failed, 9.62s. Matches implementer's claim.
+
+Module docstring (lines 38-48) correctly explains the new narrower exemption and the BrowsableAPI-disabled-in-prod rationale. The `/admin/` v2-hardening risk remains documented for CTO sign-off (out of scope for this ticket).
+
+Security/POPIA pass: no new endpoints, no PII logging, no raw SQL, no secrets. The CSP change is a hardening (not a regression) on the main attack surface.
+
+Handing off to tester. Remaining ACs (Mozilla Observatory A/A+ and Playwright smoke) require staging deploy and are tester responsibilities per the task plan.
