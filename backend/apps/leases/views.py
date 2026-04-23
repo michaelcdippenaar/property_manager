@@ -8,6 +8,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.models import Person, User
+from apps.accounts.permissions import IsAgentOrAdmin
 from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep, InventoryItem, InventoryTemplate
 from .serializers import (
     LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
@@ -21,6 +22,15 @@ class LeaseViewSet(viewsets.ModelViewSet):
     serializer_class = LeaseSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status", "unit", "primary_tenant"]
+
+    # Write actions are restricted to agents and admins.
+    # Owners and tenants may list and retrieve but must not mutate leases.
+    _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
+
+    def get_permissions(self):
+        if self.action in self._WRITE_ACTIONS:
+            return [IsAgentOrAdmin()]
+        return super().get_permissions()
 
     def perform_destroy(self, instance):
         for doc in instance.documents.all():

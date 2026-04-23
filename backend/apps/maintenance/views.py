@@ -42,12 +42,18 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     # Actions that mutate dispatch / awarding state must be agent-only.
     _AGENT_ONLY_ACTIONS = {"dispatch_award", "dispatch_send", "job_dispatch"}
 
+    # Destructive / mutating actions that owner and tenant roles must not perform.
+    _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
+
     def get_permissions(self):
         if self.action in self._AGENT_ONLY_ACTIONS:
             # job_dispatch handles both GET (read) and POST (mutate).
             # Only lock down the mutating POST; GET stays IsAuthenticated.
             if self.action == "job_dispatch" and self.request.method == "GET":
                 return [IsAuthenticated()]
+            return [IsAgentOrAdmin()]
+        if self.action == "destroy":
+            # Owners and tenants are read-only; only agents and admins may delete.
             return [IsAgentOrAdmin()]
         return super().get_permissions()
 

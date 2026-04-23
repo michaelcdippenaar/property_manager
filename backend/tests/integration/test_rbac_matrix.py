@@ -1113,23 +1113,16 @@ class TestOwnerReadOnly:
         assert resp.status_code == 403
 
     def test_owner_cannot_patch_lease(self, world):
-        """Lease viewset is IsAuthenticated — owner is scoped by queryset, not role guard.
-        The queryset lets owners see their own leases, but write operations should be
-        blocked at the role level if enforced, otherwise owner can mutate their lease.
-        This test documents the current behaviour (200 from queryset scope + no role guard).
-        If this returns 200, a discovery is warranted for a future owner read-only fix."""
+        """LeaseViewSet.get_permissions() returns IsAgentOrAdmin for write actions.
+        Owners may read their leases but must receive 403 on any mutating call."""
         c = _client_for(world["owner_a"])
         resp = c.patch(
             f"/api/v1/leases/{world['lease_a'].pk}/",
             {"monthly_rent": "1.00"},
             format="json",
         )
-        # Currently the lease viewset uses IsAuthenticated with no write guard for owners.
-        # Owners CAN mutate via the API today — this is a known gap documented in
-        # discovery 2026-04-23-owner-write-access-on-leases.md
-        # We assert the CURRENT behaviour to catch regressions (not desired behaviour).
-        assert resp.status_code in (200, 403), (
-            f"Owner PATCH lease returned unexpected {resp.status_code}"
+        assert resp.status_code == 403, (
+            f"Owner PATCH lease expected 403, got {resp.status_code}"
         )
 
     def test_owner_cannot_record_payment(self, world):
@@ -1143,9 +1136,8 @@ class TestOwnerReadOnly:
         )
 
     def test_owner_cannot_delete_maintenance_request(self, world):
-        """Maintenance delete should require agent role — owner sees the request (IsAuthenticated)
-        but delete calls get_queryset which returns maintenance for their property.
-        Check that delete is accessible or blocked."""
+        """MaintenanceRequestViewSet.get_permissions() returns IsAgentOrAdmin for destroy.
+        Owners can read their property's maintenance requests but must get 403 on DELETE."""
         c = _client_for(world["owner_a"])
         # Owner can see maintenance requests for their property
         resp = c.get("/api/v1/maintenance/")
@@ -1154,11 +1146,10 @@ class TestOwnerReadOnly:
         ids = [m["id"] for m in items]
         assert world["mr_a"].pk in ids
 
-        # DELETE should not be destructively permitted for owners
+        # DELETE must be blocked for owners — IsAgentOrAdmin guard on destroy action
         delete_resp = c.delete(f"/api/v1/maintenance/{world['mr_a'].pk}/")
-        # 204 = actually deleted (gap), 403/405 = blocked (desired)
-        assert delete_resp.status_code in (204, 403, 405), (
-            f"Owner DELETE maintenance returned unexpected {delete_resp.status_code}"
+        assert delete_resp.status_code == 403, (
+            f"Owner DELETE maintenance expected 403, got {delete_resp.status_code}"
         )
 
 
