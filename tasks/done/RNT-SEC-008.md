@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177379875861"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -80,3 +80,18 @@ New Django app `backend/apps/audit/` containing:
 - **Tests:** 16/16 pass locally (22.6s). Cover hash validity, chain linkage, mutation tamper detection (self_hash + payload field), signal emission per watched model (including user non-role skip), pure hash determinism.
 
 **Follow-ups logged as discovery** `tasks/discoveries/2026-04-23-audit-api-rbac-and-request-context.md` (API RBAC regression tests + request-context middleware for actor/IP attribution on signal events). Out of scope for this ticket.
+
+### 2026-04-23 — tester
+
+**Test run — all 16/16 pass.**
+
+| Check | Result |
+|-------|--------|
+| `pytest apps/audit/tests/test_audit_chain.py -v` (16 tests) | PASS |
+| `manage.py migrate audit` (0001_initial + 0002_seed_genesis_event) | PASS — already applied, no migrations to run |
+| `manage.py verify_audit_chain` on clean chain | PASS — exit 0, "Chain OK — 2 event(s) verified, 0 broken links" |
+| Tamper test: mutated `after_snapshot` on id=2 via `QuerySet.update()`, re-ran verify | PASS — CommandError raised, "TAMPER at id=2: self_hash mismatch", exit 1 |
+| `manage.py check` | PASS — 0 issues (0 silenced) |
+| Vue `npx vue-tsc --noEmit` (covers AuditTimeline.vue) | PASS — exit 0, no type errors |
+
+Note: admin project has no `type-check` npm script; equivalent check run directly via `npx vue-tsc --noEmit` (same as the `build` script prefix). AuditTimeline.vue confirmed present at `admin/src/components/AuditTimeline.vue`.
