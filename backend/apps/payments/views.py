@@ -91,8 +91,7 @@ class RentInvoiceViewSet(
         if search := params.get("search"):
             qs = qs.filter(
                 Q(lease__lease_number__icontains=search)
-                | Q(lease__primary_tenant__first_name__icontains=search)
-                | Q(lease__primary_tenant__last_name__icontains=search)
+                | Q(lease__primary_tenant__full_name__icontains=search)
             )
 
         return qs.order_by("-period_start")
