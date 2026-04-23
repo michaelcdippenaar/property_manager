@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462321308"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-24
@@ -119,3 +119,17 @@ Note: `pytest apps/maintenance/ -xvs` could not be executed (test DB locked by a
   - status-update photo: non-image MIME rejected, image accepted
 
 `pytest apps/maintenance/ -xvs` — **35 passed** (all maintenance tests, including 15 new). Coverage warnings are pre-existing (stale `.coverage` file, unrelated to this task).
+
+### 2026-04-24 — reviewer: review passed (pass 2)
+
+Both mandatory fixes from pass 1 verified against commit 8c07222a.
+
+**Fix 1 — File upload validation:** `_validate_file()` is a module-level helper in `backend/apps/maintenance/supplier_serializers.py`. It checks `content_type` against `application/pdf` and `image/*` prefix, enforces a 10 MB ceiling, and raises `serializers.ValidationError` on failure. `SupplierInvoiceSubmitSerializer.validate_invoice_file` delegates to it with `allow_pdf=True, allow_images=True`. `SupplierJobStatusUpdateView` imports the helper and calls it with `allow_pdf=False, allow_images=True` immediately after retrieving `request.FILES.get("photo")`, returning a 400 on failure. Both call sites are correct.
+
+**Fix 2 — Reject status guard:** `AgentInvoiceApprovalView.post()` — the `elif action_name == "reject":` branch now checks `invoice.status != SupplierInvoice.Status.PENDING` before any mutation and returns 400 `"Only pending invoices can be rejected"`. Guard is structurally identical to the existing `approve` and `paid` guards.
+
+**Tests:** 15 new integration tests in `backend/apps/maintenance/tests/test_supplier_invoice.py`. Covers all required paths: state machine transitions (approve/reject/paid), all boundary conditions for Fix 2 (reject on APPROVED and PAID both return 400), MIME rejection, size rejection, and valid-file happy paths for both upload endpoints. `pytest apps/maintenance/ -xvs` — **35 passed, 0 failed** (confirmed locally this session).
+
+**Minor note (non-blocking):** `supplier_views.py` line 267 uses an inline `from rest_framework import serializers as drf_serializers` import inside the method body. Functionally correct — the top-level `rest_framework.status` import does not pull in `serializers`. No action required before testing, but worth cleaning to a top-level import at next touch.
+
+**Previously verified items from pass 1 remain unchanged:** migration reversibility, IDOR scoping on `_get_qr`, `IsAgentOrAdmin` permission, `approve`/`paid` guards, ORM parameterisation, POPIA/PII in activity logs.
