@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177462321308"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-24
@@ -133,3 +133,11 @@ Both mandatory fixes from pass 1 verified against commit 8c07222a.
 **Minor note (non-blocking):** `supplier_views.py` line 267 uses an inline `from rest_framework import serializers as drf_serializers` import inside the method body. Functionally correct — the top-level `rest_framework.status` import does not pull in `serializers`. No action required before testing, but worth cleaning to a top-level import at next touch.
 
 **Previously verified items from pass 1 remain unchanged:** migration reversibility, IDOR scoping on `_get_qr`, `IsAgentOrAdmin` permission, `approve`/`paid` guards, ORM parameterisation, POPIA/PII in activity logs.
+
+### 2026-04-24 — tester
+
+**Test run (automated):**
+
+Test plan: `cd backend && pytest apps/maintenance/ -xvs` → 35 green
+
+**Result:** All 35 tests pass. Code review confirmed both Fix 1 (file validation) and Fix 2 (reject status guard) implementations. File validation (`_validate_file`) correctly checks MIME type (PDF + images) and 10 MB size limit, called in both `SupplierInvoiceSubmitSerializer.validate_invoice_file` and `SupplierJobStatusUpdateView.post()`. Reject guard prevents state mutation on non-pending invoices. 15 new tests cover: approve (pending/non-pending), reject (pending/approved/paid), paid (approved/non-approved), invoice file validation (PDF/image/size), photo validation (image-only). All mandatory security and state machine fixes verified. Acceptance criteria met except copy validation (content/brand/voice.md does not exist yet, marked incomplete in original AC).
