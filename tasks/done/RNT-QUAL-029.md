@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200629245826"
 created: 2026-04-22
@@ -48,3 +48,6 @@ Full esigning suite result: 243 passed, 3 xfailed.
 
 2026-04-23 — reviewer:
 Review passed. Checked: `select_related` in `_resolve_link` (`views.py` lines 490-494) now covers both `submission__lease__unit__property` and `submission__mandate__property`. Verified both paths are exercised by `_notify_staff` and `_email_signed_copy_to_signers` in `webhooks.py` (lines 187/190, 301/304, 377/380). Three `assertNumQueries(0)` integration tests added covering mandate and lease paths. Fix is at the correct location — `_resolve_link` is the single fetch point for the public signing flow; both webhook helpers receive the already-resolved submission object. No auth, POPIA, or security concerns.
+
+2026-04-23 — tester:
+Test run: `pytest apps/test_hub/esigning/ -v` — 243 passed, 3 xfailed. All checks pass.
