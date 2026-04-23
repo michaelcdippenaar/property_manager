@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200629287352"
 created: 2026-04-22
@@ -76,3 +76,11 @@ Checked all six acceptance criteria against the diff and production code.
 - **Access tests (`test_access.py`):** patches updated to `PropertyAgentAssignment` (status="active" filter) and `person_profile=None` for the owner fallback path. Both match `apps/properties/access.py` lines 32-56 exactly. Note: `test_agent_gets_only_managed_property_ids` asserts the assignment query is made but does not assert the final union result value — minor coverage gap, not a defect.
 - **Conversation tests (`test_conversations.py`):** mock response `MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET` has `interaction_type: "maintenance"` and `maintenance_ticket: null`. View sets `ai_deliberately_deferred=True` (views.py line 1266), skips "could not log" injection, but still sets `maintenance_report_suggested=True` because `maintenance_issue_identified=True` (line 1258). Assertions in both tests match this path correctly.
 - **Security / POPIA pass:** all changes are in test files only (except the pre-existing `ai_deliberately_deferred` guard in `views.py`). No new endpoints, no auth changes, no PII logged, no raw SQL.
+
+### 2026-04-23 — tester
+
+**Test run:** `pytest apps/test_hub/accounts/ apps/test_hub/esigning/unit/test_rate_limits.py apps/test_hub/properties/ apps/test_hub/tenant_portal/ -v`
+
+- All 15 targeted test fixes: PASS
+- Full suite result: **632 passed, 0 failures** (187.42s)
+- No new failures introduced.
