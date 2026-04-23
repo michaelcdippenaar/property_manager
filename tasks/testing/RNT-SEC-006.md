@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: L
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177462154266"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -157,3 +157,16 @@ All four must-fix blockers addressed. 41/41 tests pass (30 original + 11 new).
 - Items 4 and 7 are closed by Blocker 3 and 4 fixes respectively.
 - Item 5 (active-lease pre-check in RTBF approval modal): dropped as discovery `tasks/discoveries/2026-04-23-rtbf-active-lease-precheck.md`.
 - Item 6 (`is_anonymised` field on accounts.User): pre-existing caveat, still guarded by `hasattr`. Noted in original handoff — needs a separate accounts migration. Not changed here per scope note (do not touch accounts models).
+
+### 2026-04-23 — reviewer — approved
+
+Re-review of implementer's blocker pass. All four must-fix items genuinely closed with anti-pattern regression tests. 41/41 popia tests pass locally. Migration 0002 applies cleanly.
+
+- **Blocker 1 (token binding):** `ExportDownloadView.permission_classes = [IsAuthenticated]` plus explicit `requester.pk != request.user.pk → 403` (views.py lines 260–267). Test `test_different_user_with_valid_token_gets_403` proves cross-user isolation.
+- **Blocker 2 (single-use):** `ExportJob.JobStatus.CONSUMED` added; status is flipped **before** `FileResponse` streams (views.py line 275 → 280), so a failed/interrupted stream cannot be replayed. Reuse returns 410 (`test_consumed_token_returns_410`, `test_download_marks_job_consumed`).
+- **Blocker 3 (export scope):** `_compile_audit_events` now unions actor events with GFK-target events (`content_type=User, object_id=user.pk`), deduped by id. `_compile_otp_audit` + `_compile_otp_codes` added; `code_hash` excluded from the OTPCodeV1 dump. Tests assert both JSON files present in ZIP and that `code_hash` is absent.
+- **Blocker 4 (SAR approval gate):** `DataExportRequestView` no longer creates the ExportJob or calls `run_export_job_async`; SAR starts `PENDING`. `DSARReviewView` SAR-approve branch creates the job and triggers the async export only after operator review (identity verification per POPIA s23). Four new tests cover the gate including the anti-pattern `test_sar_submission_does_not_auto_run_export`.
+
+Also verified: `open(zip_path, "rb")` replaced with `zip_path.open("rb")` (minor nit from previous review), audit event on download now includes `request` context, duplicate-pending guard updated to include `APPROVED`. Should-fix #5 dropped as discovery (`tasks/discoveries/2026-04-23-rtbf-active-lease-precheck.md`); #6 (`is_anonymised` field) remains a pre-existing caveat guarded by `hasattr` — out of scope per the no-touch-accounts rule.
+
+Handing to tester.
