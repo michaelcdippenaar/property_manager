@@ -41,6 +41,7 @@ from apps.accounts.permissions import IsTenantOrAgent
 
 from apps.ai.intel import update_tenant_intel
 from apps.ai.models import TenantChatSession
+from apps.ai.scrubber import scrub as scrub_pii
 from apps.ai.parsing import (
     MAINTENANCE_DRAFT_SYSTEM_PROMPT,
     parse_maintenance_draft_response,
@@ -999,7 +1000,7 @@ class TenantConversationMessageCreateView(APIView):
     throttle_classes = [TenantChatThrottle]
 
     def post(self, request, pk: int):
-        content = (request.data.get("content") or "").strip()
+        content = scrub_pii((request.data.get("content") or "").strip())
         upload = request.FILES.get("file") or request.FILES.get("attachment")
 
         max_vid = int(getattr(settings, "TENANT_AI_MAX_VIDEO_BYTES", 45 * 1024 * 1024))

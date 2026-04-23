@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.ai.scrubber import scrub as scrub_pii
 from apps.leases.template_views import _get_anthropic_api_key
 from apps.maintenance.models import MaintenanceSkill
 from core.anthropic_web_fetch import (
@@ -267,7 +268,7 @@ class AgentAssistChatView(APIView):
     throttle_classes = [AgentChatThrottle]
 
     def post(self, request):
-        message = (request.data.get("message") or "").strip()
+        message = scrub_pii((request.data.get("message") or "").strip())
         if not message:
             return Response({"error": "message is required"}, status=400)
 

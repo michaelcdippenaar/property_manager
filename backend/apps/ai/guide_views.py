@@ -24,6 +24,7 @@ from rest_framework import status as drf_status
 
 from apps.ai.guide_tools import TOOL_ACTION_MAP, get_tools_for_portal, is_tool_allowed
 from apps.ai.models import GuideInteraction
+from apps.ai.scrubber import scrub as scrub_pii
 
 User = get_user_model()
 
@@ -184,8 +185,11 @@ class AIGuideView(APIView):
                 status=drf_status.HTTP_403_FORBIDDEN,
             )
 
+        # POPIA s72 — scrub PII before sending to Anthropic or persisting.
+        clean_message = scrub_pii(message)
+
         try:
-            result = _call_guide(message, portal)
+            result = _call_guide(clean_message, portal)
         except anthropic.APIError as exc:
             logger.exception("Anthropic API error in AI Guide: %s", exc)
             return Response(
@@ -205,12 +209,12 @@ class AIGuideView(APIView):
                 status=drf_status.HTTP_200_OK,
             )
 
-        # Persist interaction
+        # Persist interaction — store the scrubbed message, not the raw input.
         try:
             GuideInteraction.objects.create(
                 user=request.user,
                 portal=portal,
-                message=message,
+                message=clean_message,
                 intent=result.get("intent") or "",
                 action_taken=result.get("action") or {},
                 completed=result.get("action") is not None,

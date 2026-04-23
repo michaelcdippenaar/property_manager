@@ -136,6 +136,9 @@
             <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Support Chat</h3>
             <span class="text-xs text-gray-400">Type @agent to invoke AI</span>
           </div>
+          <p class="text-[11px] text-gray-400 mb-2">
+            Messages you send here are processed by an AI service.
+          </p>
           <div
             ref="chatContainer"
             class="flex-1 min-h-[200px] overflow-y-auto border border-gray-100 rounded-lg p-3 space-y-2 bg-gray-50 mb-3"

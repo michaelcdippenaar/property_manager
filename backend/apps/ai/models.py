@@ -8,6 +8,12 @@ class TenantChatSession(models.Model):
     """
     One row per tenant↔AI thread. The full transcript lives in `messages` (JSON array).
     Optional links to a maintenance request and/or an agent question for staff workflows.
+
+    Retention policy (POPIA s72):
+        Sessions are purged after AI_INTERACTION_RETENTION_DAYS (default 90 days)
+        based on ``updated_at`` by the ``purge_old_interactions`` management command.
+        User messages stored in ``messages`` contain only PII-scrubbed content
+        (raw input is never persisted — see apps.ai.scrubber).
     """
 
     user = models.ForeignKey(
@@ -105,6 +111,12 @@ class TenantIntelligence(models.Model):
 class GuideInteraction(models.Model):
     """
     One row per AI Guide request — used for analytics and audit.
+
+    Retention policy (POPIA s72):
+        Records are purged after AI_INTERACTION_RETENTION_DAYS (default 90 days)
+        by the ``purge_old_interactions`` management command / scheduled task.
+        The ``message`` field stores the PII-scrubbed version of the user input
+        (raw input is never persisted — see apps.ai.scrubber).
     """
 
     PORTAL_AGENT = "agent"

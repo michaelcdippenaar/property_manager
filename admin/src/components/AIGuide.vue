@@ -113,6 +113,9 @@
               <p class="text-xs text-gray-500 text-center leading-relaxed">
                 Ask me to navigate anywhere, explain a feature, or walk you through a task.
               </p>
+              <p class="mt-2 text-[11px] text-gray-400 text-center leading-relaxed px-2">
+                Messages you send here are processed by an AI service.
+              </p>
               <div class="mt-4 w-full space-y-1.5">
                 <button
                   v-for="prompt in quickPrompts"

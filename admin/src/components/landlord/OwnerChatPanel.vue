@@ -34,9 +34,14 @@
 
       <div
         v-else-if="!visibleMessages.length && !sending"
-        class="text-xs text-gray-500 italic"
+        class="space-y-1"
       >
-        Say hi to start — the assistant will review the documents on file.
+        <p class="text-xs text-gray-500 italic">
+          Say hi to start — the assistant will review the documents on file.
+        </p>
+        <p class="text-[11px] text-gray-400">
+          Messages you send here are processed by an AI service.
+        </p>
       </div>
 
       <template v-for="msg in visibleMessages" :key="msg.id">
