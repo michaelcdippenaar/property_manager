@@ -436,6 +436,7 @@ import {
 } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
+import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { usePersonsStore } from '../../stores/persons'
 
 const personsStore = usePersonsStore()
@@ -519,6 +520,14 @@ const { connected: wsConnected } = useESigningSocket(
   () => latestSub.value?.id ?? null,
   (event) => {
     if (!latestSub.value) return
+
+    // If the event carries an event_id, mark it seen in the global dedup cache
+    // so the global signing notification composable in App.vue doesn't show a
+    // duplicate toast while this panel is already showing live updates.
+    if (event.event_id) {
+      markSigningEventSeen(event.event_id)
+    }
+
     if (event.signers) {
       latestSub.value.signers = event.signers
     }

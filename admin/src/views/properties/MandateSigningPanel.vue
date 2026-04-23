@@ -133,6 +133,7 @@ import { ref, computed, onMounted } from 'vue'
 import { CheckCircle2, XCircle, Eye, Clock, Download, Mail, Link2, Loader2 } from 'lucide-vue-next'
 import api from '../../api'
 import { useESigningSocket } from '../../composables/useESigningSocket'
+import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { useToast } from '../../composables/useToast'
 
 const props = defineProps<{ submissionId: number }>()
@@ -148,6 +149,13 @@ const { connected: wsConnected } = useESigningSocket(
   () => submission.value?.id ?? null,
   (event) => {
     if (!submission.value) return
+
+    // Mark this event seen in the global dedup cache so the global notification
+    // composable doesn't show a duplicate toast while this panel is open.
+    if (event.event_id) {
+      markSigningEventSeen(event.event_id)
+    }
+
     if (event.signers) submission.value.signers = event.signers
     if (event.type === 'submission_completed') {
       submission.value.status = 'completed'

@@ -1,6 +1,8 @@
 """
-WebSocket consumer for real-time e-signing status updates.
+WebSocket consumers for real-time e-signing status updates.
 
+ESigningStatusConsumer
+-----------------------
 Clients connect to:  ws/esigning/<submission_id>/
 They receive events when:
   - A signer views the document
@@ -8,6 +10,13 @@ They receive events when:
   - A signer declines
   - The entire submission completes
   - The next signer is notified (sequential mode)
+
+ESigningAgentNotificationsConsumer
+------------------------------------
+Clients connect to:  ws/esigning/notifications/
+Agents receive global toast notifications for ALL signing events on
+submissions they created / have access to — regardless of which panel is open.
+Group name: signing_notifications_<user_pk>
 """
 import json
 
@@ -123,3 +132,46 @@ class ESigningStatusConsumer(AsyncWebsocketConsumer):
             "total_signers": len(sub.signers or []),
             "signed_pdf_url": sub.signed_pdf_url or None,
         }
+
+
+class ESigningAgentNotificationsConsumer(AsyncWebsocketConsumer):
+    """
+    Global signing notification channel for authenticated agents/admins.
+
+    Connects to:  ws/esigning/notifications/
+    Group name:   signing_notifications_<user_pk>
+
+    Receives ``signing_notification`` events broadcast by
+    ``webhooks._broadcast_agent_notification`` when any signer on any
+    submission belonging to this agent completes or when a submission is
+    fully completed.
+
+    The frontend composable ``useGlobalSigningNotifications`` connects here
+    on app mount and fires a toast for every event it receives, deduplicating
+    by ``event_id``.
+    """
+
+    async def connect(self):
+        user = self.scope.get("user")
+        if not user or isinstance(user, AnonymousUser) or not user.is_authenticated:
+            await self.close(code=4001)
+            return
+
+        self.user = user
+        self.group_name = f"signing_notifications_{user.pk}"
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive(self, text_data):
+        """Clients send ``{"action": "ping"}`` to keep connection alive — no-op."""
+        pass
+
+    # ── Group-broadcast handler ──────────────────────────────────────────
+
+    async def signing_notification(self, event):
+        """Forward a signing notification event to the connected admin client."""
+        await self.send(text_data=json.dumps(event["payload"]))

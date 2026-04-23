@@ -675,7 +675,13 @@ class ESigningPublicSubmitSignatureView(APIView):
                 logger.exception("Failed to sync captured data for submission %s", sub.pk)
 
         # Post-signing actions
+        import uuid as _uuid_mod
         from .webhooks import _broadcast_ws, _activate_lease, _get_next_signer, _notify_next_signer, _notify_staff, _email_signed_copy_to_signers
+
+        # event_id threads through both the per-submission WS broadcast and the
+        # global agent notification so ESigningPanel can mark it seen and prevent
+        # the global listener from showing a duplicate toast.
+        event_id = str(_uuid_mod.uuid4())
 
         if all_completed:
             _activate_lease(sub)
@@ -697,11 +703,12 @@ class ESigningPublicSubmitSignatureView(APIView):
 
             _broadcast_ws(sub.pk, {
                 "type": "submission_completed",
+                "event_id": event_id,
                 "submission_id": sub.pk,
                 "signed_pdf_url": sub.signed_pdf_file.url if sub.signed_pdf_file else None,
                 "signers": sub.signers,
             })
-            _notify_staff(sub, "submission.completed", {})
+            _notify_staff(sub, "submission.completed", {"event_id": event_id})
             _email_signed_copy_to_signers(sub, {})
         else:
             # Notify next signer if sequential
@@ -712,10 +719,11 @@ class ESigningPublicSubmitSignatureView(APIView):
 
             _broadcast_ws(sub.pk, {
                 "type": "signer_completed",
+                "event_id": event_id,
                 "submission_id": sub.pk,
                 "signers": sub.signers,
             })
-            _notify_staff(sub, "form.completed", {"submitter": signer})
+            _notify_staff(sub, "form.completed", {"submitter": signer, "event_id": event_id})
 
             # Partial signing: Lease row wasn't saved so post_save never fires.
             # Manually push a lease_updated event so the admin leases list refreshes.

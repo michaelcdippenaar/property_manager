@@ -286,59 +286,190 @@ def _broadcast_ws(submission_pk: int, event: dict):
         logger.exception("Failed to broadcast WebSocket event for submission %s", submission_pk)
 
 
+def _broadcast_agent_notification(creator_pk: int, payload: dict):
+    """
+    Push a signing notification to the agent's personal notification channel.
+
+    Group: ``signing_notifications_<creator_pk>``
+    Handled by: ``ESigningAgentNotificationsConsumer.signing_notification``
+    """
+    try:
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+
+        channel_layer = get_channel_layer()
+        if channel_layer is None:
+            return
+        group = f"signing_notifications_{creator_pk}"
+        async_to_sync(channel_layer.group_send)(
+            group,
+            {"type": "signing.notification", "payload": payload},
+        )
+    except Exception:
+        logger.exception(
+            "Failed to broadcast agent notification for creator_pk=%s", creator_pk
+        )
+
+
 # ── Staff notification ────────────────────────────────────────────────
 
 
 def _notify_staff(submission: ESigningSubmission, event_type: str, data: dict):
     """
     Notify the agent/admin who created the submission about signing progress.
+
+    Sends:
+    1. A branded HTML email via send_template_email (signing_agent_notification template)
+    2. A real-time WebSocket push to the agent's personal notification channel so
+       the admin SPA can display a global toast (ESigningAgentNotificationsConsumer).
     """
+    import uuid as _uuid
+    from django.conf import settings as _settings
+
     creator = submission.created_by
     if not creator or not creator.email:
         return
 
+    # ── Build context ────────────────────────────────────────────────
     if submission.lease_id:
         prop = submission.lease.unit.property
+        doc_type = "lease"
         doc_title = f"{prop.name} — Unit {submission.lease.unit.unit_number}"
+        property_address = (
+            prop.address
+            if hasattr(prop, "address") and prop.address
+            else prop.name
+        )
+        # Deep-link into the relevant lease signing panel
+        admin_base = getattr(_settings, "ADMIN_APP_BASE_URL", "").rstrip("/")
+        panel_url = f"{admin_base}/leases/{submission.lease_id}?tab=esigning" if admin_base else ""
     elif submission.mandate_id:
-        doc_title = f"Rental Mandate — {submission.mandate.property.name}"
+        prop = submission.mandate.property
+        doc_type = "mandate"
+        doc_title = f"Rental Mandate — {prop.name}"
+        property_address = (
+            prop.address
+            if hasattr(prop, "address") and prop.address
+            else prop.name
+        )
+        admin_base = getattr(_settings, "ADMIN_APP_BASE_URL", "").rstrip("/")
+        panel_url = f"{admin_base}/properties/{prop.pk}?tab=mandate" if admin_base else ""
     else:
+        doc_type = "document"
         doc_title = "Document"
+        property_address = ""
+        panel_url = ""
 
-    submitter = data.get('submitter') or data
-    signer_name = submitter.get('name') or submitter.get('email', 'A signer')
+    submitter = data.get("submitter") or data
+    signer_name = (submitter.get("name") or submitter.get("email") or "A signer").strip()
 
-    if event_type == 'form.completed':
+    # Re-use event_id threaded from the call site (views.py) so the per-submission
+    # WS broadcast and global notification share the same ID for frontend dedup.
+    # Fall back to a fresh UUID when called from paths that don't provide one.
+    event_id = data.get("event_id") or str(_uuid.uuid4())
+
+    if event_type == "form.completed":
         completed = sum(
             1 for s in submission.signers
-            if (s.get('status') or '').lower() in ('completed', 'signed')
+            if (s.get("status") or "").lower() in ("completed", "signed")
         )
         total = len(submission.signers or [])
-        subject = f"Signing progress: {doc_title} ({completed}/{total})"
-        body = (
-            f"{signer_name} has signed the document for {doc_title}.\n"
-            f"Progress: {completed} of {total} signers complete."
+        email_subject = f"Signing progress: {doc_title} ({completed}/{total})"
+        notification_type = "signer_completed"
+        toast_message = (
+            f"{signer_name} signed the {doc_type} — {completed}/{total} complete"
         )
-    elif event_type == 'submission.completed':
-        subject = f"All signatures complete: {doc_title}"
-        body = (
-            f"All signers have completed signing for {doc_title}.\n"
-            f"The signed document is ready for download."
-        )
-        if submission.signed_pdf_file:
-            try:
-                body += f"\n\nSigned PDF: {submission.signed_pdf_file.url}"
-            except Exception:
-                pass
-    elif event_type == 'submission.declined':
-        subject = f"Signing declined: {doc_title}"
-        body = f"{signer_name} has declined to sign the document for {doc_title}."
+        email_context = {
+            "event_label": "Signer completed",
+            "progress_line": f"Progress: {completed} of {total} signers complete.",
+            "show_download": False,
+        }
+    elif event_type == "submission.completed":
+        email_subject = f"All signatures complete: {doc_title}"
+        notification_type = "submission_completed"
+        toast_message = f"All parties signed the {doc_type} for {property_address or doc_title}"
+        email_context = {
+            "event_label": "All signatures complete",
+            "progress_line": "The signed document is ready for download.",
+            "show_download": bool(submission.signed_pdf_file),
+            "signed_pdf_url": submission.signed_pdf_file.url if submission.signed_pdf_file else "",
+        }
+    elif event_type == "submission.declined":
+        email_subject = f"Signing declined: {doc_title}"
+        notification_type = "signer_declined"
+        toast_message = f"{signer_name} declined to sign the {doc_type}"
+        email_context = {
+            "event_label": "Signing declined",
+            "progress_line": f"{signer_name} has declined to sign.",
+            "show_download": False,
+        }
     else:
         return
 
+    # ── 1. WebSocket push (in-app toast) ─────────────────────────────
+    ws_payload = {
+        "type": notification_type,
+        "event_id": event_id,
+        "submission_id": submission.pk,
+        "signer_name": signer_name,
+        "doc_type": doc_type,
+        "doc_title": doc_title,
+        "property_address": property_address,
+        "message": toast_message,
+        "panel_url": panel_url,
+    }
+    _broadcast_agent_notification(creator.pk, ws_payload)
+
+    # ── 2. Email notification ─────────────────────────────────────────
+    creator_name = (
+        getattr(creator, "get_full_name", lambda: "")()
+        or getattr(creator, "first_name", "")
+        or "there"
+    )
+    email_body_lines = [
+        f"**{signer_name}** {email_context['event_label'].lower()} on:",
+        f"**{doc_title}**",
+        "",
+    ]
+    if property_address and property_address != doc_title:
+        email_body_lines.append(f"Property: {property_address}")
+        email_body_lines.append("")
+    email_body_lines.append(email_context["progress_line"])
+
+    plain_body = "\n".join(email_body_lines)
+    if panel_url:
+        plain_body += f"\n\nView signing panel: {panel_url}"
+
+    # Build inline HTML for the email (no template dependency)
+    button_html = (
+        f'<p><a href="{panel_url}" style="display:inline-block;padding:12px 24px;'
+        f'background:#2B2D6E;color:#fff;text-decoration:none;border-radius:8px;'
+        f'font-weight:600;">View Signing Panel</a></p>'
+        if panel_url else ""
+    )
+    download_html = (
+        f'<p><a href="{email_context["signed_pdf_url"]}" style="font-size:13px;color:#2B2D6E;">'
+        f'Download signed PDF</a></p>'
+        if email_context.get("show_download") and email_context.get("signed_pdf_url") else ""
+    )
+    name_html = f"<strong>{signer_name}</strong>"
+    html_body = (
+        f"<p>Hello {creator_name},</p>"
+        f"<p>{name_html} {email_context['event_label'].lower()} on "
+        f"<strong>{doc_title}</strong>.</p>"
+        + (
+            f"<p>Property: {property_address}</p>"
+            if property_address and property_address != doc_title else ""
+        )
+        + f"<p>{email_context['progress_line']}</p>"
+        + button_html
+        + download_html
+        + '<p style="font-size:12px;color:#999;margin-top:16px;">— Klikk Property Management</p>'
+    )
+
     try:
         from apps.notifications.services import send_email
-        send_email(subject, body, creator.email)
+        send_email(email_subject, plain_body, creator.email, html_body=html_body)
     except Exception:
         logger.exception("Failed to notify staff for submission %s", submission.pk)
 
