@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177379875861"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -66,3 +66,17 @@ New Django app `backend/apps/audit/` containing:
 - `DepositRecord` model does not exist anywhere in the codebase. The task spec listed it but there is no such model — `RentInvoice`/`RentPayment`/`UnmatchedPayment` are the payment models. Acceptance criterion ticked with a note. If a DepositRecord model is added later, a one-line entry in `signals._WATCHED_MODELS` will hook it automatically.
 - Signals do not have access to the HTTP request context (no actor/IP/user-agent on system-driven saves). These fields are null for signal-only events. A middleware hook pattern for request-context injection is left for a future hardening task.
 - The `verify_audit_chain` command does **not** auto-fix broken chains — it only reports. Repair would require PM decision.
+
+### 2026-04-23 — reviewer
+
+**Review passed.** Verified:
+
+- **Hash chain math:** `self_hash = SHA-256(prev_hash || canonical_json(payload))`, payload includes `id` so mid-chain insertion forces a full tail rewrite; `canonical_json` uses `sort_keys=True, separators=(",", ":"), default=str` — deterministic. No floats in payload (amounts str-coerced).
+- **Serialisation:** `SELECT FOR UPDATE` on `order_by("-id").first()` inside `transaction.atomic()` correctly serialises concurrent writers. Genesis row guarantees the tail is never empty in production.
+- **Tamper detection:** verify_audit_chain walks ascending by id, checks prev_hash linkage AND recomputes self_hash — catches mutation (tested), gap from deletion (via prev_hash mismatch), and insertion (payload includes id).
+- **Genesis migration** is idempotent (`if AuditEvent.objects.exists(): return`).
+- **Signal coverage:** Lease, RentalMandate, ESigningSubmission, RentPayment, User.role. DepositRecord correctly noted as non-existent.
+- **API gating:** `IsAuthenticated + IsAdminOrAgencyAdmin` — agent/estate_agent/managing_agent/tenant/landlord/supplier all excluded. Viewset uses only Retrieve+List mixins, no write routes.
+- **Tests:** 16/16 pass locally (22.6s). Cover hash validity, chain linkage, mutation tamper detection (self_hash + payload field), signal emission per watched model (including user non-role skip), pure hash determinism.
+
+**Follow-ups logged as discovery** `tasks/discoveries/2026-04-23-audit-api-rbac-and-request-context.md` (API RBAC regression tests + request-context middleware for actor/IP attribution on signal events). Out of scope for this ticket.
