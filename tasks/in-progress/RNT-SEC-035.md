@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214221203782966"
 created: 2026-04-23
-updated: 2026-04-23T12:00:00
+updated: 2026-04-23T13:00:00
 ---
 
 ## Goal
@@ -52,3 +52,9 @@ Changes:
 - `backend/tests/integration/test_rbac_matrix.py`: Tightened `TestOwnerReadOnly.test_owner_cannot_patch_lease` to assert strict 403 (removed `in (200, 403)` leniency). Tightened `test_owner_cannot_delete_maintenance_request` to assert strict 403 (removed `204/403/405` leniency).
 
 Test results: `TestOwnerReadOnly` 4/4 passed; `TestLeasesRBAC` + `TestMaintenanceRBAC` 24/24 passed — no regressions.
+
+2026-04-23 rentals-reviewer: Review requested changes.
+
+1. `backend/apps/maintenance/views.py:46` — `_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}` is declared on `MaintenanceRequestViewSet` but is **never referenced** in `get_permissions()`. It is dead code and actively misleads: a reader inspecting the class will assume all four actions are guarded, but only `destroy` actually is. Either remove the constant entirely, or use it in `get_permissions()` (noting that tenant create is a legitimate flow, so this may need a separate branch — see discovery `tasks/discoveries/2026-04-23-maintenance-owner-write-guard-incomplete.md`). At minimum, the dead constant must be removed before this ships so it does not cause a future security regression via misplaced trust.
+
+Discovery filed: `tasks/discoveries/2026-04-23-maintenance-owner-write-guard-incomplete.md` — broader owner write-guard gap on maintenance create/update is out of scope for this task but needs a follow-on ticket.
