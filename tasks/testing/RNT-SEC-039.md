@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214237326490411"
 created: 2026-04-23
-updated: 2026-04-25
+updated: 2026-04-23
 ---
 
 ## Goal
@@ -67,3 +67,12 @@ Re-run `cd backend && pytest apps/audit/ -xvs` after the change; all 31+ tests m
 Move back to `in-progress/` once fixed.
 
 2026-04-25 (implementer): Addressed reviewer blocker. (1) Deleted `AuditContextMiddleware._get_client_ip` — the private naive helper and its wrong comment — and replaced the call site with `from utils.http import get_client_ip`. The middleware now inherits `NUM_PROXIES`/`TRUSTED_PROXY_IPS` gating in a single code path with the rest of the codebase. (2) Updated `test_x_forwarded_for_used_as_ip` to patch `django.conf.settings` with `NUM_PROXIES=1` and updated the docstring to explain the `ips[-2]` semantics rather than asserting "first entry". Behaviour for `XFF='203.0.113.5, 10.0.0.1'` with `NUM_PROXIES=1` is still `203.0.113.5` — result unchanged, reasoning is now correct. (3) Added `test_forged_xff_with_no_proxy_uses_remote_addr`: `NUM_PROXIES=0`, attacker sends `X-Forwarded-For: 1.2.3.4`, `REMOTE_ADDR=203.0.113.99` — asserts recorded IP is `203.0.113.99` not `1.2.3.4`. All 32 audit tests pass green.
+
+2026-04-23 (reviewer, pass 2) — Review passed. Verified:
+- `backend/apps/audit/middleware.py` no longer contains XFF handling; delegates entirely to `utils.http.get_client_ip` (import at line 37, call at line 97). Single source of truth confirmed.
+- `utils/http.py:62` defaults `NUM_PROXIES=1` (one trusted proxy — matches Caddy/nginx/ALB production posture); `NUM_PROXIES=0` path at line 68 short-circuits to `REMOTE_ADDR` before any XFF parsing — no silent-spoof default.
+- New regression test `test_forged_xff_with_no_proxy_uses_remote_addr` (lines 515-550) patches `NUM_PROXIES=0` with forged XFF `1.2.3.4` / `REMOTE_ADDR=203.0.113.99` and asserts the real socket address wins. `test_x_forwarded_for_used_as_ip` docstring now correctly explains `ips[-2]` semantics.
+- Full `pytest apps/audit/` suite: **32 passed, 10 warnings, 48.05s**. No regressions.
+- Out-of-scope finding: `backend/config/contact.py:46-51` and `backend/apps/the_volt/gateway/views.py:142` still use naive leftmost-XFF. Filed `tasks/discoveries/2026-04-23-naive-xff-parsing-in-contact-and-volt.md` for PM triage (marketing-contact endpoint has a rate-limit bypass today).
+
+Handing off to tester.
