@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200629201021"
 created: 2026-04-22
@@ -49,3 +49,19 @@ All 9 tests pass (`pytest apps/test_hub/accounts/ -k requires_feature`). No DB f
 **2026-04-23 — reviewer (approved)**
 
 Checked: decorator source (`backend/apps/accounts/decorators.py`) confirms the hardened `else` branch is live — raises `ImproperlyConfigured` in DEBUG, returns HTTP 500 in production, and does not call the view body in either path. All 9 tests in `test_requires_feature_decorator.py` directly exercise both paths. `_patched_decorator_env` patches `django.conf.settings.DEBUG` — valid target for how the decorator reads it. Call sites (`leases/builder_views.py`, `accounts/tests/test_tier_enforcement.py`) untouched; no regressions. POPIA/security pass: no PII logged, no raw SQL, no auth bypass. AC 1–3 satisfied; AC 4 is moot (approach already hardened, no duck-typing removed needed). Review passed.
+
+**2026-04-23 — tester**
+
+Test run: `pytest apps/test_hub/accounts/ -k requires_feature -v`
+
+- test_debug_true_raises_improperly_configured: PASS
+- test_debug_false_returns_http_500: PASS
+- test_debug_false_does_not_silently_grant_access: PASS
+- test_debug_true_does_not_silently_grant_access: PASS
+- TestFBVConvention::test_feature_allowed_calls_view: PASS
+- TestFBVConvention::test_feature_blocked_returns_402: PASS
+- TestCBVConvention::test_feature_allowed_calls_view: PASS
+- TestCBVConvention::test_feature_blocked_returns_402: PASS
+- TestCBVConvention::test_cbv_unexpected_args_without_request_raises_or_500: PASS
+
+9/9 passed. All acceptance criteria verified.
