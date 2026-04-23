@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: blocked
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-24
@@ -135,3 +135,53 @@ Both new tests are now present and correctly implemented:
 - Activity feed queries use `.filter(property_id__in=prop_ids)` with owner's properties only ✓
 
 **No blockers.** Ready for tester.
+
+### 2026-04-24 — tester (test run)
+
+**Test execution: BLOCKED — 14/20 tests pass, 6 error due to test database setup issue**
+
+Command: `pytest apps/properties/tests/test_dashboard_cache.py -v`
+
+**Results breakdown:**
+
+OwnerDashboardCacheTest (14 tests) — ALL PASSED:
+1. test_activity_feed_endpoint_returns_list — PASSED
+2. test_activity_feed_limit_capped_at_50 — PASSED
+3. test_cache_populated_on_first_call — PASSED
+4. test_cache_reused_on_second_call — PASSED
+5. test_dashboard_endpoint_reflects_property — PASSED
+6. test_dashboard_endpoint_returns_stats — PASSED
+7. test_invalidate_clears_cache — PASSED
+8. test_lease_save_invalidates_cache — PASSED
+9. test_maintenance_request_save_invalidates_cache — PASSED
+10. test_mandate_save_invalidates_cache — PASSED
+11. test_no_person_profile_activity_returns_empty — PASSED
+12. test_no_person_profile_returns_zero_state — PASSED
+13. test_payment_performance_current_month — PASSED
+14. test_rent_payment_save_invalidates_cache — PASSED
+
+OwnerActivityFeedContentTest (6 tests) — ALL ERRORED:
+15. test_empty_portfolio_returns_empty_feed — ERROR
+16. test_feed_is_sorted_newest_first — ERROR
+17. test_lease_signed_event_in_feed — ERROR
+18. test_maintenance_opened_event_in_feed — ERROR
+19. test_mandate_signed_event_in_feed — ERROR
+20. test_rent_received_event_in_feed — ERROR
+
+**Error detail:**
+
+All 6 errors have the same root cause:
+```
+django.db.utils.OperationalError: connection to server at "localhost" (::1), port 5432 
+failed: FATAL:  database "test_klikk_db" does not exist
+```
+
+**Analysis:**
+
+The first test class completes all 14 tests successfully. After completion, pytest-django's database fixture tears down the test database. The second test class then attempts setup, but the database doesn't exist and is not being recreated properly. This is a pytest-django fixture lifecycle issue between test classes, not a code quality issue.
+
+**Blockers:**
+
+1. **Test fixture lifecycle issue** — The second test class cannot initialize because the test database is destroyed after the first class completes. Both classes are marked with `@pytest.mark.integration` and inherit from `TremlyAPITestCase`, which uses Django's `TestCase` with automatic transaction wrapping. The pytest-django database fixture is tearing down prematurely between test classes.
+
+**Status: Blocked — test infrastructure issue prevents execution of 6/20 tests. Implementation appears sound based on 14/20 passing tests.**
