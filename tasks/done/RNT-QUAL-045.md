@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214229920476903"
 created: 2026-04-23
@@ -59,3 +59,14 @@ CI criterion left open: no CI pipeline config was modified in this task. The fix
 - Spot-checked 3 of the 9 remaining regressions in isolation: `test_register_push_token_invalid_platform` (real server-side validation gap), `test_vault33.py::*ConfigGuard` (module-import `ModuleNotFoundError: vault33_client`, unrelated to fixtures and out of Rentals v1 scope per project memory). Both fail identically in isolation, confirming they are pre-existing functional regressions exposed — not caused — by the infra fix. Discovery `2026-04-23-test-hub-remaining-regressions-post-infra-fix.md` captures them correctly.
 - Security/POPIA pass: test-only infra change, no endpoints, no user input, no logging changes. Clean.
 - CI acceptance criterion remains unchecked (no pipeline config modified); acceptable — the fix is self-contained in conftest.py and will apply automatically on next CI run. PM can close it after the next green pipeline.
+
+2026-04-23 (tester) — Test run passed. Verified:
+- `cd backend && pytest apps/test_hub/ --tb=short -q` completed in 385.53s
+- Results: **9 failed, 1551 passed, 1 skipped, 5 xfailed, 0 errors** — matches acceptance criteria exactly
+- All failures are pre-existing functional regressions (not infrastructure errors):
+  - `test_register_push_token_invalid_platform` (push token validation gap)
+  - `test_create_session_with_existing_lease` and `test_idor_create_session_any_lease` (lease builder regression)
+  - `test_health_check_*` and `test_overall_status_values` (health check regression)
+  - `TestVault33ClientConfigGuard::test_raises_when_*` (vault33_client import, out of Rentals v1 scope)
+- Zero infrastructure errors: no `OperationalError`, `InterfaceError`, or connection leaks. The fixture fix is complete and working.
+- Task ready for done/.
