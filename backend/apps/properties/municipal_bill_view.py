@@ -132,10 +132,16 @@ class ParseMunicipalBillView(APIView):
             )
 
         mime, _ = mimetypes.guess_type(file.name)
+        # Only accept PDFs and images — reject everything else before encoding
+        if not mime or (not mime.startswith("image/") and mime != "application/pdf"):
+            return Response(
+                {"detail": "Unsupported file type. Upload a PDF, JPG, or PNG."},
+                status=http_status.HTTP_400_BAD_REQUEST,
+            )
         file_block = encode_file(data=data, filename=file.name, mime=mime)
         if file_block is None:
             return Response(
-                {"detail": f"Unsupported file type. Upload a PDF, JPG, or PNG."},
+                {"detail": "Unsupported file type. Upload a PDF, JPG, or PNG."},
                 status=http_status.HTTP_400_BAD_REQUEST,
             )
 

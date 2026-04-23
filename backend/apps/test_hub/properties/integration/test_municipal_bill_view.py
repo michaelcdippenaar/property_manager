@@ -9,14 +9,15 @@ Covers:
   - Missing file → 400
   - Unsupported mime type → 400
   - Missing ANTHROPIC_API_KEY → 503
-  - Claude APIError → 502
-  - Claude returning invalid JSON → 502 with ``raw`` preview
-  - Claude returning JSON wrapped in ```json fences → parsed successfully
-  - Happy path with an image → 200, structured payload
+  - Claude APIError → 502 (with retries; message includes "Claude API failed after N attempts")
+  - Claude returning no tool_use block → 502
+  - Happy path with an image → 200, structured payload with image block
+  - Happy path with a PDF → 200, structured payload with document block
+  - Confidence scores passed through to response
+  - tool_choice forced in API call
 
 All Claude calls are mocked — no real API traffic.
 """
-import json
 from unittest import mock
 
 import pytest
@@ -32,10 +33,21 @@ pytestmark = [pytest.mark.integration, pytest.mark.green]
 CLAUDE_CLIENT_PATH = "apps.properties.municipal_bill_view.anthropic.Anthropic"
 
 
-def _fake_claude_response(text: str):
-    """Build a fake anthropic SDK response whose content[0].text == text."""
+def _fake_tool_use_response(payload: dict):
+    """Build a fake anthropic SDK response with a tool_use block containing payload."""
     block = mock.MagicMock()
-    block.text = text
+    block.type = "tool_use"
+    block.input = payload
+    resp = mock.MagicMock()
+    resp.content = [block]
+    return resp
+
+
+def _fake_no_tool_use_response():
+    """Build a fake anthropic SDK response with only a text block (no tool_use)."""
+    block = mock.MagicMock()
+    block.type = "text"
+    block.text = "Some plain text response."
     resp = mock.MagicMock()
     resp.content = [block]
     return resp
@@ -110,25 +122,21 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
             )
 
         self.assertEqual(resp.status_code, 502)
-        self.assertIn("Claude API error", resp.data["detail"])
+        self.assertIn("Claude API failed after", resp.data["detail"])
 
-    def test_claude_invalid_json_returns_502_with_raw_preview(self):
+    def test_claude_no_tool_use_block_returns_502(self):
+        """When Claude returns no tool_use block (e.g. plain text), the view returns 502."""
         self.authenticate(self.create_agent(email="agent@bill.test"))
 
         with mock.patch(CLAUDE_CLIENT_PATH) as client_cls:
             client = client_cls.return_value
-            client.messages.create.return_value = _fake_claude_response(
-                "definitely-not-json { broken"
-            )
+            client.messages.create.return_value = _fake_no_tool_use_response()
             resp = self.client.post(
                 self.url, {"file": self._png_upload()}, format="multipart"
             )
 
         self.assertEqual(resp.status_code, 502)
-        self.assertIn("invalid JSON", resp.data["detail"])
-        self.assertIn("raw", resp.data)
-        # Preview is capped at 500 chars
-        self.assertLessEqual(len(resp.data["raw"]), 500)
+        self.assertIn("no tool_use block", resp.data["detail"])
 
     # ── Happy paths ────────────────────────────────────────────────────────
 
@@ -147,7 +155,7 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
 
         with mock.patch(CLAUDE_CLIENT_PATH) as client_cls:
             client = client_cls.return_value
-            client.messages.create.return_value = _fake_claude_response(json.dumps(payload))
+            client.messages.create.return_value = _fake_tool_use_response(payload)
             resp = self.client.post(
                 self.url,
                 {"file": self._png_upload(name="stb_bill.png")},
@@ -171,7 +179,7 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
         payload = {"property_name": "Erf 1234", "total_due": 123.45}
         with mock.patch(CLAUDE_CLIENT_PATH) as client_cls:
             client = client_cls.return_value
-            client.messages.create.return_value = _fake_claude_response(json.dumps(payload))
+            client.messages.create.return_value = _fake_tool_use_response(payload)
             resp = self.client.post(
                 self.url,
                 {"file": self._pdf_upload(name="rates.pdf")},
@@ -187,16 +195,19 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
         self.assertEqual(len(doc_blocks), 1)
         self.assertEqual(doc_blocks[0]["source"]["media_type"], "application/pdf")
 
-    def test_markdown_fenced_json_is_parsed(self):
-        """Claude sometimes wraps JSON in ```json … ``` despite the system prompt."""
+    def test_extracted_payload_includes_confidence_scores(self):
+        """View passes through confidence_scores from the tool_use result."""
         self.authenticate(self.create_agent(email="agent@bill.test"))
 
-        payload = {"property_name": "4 Otterkuil", "total_due": 999.99}
-        fenced = "```json\n" + json.dumps(payload) + "\n```"
+        payload = {
+            "property_name": "4 Otterkuil",
+            "total_due": 999.99,
+            "confidence_scores": {"property_name": 95, "total_due": 90},
+        }
 
         with mock.patch(CLAUDE_CLIENT_PATH) as client_cls:
             client = client_cls.return_value
-            client.messages.create.return_value = _fake_claude_response(fenced)
+            client.messages.create.return_value = _fake_tool_use_response(payload)
             resp = self.client.post(
                 self.url,
                 {"file": self._png_upload()},
@@ -205,17 +216,17 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
 
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["extracted"], payload)
+        self.assertEqual(resp.data["confidence_scores"], payload["confidence_scores"])
 
-    def test_plain_fenced_json_without_language_tag_is_parsed(self):
-        """```\n{...}\n``` (no 'json' after the opening fence) must also work."""
+    def test_tool_choice_is_forced_in_api_call(self):
+        """View must force tool_choice so Claude always returns structured data."""
         self.authenticate(self.create_agent(email="agent@bill.test"))
 
         payload = {"property_name": "Stand 42", "total_due": 42}
-        fenced = "```\n" + json.dumps(payload) + "\n```"
 
         with mock.patch(CLAUDE_CLIENT_PATH) as client_cls:
             client = client_cls.return_value
-            client.messages.create.return_value = _fake_claude_response(fenced)
+            client.messages.create.return_value = _fake_tool_use_response(payload)
             resp = self.client.post(
                 self.url,
                 {"file": self._png_upload()},
@@ -223,4 +234,6 @@ class ParseMunicipalBillViewTests(TremlyAPITestCase):
             )
 
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.data["extracted"], payload)
+        kwargs = client.messages.create.call_args.kwargs
+        self.assertIn("tool_choice", kwargs)
+        self.assertEqual(kwargs["tool_choice"]["type"], "tool")
