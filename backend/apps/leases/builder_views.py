@@ -244,7 +244,7 @@ class LeaseBuilderSessionCreateView(APIView):
             try:
                 lease = Lease.objects.select_related(
                     "unit__property"
-                ).prefetch_related("tenants__person").get(pk=existing_lease_id)
+                ).prefetch_related("co_tenants__person").get(pk=existing_lease_id)
                 initial_state = _lease_to_state(lease)
             except Lease.DoesNotExist:
                 return Response(
