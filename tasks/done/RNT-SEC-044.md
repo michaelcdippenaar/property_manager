@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214241801064718"
 created: 2026-04-23
-updated: 2026-04-24
+updated: 2026-04-23
 
 ---
 
@@ -128,3 +128,10 @@ AC requires "a management command or scheduled task enforces this [retention]". 
 **Blocker 2 verified:** `backend/apps/ai/tests/test_purge_old_interactions.py` (new, 16 tests). Ran `pytest apps/ai/tests/test_purge_old_interactions.py -v` locally — 16/16 PASSED, 0 failures. Covers: stale GuideInteraction deleted, fresh retained, boundary at cutoff, one day inside window; stale TenantChatSession deleted, fresh retained; --dry-run (both model types, no deletions); --days override (narrower deletes more, wider retains, session narrower, combined --dry-run+--days). Backdating approach via queryset.update is correct — avoids auto_now_add/auto_now signals cleanly.
 
 **No new issues found.** All original AC green. Overbroad bank regex remains a tracked discovery (non-blocking, deferred per PM direction).
+
+2026-04-23 — rentals-tester: Test run — all checks pass.
+
+- `cd backend && pytest apps/ai/ -xvs`: 49 passed, 0 failures, 13 warnings (27.25s). Covers test_pii_scrubber.py (21 tests) and test_purge_old_interactions.py (16 tests) plus guide tests.
+- `tenant/src/views/chat/ChatDetailView.vue` POPIA notice: PASS. Empty-state block (`v-else-if="messages.length === 0"`) contains the required notice: "Messages you send here are processed by an AI service. Don't share ID numbers, bank details, or passport numbers — we'll redact them, but it's safer not to send them." Bot icon imported. Present on lines 11-25.
+- `backend/apps/ai/README.md` operator register entry: PASS. Anthropic PBC operator register table present at lines 19-28. Correct path `tenant/src/views/chat/ChatDetailView.vue` referenced at line 77 (dead web_app reference removed per pass-2 fix).
+- `python3 manage.py purge_old_interactions --dry-run`: PASS. No crash. Output: retention=90 days, cutoff=2026-01-23, GuideInteraction: 0 rows would be deleted, TenantChatSession: 0 rows would be deleted.
