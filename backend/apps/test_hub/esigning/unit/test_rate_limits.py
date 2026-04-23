@@ -7,6 +7,30 @@ views return HTTP 429 after the configured threshold is exceeded.
 These tests manipulate the DRF throttle cache directly so they do NOT require
 a live Redis or Memcached — the root conftest clears the cache before each
 test, giving each test a clean slate.
+
+--- Cache isolation note ---
+
+DRF's SimpleRateThrottle stores request history in Django's default cache using
+a key derived from the throttle scope + client IP.  When the full test suite is
+run, other tests that call the same public endpoints can leave counters in the
+cache; the _isolate_throttle_cache fixture prevents this by pointing the default
+cache at a uniquely-named LocMemCache location ("throttle-tests") that nothing
+else writes to.
+
+--- THROTTLE_RATES class-variable note ---
+
+DRF sets SimpleRateThrottle.THROTTLE_RATES = api_settings.DEFAULT_THROTTLE_RATES
+at **class definition time** (i.e., when rest_framework.throttling is first
+imported).  Django's setting_changed signal only reloads api_settings — it does
+NOT update the class variable.  If throttling.py is first imported by an earlier
+test (outside any @override_settings context), THROTTLE_RATES will contain the
+initial base settings (10/min for public_sign_minute) for the rest of the
+process, causing these throttle tests to silently use 10/min instead of the
+intended 3/min.
+
+The _isolate_throttle_cache fixture also patches SimpleRateThrottle.THROTTLE_RATES
+directly for the duration of each test in this class, ensuring the tight rates
+apply regardless of import order or cross-test interference.
 """
 import pytest
 from unittest.mock import MagicMock, patch
@@ -31,9 +55,53 @@ TIGHT_THROTTLE_SETTINGS = {
     }
 }
 
+# Isolated LocMemCache location used only by TestPublicSignMinuteThrottle.
+# Django's LocMemCache uses the LOCATION string as the key into a module-level
+# dict, so a unique name here means no other test class can pollute this bucket.
+_THROTTLE_TEST_CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "throttle-tests",
+    }
+}
+
 
 class TestPublicSignMinuteThrottle:
     """PublicSignMinuteThrottle — 10 req/min per IP (3 in tight test settings)."""
+
+    @pytest.fixture(autouse=True)
+    def _isolate_throttle_cache(self, settings):
+        """
+        Two-part isolation fixture for throttle tests:
+
+        1. CACHE ISOLATION — Override CACHES to a uniquely-named LocMemCache so
+           that no other test class can pollute the throttle counter bucket.
+           pytest-django's `settings` fixture emits `setting_changed` on each
+           assignment, which triggers Django's built-in handler that calls
+           close_caches() and resets the CacheHandler thread-local — so
+           `django.core.cache.cache` automatically points to "throttle-tests"
+           for the duration of the test and is fully restored afterwards.
+
+        2. THROTTLE_RATES PATCH — DRF's SimpleRateThrottle.THROTTLE_RATES is a
+           class-level variable set at module import time. If the module is first
+           imported by an earlier test (outside any @override_settings context),
+           the class variable is frozen at the base settings (10/min for
+           public_sign_minute). The @override_settings(REST_FRAMEWORK=...) on
+           individual test methods correctly updates api_settings, but does NOT
+           update the already-frozen class variable. This fixture patches the
+           class variable directly so that the tight rates (3/min) are always
+           used regardless of import order.
+        """
+        from rest_framework.throttling import SimpleRateThrottle
+
+        # Part 1: isolated cache backend
+        settings.CACHES = _THROTTLE_TEST_CACHES
+
+        # Part 2: patch THROTTLE_RATES class variable with tight test rates
+        original_rates = SimpleRateThrottle.THROTTLE_RATES
+        SimpleRateThrottle.THROTTLE_RATES = TIGHT_THROTTLE_SETTINGS["DEFAULT_THROTTLE_RATES"]
+        yield
+        SimpleRateThrottle.THROTTLE_RATES = original_rates
 
     def test_throttle_class_scope(self):
         from apps.esigning.throttles import PublicSignMinuteThrottle
