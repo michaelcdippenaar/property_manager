@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214235807685706"
 created: 2026-04-23
@@ -74,3 +74,13 @@ Required fixes before re-review:
 - Drift guard logic and set-equality intact; 21 PLANNED slugs still in sync.
 
 Commit touches only 2 files (both package configs) with surgical precision. No regressions. Acceptance criteria satisfied.
+
+## Test run — 2026-04-23 rentals-tester
+
+**All checks pass.**
+
+1. ✓ `node scripts/check-feature-flag-drift.mjs` — Exit 0. Output: "OK — PLANNED_FEATURES is in sync with features.yaml (21 slugs)"
+2. ✓ `npx vitest run --config vitest.node.config.ts` — All tests pass. Test Files 1 passed (1), Tests 3 passed (3)
+3. ✓ `package.json` devDependencies audit — No `@axe-core/playwright` or `axe-core` entries present. Commit `5920fc21` successfully removed both stray a11y testing devDeps.
+
+No failures. Acceptance criteria fully satisfied. Moving to done/.
