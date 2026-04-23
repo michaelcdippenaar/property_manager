@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200406255598"
 created: 2026-04-22
@@ -46,3 +46,16 @@ Two separate issues were found and fixed:
 **Results:** All 17 rate-limit tests pass in 3 consecutive full-suite runs (`apps/esigning/ apps/test_hub/esigning/`).
 
 **Discovery logged:** Found 8 pre-existing failures in `test_esigning.py`/`test_esigning_full.py` (422 instead of 201 on submission create). Filed as `tasks/discoveries/2026-04-23-esigning-integration-test-422.md`.
+
+### 2026-04-23 — reviewer
+
+**Review passed.**
+
+Checked:
+1. AC1 — `_THROTTLE_TEST_CACHES` with `LOCATION: "throttle-tests"` is defined at module level and applied via `settings.CACHES = _THROTTLE_TEST_CACHES` inside the autouse fixture. Satisfied.
+2. AC2/AC3 — Implementer reports 17/17 pass across 3 consecutive runs. Tester to verify independently.
+3. Fixture correctness — `_isolate_throttle_cache` is `autouse=True` inside `TestPublicSignMinuteThrottle` only, so no blast radius on other classes. Teardown correctly restores `SimpleRateThrottle.THROTTLE_RATES` via explicit `yield` + reassignment. pytest-django `settings` fixture handles `CACHES` restore automatically via `setting_changed`.
+4. Root conftest interaction — `_reset_drf_throttle_cache` (root conftest, function scope) runs before the class fixture sets `CACHES`, so it clears the old default cache harmlessly; post-yield it clears the isolated cache and then `CACHES` is restored. Order is safe.
+5. No conflicts with `backend/apps/test_hub/esigning/conftest.py` — that file has no cache or throttle fixtures.
+6. Discovery `tasks/discoveries/2026-04-23-esigning-integration-test-422.md` is correctly filed and out of scope for this task.
+7. Security/POPIA — test-only change, no production code touched, no auth/PII concerns.
