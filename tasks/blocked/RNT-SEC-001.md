@@ -198,3 +198,21 @@ Tester findings split cleanly into two categories:
 - AC ongoing: Enable GitHub Secret Scanning in repo Settings (requires repo admin access)
 
 **Unblock path:** RNT-SEC-011 must be completed and merged first (fixes the gitleaks scan so testing can pass). Then MC completes the manual steps in `docs/ops/secret-rotation-2026-04.md`. Once both are done, return this task to testing for re-run of all four test cases.
+
+---
+
+### 2026-04-24 — rentals-pm: Staging-first sequencing — rotate into staging SSM first (DEC-021)
+
+DEC-021 answered 2026-04-24: **the staging-first rule applies to secret rotation.**
+
+When MC performs the manual rotation steps in `docs/ops/secret-rotation-2026-04.md`, the sequence must be:
+
+1. Write all rotated secrets to `/klikk/staging/*` SSM parameters (per OPS-009 staging namespace).
+2. Trigger a staging redeploy (OPS-001 `workflow_dispatch`) pointing at the staging SSM path.
+3. Verify staging environment boots and login works with the new credentials (smoke test against `staging-api.klikk.co.za/api/v1/health/`).
+4. Only after staging is confirmed healthy: write the same rotated values to `/klikk/prod/*` SSM parameters.
+5. Production deploy follows once prod SSM is populated.
+
+This applies to: Django `SECRET_KEY`, `SIMPLE_JWT` signing key, Google Maps API key, Volt MCP owner key, and any other rotated credential.
+
+The runbook at `docs/ops/secret-rotation-2026-04.md` should be updated to reflect this two-phase rotation order before MC executes the steps.
