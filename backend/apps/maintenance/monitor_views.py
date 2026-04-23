@@ -27,7 +27,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.permissions import IsAdmin, IsAgentOrAdmin
 from apps.maintenance.models import AgentTokenLog
 from core.contract_rag import rag_collection_stats
 
@@ -379,8 +379,12 @@ class AgentHealthCheckView(APIView):
       - MCP server file exists
       - Chat log writable
       - Skills populated
+
+    Restricted to admin users only — response includes infrastructure paths,
+    model names, and API key presence which must not be exposed to non-admin
+    agents (estate_agent, agency_admin, etc.).
     """
-    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
 
     def get(self, request):
         checks = []
