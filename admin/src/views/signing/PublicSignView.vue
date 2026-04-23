@@ -424,6 +424,26 @@ const DOCUMENT_TYPES = computed(() =>
 const route = useRoute()
 const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'
 
+// Return URL: tenant portal passes ?returnUrl=... so we can redirect back after signing.
+// Validated: only same-origin or whitelisted origins are honoured.
+const returnUrl = computed<string | null>(() => {
+  const raw = (route.query.returnUrl as string) || ''
+  if (!raw) return null
+  try {
+    const parsed = new URL(raw)
+    // Allow same origin, localhost (dev), or *.tremly.co.za
+    const host = parsed.hostname
+    if (
+      host === window.location.hostname ||
+      host === 'localhost' ||
+      host.endsWith('.tremly.co.za')
+    ) {
+      return raw
+    }
+  } catch { /* invalid URL */ }
+  return null
+})
+
 // State
 const loading = ref(true)
 const errorMsg = ref('')
@@ -817,6 +837,20 @@ async function submitSignatures() {
       { headers: { Accept: 'application/json' } },
     )
     completed.value = true
+
+    // Notify the opener (tenant app polling via postMessage)
+    try {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'klikk_lease_signed' }, '*')
+      }
+    } catch { /* cross-origin opener — ignore */ }
+
+    // Redirect back to tenant portal after a short delay so tenant sees the success screen
+    if (returnUrl.value) {
+      const dest = new URL(returnUrl.value)
+      dest.searchParams.set('signed', '1')
+      setTimeout(() => { window.location.href = dest.toString() }, 2500)
+    }
   } catch (e: any) {
     const d = e?.response?.data
     errorMsg.value =

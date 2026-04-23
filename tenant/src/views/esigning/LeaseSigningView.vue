@@ -2,6 +2,25 @@
   <div class="flex flex-col h-dvh overflow-hidden bg-surface">
     <AppHeader title="Lease & Signing" show-back back-label="Home" />
 
+    <!-- Signed confirmation banner -->
+    <Transition name="banner-slide">
+      <div
+        v-if="showSignedBanner"
+        class="mx-4 mt-3 flex items-start gap-3 rounded-2xl bg-success-50 border border-success-200 px-4 py-3"
+      >
+        <div class="w-7 h-7 flex-shrink-0 rounded-full bg-success-100 flex items-center justify-center mt-0.5">
+          <Check :size="14" class="text-success-600" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-success-800">Lease signed</p>
+          <p class="text-xs text-success-700 mt-0.5">Awaiting countersignature from your agent</p>
+        </div>
+        <button @click="showSignedBanner = false" class="text-success-400 flex-shrink-0 mt-0.5 touchable">
+          <X :size="16" />
+        </button>
+      </div>
+    </Transition>
+
     <div class="scroll-page px-4 pt-4 pb-8 space-y-4">
       <div v-if="loading" class="space-y-3">
         <div v-for="i in 2" :key="i" class="h-28 bg-white rounded-2xl animate-pulse" />
@@ -59,13 +78,18 @@
                 </div>
               </div>
 
-              <!-- Sign button (if my turn) -->
+              <!-- Sign button (if my turn) — disabled while watching for completion -->
               <button
                 v-if="myPendingSigner(sub)"
-                class="w-full py-3 bg-accent text-white rounded-xl font-semibold text-sm ripple touchable"
+                class="w-full py-3 bg-accent text-white rounded-xl font-semibold text-sm ripple touchable disabled:opacity-60 disabled:cursor-not-allowed"
+                :disabled="watchingSubId === sub.id"
                 @click="openSigning(sub)"
               >
-                Sign Now
+                <span v-if="watchingSubId === sub.id" class="inline-flex items-center gap-2">
+                  <span class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block" />
+                  Waiting for signing…
+                </span>
+                <span v-else>Sign Now</span>
               </button>
             </div>
           </div>
@@ -76,36 +100,75 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { Check, X, Clock, FileText } from 'lucide-vue-next'
 import { Capacitor } from '@capacitor/core'
 import AppHeader from '../../components/AppHeader.vue'
 import StatusBadge from '../../components/StatusBadge.vue'
 import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
+import { useSigningStatus } from '../../composables/useSigningStatus'
 
 const auth = useAuthStore()
+const route = useRoute()
 const lease = ref<any>(null)
 const submissions = ref<any[]>([])
 const loading = ref(true)
+const showSignedBanner = ref(false)
+const watchingSubId = ref<number | null>(null)
+
+const { signedAt, startSigningWatch, stopSigningWatch } = useSigningStatus()
 
 function myPendingSigner(sub: any) {
   return sub.signers?.find((s: any) => s.email === auth.user?.email && s.status === 'pending')
 }
 
+async function refreshSubmissions() {
+  if (!lease.value) return
+  try {
+    const subsRes = await api.get('/esigning/submissions/', { params: { lease: lease.value.id } })
+    submissions.value = subsRes.data.results ?? subsRes.data
+  } catch { /* non-fatal */ }
+}
+
 async function openSigning(sub: any) {
   const signer = myPendingSigner(sub)
   if (!signer?.signing_url) return
-  const url = signer.signing_url
+
+  // Build the signing URL, appending a returnUrl so the signing page can redirect back
+  let url = signer.signing_url
+  try {
+    const parsed = new URL(url)
+    // The return path is /signing on the tenant app (this very view)
+    const returnPath = route.path || '/signing'
+    parsed.searchParams.set('returnUrl', `${window.location.origin}${returnPath}`)
+    url = parsed.toString()
+  } catch { /* keep original URL on parse error */ }
+
+  watchingSubId.value = sub.id
 
   if (Capacitor.isNativePlatform()) {
     const { Browser } = await import('@capacitor/browser')
+    await startSigningWatch(lease.value.id, auth.user?.email ?? '')
     await Browser.open({ url })
   } else {
+    // Open external tab
     window.open(url, '_blank')
+    // Start watch: postMessage listener + polling
+    await startSigningWatch(lease.value.id, auth.user?.email ?? '')
   }
 }
 
+// React to signing detection
+watch(signedAt, async (val) => {
+  if (!val) return
+  watchingSubId.value = null
+  await refreshSubmissions()
+  showSignedBanner.value = true
+})
+
+// Handle `?signed=1` query param when redirected back by the signing page
 onMounted(async () => {
   try {
     const leasesRes = await api.get('/leases/')
@@ -118,5 +181,26 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+
+  // Show banner if redirected back from signing tab with ?signed=1
+  if (route.query.signed === '1') {
+    showSignedBanner.value = true
+  }
+})
+
+onUnmounted(() => {
+  stopSigningWatch()
 })
 </script>
+
+<style scoped>
+.banner-slide-enter-active,
+.banner-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.banner-slide-enter-from,
+.banner-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>

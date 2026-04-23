@@ -4,6 +4,27 @@
 
     <div ref="scrollEl" class="scroll-page page-with-tab-bar px-4 pt-4 pb-4 space-y-5" @scroll="onScroll">
 
+      <!-- Signed confirmation banner (shown after returning from signing tab) -->
+      <Transition name="banner-slide">
+        <div
+          v-if="showSignedConfirmation"
+          class="flex items-start gap-3 rounded-2xl bg-success-50 border border-success-200 px-4 py-3"
+        >
+          <div class="w-7 h-7 flex-shrink-0 rounded-full bg-success-100 flex items-center justify-center mt-0.5">
+            <CheckCircle :size="14" class="text-success-600" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-success-800">Lease signed</p>
+            <p class="text-xs text-success-700 mt-0.5">Awaiting countersignature from your agent</p>
+          </div>
+          <button @click="showSignedConfirmation = false" class="text-success-400 flex-shrink-0 mt-0.5 touchable">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </Transition>
+
       <!-- Signing CTA (if unsigned submission exists) -->
       <div v-if="signingCta" class="list-section touchable" @click="router.push({ name: 'lease' })">
         <div class="list-row gap-4">
@@ -88,7 +109,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { Wrench, ChevronRight, CheckCircle, MessageCircle, FileSignature, Wifi, Zap, Droplets, Lock, Shield } from 'lucide-vue-next'
 import AppHeader from '../../components/AppHeader.vue'
 import StatusBadge from '../../components/StatusBadge.vue'
@@ -96,6 +117,7 @@ import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const scrollEl = ref<HTMLElement | null>(null)
 const isScrolled = ref(false)
@@ -105,6 +127,7 @@ const issuesLoading = ref(true)
 const infoItems = ref<any[]>([])
 const infoLoading = ref(true)
 const signingCta = ref(false)
+const showSignedConfirmation = ref(false)
 
 const greeting = computed(() => {
   const hour = new Date().getHours()
@@ -155,9 +178,29 @@ onMounted(async () => {
         )
       }
     } catch { /* signing CTA is optional */ }
+
+    // If returning from external signing tab (?signed=1), dismiss CTA and show confirmation
+    if (route.query.signed === '1') {
+      signingCta.value = false
+      showSignedConfirmation.value = true
+      // Remove query param from URL without full reload
+      router.replace({ query: { ...route.query, signed: undefined } })
+    }
   } finally {
     issuesLoading.value = false
     infoLoading.value = false
   }
 })
 </script>
+
+<style scoped>
+.banner-slide-enter-active,
+.banner-slide-leave-active {
+  transition: all 0.3s ease;
+}
+.banner-slide-enter-from,
+.banner-slide-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+</style>
