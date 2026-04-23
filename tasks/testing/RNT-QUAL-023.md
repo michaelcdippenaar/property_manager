@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214195382933912"
 created: 2026-04-22
@@ -46,3 +46,5 @@ Resolve all 15 pre-existing test failures so the suite is green and future regre
 No code changes were required. All acceptance criteria are met.
 
 Side discovery: running the full `pytest apps/test_hub/` suite (1538 tests) produces 343 order-dependent failures caused by test isolation leaks across modules. All affected tests pass in isolation. Filed as `tasks/discoveries/2026-04-23-full-suite-test-isolation-failures.md` for PM to schedule separately.
+
+2026-04-23 (reviewer): Review passed. Verified no code changes — only task metadata and discovery file. Root cause (stale PostgreSQL connection) is infrastructure-related, not code. All 15 acceptance criteria met. Secondary discovery (test isolation) properly scoped and filed separately. Implementer correctly avoided scope creep. Verified discovery file structure at `/tasks/discoveries/2026-04-23-full-suite-test-isolation-failures.md` matches template. Ready for testing phase to confirm 98 tests pass on tester's environment.
