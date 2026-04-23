@@ -481,7 +481,11 @@ class TestAuditContextMiddleware(TestCase):
         self.assertIsNone(ctx.actor)
 
     def test_x_forwarded_for_used_as_ip(self):
-        """When X-Forwarded-For is present, the first entry should be used as IP."""
+        """With NUM_PROXIES=1 (default) and XFF='203.0.113.5, 10.0.0.1', get_client_ip
+        walks one trusted hop back from the right — the real client is '203.0.113.5'
+        (index -2 in a 2-entry list).  This delegates entirely to utils.http.get_client_ip
+        so the behaviour stays in sync with the global proxy-trust configuration."""
+        from unittest.mock import patch
         from django.test import RequestFactory
         rf = RequestFactory()
         request = rf.get(
@@ -501,9 +505,50 @@ class TestAuditContextMiddleware(TestCase):
             return HttpResponse("ok")
 
         middleware = self._make_middleware(view)
-        middleware(request)
+        with patch("django.conf.settings") as mock_settings:
+            mock_settings.NUM_PROXIES = 1
+            mock_settings.TRUSTED_PROXY_IPS = None
+            middleware(request)
 
         self.assertEqual(captured["ip"], "203.0.113.5")
+
+    def test_forged_xff_with_no_proxy_uses_remote_addr(self):
+        """Spoofing-negative test: with NUM_PROXIES=0 an attacker-supplied
+        X-Forwarded-For header must be ignored entirely; AuditEvent ip_address
+        must be REMOTE_ADDR, not the forged value."""
+        from unittest.mock import patch
+        from django.test import RequestFactory
+        rf = RequestFactory()
+        # Attacker injects a forged XFF; REMOTE_ADDR is the real socket address.
+        request = rf.get(
+            "/",
+            HTTP_X_FORWARDED_FOR="1.2.3.4",
+            REMOTE_ADDR="203.0.113.99",
+        )
+        from django.contrib.auth.models import AnonymousUser
+        request.user = AnonymousUser()
+
+        captured = {}
+
+        def view(req):
+            from django.http import HttpResponse
+            ctx = get_audit_context()
+            captured["ip"] = ctx.ip
+            return HttpResponse("ok")
+
+        middleware = self._make_middleware(view)
+        with patch("django.conf.settings") as mock_settings:
+            mock_settings.NUM_PROXIES = 0
+            mock_settings.TRUSTED_PROXY_IPS = None
+            middleware(request)
+
+        # Must record the real socket address, not the forged header.
+        self.assertEqual(
+            captured["ip"],
+            "203.0.113.99",
+            "Forged X-Forwarded-For must not override REMOTE_ADDR when NUM_PROXIES=0",
+        )
+        self.assertNotEqual(captured["ip"], "1.2.3.4")
 
     def test_outside_request_context_returns_empty(self):
         """get_audit_context() outside a request must return empty/None values."""

@@ -34,6 +34,8 @@ from __future__ import annotations
 
 import threading
 
+from utils.http import get_client_ip
+
 _local = threading.local()
 
 
@@ -92,7 +94,7 @@ class AuditContextMiddleware:
         if hasattr(request, "user") and request.user.is_authenticated:
             actor = request.user
 
-        ip = self._get_client_ip(request)
+        ip = get_client_ip(request)
         user_agent = request.META.get("HTTP_USER_AGENT", "")
 
         _set_audit_context(_AuditContext(actor=actor, ip=ip, user_agent=user_agent))
@@ -106,21 +108,3 @@ class AuditContextMiddleware:
             _clear_audit_context()
 
         return response
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _get_client_ip(request) -> str | None:
-        """
-        Extract the real client IP, honouring X-Forwarded-For when set.
-
-        In production the load-balancer / reverse-proxy rewrites this header
-        so we can trust the first entry.  In development REMOTE_ADDR is used
-        directly.
-        """
-        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-        return request.META.get("REMOTE_ADDR")
