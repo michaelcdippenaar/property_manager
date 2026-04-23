@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214227879702322"
 created: 2026-04-22
@@ -49,3 +49,10 @@ Two new `assertNumQueries(0)` tests added to `backend/apps/test_hub/esigning/int
 **2026-04-23 — reviewer**
 
 Review passed. Checked: AC1 — `.select_related("lease__unit__property", "mandate__property", "created_by")` is present at `services.py:736`; AC2 — two `assertNumQueries(0)` tests in `TestCompleteNativeSignerSelectRelated` cover mandate and lease paths, and the returned `submission` object is the re-fetched, lock-held instance so the 0-query assertions are valid; AC3 — no logic changes outside the queryset construction, no regression risk. `select_for_update(of=("self",))` usage is correct for nullable outer-join paths on PostgreSQL. Security pass: no new endpoints, no raw SQL, no PII logged, no auth surface changed.
+
+**2026-04-23 — tester**
+
+Test run: `cd backend && pytest apps/test_hub/esigning/ -v`
+- Result: 245 passed, 3 xfailed, 0 failures (65.49s)
+- All AC checks confirmed by test suite pass
+- PASS
