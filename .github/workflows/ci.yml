@@ -135,8 +135,11 @@ jobs:
             echo "No ESLint config found — skipping lint (add eslint.config.ts to enforce)"
           fi
 
-      - name: Vitest unit tests
+      - name: Vitest unit tests (browser)
         run: npm test -- --run
+
+      - name: Feature-flag drift guard (RNT-QUAL-047)
+        run: npm run test:drift
 
       - name: TypeScript check
         run: npx vue-tsc --noEmit
