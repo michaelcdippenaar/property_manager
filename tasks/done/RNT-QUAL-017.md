@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: done
 depends_on: []
 asana_gid: "1214227879926041"
 created: 2026-04-22
@@ -56,3 +56,7 @@ On inspection, the full server-side durability implementation was already presen
 - `npx vue-tsc --noEmit` exits 0 (zero TypeScript errors).
 
 The fallback `localStorage` criterion is intentionally unchecked — the preferred server-side approach is fully in place and the fallback was never needed.
+
+### 2026-04-23 — Review passed (reviewer)
+
+Verified all named artefacts exist and are correct: `seen_welcome_at` DateTimeField on `User` model at line 74 with migration `0018_add_seen_welcome_at.py`; `UserSerializer` includes the field at line 139; `MarkWelcomeSeenView` at line 250 is `IsAuthenticated`-gated, idempotent, uses `update_fields`, returns `UserSerializer` payload; wired at `auth/welcome/`; `auth.ts` `User` interface declares `seen_welcome_at?: string | null`; router guard at line 132 checks `auth.user?.seen_welcome_at`; `WelcomeView.vue` `goHome()` fires `api.post('/auth/welcome/')` and merges response into store; no `sessionStorage`/`localStorage` present. `npx vue-tsc --noEmit` exits 0. No auth/POPIA issues found. Moving directly to done — implementation was pre-existing, no tester battery required.
