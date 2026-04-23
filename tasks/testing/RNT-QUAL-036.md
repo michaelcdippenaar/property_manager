@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: blocked
+status: testing
 assigned_to: null
 depends_on: [RNT-SEC-031]
 asana_gid: "1214221444384630"
@@ -47,3 +47,7 @@ Register `ReconciliationQueue.vue` and `InvoiceDetail.vue` in the admin SPA rout
 2026-04-23 — Review passed. Checked: (1) both routes present in `admin/src/router/index.ts` as children of the AppLayout parent, correct lazy-import paths, `meta.roles` correctly excludes viewer/tenant; (2) `beforeEach` guard at line 244 reads `to.meta.roles` — Vue Router 4 child-overrides-parent semantics confirmed, so viewer blocked despite parent allowing it; (3) "Financials" `NavSection` conditionally pushed in `primaryNav` computed via `canSeePayments`, role list matches route meta; (4) InvoiceDetail not in sidebar (drill-down by :id — correct UX, test plan confirms click-row flow); (5) no new API endpoints, no PII, no raw SQL — POPIA/security pass clean; (6) both view files exist. No issues found.
 
 2026-04-23 — Test run (rentals-tester). Static checks PASS: both routes confirmed in `admin/src/router/index.ts` (lines 147-157) with correct `meta.roles`; `beforeEach` guard at line 244 enforces role list; `canSeePayments` computed in AppLayout.vue correctly gates the Financials nav section; both `ReconciliationQueue.vue` and `InvoiceDetail.vue` exist. Vite dev server started and returned HTTP 200. Manual smoke test BLOCKED: backend `POST /api/v1/auth/login/` returns HTTP 500 with `ProgrammingError: column accounts_user.seen_welcome_at does not exist` — unapplied migration prevents login, making all browser-level smoke checks impossible. Discovery filed: `tasks/discoveries/2026-04-23-accounts-missing-seen-welcome-at-migration.md`. Task blocked pending migration fix.
+
+## Reconciliation note (2026-04-23)
+Unblocked during reconciliation pass. Original blocking reason: `POST /api/v1/auth/login/` returned HTTP 500 (`ProgrammingError: column accounts_user.seen_welcome_at does not exist`). This migration has since been confirmed applied — column exists in dev DB. All code ACs confirmed [x] by reviewer. Routes wired, nav guard enforced, both view files exist.
+Moved from blocked → testing. Remaining: manual smoke — navigate to `/payments/` as agent → reconciliation queue renders; click invoice → detail view loads; tenant role redirected.

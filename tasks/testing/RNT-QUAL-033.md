@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: blocked
+status: testing
 assigned_to: null
 depends_on: []
 asana_gid: "1214200406476871"
@@ -81,3 +81,11 @@ Manual — Login as new tenant → dismiss welcome → new tab → welcome suppr
 - BLOCKED: tenant SPA dev server is not running locally (port 5173 serves the admin SPA; the tenant `web_app/` is not started). Cannot execute this test step without starting a server, which is outside the allowed scope for automated testing.
 
 The manual UI test cannot be completed without a running tenant web app. Test plan must be updated to either (a) replace this step with an E2E automated equivalent, or (b) explicitly flag it as a human-only step requiring a live tenant SPA.
+
+## Reconciliation note (2026-04-23)
+Unblocked during reconciliation pass. The original blocking reason (no tenant SPA server running at test time) is an environment constraint, not a code gap. Code evidence confirmed in HEAD:
+- `backend/apps/accounts/models.py` has `seen_welcome_at = DateTimeField(null, blank)`.
+- Migration `0018_add_seen_welcome_at.py` exists and is applied (column confirmed in dev DB).
+- 5/5 automated tests pass (`test_welcome.py`).
+- Frontend router guard updated to use `auth.user?.seen_welcome_at` check.
+Moved from blocked → testing. Remaining: manual smoke — log in as new tenant → dismiss welcome → open new tab → confirm welcome screen does not reappear.
