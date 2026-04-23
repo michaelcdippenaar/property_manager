@@ -106,6 +106,7 @@ class LeaseSerializer(serializers.ModelSerializer):
     landlord_info = serializers.SerializerMethodField()
     property_id = serializers.IntegerField(source='unit.property_id', read_only=True)
     successor_lease_id = serializers.SerializerMethodField()
+    payment_details = serializers.SerializerMethodField()
 
     class Meta:
         model = Lease
@@ -134,6 +135,32 @@ class LeaseSerializer(serializers.ModelSerializer):
     def get_landlord_info(self, obj):
         from apps.esigning.services import _get_landlord_info
         return _get_landlord_info(obj)
+
+    def get_payment_details(self, obj):
+        """
+        Return banking details and payment reference for this lease.
+
+        Resolves BankAccount via: Lease → Unit → Property → PropertyOwnership(is_current)
+        → Landlord.bank_accounts (default first), with fallback to PropertyOwnership.bank_details.
+
+        Returns None for bank_account fields when no BankAccount is on record so the
+        tenant UI can show a placeholder.  payment_reference comes from Lease.payment_reference.
+        """
+        from apps.esigning.services import _get_landlord_info
+        ll_info = _get_landlord_info(obj) or {}
+        bank = ll_info.get("bank_account") or {}
+        has_bank = bool(bank.get("bank_name") or bank.get("account_number"))
+        return {
+            "bank_account": {
+                "bank_name": bank.get("bank_name", ""),
+                "branch_code": bank.get("branch_code", ""),
+                "account_number": bank.get("account_number", ""),
+                "account_holder": bank.get("account_holder", ""),
+                "account_type": bank.get("account_type", ""),
+            } if has_bank else None,
+            "payment_reference": obj.payment_reference or "",
+            "rent_due_day": obj.rent_due_day,
+        }
 
 
 class LeaseTemplateSerializer(serializers.ModelSerializer):

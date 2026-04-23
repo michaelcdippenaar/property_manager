@@ -97,6 +97,104 @@
           </div>
         </div>
 
+        <!-- ── How to pay ──────────────────────────────────────────── -->
+        <div>
+          <p class="list-section-header px-1">How to Pay</p>
+          <div class="list-section">
+
+            <!-- No bank details on record -->
+            <template v-if="!lease.payment_details?.bank_account">
+              <div class="list-row">
+                <div class="list-row-icon bg-gray-100">
+                  <Landmark :size="18" class="text-gray-400" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-gray-500">Banking Details</p>
+                  <p class="text-sm text-gray-400 italic">Your agent will provide payment details</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Bank account fields -->
+            <template v-else>
+              <div class="list-row">
+                <div class="list-row-icon bg-navy/8">
+                  <Landmark :size="18" class="text-navy" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-gray-500">Bank</p>
+                  <p class="text-sm font-medium text-gray-900">{{ lease.payment_details.bank_account.bank_name }}</p>
+                </div>
+              </div>
+
+              <div class="list-row">
+                <div class="list-row-icon bg-navy/8">
+                  <Hash :size="18" class="text-navy" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-gray-500">Account Number</p>
+                  <p class="text-sm font-medium text-gray-900 font-mono">{{ lease.payment_details.bank_account.account_number }}</p>
+                </div>
+              </div>
+
+              <div class="list-row">
+                <div class="list-row-icon bg-navy/8">
+                  <Code2 :size="18" class="text-navy" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-gray-500">Branch Code</p>
+                  <p class="text-sm font-medium text-gray-900 font-mono">{{ lease.payment_details.bank_account.branch_code }}</p>
+                </div>
+              </div>
+
+              <div class="list-row">
+                <div class="list-row-icon bg-navy/8">
+                  <User :size="18" class="text-navy" />
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs text-gray-500">Account Holder</p>
+                  <p class="text-sm font-medium text-gray-900">{{ lease.payment_details.bank_account.account_holder }}</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Payment reference — always shown if present -->
+            <div v-if="lease.payment_details?.payment_reference" class="list-row touchable" @click="copyRef">
+              <div class="list-row-icon bg-accent/10">
+                <Receipt :size="18" class="text-accent" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-500">Payment Reference</p>
+                <p class="text-sm font-semibold text-gray-900 font-mono">{{ lease.payment_details.payment_reference }}</p>
+              </div>
+              <Copy :size="16" class="text-gray-300 flex-shrink-0" />
+            </div>
+
+            <!-- Due date reminder -->
+            <div class="list-row">
+              <div class="list-row-icon bg-red-50">
+                <CalendarClock :size="18" class="text-red-500" />
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs text-gray-500">Payment Due</p>
+                <p class="text-sm font-medium text-gray-900">{{ ordinal(lease.rent_due_day ?? 1) }} of each month</p>
+                <p class="text-[11px] text-gray-400 mt-0.5 leading-tight">
+                  Payment received after the {{ ordinal(lease.rent_due_day ?? 1) }} of the month may be subject to a
+                  late penalty as per your lease agreement (RHA s5(3)(f)).
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ── Ref copy toast ──────────────────────────────────────── -->
+        <Transition name="fade-up">
+          <div v-if="refCopied" class="fixed bottom-24 left-1/2 -translate-x-1/2 bg-gray-900/90 text-white text-xs font-medium px-4 py-2 rounded-full pointer-events-none z-50">
+            Reference copied
+          </div>
+        </Transition>
+
         <!-- ── Calendar ────────────────────────────────────────────── -->
         <div>
           <p class="list-section-header px-1">Upcoming Dates</p>
@@ -218,6 +316,7 @@ import {
   FileText, FileSignature, ChevronRight, ChevronLeft,
   Droplets, Zap, Wifi, Lock, Shield, Flame, Building2,
   Eye, EyeOff,
+  Landmark, Hash, Code2, User, Receipt, Copy, CalendarClock,
 } from 'lucide-vue-next'
 import AppHeader from '../../components/AppHeader.vue'
 import api from '../../api'
@@ -232,6 +331,7 @@ const lease      = ref<any | null>(null)
 const needsSigning = ref(false)
 const infoItems  = ref<any[]>([])
 const revealed   = ref(new Set<number>())
+const refCopied  = ref(false)
 
 // ── Lease helpers ──────────────────────────────────────────────────────
 function formatCurrency(val: string | number) {
@@ -357,6 +457,25 @@ function dayNumberClass(day: CalDay) {
   return day.isToday ? 'text-navy font-bold' : 'text-gray-700'
 }
 
+// ── Payment reference copy ─────────────────────────────────────────────
+async function copyRef() {
+  const ref = lease.value?.payment_details?.payment_reference
+  if (!ref) return
+  try {
+    await navigator.clipboard.writeText(ref)
+  } catch {
+    // Fallback for older WebViews
+    const el = document.createElement('input')
+    el.value = ref
+    document.body.appendChild(el)
+    el.select()
+    document.execCommand('copy')
+    document.body.removeChild(el)
+  }
+  refCopied.value = true
+  setTimeout(() => { refCopied.value = false }, 2000)
+}
+
 // ── Unit info helpers (from InfoView) ─────────────────────────────────
 const SENSITIVE = new Set(['wifi', 'alarm', 'gate', 'key', 'code', 'password'])
 function isSensitive(item: any) { return SENSITIVE.has(item.icon_type?.toLowerCase()) || item.is_sensitive }
@@ -412,3 +531,15 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.fade-up-enter-active,
+.fade-up-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fade-up-enter-from,
+.fade-up-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(6px);
+}
+</style>
