@@ -15,7 +15,7 @@ from .chat_history import persist_chat_history_to_request
 from .models import (
     AgentQuestion, JobDispatch, JobQuote, JobQuoteRequest,
     MaintenanceActivity, MaintenanceRequest, MaintenanceSkill, Supplier, SupplierDocument,
-    SupplierProperty, SupplierTrade,
+    SupplierInvoice, SupplierProperty, SupplierTrade,
 )
 from .notifications import notify_supplier
 from .serializers import (
@@ -635,3 +635,90 @@ class MaintenanceSkillViewSet(viewsets.ModelViewSet):
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(notes__icontains=search))
         return qs
+
+
+class AgentInvoiceApprovalView(APIView):
+    """
+    Agent reviews a supplier invoice: approve / reject / mark as paid.
+
+    GET    /maintenance/<request_pk>/invoice/        — view invoice
+    POST   /maintenance/<request_pk>/invoice/approve/ — approve
+    POST   /maintenance/<request_pk>/invoice/reject/  — reject with reason
+    POST   /maintenance/<request_pk>/invoice/paid/    — mark paid (EFT reference)
+    """
+
+    permission_classes = [IsAgentOrAdmin]
+
+    def _get_invoice(self, request_pk):
+        try:
+            return SupplierInvoice.objects.select_related(
+                "quote_request__dispatch__maintenance_request",
+                "quote_request__supplier",
+            ).get(quote_request__dispatch__maintenance_request_id=request_pk)
+        except SupplierInvoice.DoesNotExist:
+            return None
+
+    def get(self, request, request_pk):
+        invoice = self._get_invoice(request_pk)
+        if not invoice:
+            return Response({"detail": "No invoice found for this job"}, status=status.HTTP_404_NOT_FOUND)
+        from .supplier_serializers import SupplierInvoiceSerializer
+        return Response(SupplierInvoiceSerializer(invoice).data)
+
+    def post(self, request, request_pk):
+        action_name = request.data.get("action")
+        invoice = self._get_invoice(request_pk)
+        if not invoice:
+            return Response({"detail": "No invoice found for this job"}, status=status.HTTP_404_NOT_FOUND)
+
+        if action_name == "approve":
+            if invoice.status not in ("pending",):
+                return Response({"detail": "Only pending invoices can be approved"}, status=status.HTTP_400_BAD_REQUEST)
+            invoice.status = SupplierInvoice.Status.APPROVED
+            invoice.reviewed_by = request.user
+            invoice.save(update_fields=["status", "reviewed_by", "updated_at"])
+            MaintenanceActivity.objects.create(
+                request=invoice.quote_request.dispatch.maintenance_request,
+                activity_type=MaintenanceActivity.ActivityType.NOTE,
+                message=f"Invoice of R{invoice.total_amount} approved by agent.",
+                created_by=request.user,
+                metadata={"invoice_id": invoice.id},
+            )
+            return Response({"status": "approved"})
+
+        elif action_name == "reject":
+            reason = request.data.get("reason", "").strip()
+            if not reason:
+                return Response({"detail": "rejection reason required"}, status=status.HTTP_400_BAD_REQUEST)
+            invoice.status = SupplierInvoice.Status.REJECTED
+            invoice.rejection_reason = reason
+            invoice.reviewed_by = request.user
+            invoice.save(update_fields=["status", "rejection_reason", "reviewed_by", "updated_at"])
+            MaintenanceActivity.objects.create(
+                request=invoice.quote_request.dispatch.maintenance_request,
+                activity_type=MaintenanceActivity.ActivityType.NOTE,
+                message=f"Invoice rejected: {reason}",
+                created_by=request.user,
+                metadata={"invoice_id": invoice.id},
+            )
+            return Response({"status": "rejected"})
+
+        elif action_name == "paid":
+            if invoice.status != "approved":
+                return Response({"detail": "Only approved invoices can be marked paid"}, status=status.HTTP_400_BAD_REQUEST)
+            reference = request.data.get("reference", "").strip()
+            invoice.status = SupplierInvoice.Status.PAID
+            invoice.paid_at = timezone.now()
+            invoice.paid_reference = reference
+            invoice.reviewed_by = request.user
+            invoice.save(update_fields=["status", "paid_at", "paid_reference", "reviewed_by", "updated_at"])
+            MaintenanceActivity.objects.create(
+                request=invoice.quote_request.dispatch.maintenance_request,
+                activity_type=MaintenanceActivity.ActivityType.NOTE,
+                message=f"Invoice paid (R{invoice.total_amount}). Reference: {reference or 'not provided'}.",
+                created_by=request.user,
+                metadata={"invoice_id": invoice.id},
+            )
+            return Response({"status": "paid"})
+
+        return Response({"detail": "action must be one of: approve, reject, paid"}, status=status.HTTP_400_BAD_REQUEST)

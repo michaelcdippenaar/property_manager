@@ -75,7 +75,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { Briefcase, Calendar, UserCircle, LogOut, Menu, X } from 'lucide-vue-next'
+import { Briefcase, Calendar, FileText, UserCircle, LogOut, Menu, X } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -85,9 +85,10 @@ const mobileMenuOpen = ref(false)
 watch(() => route.path, () => { mobileMenuOpen.value = false })
 
 const navItems = [
-  { to: '/jobs',     icon: Briefcase,   label: 'Jobs' },
-  { to: '/calendar', icon: Calendar,    label: 'Calendar' },
-  { to: '/profile',  icon: UserCircle,  label: 'Profile' },
+  { to: '/jobs',      icon: Briefcase,  label: 'Jobs' },
+  { to: '/calendar',  icon: Calendar,   label: 'Calendar' },
+  { to: '/invoices',  icon: FileText,   label: 'Invoices' },
+  { to: '/profile',   icon: UserCircle, label: 'Profile' },
 ]
 
 function isActive(to: string) {

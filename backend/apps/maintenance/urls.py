@@ -10,6 +10,7 @@ from .monitor_views import (
     ProgressiveTestView,
 )
 from .views import (
+    AgentInvoiceApprovalView,
     AgentQuestionViewSet,
     JobDispatchListView,
     MaintenanceRequestViewSet,
@@ -22,10 +23,14 @@ from .supplier_views import (
     SupplierCalendarView,
     SupplierDashboardView,
     SupplierDocumentsView,
+    SupplierInvoiceView,
+    SupplierJobAcceptView,
     SupplierJobDeclineView,
     SupplierJobDetailView,
     SupplierJobQuoteView,
     SupplierJobsView,
+    SupplierJobStatusUpdateView,
+    SupplierPaymentHistoryView,
     SupplierProfileView,
 )
 
@@ -41,6 +46,10 @@ supplier_portal_urls = [
     path("jobs/<int:pk>/", SupplierJobDetailView.as_view(), name="supplier-portal-job-detail"),
     path("jobs/<int:pk>/quote/", SupplierJobQuoteView.as_view(), name="supplier-portal-quote"),
     path("jobs/<int:pk>/decline/", SupplierJobDeclineView.as_view(), name="supplier-portal-decline"),
+    path("jobs/<int:pk>/accept/", SupplierJobAcceptView.as_view(), name="supplier-portal-accept"),
+    path("jobs/<int:pk>/status/", SupplierJobStatusUpdateView.as_view(), name="supplier-portal-status-update"),
+    path("jobs/<int:pk>/invoice/", SupplierInvoiceView.as_view(), name="supplier-portal-invoice"),
+    path("payments/", SupplierPaymentHistoryView.as_view(), name="supplier-portal-payments"),
     path("profile/", SupplierProfileView.as_view(), name="supplier-portal-profile"),
     path("documents/", SupplierDocumentsView.as_view(), name="supplier-portal-documents"),
     path("calendar/", SupplierCalendarView.as_view(), name="supplier-portal-calendar"),
@@ -66,6 +75,8 @@ urlpatterns = [
     path("quotes/<uuid:token>/decline/", SupplierQuoteDeclineView.as_view(), name="supplier-quote-decline"),
     # Dispatch overview
     path("dispatches/", JobDispatchListView.as_view(), name="dispatch-list"),
+    # Agent invoice approval
+    path("<int:request_pk>/invoice/", AgentInvoiceApprovalView.as_view(), name="agent-invoice"),
     # Router routes
     path("", include(router.urls)),
 ]

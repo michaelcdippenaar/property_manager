@@ -7,16 +7,22 @@
         <div class="text-2xl font-bold text-navy mt-1">{{ stats.new_requests }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide">Quoted</div>
-        <div class="text-2xl font-bold text-warning-600 mt-1">{{ stats.pending_quotes }}</div>
+        <div class="text-xs text-gray-400 uppercase tracking-wide">In Progress</div>
+        <div class="text-2xl font-bold text-blue-600 mt-1">{{ stats.awarded_jobs }}</div>
       </div>
       <div class="card p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide">Awarded</div>
-        <div class="text-2xl font-bold text-success-600 mt-1">{{ stats.awarded_jobs }}</div>
+        <div class="text-xs text-gray-400 uppercase tracking-wide">Awaiting Payment</div>
+        <div class="text-2xl font-bold text-amber-600 mt-1">{{ stats.awaiting_payment }}</div>
+        <div v-if="Number(stats.outstanding_amount) > 0" class="text-xs text-amber-600 mt-0.5 font-medium">
+          R{{ Number(stats.outstanding_amount).toLocaleString('en-ZA') }}
+        </div>
       </div>
       <div class="card p-4">
-        <div class="text-xs text-gray-400 uppercase tracking-wide">Completed</div>
-        <div class="text-2xl font-bold text-gray-600 mt-1">{{ stats.completed_jobs }}</div>
+        <div class="text-xs text-gray-400 uppercase tracking-wide">Paid</div>
+        <div class="text-2xl font-bold text-success-600 mt-1">{{ stats.paid_jobs }}</div>
+        <div v-if="Number(stats.paid_amount) > 0" class="text-xs text-success-600 mt-0.5 font-medium">
+          R{{ Number(stats.paid_amount).toLocaleString('en-ZA') }}
+        </div>
       </div>
     </div>
 
@@ -49,12 +55,12 @@
             </div>
             <div class="flex items-center gap-2 shrink-0">
               <span :class="priorityBadge(job.job_priority)" class="text-micro">{{ job.job_priority }}</span>
-              <span :class="statusBadge(job.status)" class="text-micro">{{ job.status }}</span>
+              <span :class="jobStatusBadge(job)" class="text-micro">{{ jobStatusLabel(job) }}</span>
             </div>
           </div>
           <div class="flex items-center gap-3 mt-2 text-xs text-gray-400">
             <span>{{ formatDate(job.created_at) }}</span>
-            <span v-if="job.quote" class="font-medium text-gray-600">R{{ Number(job.quote.amount).toLocaleString() }}</span>
+            <span v-if="job.quote" class="font-medium text-gray-600">R{{ Number(job.quote.amount).toLocaleString('en-ZA') }}</span>
           </div>
         </button>
 
@@ -94,7 +100,7 @@
 
             <!-- Status -->
             <div class="flex items-center gap-2">
-              <span :class="statusBadge(selected.status)">{{ selected.status }}</span>
+              <span :class="jobStatusBadge(selected)">{{ jobStatusLabel(selected) }}</span>
               <span v-if="selected.match_score" class="text-xs text-gray-400 font-mono">Score: {{ selected.match_score }}</span>
             </div>
 
@@ -102,7 +108,7 @@
             <div v-if="selected.quote" class="border-t border-gray-100 pt-4">
               <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Your Quote</h3>
               <div class="p-3 bg-success-50 rounded-lg space-y-1">
-                <div class="text-lg font-bold text-success-700">R{{ Number(selected.quote.amount).toLocaleString() }}</div>
+                <div class="text-lg font-bold text-success-700">R{{ Number(selected.quote.amount).toLocaleString('en-ZA') }}</div>
                 <div v-if="selected.quote.estimated_days" class="text-sm text-success-700">{{ selected.quote.estimated_days }} days</div>
                 <div v-if="selected.quote.available_from" class="text-sm text-success-700">Available: {{ selected.quote.available_from }}</div>
                 <p v-if="selected.quote.description" class="text-sm text-success-700">{{ selected.quote.description }}</p>
@@ -143,6 +149,89 @@
               </div>
             </div>
 
+            <!-- Accept awarded job -->
+            <div v-if="selected.status === 'awarded' && selected.mr_status === 'open'"
+              class="border-t border-gray-100 pt-4">
+              <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Ready to start?</h3>
+              <button @click="acceptJob" :disabled="submitting" class="btn-primary w-full">
+                <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+                Accept Job &amp; Start Work
+              </button>
+            </div>
+
+            <!-- Status update (in-progress jobs) -->
+            <div v-if="selected.status === 'awarded' && ['in_progress', 'open'].includes(selected.mr_status ?? '')"
+              class="border-t border-gray-100 pt-4 space-y-3">
+              <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Update Progress</h3>
+              <div>
+                <label class="label text-xs">Status</label>
+                <select v-model="statusForm.status" class="input">
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Mark Complete</option>
+                </select>
+              </div>
+              <div>
+                <label class="label text-xs">Note (optional)</label>
+                <textarea v-model="statusForm.note" class="input" rows="2" placeholder="Any update for the agent or tenant…"></textarea>
+              </div>
+              <div>
+                <label class="label text-xs">Progress Photo (optional)</label>
+                <input type="file" accept="image/*" class="input text-sm" @change="onPhotoSelected" />
+              </div>
+              <button @click="updateStatus" :disabled="submitting" class="btn-primary w-full">
+                <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+                Send Update
+              </button>
+            </div>
+
+            <!-- Invoice submission -->
+            <div v-if="selected.status === 'awarded' && !selected.invoice_status"
+              class="border-t border-gray-100 pt-4 space-y-3">
+              <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide">Submit Invoice</h3>
+              <!-- Line items -->
+              <div class="space-y-2">
+                <div v-for="(item, idx) in invoiceForm.line_items" :key="idx" class="flex gap-2 items-start">
+                  <input v-model="item.description" class="input flex-1 text-sm" placeholder="Description" />
+                  <input v-model.number="item.amount" type="number" class="input w-28 text-sm" placeholder="Amount" @input="recalcTotal" />
+                  <button @click="removeLineItem(idx)" class="p-2 text-gray-400 hover:text-danger-600 mt-1">
+                    <Trash2 :size="14" />
+                  </button>
+                </div>
+                <button @click="addLineItem" class="text-xs text-navy hover:underline flex items-center gap-1">
+                  <Plus :size="12" /> Add line item
+                </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="flex-1">
+                  <label class="label text-xs">Total (R)</label>
+                  <input v-model.number="invoiceForm.total_amount" type="number" class="input font-semibold" />
+                </div>
+              </div>
+              <div>
+                <label class="label text-xs">Notes / Reference</label>
+                <input v-model="invoiceForm.notes" class="input text-sm" placeholder="Invoice number, payment terms…" />
+              </div>
+              <div>
+                <label class="label text-xs">Invoice PDF / Image (optional)</label>
+                <input type="file" accept=".pdf,image/*" class="input text-sm" @change="onInvoiceFileSelected" />
+              </div>
+              <button @click="submitInvoice" :disabled="!invoiceForm.total_amount || submitting" class="btn-primary w-full">
+                <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+                Submit Invoice for Approval
+              </button>
+            </div>
+
+            <!-- Existing invoice status -->
+            <div v-if="selected.invoice_status" class="border-t border-gray-100 pt-4">
+              <h3 class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Invoice</h3>
+              <div class="p-3 rounded-lg" :class="invoiceStatusClass(selected.invoice_status)">
+                <div class="flex items-center gap-2">
+                  <component :is="invoiceStatusIcon(selected.invoice_status)" :size="15" />
+                  <span class="text-sm font-medium">{{ invoiceStatusText(selected.invoice_status) }}</span>
+                </div>
+              </div>
+            </div>
+
             <div v-if="selected.status === 'declined'" class="text-center text-gray-400 py-4">
               You declined this job
             </div>
@@ -156,7 +245,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import api from '../../api'
-import { X, Loader2, Briefcase } from 'lucide-vue-next'
+import { X, Loader2, Briefcase, Plus, Trash2, Clock, CheckCircle, XCircle, FileText } from 'lucide-vue-next'
 import EmptyState from '../../components/EmptyState.vue'
 import FilterPills from '../../components/FilterPills.vue'
 
@@ -169,11 +258,23 @@ const stats = ref<any | null>(null)
 
 const quoteForm = ref({ amount: null as number | null, estimated_days: null as number | null, available_from: '', description: '' })
 
+const statusForm = ref({ status: 'in_progress', note: '', photo: null as File | null })
+
+const invoiceForm = ref({
+  line_items: [{ description: '', amount: null as number | null }] as { description: string; amount: number | null }[],
+  total_amount: null as number | null,
+  notes: '',
+  file: null as File | null,
+})
+
 const filters = [
   { label: 'All', value: 'all' },
   { label: 'New', value: 'pending' },
   { label: 'Quoted', value: 'quoted' },
   { label: 'Awarded', value: 'awarded' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Awaiting Payment', value: 'awaiting_payment' },
+  { label: 'Paid', value: 'paid' },
   { label: 'Declined', value: 'declined' },
 ]
 
@@ -205,6 +306,13 @@ async function selectJob(job: any) {
     const { data } = await api.get(`/maintenance/supplier/jobs/${job.id}/`)
     selected.value = data
     quoteForm.value = { amount: null, estimated_days: null, available_from: '', description: '' }
+    statusForm.value = { status: 'in_progress', note: '', photo: null }
+    invoiceForm.value = {
+      line_items: [{ description: '', amount: null }],
+      total_amount: null,
+      notes: '',
+      file: null,
+    }
   } catch {
     selected.value = job
   }
@@ -235,15 +343,139 @@ async function declineJob() {
   }
 }
 
+async function acceptJob() {
+  if (!selected.value) return
+  submitting.value = true
+  try {
+    await api.post(`/maintenance/supplier/jobs/${selected.value.id}/accept/`)
+    await selectJob(selected.value)
+    await Promise.all([loadJobs(), loadStats()])
+  } finally {
+    submitting.value = false
+  }
+}
+
+function onPhotoSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0] ?? null
+  statusForm.value.photo = file
+}
+
+async function updateStatus() {
+  if (!selected.value) return
+  submitting.value = true
+  try {
+    const fd = new FormData()
+    fd.append('status', statusForm.value.status)
+    if (statusForm.value.note) fd.append('note', statusForm.value.note)
+    if (statusForm.value.photo) fd.append('photo', statusForm.value.photo)
+    await api.post(`/maintenance/supplier/jobs/${selected.value.id}/status/`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    await selectJob(selected.value)
+    await Promise.all([loadJobs(), loadStats()])
+  } finally {
+    submitting.value = false
+  }
+}
+
+function addLineItem() {
+  invoiceForm.value.line_items.push({ description: '', amount: null })
+}
+
+function removeLineItem(idx: number) {
+  invoiceForm.value.line_items.splice(idx, 1)
+  recalcTotal()
+}
+
+function recalcTotal() {
+  const sum = invoiceForm.value.line_items.reduce((acc, item) => acc + (Number(item.amount) || 0), 0)
+  if (sum > 0) invoiceForm.value.total_amount = sum
+}
+
+function onInvoiceFileSelected(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0] ?? null
+  invoiceForm.value.file = file
+}
+
+async function submitInvoice() {
+  if (!selected.value || !invoiceForm.value.total_amount) return
+  submitting.value = true
+  try {
+    const fd = new FormData()
+    // Filter out empty line items before submitting
+    const cleanItems = invoiceForm.value.line_items.filter(i => i.description || i.amount)
+    fd.append('line_items', JSON.stringify(cleanItems))
+    fd.append('total_amount', String(invoiceForm.value.total_amount))
+    if (invoiceForm.value.notes) fd.append('notes', invoiceForm.value.notes)
+    if (invoiceForm.value.file) fd.append('invoice_file', invoiceForm.value.file)
+    await api.post(`/maintenance/supplier/jobs/${selected.value.id}/invoice/`, fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    await selectJob(selected.value)
+    await Promise.all([loadJobs(), loadStats()])
+  } finally {
+    submitting.value = false
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
 function priorityBadge(p: string) {
   return { urgent: 'badge-red', high: 'badge-amber', medium: 'badge-blue', low: 'badge-green' }[p] ?? 'badge-gray'
 }
 function priorityBorderLeft(p: string) {
   return { urgent: 'border-l-red-500', high: 'border-l-amber-400', medium: 'border-l-blue-400', low: 'border-l-green-400' }[p] ?? 'border-l-gray-300'
 }
-function statusBadge(s: string) {
-  return { pending: 'badge-gray', viewed: 'badge-blue', quoted: 'badge-amber', declined: 'badge-red', awarded: 'badge-green', expired: 'badge-gray' }[s] ?? 'badge-gray'
+
+function jobStatusLabel(job: any): string {
+  if (job.status === 'awarded') {
+    if (job.invoice_status === 'paid') return 'Paid'
+    if (job.invoice_status === 'approved') return 'Awaiting Payment'
+    if (job.invoice_status === 'pending') return 'Invoice Review'
+    if (job.mr_status === 'resolved') return 'Complete'
+    if (job.mr_status === 'in_progress') return 'In Progress'
+    return 'Awarded'
+  }
+  const labels: Record<string, string> = {
+    pending: 'New', viewed: 'Viewed', quoted: 'Quoted', declined: 'Declined', expired: 'Expired',
+  }
+  return labels[job.status] ?? job.status
 }
+
+function jobStatusBadge(job: any): string {
+  if (job.status === 'awarded') {
+    if (job.invoice_status === 'paid') return 'badge-green'
+    if (job.invoice_status === 'approved') return 'badge-amber'
+    if (job.invoice_status === 'pending') return 'badge-blue'
+    if (job.mr_status === 'resolved') return 'badge-green'
+    if (job.mr_status === 'in_progress') return 'badge-blue'
+    return 'badge-green'
+  }
+  return { pending: 'badge-gray', viewed: 'badge-blue', quoted: 'badge-amber', declined: 'badge-red', expired: 'badge-gray' }[job.status] ?? 'badge-gray'
+}
+
+function invoiceStatusClass(s: string) {
+  return {
+    pending: 'bg-blue-50 text-blue-700',
+    approved: 'bg-amber-50 text-amber-700',
+    rejected: 'bg-red-50 text-red-700',
+    paid: 'bg-success-50 text-success-700',
+  }[s] ?? 'bg-gray-50 text-gray-600'
+}
+
+function invoiceStatusIcon(s: string) {
+  return { pending: Clock, approved: FileText, rejected: XCircle, paid: CheckCircle }[s] ?? FileText
+}
+
+function invoiceStatusText(s: string) {
+  return {
+    pending: 'Invoice submitted — awaiting agent review',
+    approved: 'Invoice approved — payment on the way',
+    rejected: 'Invoice rejected — contact your agent',
+    paid: 'Paid',
+  }[s] ?? s
+}
+
 function formatDate(iso: string) {
   return iso ? new Date(iso).toLocaleDateString('en-ZA') : '—'
 }

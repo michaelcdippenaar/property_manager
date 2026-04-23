@@ -594,3 +594,60 @@ class SupplierJobAssignment(models.Model):
 
     def __str__(self):
         return f"Job #{self.maintenance_request_id} → {self.supplier} ({self.status})"
+
+
+class SupplierInvoice(models.Model):
+    """
+    Invoice submitted by a supplier for a completed (or in-progress) job.
+    Linked to the JobQuoteRequest so we can trace quote → assignment → invoice → payment.
+    Agent must approve before marking paid.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending Review"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+        PAID = "paid", "Paid"
+
+    quote_request = models.OneToOneField(
+        JobQuoteRequest,
+        on_delete=models.CASCADE,
+        related_name="invoice",
+        help_text="The awarded quote request this invoice relates to",
+    )
+    # PDF or image upload
+    invoice_file = models.FileField(
+        upload_to="supplier_invoices/",
+        null=True,
+        blank=True,
+        help_text="Optional PDF/image of the invoice",
+    )
+    # Structured line items: [{"description": str, "amount": "Decimal-string"}]
+    line_items = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Array of {description, amount} objects",
+    )
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    notes = models.TextField(blank=True, help_text="Supplier notes / reference number")
+    status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
+    rejection_reason = models.TextField(blank=True)
+    # Payment tracking
+    paid_at = models.DateTimeField(null=True, blank=True)
+    paid_reference = models.CharField(max_length=200, blank=True, help_text="EFT reference / proof of payment")
+    # Audit
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_supplier_invoices",
+    )
+
+    class Meta:
+        ordering = ["-submitted_at"]
+
+    def __str__(self):
+        return f"Invoice #{self.pk} — {self.quote_request.supplier} — R{self.total_amount} [{self.status}]"

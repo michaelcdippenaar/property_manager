@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (
-    JobQuote, JobQuoteRequest, Supplier, SupplierDocument, SupplierTrade,
+    JobQuote, JobQuoteRequest, Supplier, SupplierDocument, SupplierInvoice, SupplierTrade,
 )
 
 
@@ -56,17 +56,19 @@ class SupplierJobSerializer(serializers.ModelSerializer):
     job_title = serializers.CharField(source="dispatch.maintenance_request.title", read_only=True)
     job_description = serializers.CharField(source="dispatch.maintenance_request.description", read_only=True)
     job_priority = serializers.CharField(source="dispatch.maintenance_request.priority", read_only=True)
+    mr_status = serializers.CharField(source="dispatch.maintenance_request.status", read_only=True)
     property_city = serializers.SerializerMethodField()
     property_name = serializers.SerializerMethodField()
     dispatch_notes = serializers.CharField(source="dispatch.notes", read_only=True)
     quote = SupplierJobQuoteSerializer(read_only=True)
+    invoice_status = serializers.SerializerMethodField()
 
     class Meta:
         model = JobQuoteRequest
         fields = [
-            "id", "status", "job_title", "job_description", "job_priority",
+            "id", "status", "mr_status", "job_title", "job_description", "job_priority",
             "property_city", "property_name", "dispatch_notes",
-            "match_score", "notified_at", "viewed_at", "quote", "created_at",
+            "match_score", "notified_at", "viewed_at", "quote", "invoice_status", "created_at",
         ]
 
     def get_property_city(self, obj):
@@ -81,6 +83,12 @@ class SupplierJobSerializer(serializers.ModelSerializer):
         except AttributeError:
             return ""
 
+    def get_invoice_status(self, obj):
+        try:
+            return obj.invoice.status
+        except Exception:
+            return None
+
 
 class SupplierCalendarItemSerializer(serializers.Serializer):
     """Awarded jobs formatted for calendar display."""
@@ -91,3 +99,32 @@ class SupplierCalendarItemSerializer(serializers.Serializer):
     end_date = serializers.DateField()
     amount = serializers.DecimalField(max_digits=12, decimal_places=2)
     status = serializers.CharField()
+
+
+class SupplierInvoiceSerializer(serializers.ModelSerializer):
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    job_title = serializers.SerializerMethodField()
+
+    class Meta:
+        model = SupplierInvoice
+        fields = [
+            "id", "status", "status_label", "job_title",
+            "invoice_file", "line_items", "total_amount", "notes",
+            "rejection_reason", "paid_at", "paid_reference",
+            "submitted_at", "updated_at",
+        ]
+        read_only_fields = ["id", "status", "rejection_reason", "paid_at", "paid_reference", "submitted_at", "updated_at"]
+
+    def get_job_title(self, obj):
+        try:
+            return obj.quote_request.dispatch.maintenance_request.title
+        except AttributeError:
+            return ""
+
+
+class SupplierInvoiceSubmitSerializer(serializers.ModelSerializer):
+    """Writable serializer for supplier submitting an invoice."""
+
+    class Meta:
+        model = SupplierInvoice
+        fields = ["invoice_file", "line_items", "total_amount", "notes"]

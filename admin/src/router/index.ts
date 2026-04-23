@@ -191,6 +191,14 @@ const router = createRouter({
       ],
     },
     {
+      path: '/invoices',
+      component: () => import('../components/SupplierLayout.vue'),
+      meta: { requiresAuth: true, roles: ['supplier'] },
+      children: [
+        { path: '', name: 'supplier-invoices', component: () => import('../views/supplier/InvoicesView.vue') },
+      ],
+    },
+    {
       path: '/profile',
       component: () => import('../components/SupplierLayout.vue'),
       meta: { requiresAuth: true, roles: ['supplier'] },
