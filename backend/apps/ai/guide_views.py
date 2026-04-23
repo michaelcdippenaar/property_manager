@@ -1,0 +1,217 @@
+"""
+AI Guide endpoint — POST /api/v1/ai/guide/
+
+Accepts { message, portal } and calls Anthropic claude-3-5-haiku with a
+tool-use loop.  Returns { reply, action } where `action` is a GuideAction-
+compatible dict (or null if no navigation was needed).
+
+Persists each interaction to GuideInteraction for analytics.
+"""
+from __future__ import annotations
+
+import logging
+import os
+from typing import Any
+
+import anthropic
+from django.conf import settings
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
+from rest_framework.views import APIView
+from rest_framework import status as drf_status
+
+from apps.ai.guide_tools import TOOL_ACTION_MAP, get_tools_for_portal, is_tool_allowed
+from apps.ai.models import GuideInteraction
+
+logger = logging.getLogger(__name__)
+
+GUIDE_MODEL = "claude-3-5-haiku-20241022"
+
+SYSTEM_PROMPT = """\
+You are the Klikk navigation assistant embedded in the property management admin portal.
+Your job is to understand what the user wants to do and call the appropriate navigation tool.
+
+Rules:
+1. Always call exactly one tool if the intent is clear.
+2. If the intent is ambiguous or you cannot match a tool, reply in plain text to ask for clarification.
+3. Keep replies concise — one sentence is usually enough.
+4. You are operating in the "{portal}" portal — only tools available to that portal are listed.
+5. Do not invent tool names. Only use the tools provided.
+"""
+
+VALID_PORTALS = {"agent", "owner", "supplier"}
+
+
+class AIGuideThrottle(UserRateThrottle):
+    rate = "20/min"
+    scope = "ai_guide"
+
+
+def _get_anthropic_api_key() -> str:
+    """Return the Anthropic API key from settings or .env fallback."""
+    key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
+    if key:
+        return key
+    env_path = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+    )
+    try:
+        with open(env_path) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("ANTHROPIC_API_KEY="):
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except OSError:
+        pass
+    return ""
+
+
+def _call_guide(message: str, portal: str) -> dict[str, Any]:
+    """
+    Run the claude-3-5-haiku tool-use loop and return
+    { reply: str, action: dict | None, intent: str | None }.
+    """
+    api_key = _get_anthropic_api_key()
+    if not api_key:
+        return {
+            "reply": "AI Guide is not configured. Please contact your administrator.",
+            "action": None,
+            "intent": None,
+        }
+
+    tools = get_tools_for_portal(portal)
+    client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
+
+    response = client.messages.create(
+        model=GUIDE_MODEL,
+        max_tokens=256,
+        system=SYSTEM_PROMPT.format(portal=portal),
+        tools=tools,
+        messages=[{"role": "user", "content": message}],
+    )
+
+    # Extract tool call (if any)
+    tool_use_block = None
+    text_block = None
+
+    for block in response.content:
+        if block.type == "tool_use":
+            tool_use_block = block
+        elif block.type == "text":
+            text_block = block
+
+    if tool_use_block is not None:
+        tool_name = tool_use_block.name
+
+        # Safety: double-check the model didn't hallucinate an out-of-scope tool
+        if not is_tool_allowed(tool_name, portal):
+            logger.warning(
+                "AI Guide returned disallowed tool %r for portal=%r — ignoring",
+                tool_name,
+                portal,
+            )
+            return {
+                "reply": "I'm not able to do that in this portal.",
+                "action": None,
+                "intent": tool_name,
+            }
+
+        action = TOOL_ACTION_MAP.get(tool_name)
+        # Build a friendly reply if the model didn't also emit a text block
+        reply = (text_block.text.strip() if text_block else None) or _default_reply(
+            tool_name
+        )
+        return {"reply": reply, "action": action, "intent": tool_name}
+
+    # No tool call — model replied in prose
+    reply = (text_block.text.strip() if text_block else "") or (
+        "I'm not sure how to help with that. "
+        "Try asking me to navigate somewhere, like \"show me leases\" or \"go to maintenance\"."
+    )
+    return {"reply": reply, "action": None, "intent": None}
+
+
+def _default_reply(tool_name: str) -> str:
+    """Produce a sensible fallback reply for a tool name."""
+    _map = {
+        "go_to_dashboard": "Taking you to the Dashboard.",
+        "owner_go_to_dashboard": "Taking you to the Owner Dashboard.",
+        "create_property": "Navigating to Add Property — I've highlighted the button for you.",
+        "list_properties": "Opening the Properties list.",
+        "owner_list_properties": "Opening your Properties.",
+        "list_leases": "Navigating to Leases.",
+        "owner_list_leases": "Opening your Leases.",
+        "view_maintenance": "Taking you to Maintenance Issues.",
+        "list_tenants": "Opening the Tenants list.",
+        "list_payments": "Navigating to Payments.",
+    }
+    return _map.get(tool_name, "Done — navigating now.")
+
+
+class AIGuideView(APIView):
+    """POST /api/v1/ai/guide/ — AI-powered navigation intent mapper."""
+
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [AIGuideThrottle]
+
+    def post(self, request):
+        if not getattr(settings, "ENABLE_AI_GUIDE", True):
+            return Response(
+                {"detail": "AI Guide is disabled."},
+                status=drf_status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        message = (request.data.get("message") or "").strip()
+        portal = (request.data.get("portal") or "agent").strip().lower()
+
+        if not message:
+            return Response(
+                {"detail": "message is required."},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        if portal not in VALID_PORTALS:
+            portal = "agent"
+
+        try:
+            result = _call_guide(message, portal)
+        except anthropic.APIError as exc:
+            logger.exception("Anthropic API error in AI Guide: %s", exc)
+            return Response(
+                {
+                    "reply": "Sorry, I'm having trouble connecting to the AI service. Please try again.",
+                    "action": None,
+                },
+                status=drf_status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            logger.exception("Unexpected error in AI Guide: %s", exc)
+            return Response(
+                {
+                    "reply": "Something went wrong. Please try again.",
+                    "action": None,
+                },
+                status=drf_status.HTTP_200_OK,
+            )
+
+        # Persist interaction
+        try:
+            GuideInteraction.objects.create(
+                user=request.user,
+                portal=portal,
+                message=message,
+                intent=result.get("intent") or "",
+                action_taken=result.get("action") or {},
+                completed=result.get("action") is not None,
+            )
+        except Exception:
+            logger.exception("Failed to persist GuideInteraction")
+
+        return Response(
+            {
+                "reply": result["reply"],
+                "action": result["action"],
+            },
+            status=drf_status.HTTP_200_OK,
+        )

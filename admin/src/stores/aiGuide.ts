@@ -3,10 +3,10 @@
  * for the in-app onboarding/guide agent.
  *
  * Feature flag: VITE_ENABLE_AI_GUIDE must equal 'true' for the widget to render.
- * API calls are mocked on the frontend until the backend endpoint is shipped.
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import api from '../api'
 
 export type GuideMode = 'walkthrough' | 'do-it-for-me'
 export type GuideRole = 'user' | 'assistant'
@@ -169,9 +169,9 @@ export const useAIGuideStore = defineStore('aiGuide', () => {
     isLoading.value = true
 
     try {
-      // When backend ships, swap this for: const { data } = await api.post('/ai/guide/', { message: trimmed, portal: portalRole })
-      await new Promise<void>((resolve) => setTimeout(resolve, 600))
-      const { reply, action } = _mockIntentMapper(trimmed, portalRole)
+      const { data } = await api.post('/ai/guide/', { message: trimmed, portal: portalRole })
+      const reply: string = data.reply ?? "I'm not sure how to help with that."
+      const action: GuideAction | null = data.action ?? null
 
       _addMessage('assistant', reply, action)
 

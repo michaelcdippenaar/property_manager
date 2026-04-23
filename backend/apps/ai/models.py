@@ -100,3 +100,47 @@ class TenantIntelligence(models.Model):
 
     def __str__(self) -> str:
         return f"TenantIntel({self.user_id})"
+
+
+class GuideInteraction(models.Model):
+    """
+    One row per AI Guide request — used for analytics and audit.
+    """
+
+    PORTAL_AGENT = "agent"
+    PORTAL_OWNER = "owner"
+    PORTAL_SUPPLIER = "supplier"
+    PORTAL_CHOICES = [
+        (PORTAL_AGENT, "Agent"),
+        (PORTAL_OWNER, "Owner"),
+        (PORTAL_SUPPLIER, "Supplier"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="guide_interactions",
+    )
+    portal = models.CharField(max_length=20, choices=PORTAL_CHOICES, default=PORTAL_AGENT)
+    message = models.TextField(help_text="Raw user message sent to the guide.")
+    intent = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Tool name resolved by the AI (blank if no tool was called).",
+    )
+    action_taken = models.JSONField(
+        default=dict,
+        help_text="GuideAction payload returned to the frontend (empty dict if none).",
+    )
+    completed = models.BooleanField(
+        default=False,
+        help_text="True when the guide resolved a navigation action.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"GuideInteraction({self.user_id}, {self.portal}, {self.intent or 'no-action'})"

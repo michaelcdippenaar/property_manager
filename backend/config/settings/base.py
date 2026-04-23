@@ -220,6 +220,10 @@ GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
 # Read directly from .env repo data to avoid decouple's issues with '--' in values
 _env_data = _env_repo.data if _env_path.is_file() else {}
 ANTHROPIC_API_KEY = _env_data.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
+
+# AI Guide widget — set ENABLE_AI_GUIDE=false to disable the /api/v1/ai/guide/ endpoint.
+# Defaults to True so the widget works out-of-the-box in dev/staging.
+ENABLE_AI_GUIDE = config("ENABLE_AI_GUIDE", default=True, cast=bool)
 GOOGLE_MAPS_API_KEY = _env_data.get("GOOGLE_MAPS_API_KEY", os.environ.get("GOOGLE_MAPS_API_KEY", ""))
 
 # Local contract / policy RAG (ChromaDB under RAG_CHROMA_PATH)
