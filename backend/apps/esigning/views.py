@@ -911,6 +911,7 @@ class ESigningPublicDraftView(APIView):
     Tenants call this to save partial signing progress between sessions.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
     throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def get(self, request, link_id):
@@ -973,6 +974,7 @@ class ESigningPublicDocumentsView(APIView):
     Accepted file types: PDF, JPEG, PNG.  Max size: 10 MB.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
     parser_classes = [MultiPartParser, FormParser]
     throttle_classes = PUBLIC_SIGN_THROTTLES
 
