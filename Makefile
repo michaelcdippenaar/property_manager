@@ -10,3 +10,4 @@ compile-emails:
 ## check-emails: CI guard — fail if compiled/base.html is stale or missing conditionals
 check-emails:
 	@bash scripts/compile_email_templates.sh --check
+# Test comment - OPS-022 cache verification
