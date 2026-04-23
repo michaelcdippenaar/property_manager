@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214227879465027"
 created: 2026-04-22
@@ -52,3 +52,16 @@ Smoke checks run and verified:
 - `npm run build` exits 0, 2303 modules transformed, sourcemaps generated in `dist/assets/`.
 
 All acceptance criteria were satisfied by RNT-QUAL-027. No new code changes committed. Reviewer should note this is a duplicate and may wish to close/archive after review rather than progressing to testing.
+
+### 2026-04-23 — reviewer: closed as duplicate (review passed)
+
+Confirmed duplicate of RNT-QUAL-027 (done, commit `d34b601`). Both tasks were promoted from the same discovery `2026-04-22-admin-spa-build-broken.md`. All four acceptance criteria independently verified by reviewer:
+
+1. `admin/src/assets/main.css` — EXISTS, contains valid Tailwind + Google Fonts import.
+2. `npx vue-tsc --noEmit` — EXIT 0, zero errors.
+3. `npm run build` — EXIT 0, 2303 modules transformed, sourcemaps present in `dist/assets/`.
+4. No code changes in this task's commit; no regressions possible.
+
+Security pass (no new code): no new endpoints, no PII logged, no raw SQL, no user input. Nothing to flag.
+
+Closed directly to done as a duplicate; tester pass not required (identical scope fully tested under RNT-QUAL-027).
