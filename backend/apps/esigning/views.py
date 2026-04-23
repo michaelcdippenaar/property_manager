@@ -11,7 +11,7 @@ from rest_framework.generics import ListCreateAPIView, RetrieveAPIView
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.permissions import IsAgentOrAdmin, IsAdmin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -388,15 +388,14 @@ class GotenbergHealthView(APIView):
     """
     GET /api/v1/esigning/gotenberg/health/
     Returns the Gotenberg service health status (Chromium + LibreOffice engines).
+
+    Restricted to system admins only — the raw health payload includes engine names
+    and version strings (Chromium, LibreOffice) that constitute infrastructure
+    disclosure to non-admin authenticated users.
     """
-    permission_classes = [IsAgentOrAdmin]
+    permission_classes = [IsAdmin]
 
     def get(self, request):
-        if not can_manage_esigning(request.user):
-            return Response(
-                {"detail": "Only staff may check service health."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         try:
             from .gotenberg import health_check
             data = health_check()

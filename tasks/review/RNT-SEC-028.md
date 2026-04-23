@@ -1,0 +1,47 @@
+---
+id: RNT-SEC-028
+stream: rentals
+title: "Restrict GotenbergHealthView to admin-only to prevent infrastructure disclosure"
+feature: ""
+lifecycle_stage: null
+priority: P2
+effort: S
+v1_phase: "1.0"
+status: review
+assigned_to: reviewer
+depends_on: []
+asana_gid: "1214200406225875"
+created: 2026-04-22
+updated: 2026-04-23
+---
+
+## Goal
+Prevent any authenticated agent from mapping internal infrastructure (Chromium, LibreOffice versions) via `GET /api/v1/esigning/gotenberg/health/` by restricting access or stripping sensitive fields.
+
+## Acceptance criteria
+- [x] `GotenbergHealthView` restricted to `IsAdmin` only (not agents) — `permission_classes` changed from `[IsAgentOrAdmin]` to `[IsAdmin]`
+- [x] Test asserts a non-admin agent user receives HTTP 403 on `GET /api/v1/esigning/gotenberg/health/`
+- [x] Admin users can still access the endpoint for operational monitoring
+
+## Files likely touched
+- `backend/apps/esigning/views.py`
+- `backend/apps/test_hub/esigning/` (new test)
+
+## Test plan
+**Automated:**
+- `cd backend && pytest apps/test_hub/esigning/ -k gotenberg`
+
+## Handoff notes
+Promoted from discovery `2026-04-22-gotenberg-health-endpoint-recon.md` (found during RNT-SEC-004). Information-disclosure vector: agents can map internal service versions.
+
+### 2026-04-23 — implementer
+
+**What was done:**
+
+- `backend/apps/esigning/views.py`: Changed `GotenbergHealthView.permission_classes` from `[IsAgentOrAdmin]` to `[IsAdmin]` (imported from `apps.accounts.permissions`). Also removed the now-redundant `can_manage_esigning()` guard inside the handler body since `IsAdmin` is stricter and handles the check at the DRF permission layer. Added a docstring explaining the rationale (infrastructure disclosure).
+- `backend/apps/test_hub/esigning/integration/test_gotenberg_health_access.py`: New test class `TestGotenbergHealthAccessControl` with three cases: agent gets 403, admin gets 200 (health_check mocked), unauthenticated gets 401/403. All 13 gotenberg-keyed tests pass (`pytest apps/test_hub/esigning/ -k gotenberg`).
+
+**Caveats for reviewer:**
+
+- The `IsAdmin` permission class grants access to `User.Role.ADMIN` or `is_superuser`. Agency admins (`AGENCY_ADMIN`) and managing agents (`MANAGING_AGENT`) are excluded — this is intentional; the health endpoint exposes Chromium/LibreOffice version strings that have no operational value to those roles.
+- The `can_manage_esigning()` inner guard was removed from `GotenbergHealthView.get()` because `IsAdmin` is a superset of that check (admin always satisfies `can_manage_esigning`). No behaviour change for admin users.
