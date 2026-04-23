@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214181875017961"
 created: 2026-04-22
@@ -40,3 +40,5 @@ Align `ESigningPublicDraftView` and `ESigningPublicDocumentsView` with the three
 2026-04-22 — Promoted from discovery `2026-04-22-esigning-public-views-missing-auth-classes.md` found during RNT-SEC-002 (rate limiting). Pre-existing inconsistency; three of five public views already have the correct pattern.
 
 2026-04-23 — IMPLEMENTED. Added `authentication_classes = []` to both `ESigningPublicDraftView` (line 914) and `ESigningPublicDocumentsView` (line 977) in `backend/apps/esigning/views.py`. Both now explicitly disable JWT authentication, consistent with the three other public signing views (PublicSignDetailView, PublicDocumentView, PublicSubmitSignatureView). Created unit test `backend/apps/test_hub/esigning/unit/test_authentication_classes.py` to verify all five public views have `authentication_classes = []`. All 258 esigning tests pass. **Discovery**: `ESigningPublicDocumentDeleteView` also lacks `authentication_classes = []` despite being public (AllowAny); defer to separate task if needed.
+
+2026-04-23 — REVIEW PASSED. Verified: (1) exactly 2 lines added to views.py (lines 914 & 977), no other view modified; (2) new unit test file has 5 test methods, all passing, covering all 5 public views; (3) authentication_classes=[] correctly added only to ESigningPublicDraftView & ESigningPublicDocumentsView, aligning with existing 3 public views; (4) no security regressions—views already had AllowAny, this change just makes implicit auth handling explicit (defense-in-depth); (5) test file structure follows project patterns. Discovery deferral noted appropriately. Ready for tester to verify with manual JWT tests.
