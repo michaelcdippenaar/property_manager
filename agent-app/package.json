@@ -25,7 +25,7 @@
     "@quasar/extras": "^1.17.0",
     "@sentry/capacitor": "^3.2.1",
     "@sentry/vue": "10.43.0",
-    "axios": "^1.6.0",
+    "axios": "^1.15.2",
     "pinia": "^2.1.0",
     "quasar": "^2.16.0",
     "vue": "^3.4.0",
