@@ -46,12 +46,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
 
       - name: Install Playwright + dependencies
         working-directory: e2e
         run: |
-          npm init -y
-          npm install --save-dev @playwright/test typescript tsx
+          npm ci
           npx playwright install --with-deps chromium
 
       # ── Run the suite ─────────────────────────────────────────────────────

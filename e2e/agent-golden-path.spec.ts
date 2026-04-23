@@ -240,11 +240,10 @@ test.describe("Agent Golden Path (QA-002)", () => {
     // Accept either a 200 success or a 400 that tells us email is needed
     // (the latter would indicate the landlord email wasn't auto-linked — surfaced here).
     if (!sendRes.ok) {
-      const errBody = JSON.stringify(sendRes.data);
-      // If it fails for a known-good reason (no owner email set), surface that
-      // clearly rather than a generic assertion failure.
+      // Do NOT include response body — it may contain owner PII (email, phone, id_number).
+      // Surface only the HTTP status code so logs/artefacts stay POPIA-safe.
       throw new Error(
-        `Step 4 — mandate send-for-signing failed (${sendRes.status}): ${errBody}. ` +
+        `Step 4 — mandate send-for-signing failed (HTTP ${sendRes.status}). ` +
           "Check that the landlord's email is linked to the property ownership.",
       );
     }

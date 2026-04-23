@@ -162,3 +162,12 @@ jobs:
           curl --fail --retry 5 --retry-delay 5 \
             https://${{ secrets.STAGING_DOMAIN }}/api/v1/health/ \
             || (echo "Health check failed after deploy" && exit 1)
+
+  # ── E2E regression after every successful deploy ───────────────────────────
+  e2e:
+    name: E2E — Agent Golden Path
+    needs: deploy
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+    with:
+      image_tag: ${{ needs.build-and-push.outputs.image_tag }}
