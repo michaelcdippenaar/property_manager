@@ -142,7 +142,7 @@ def _send_invite_email(invite, sender_name, base_url, first_name=""):
     """Send (or re-send) the branded invite email for a UserInvite."""
     from apps.notifications.services import send_email
 
-    invite_url = f"{base_url}/accept-invite?token={invite.token}"
+    invite_url = f"{base_url}/invite/{invite.token}"
     greeting_line = f"Hi {first_name}," if first_name else "Hi there,"
     role_display = invite.role.replace("_", " ").capitalize()
 

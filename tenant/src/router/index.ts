@@ -18,6 +18,12 @@ const router = createRouter({
       meta: { public: true, depth: 0 },
     },
     {
+      path: '/invite/:token',
+      name: 'invite-accept',
+      component: () => import('../views/auth/InviteAcceptView.vue'),
+      meta: { public: true, depth: 0 },
+    },
+    {
       path: '/2fa/challenge',
       name: '2fa-challenge',
       component: () => import('../views/auth/TwoFAChallengeView.vue'),

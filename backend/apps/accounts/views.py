@@ -384,10 +384,11 @@ class AcceptInviteView(APIView):
 
     def get(self, request):
         """Return invite details (email, role) for the frontend to pre-fill."""
+        from django.core.exceptions import ValidationError as DjangoValidationError
         token = request.query_params.get("token", "")
         try:
             invite = UserInvite.objects.select_related("invited_by").get(token=token)
-        except (UserInvite.DoesNotExist, ValueError):
+        except (UserInvite.DoesNotExist, ValueError, DjangoValidationError):
             return Response({"detail": "Invalid invite link."}, status=status.HTTP_400_BAD_REQUEST)
 
         if invite.cancelled_at is not None:
@@ -408,10 +409,11 @@ class AcceptInviteView(APIView):
         return Response({"email": invite.email, "role": invite.role})
 
     def post(self, request):
+        from django.core.exceptions import ValidationError as DjangoValidationError
         token = request.data.get("token", "")
         try:
             invite = UserInvite.objects.get(token=token, accepted_at__isnull=True)
-        except (UserInvite.DoesNotExist, ValueError):
+        except (UserInvite.DoesNotExist, ValueError, DjangoValidationError):
             return Response({"detail": "Invalid or expired invite."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check if an ACTIVE user with this email already exists. Soft-deleted
