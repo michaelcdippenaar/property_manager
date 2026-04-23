@@ -971,20 +971,25 @@ class TestTenantPortalRBAC:
         c = _client_for(world["agent_a"])
         _check(c, "get", "/api/v1/tenant-portal/conversations/", 200)
 
-    def test_supplier_conversation_is_scoped_to_supplier(self, world):
-        """Tenant portal conversations use IsAuthenticated — a supplier can create a
-        conversation but it is scoped to the supplier's own user (no cross-user leak).
-        The intent is that the UI doesn't route suppliers here; the API doesn't block it."""
+    def test_supplier_cannot_post_tenant_portal_conversations(self, world):
+        """Suppliers are not tenants or agents — POST must return 403."""
         c = _client_for(world["supplier"])
-        resp = c.post("/api/v1/tenant-portal/conversations/", {"title": "Supplier test"}, format="json")
-        # 201 is the actual behaviour (IsAuthenticated only); if tightened to require
-        # tenant role this would become 403. Document current state.
-        assert resp.status_code in (201, 400, 403), (
-            f"Supplier POST conversations returned unexpected {resp.status_code}"
-        )
-        if resp.status_code == 201:
-            # Verify the conversation is scoped to the supplier user, not tenant_a
-            assert resp.data.get("id") is not None
+        _check(c, "post", "/api/v1/tenant-portal/conversations/", 403)
+
+    def test_supplier_cannot_list_tenant_portal_conversations(self, world):
+        """Suppliers must not be able to list any tenant chat sessions."""
+        c = _client_for(world["supplier"])
+        _check(c, "get", "/api/v1/tenant-portal/conversations/", 403)
+
+    def test_owner_cannot_post_tenant_portal_conversations(self, world):
+        """Owners are not tenants or agents — POST must return 403."""
+        c = _client_for(world["owner_a"])
+        _check(c, "post", "/api/v1/tenant-portal/conversations/", 403)
+
+    def test_owner_cannot_list_tenant_portal_conversations(self, world):
+        """Owners must not be able to list tenant chat sessions."""
+        c = _client_for(world["owner_a"])
+        _check(c, "get", "/api/v1/tenant-portal/conversations/", 403)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

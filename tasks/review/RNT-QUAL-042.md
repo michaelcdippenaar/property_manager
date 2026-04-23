@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214227864198350"
 created: 2026-04-23
@@ -20,12 +20,12 @@ updated: 2026-04-23
 Restrict `TenantConversationsListCreateView` (and sibling tenant portal views) so that non-tenant authenticated users cannot create or list tenant AI chat sessions.
 
 ## Acceptance criteria
-- [ ] `TenantConversationsListCreateView.permission_classes` enforces `IsTenant | IsAgentOrAdmin` (agent access for support tooling is acceptable), OR `POST` validates the requesting user has an active lease and returns 403 with `{"detail": "No active lease"}` if not
-- [ ] Supplier `POST /api/v1/tenant-portal/conversations/` returns 403
-- [ ] Owner `POST /api/v1/tenant-portal/conversations/` returns 403
-- [ ] Tenant with active lease can still create and list conversations (no regression)
-- [ ] `build_tenant_context` is not called for non-tenant users (eliminates unhandled exception risk on missing lease)
-- [ ] `TestTenantPortalRBAC::test_supplier_conversation_is_scoped_to_supplier` updated to assert 403
+- [x] `TenantConversationsListCreateView.permission_classes` enforces `IsTenantOrAgent` (tenants + all agent variants; suppliers/owners denied)
+- [x] Supplier `POST /api/v1/tenant-portal/conversations/` returns 403
+- [x] Owner `POST /api/v1/tenant-portal/conversations/` returns 403
+- [x] Tenant with active lease can still create and list conversations (no regression)
+- [x] `build_tenant_context` is not called for non-tenant users (eliminates unhandled exception risk on missing lease)
+- [x] `TestTenantPortalRBAC::test_supplier_conversation_is_scoped_to_supplier` updated to assert 403
 
 ## Files likely touched
 - `backend/apps/tenant_portal/views.py` — `TenantConversationsListCreateView.permission_classes`
@@ -44,3 +44,5 @@ Restrict `TenantConversationsListCreateView` (and sibling tenant portal views) s
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-23 rentals-pm: Promoted from discovery `2026-04-23-tenant-portal-not-restricted-to-tenants.md`. Discovered during QA-009. Low data-leakage risk (scoped by user) but junk-data and potential unhandled exception in `build_tenant_context` for non-tenant users make this worth fixing before launch.
+
+2026-04-23 implementer: Applied `IsTenantOrAgent` permission class (already existed in `apps/accounts/permissions.py`) to all four tenant portal views: `TenantConversationsListCreateView`, `TenantConversationDetailView`, `TenantConversationMaintenanceDraftView`, and `TenantConversationMessageCreateView`. Guarded `build_tenant_context` call in the message view behind a `request.user.role == TENANT` check so agents using support tooling never hit the missing-lease path. Replaced the loose `test_supplier_conversation_is_scoped_to_supplier` test (which allowed 201) with four stricter tests: supplier POST 403, supplier GET 403, owner POST 403, owner GET 403. All 5 tests pass (`pytest tests/integration/test_rbac_matrix.py -k "tenant_portal" -v --reuse-db`).

@@ -37,6 +37,8 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from apps.accounts.permissions import IsTenantOrAgent
+
 from apps.ai.intel import update_tenant_intel
 from apps.ai.models import TenantChatSession
 from apps.ai.parsing import (
@@ -852,7 +854,7 @@ def _maybe_create_agent_question(
 
 class TenantConversationsListCreateView(APIView):
     """List or create tenant chat sessions."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTenantOrAgent]
 
     def get(self, request):
         qs = TenantChatSession.objects.filter(user=request.user).order_by("-updated_at")
@@ -887,7 +889,7 @@ class TenantConversationsListCreateView(APIView):
 
 class TenantConversationDetailView(APIView):
     """Retrieve a single conversation with all messages."""
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTenantOrAgent]
 
     def get(self, request, pk: int):
         c = _session_for_user(request, pk)
@@ -911,7 +913,7 @@ class TenantConversationMaintenanceDraftView(APIView):
     Converts the conversation into a pre-filled {title, description, priority, category}
     dict that the mobile app uses to populate the Report Issue screen.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTenantOrAgent]
     throttle_classes = [TenantDraftThrottle]
 
     def post(self, request, pk: int):
@@ -992,7 +994,7 @@ class TenantConversationMessageCreateView(APIView):
       - Rate limiting (TenantChatThrottle)
       - Retry with backoff (max_retries=2)
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsTenantOrAgent]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
     throttle_classes = [TenantChatThrottle]
 
@@ -1140,10 +1142,15 @@ class TenantConversationMessageCreateView(APIView):
                 f"{skills_text}\n"
             )
 
-        tenant_ctx = build_tenant_context(request.user)
+        # Only call build_tenant_context for actual tenants — agents supporting
+        # a tenant would not have a lease and this function would raise/return
+        # incomplete context.
+        from apps.accounts.models import User as _User
         system = TENANT_SYSTEM_PROMPT
-        if tenant_ctx:
-            system = f"{system}\n\n{tenant_ctx}"
+        if request.user.role == _User.Role.TENANT:
+            tenant_ctx = build_tenant_context(request.user)
+            if tenant_ctx:
+                system = f"{system}\n\n{tenant_ctx}"
         system = f"{system}\n\n{context_block}"
 
         # ── Transcript windowing ──
