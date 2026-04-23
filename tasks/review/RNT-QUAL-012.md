@@ -7,22 +7,22 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214227879465027"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
 Make `npm run build` and `npx vue-tsc --noEmit` in `admin/` exit 0 so CI can gate on a clean TypeScript build and sourcemap generation.
 
 ## Acceptance criteria
-- [ ] `admin/src/assets/main.css` is present, committed, and contains valid CSS (or the import is removed/redirected)
-- [ ] `npx vue-tsc --noEmit` exits 0 with zero errors (covers `ImportMeta.env`, `@sentry/vue` types, TipTap `Editor` type incompatibilities)
-- [ ] `npm run build` in `admin/` exits 0 (tsc clean + vite build + sourcemaps generated)
-- [ ] No regressions in runtime admin SPA behaviour
+- [x] `admin/src/assets/main.css` is present, committed, and contains valid CSS (or the import is removed/redirected)
+- [x] `npx vue-tsc --noEmit` exits 0 with zero errors (covers `ImportMeta.env`, `@sentry/vue` types, TipTap `Editor` type incompatibilities)
+- [x] `npm run build` in `admin/` exits 0 (tsc clean + vite build + sourcemaps generated)
+- [x] No regressions in runtime admin SPA behaviour
 
 ## Files likely touched
 - `admin/src/assets/main.css` (create or fix import)
@@ -41,3 +41,14 @@ Make `npm run build` and `npx vue-tsc --noEmit` in `admin/` exit 0 so CI can gat
 
 ## Handoff notes
 Promoted from discovery: `2026-04-22-admin-spa-build-broken.md` (OPS-010). Blocking the CI sourcemap check added by OPS-010 and any future `vue-tsc` CI step.
+
+### 2026-04-23 — implementer
+
+No code changes required. This task is a duplicate of RNT-QUAL-027 (`tasks/done/RNT-QUAL-027.md`), which was promoted from the same discovery (`2026-04-22-admin-spa-build-broken.md`) and is already `done` as of commit `d34b601`.
+
+Smoke checks run and verified:
+- `admin/src/assets/main.css` exists and contains valid Tailwind/CSS — present in tree since `d34b601`.
+- `npx vue-tsc --noEmit` exits 0, zero errors.
+- `npm run build` exits 0, 2303 modules transformed, sourcemaps generated in `dist/assets/`.
+
+All acceptance criteria were satisfied by RNT-QUAL-027. No new code changes committed. Reviewer should note this is a duplicate and may wish to close/archive after review rather than progressing to testing.
