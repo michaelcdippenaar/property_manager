@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200629050472"
 created: 2026-04-22
-updated: 2026-04-23 (re-review approved)
+updated: 2026-04-23
 ---
 
 ## Goal
@@ -65,3 +65,10 @@ Ran `git rm --cached backend/logs/maintenance_chat.jsonl backend/logs/agent_test
 **2026-04-23 — reviewer: Review passed (re-review)**
 
 Checked: `git ls-files backend/logs/` returns only `.gitkeep` — both `maintenance_chat.jsonl` and `agent_test_history.jsonl` are removed from the index. `.gitignore` rule `backend/logs/*.jsonl` is in place and now effective. `os.makedirs` in `base.py` covers the only `FileHandler` path (`MAINTENANCE_CHAT_LOG`). All four acceptance criteria satisfied. POPIA concern resolved. No auth, IDOR, or input-validation surface in this change.
+
+**2026-04-23 — tester**
+
+Test run:
+- Verified `git ls-files backend/logs/` returns only `.gitkeep` — PASS
+- Removed `backend/logs/` entirely, ran `cd backend && pytest --co -q` — 1500 tests collected in 9.55s, zero boot errors — PASS
+- All four acceptance criteria satisfied. Moving to done/.
