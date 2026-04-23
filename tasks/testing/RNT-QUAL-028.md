@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214218083690104"
 created: 2026-04-22
-updated: 2026-04-23 (re-review)
+updated: 2026-04-23
 ---
 
 ## Goal
@@ -68,3 +68,7 @@ Applied all four reviewer-requested surgical fixes:
 4. `ESIGNING.md:51` — "Signing request expired (managed by DocuSeal)" → "Signing request expired"
 
 `grep -ri "docuseal"` across both files returns zero matches.
+
+**2026-04-23 — reviewer: Review passed**
+
+Re-review pass confirmed all four requested fixes are present and correct in the diff (esigning.md:76, esigning.md:129, esigning.md:153, ESIGNING.md:51). Independent grep of both files returns zero DocuSeal references. grep on text/source files across the entire backend/ tree for DOCUSEAL_WEBHOOK_SECRET returns zero matches. All four ACs satisfied. No auth surfaces, PII, or security concerns — pure documentation change. Approved for testing.
