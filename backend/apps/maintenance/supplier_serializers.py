@@ -122,9 +122,46 @@ class SupplierInvoiceSerializer(serializers.ModelSerializer):
             return ""
 
 
+_INVOICE_FILE_MAX_BYTES = 10 * 1024 * 1024  # 10 MB
+_ALLOWED_INVOICE_MIME_TYPES = {"application/pdf"}
+_ALLOWED_IMAGE_MIME_PREFIXES = ("image/",)
+
+
+def _validate_file(uploaded_file, allow_pdf: bool = True, allow_images: bool = True, max_bytes: int = _INVOICE_FILE_MAX_BYTES):
+    """
+    Shared validator for supplier file uploads.
+    Raises ValidationError if the MIME type or size is not acceptable.
+    """
+    if uploaded_file is None:
+        return uploaded_file
+
+    mime = getattr(uploaded_file, "content_type", "") or ""
+    allowed = False
+    if allow_pdf and mime in _ALLOWED_INVOICE_MIME_TYPES:
+        allowed = True
+    if allow_images and any(mime.startswith(prefix) for prefix in _ALLOWED_IMAGE_MIME_PREFIXES):
+        allowed = True
+
+    if not allowed:
+        raise serializers.ValidationError(
+            "Only PDF and image files are accepted. Received: {}".format(mime or "unknown")
+        )
+
+    if uploaded_file.size > max_bytes:
+        mb = max_bytes // (1024 * 1024)
+        raise serializers.ValidationError(
+            "File too large. Maximum allowed size is {} MB.".format(mb)
+        )
+
+    return uploaded_file
+
+
 class SupplierInvoiceSubmitSerializer(serializers.ModelSerializer):
     """Writable serializer for supplier submitting an invoice."""
 
     class Meta:
         model = SupplierInvoice
         fields = ["invoice_file", "line_items", "total_amount", "notes"]
+
+    def validate_invoice_file(self, value):
+        return _validate_file(value, allow_pdf=True, allow_images=True)

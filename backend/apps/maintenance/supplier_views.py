@@ -31,6 +31,7 @@ from .supplier_serializers import (
     SupplierJobQuoteSerializer,
     SupplierJobSerializer,
     SupplierProfileSerializer,
+    _validate_file,
 )
 
 
@@ -261,6 +262,13 @@ class SupplierJobStatusUpdateView(SupplierMixin, APIView):
         new_status = request.data.get("status")
         note = request.data.get("note", "").strip()
         photo = request.FILES.get("photo")
+
+        if photo is not None:
+            from rest_framework import serializers as drf_serializers
+            try:
+                _validate_file(photo, allow_pdf=False, allow_images=True)
+            except drf_serializers.ValidationError as exc:
+                return Response({"detail": exc.detail[0] if isinstance(exc.detail, list) else str(exc.detail)}, status=status.HTTP_400_BAD_REQUEST)
 
         valid_statuses = {
             MaintenanceRequest.Status.IN_PROGRESS,

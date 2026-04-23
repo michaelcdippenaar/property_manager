@@ -687,6 +687,8 @@ class AgentInvoiceApprovalView(APIView):
             return Response({"status": "approved"})
 
         elif action_name == "reject":
+            if invoice.status != SupplierInvoice.Status.PENDING:
+                return Response({"detail": "Only pending invoices can be rejected"}, status=status.HTTP_400_BAD_REQUEST)
             reason = request.data.get("reason", "").strip()
             if not reason:
                 return Response({"detail": "rejection reason required"}, status=status.HTTP_400_BAD_REQUEST)
