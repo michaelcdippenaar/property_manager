@@ -10,6 +10,8 @@ Coverage:
   4. Signal coverage: Lease / RentalMandate / ESigningSubmission / RentPayment
      / User role change each emit exactly one AuditEvent
   5. User non-role edits do NOT emit an AuditEvent
+  6. RBAC regression: admin/agency_admin get 200; all other roles get 403
+  7. AuditContextMiddleware: thread-local context populated from request
 """
 
 from __future__ import annotations
@@ -20,9 +22,11 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase
+from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.audit.models import AuditEvent, compute_self_hash
+from apps.audit.middleware import AuditContextMiddleware, get_audit_context, _clear_audit_context
 from apps.leases.models import Lease
 from apps.payments.models import RentInvoice, RentPayment
 from apps.properties.models import Property, RentalMandate, Unit
@@ -283,3 +287,227 @@ class TestComputeSelfHash(TestCase):
     def test_genesis_hash_is_64_chars(self):
         h = compute_self_hash("", {"id": 1, "action": "audit.genesis"})
         self.assertEqual(len(h), 64)
+
+
+# ---------------------------------------------------------------------------
+# 6. RBAC regression — audit endpoints
+# ---------------------------------------------------------------------------
+
+
+def _make_user(email: str, role: str) -> User:
+    return User.objects.create_user(password="testpass123", email=email, role=role)
+
+
+class TestAuditEndpointRBAC(TestCase):
+    """
+    RNT-SEC-039 — RBAC regression for GET /api/v1/audit/events/ and
+    GET /api/v1/audit/timeline/{app_label}/{model}/{pk}/.
+
+    admin and agency_admin must receive HTTP 200.
+    All other roles must receive HTTP 403.
+    """
+
+    EVENTS_URL = "/api/v1/audit/events/"
+    # Use a deliberately non-existent object so we test permission before DB lookup.
+    # leases/lease/0/ — ContentType must exist (it does after migrations run).
+    TIMELINE_URL = "/api/v1/audit/timeline/leases/lease/0/"
+
+    def _assert_role_status(self, role: str, expected_status: int) -> None:
+        email = f"{role.replace('_', '')}@rbac-test.com"
+        user = _make_user(email, role)
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        events_resp = client.get(self.EVENTS_URL)
+        self.assertEqual(
+            events_resp.status_code,
+            expected_status,
+            f"Role '{role}' got {events_resp.status_code} on {self.EVENTS_URL}, expected {expected_status}",
+        )
+
+        timeline_resp = client.get(self.TIMELINE_URL)
+        self.assertEqual(
+            timeline_resp.status_code,
+            expected_status,
+            f"Role '{role}' got {timeline_resp.status_code} on {self.TIMELINE_URL}, expected {expected_status}",
+        )
+
+    # --- allowed roles ---
+
+    def test_admin_gets_200(self):
+        self._assert_role_status(User.Role.ADMIN, 200)
+
+    def test_agency_admin_gets_200(self):
+        self._assert_role_status(User.Role.AGENCY_ADMIN, 200)
+
+    # --- forbidden roles ---
+
+    def test_agent_gets_403(self):
+        self._assert_role_status(User.Role.AGENT, 403)
+
+    def test_estate_agent_gets_403(self):
+        self._assert_role_status(User.Role.ESTATE_AGENT, 403)
+
+    def test_managing_agent_gets_403(self):
+        self._assert_role_status(User.Role.MANAGING_AGENT, 403)
+
+    def test_tenant_gets_403(self):
+        self._assert_role_status(User.Role.TENANT, 403)
+
+    def test_owner_gets_403(self):
+        # The codebase uses OWNER (not landlord); this matches the task intent.
+        self._assert_role_status(User.Role.OWNER, 403)
+
+    def test_supplier_gets_403(self):
+        self._assert_role_status(User.Role.SUPPLIER, 403)
+
+    def test_unauthenticated_gets_401(self):
+        """Unauthenticated callers must never reach audit data."""
+        client = APIClient()
+        events_resp = client.get(self.EVENTS_URL)
+        self.assertIn(
+            events_resp.status_code,
+            (401, 403),
+            f"Unauthenticated caller got unexpected status {events_resp.status_code}",
+        )
+        timeline_resp = client.get(self.TIMELINE_URL)
+        self.assertIn(
+            timeline_resp.status_code,
+            (401, 403),
+            f"Unauthenticated caller got unexpected status {timeline_resp.status_code}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# 7. AuditContextMiddleware unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestAuditContextMiddleware(TestCase):
+    """
+    RNT-SEC-039 — AuditContextMiddleware stores actor/ip/user_agent in
+    thread-local storage and clears it after the response.
+    """
+
+    def setUp(self):
+        # Ensure clean state before each test
+        _clear_audit_context()
+
+    def tearDown(self):
+        _clear_audit_context()
+
+    def _make_middleware(self, view_fn=None):
+        """Return a middleware instance wrapping a trivial get_response."""
+        from django.http import HttpResponse
+
+        def _default_view(request):
+            return HttpResponse("ok")
+
+        return AuditContextMiddleware(view_fn or _default_view)
+
+    def _make_request(self, user=None, remote_addr="1.2.3.4", user_agent="TestAgent/1.0"):
+        """Build a minimal request-like object."""
+        from django.test import RequestFactory
+        rf = RequestFactory()
+        request = rf.get("/", HTTP_USER_AGENT=user_agent, REMOTE_ADDR=remote_addr)
+        if user is not None:
+            request.user = user
+        else:
+            from django.contrib.auth.models import AnonymousUser
+            request.user = AnonymousUser()
+        return request
+
+    def test_authenticated_user_stored_in_context(self):
+        user = _make_user("ctx_user@test.com", User.Role.ADMIN)
+        request = self._make_request(user=user, remote_addr="10.0.0.1", user_agent="Mozilla/5.0")
+
+        captured = {}
+
+        def view(req):
+            from django.http import HttpResponse
+            ctx = get_audit_context()
+            captured["actor"] = ctx.actor
+            captured["ip"] = ctx.ip
+            captured["user_agent"] = ctx.user_agent
+            return HttpResponse("ok")
+
+        middleware = self._make_middleware(view)
+        middleware(request)
+
+        self.assertEqual(captured["actor"], user)
+        self.assertEqual(captured["ip"], "10.0.0.1")
+        self.assertEqual(captured["user_agent"], "Mozilla/5.0")
+
+    def test_anonymous_user_actor_is_none(self):
+        request = self._make_request(user=None, remote_addr="192.168.1.1")
+
+        captured = {}
+
+        def view(req):
+            from django.http import HttpResponse
+            ctx = get_audit_context()
+            captured["actor"] = ctx.actor
+            return HttpResponse("ok")
+
+        middleware = self._make_middleware(view)
+        middleware(request)
+
+        self.assertIsNone(captured["actor"])
+
+    def test_context_cleared_after_response(self):
+        user = _make_user("ctx_clear@test.com", User.Role.ADMIN)
+        request = self._make_request(user=user)
+        middleware = self._make_middleware()
+        middleware(request)
+
+        # After the request completes, context must be empty
+        ctx = get_audit_context()
+        self.assertIsNone(ctx.actor)
+        self.assertIsNone(ctx.ip)
+
+    def test_context_cleared_even_on_view_exception(self):
+        """Context must be cleared in the finally block even if the view raises."""
+        user = _make_user("ctx_exc@test.com", User.Role.ADMIN)
+        request = self._make_request(user=user)
+
+        def exploding_view(req):
+            raise RuntimeError("boom")
+
+        middleware = self._make_middleware(exploding_view)
+        with self.assertRaises(RuntimeError):
+            middleware(request)
+
+        ctx = get_audit_context()
+        self.assertIsNone(ctx.actor)
+
+    def test_x_forwarded_for_used_as_ip(self):
+        """When X-Forwarded-For is present, the first entry should be used as IP."""
+        from django.test import RequestFactory
+        rf = RequestFactory()
+        request = rf.get(
+            "/",
+            HTTP_X_FORWARDED_FOR="203.0.113.5, 10.0.0.1",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        from django.contrib.auth.models import AnonymousUser
+        request.user = AnonymousUser()
+
+        captured = {}
+
+        def view(req):
+            from django.http import HttpResponse
+            ctx = get_audit_context()
+            captured["ip"] = ctx.ip
+            return HttpResponse("ok")
+
+        middleware = self._make_middleware(view)
+        middleware(request)
+
+        self.assertEqual(captured["ip"], "203.0.113.5")
+
+    def test_outside_request_context_returns_empty(self):
+        """get_audit_context() outside a request must return empty/None values."""
+        ctx = get_audit_context()
+        self.assertIsNone(ctx.actor)
+        self.assertIsNone(ctx.ip)
+        self.assertEqual(ctx.user_agent, "")

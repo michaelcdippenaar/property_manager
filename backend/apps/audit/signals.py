@@ -158,8 +158,24 @@ def _write_event(
 
     The SELECT FOR UPDATE on the latest row serialises concurrent writers so
     the prev_hash is always correct.
+
+    When ``actor``, ``ip_address``, or ``user_agent`` are not explicitly
+    supplied (i.e. called from a signal handler that has no direct reference
+    to the originating request), the values are pulled from the thread-local
+    context stashed by ``AuditContextMiddleware``.  This ensures that events
+    triggered indirectly by API calls still carry full attribution.
     """
+    from .middleware import get_audit_context
     from .models import AuditEvent, compute_self_hash
+
+    # Fall back to thread-local request context for unattributed signal writes.
+    ctx = get_audit_context()
+    if actor is None:
+        actor = ctx.actor
+    if ip_address is None:
+        ip_address = ctx.ip
+    if not user_agent:
+        user_agent = ctx.user_agent or ""
 
     try:
         with transaction.atomic():
