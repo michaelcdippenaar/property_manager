@@ -8,7 +8,7 @@
 
 ## Before you start
 
-- The property must already be added to your account. If you haven't done that yet, see [How to add a property](#).
+- The property must already be added to your account.
 - You need the owner's full name, email address, and ID or company registration number.
 - You need to know which mandate type applies: Full Management, Letting Only, Rent Collection, or Finders Fee.
 
