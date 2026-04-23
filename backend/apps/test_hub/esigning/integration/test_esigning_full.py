@@ -312,7 +312,12 @@ class SubmissionCreateTests(TremlyAPITestCase):
         self.agent = self.create_agent()
         self.prop = self.create_property(agent=self.agent)
         self.unit = self.create_unit(property_obj=self.prop)
-        self.lease = self.create_lease(unit=self.unit)
+        # primary_tenant is required by the RHA gate (MISSING_PRIMARY_TENANT is blocking).
+        self.tenant_person = self.create_person(full_name="Test Tenant")
+        self.lease = self.create_lease(
+            unit=self.unit,
+            primary_tenant=self.tenant_person,
+        )
 
     @mock.patch("apps.notifications.services.send_email", return_value=True)
     @mock.patch("apps.esigning.views.services.create_native_submission")
@@ -436,5 +441,3 @@ class BroadcastWsTests(TestCase):
         # This exercises the except block — channels layer sends to InMemory
         # which has no subscribers, so it just passes through.
         _broadcast_ws(999, {"type": "test"})
-
-

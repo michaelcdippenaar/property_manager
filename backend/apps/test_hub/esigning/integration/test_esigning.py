@@ -18,7 +18,12 @@ class ESigningListCreateTests(TremlyAPITestCase):
         self.agent = self.create_agent()
         self.prop = self.create_property(agent=self.agent)
         self.unit = self.create_unit(property_obj=self.prop)
-        self.lease = self.create_lease(unit=self.unit)
+        # primary_tenant is required by the RHA gate (MISSING_PRIMARY_TENANT is blocking).
+        self.tenant_person = self.create_person(full_name="Test Tenant")
+        self.lease = self.create_lease(
+            unit=self.unit,
+            primary_tenant=self.tenant_person,
+        )
 
     def test_list_submissions(self):
         ESigningSubmission.objects.create(
@@ -520,7 +525,12 @@ class SequentialSigningTests(TremlyAPITestCase):
         self.agent = self.create_agent()
         self.prop = self.create_property(agent=self.agent)
         self.unit = self.create_unit(property_obj=self.prop)
-        self.lease = self.create_lease(unit=self.unit)
+        # primary_tenant is required by the RHA gate (MISSING_PRIMARY_TENANT is blocking).
+        self.tenant_person = self.create_person(full_name="Test Tenant")
+        self.lease = self.create_lease(
+            unit=self.unit,
+            primary_tenant=self.tenant_person,
+        )
 
     @mock.patch("apps.esigning.views.services.create_native_submission")
     def test_create_sequential_default(self, mock_create):
