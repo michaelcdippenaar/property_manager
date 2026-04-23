@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214200629050472"
 created: 2026-04-22
@@ -47,3 +47,13 @@ Three-part fix:
 No documentation change needed: the solution is self-healing — no manual step required for any workflow.
 
 Smoke-checks passed: `django.setup()` succeeds with the directory present, and also with it absent (makedirs creates it). `pytest --co -q` collected 1500 tests cleanly.
+
+**2026-04-23 — reviewer: changes requested**
+
+The approach is correct (`.gitkeep` + `makedirs` + `.gitignore` rule), but the `.gitignore` step is incomplete and carries a POPIA risk:
+
+1. **`backend/logs/maintenance_chat.jsonl` and `backend/logs/agent_test_history.jsonl` are still tracked in git.** Running `git ls-files backend/logs/` shows both files are indexed (`git status` shows them as modified). The new `backend/logs/*.jsonl` rule in `.gitignore` only prevents *untracked* files from being staged; it does not stop git from tracking files that were committed before the rule was added. A `git rm --cached` is required to remove them from the index without deleting them from disk. Required fix: run `git rm --cached backend/logs/maintenance_chat.jsonl backend/logs/agent_test_history.jsonl` and commit that removal alongside the existing changes. After this, the `.gitignore` rule will be effective.
+
+2. **POPIA concern:** `maintenance_chat.jsonl` contains tenant maintenance conversation data. As long as it remains tracked, every future commit in which chat activity occurs will bake that data into the repository history. Remove from index promptly.
+
+No other issues found. The `.gitkeep`, `makedirs` placement in `base.py`, and `.gitignore` pattern are all correct — only the `git rm --cached` step is missing.
