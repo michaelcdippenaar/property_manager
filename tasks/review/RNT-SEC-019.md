@@ -7,20 +7,20 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214195240490293"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
 Restrict `GotenbergHealthView` to admin users only (or strip version/engine fields) so authenticated agents cannot enumerate internal infrastructure details via the health endpoint.
 
 ## Acceptance criteria
-- [ ] `GotenbergHealthView` restricted to `IsAdminUser` only (not all agents), OR response strips engine name, version strings, and internal service structure before returning to client
-- [ ] Test asserting that an agent (non-admin) user receives 403 on `GET /api/v1/esigning/gotenberg/health/`
+- [x] `GotenbergHealthView` restricted to `IsAdminUser` only (not all agents), OR response strips engine name, version strings, and internal service structure before returning to client
+- [x] Test asserting that an agent (non-admin) user receives 403 on `GET /api/v1/esigning/gotenberg/health/`
 
 ## Files likely touched
 - `backend/apps/esigning/views.py` (`GotenbergHealthView`, ~line 387)
@@ -35,3 +35,5 @@ Restrict `GotenbergHealthView` to admin users only (or strip version/engine fiel
 
 ## Handoff notes
 2026-04-22: Promoted from discovery `2026-04-22-gotenberg-health-endpoint-recon.md` (found during RNT-SEC-004 review). Not a direct exploit but useful for targeted attack reconnaissance.
+
+2026-04-23: Verified implementation was already complete and correct in `backend/apps/esigning/views.py`. `GotenbergHealthView` already carries `permission_classes = [IsAdmin]` (from `apps.accounts.permissions`) which restricts to users with `role == ADMIN` or `is_superuser`. The integration test file `backend/apps/test_hub/esigning/integration/test_gotenberg_health_access.py` already covers all three required cases: agent gets 403, admin gets 200, unauthenticated gets 401/403. All 3 tests pass. No code changes needed — this was a validation-only pass confirming the fix was in place.
