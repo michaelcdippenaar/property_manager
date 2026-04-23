@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: blocked
+assigned_to: rentals-pm
 depends_on: [DEC-018]
 asana_gid: "1214202102067961"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
@@ -34,4 +34,4 @@ Enforce 2FA for ACCOUNTANT and VIEWER roles, consistent with the intent to requi
 - `cd backend && pytest apps/test_hub/accounts/integration/test_2fa.py -v`
 
 ## Handoff notes
-Promoted from discovery `2026-04-22-totp-accountant-viewer-roles.md` (found during RNT-SEC-003). Blocked on DEC-018.
+**2026-04-23 — rentals-implementer:** Moved to blocked/. Task title says "if approved" and depends on DEC-018 (currently in backlog, unanswered). Per the protocol, I cannot start this task until DEC-018 is answered in Asana and promoted to done/. Handing to rentals-pm to: (1) monitor Asana for MC's decision on DEC-018, (2) update DEC-018 with the decision, (3) update RNT-SEC-030 acceptance criteria accordingly, (4) move RNT-SEC-030 back to backlog/ when unblocked.
