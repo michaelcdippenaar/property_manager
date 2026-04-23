@@ -7,12 +7,26 @@
         <div v-for="i in 3" :key="i" class="h-16 bg-white rounded-2xl animate-pulse" />
       </div>
 
-      <div v-else-if="conversations.length === 0" class="flex flex-col items-center justify-center pt-20 text-center">
+      <div v-else-if="conversations.length === 0" class="flex flex-col items-center justify-center pt-16 text-center px-2">
         <div class="w-16 h-16 bg-navy/5 rounded-2xl flex items-center justify-center mb-4">
           <MessageCircle :size="28" class="text-navy/30" />
         </div>
         <p class="font-semibold text-gray-700">No conversations yet</p>
-        <p class="text-sm text-gray-400 mt-1">Start a new chat with your AI assistant</p>
+        <p class="text-sm text-gray-400 mt-1 max-w-xs leading-relaxed">
+          Ask about your lease, maintenance requests, or anything about your property
+        </p>
+
+        <!-- Suggested starter prompts -->
+        <div class="mt-6 w-full max-w-sm space-y-2">
+          <button
+            v-for="prompt in suggestedPrompts"
+            :key="prompt"
+            class="w-full text-left px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm text-gray-700 font-medium touchable ripple shadow-sm"
+            @click="startWithPrompt(prompt)"
+          >
+            {{ prompt }}
+          </button>
+        </div>
       </div>
 
       <div v-else class="list-section">
@@ -35,8 +49,9 @@
     </div>
 
     <!-- New chat FAB -->
-    <button class="fab" @click="createConversation">
-      <Plus :size="26" />
+    <button class="fab fab--labeled" @click="createConversation()">
+      <Plus :size="20" />
+      <span class="fab-label">New conversation</span>
     </button>
   </div>
 </template>
@@ -52,15 +67,25 @@ const router = useRouter()
 const conversations = ref<any[]>([])
 const loading = ref(true)
 
+const suggestedPrompts = [
+  'Report a repair',
+  'When is my rent due?',
+  'What does my lease say about pets?',
+]
+
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' })
 }
 
-async function createConversation() {
+async function createConversation(prefill?: string) {
   try {
     const res = await api.post('/tenant-portal/conversations/', {})
-    router.push({ name: 'chat-detail', params: { id: res.data.id } })
+    router.push({ name: 'chat-detail', params: { id: res.data.id }, query: prefill ? { prefill } : undefined })
   } catch { /* ignore */ }
+}
+
+async function startWithPrompt(prompt: string) {
+  await createConversation(prompt)
 }
 
 onMounted(async () => {

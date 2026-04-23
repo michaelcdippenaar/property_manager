@@ -241,5 +241,9 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+  // Pre-fill input from suggested prompt (passed via ?prefill= query param)
+  if (route.query.prefill) {
+    messageText.value = String(route.query.prefill)
+  }
 })
 </script>

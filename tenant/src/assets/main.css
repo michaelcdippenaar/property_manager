@@ -183,6 +183,15 @@
            flex items-center justify-center shadow-xl ripple z-30;
   }
 
+  /* Extended FAB with label (pill shape) */
+  .fab.fab--labeled {
+    @apply w-auto h-12 rounded-full px-5 gap-2;
+  }
+
+  .fab-label {
+    @apply text-sm font-semibold whitespace-nowrap;
+  }
+
   /* ── Page slide transitions ── */
   .slide-left-enter-active,
   .slide-left-leave-active,
