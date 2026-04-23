@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214200406225875"
 created: 2026-04-22
@@ -51,3 +51,14 @@ Promoted from discovery `2026-04-22-gotenberg-health-endpoint-recon.md` (found d
 **Review passed.**
 
 Checked: (1) `permission_classes = [IsAdmin]` confirmed in `backend/apps/esigning/views.py` line 396 — satisfies AC1. (2) `IsAdmin` definition in `apps/accounts/permissions.py` correctly gates on `User.Role.ADMIN or is_superuser`; `AGENCY_ADMIN`/`MANAGING_AGENT` exclusion is intentional and correct. (3) Inner `can_manage_esigning()` guard removal is safe — `IsAdmin` is strictly more restrictive, no behaviour change for admin users. (4) New test file `test_gotenberg_health_access.py` covers all three cases (agent 403, admin 200, unauthenticated 401/403) — satisfies AC2 and AC3. (5) Mock patch target `apps.esigning.gotenberg.health_check` is correct because the view's import is deferred inside `get()`, resolved from the module at call time — consistent with existing gotenberg unit test patterns. (6) No PII logged, no raw SQL, no auth bypass. Security pass clean.
+
+### 2026-04-23 — tester
+
+**Test run:** `pytest apps/test_hub/esigning/ -k gotenberg` — 13 selected, 13 passed.
+
+- `test_agent_receives_403` PASS
+- `test_admin_can_access` PASS
+- `test_unauthenticated_denied` PASS
+- All 10 existing gotenberg unit tests PASS
+
+All acceptance criteria verified. No failures.
