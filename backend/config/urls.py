@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/v1/the-volt/", include("apps.the_volt.urls")),
     path("api/v1/legal/", include("apps.legal.urls")),
     path("api/v1/payments/", include("apps.payments.urls")),
+    path("api/v1/audit/", include("apps.audit.urls")),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
 
