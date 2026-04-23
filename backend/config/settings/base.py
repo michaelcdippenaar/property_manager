@@ -389,6 +389,12 @@ VAULT33_INTERNAL_TOKEN = config("VAULT33_INTERNAL_TOKEN", default="")
 #
 WEBHOOK_SECRET_ESIGNING = config("WEBHOOK_SECRET_ESIGNING", default="")
 
+# ── Push notifications (Firebase) ─────────────────────────────────────────────
+# Path to the Firebase service account credentials JSON file.
+# Leave blank in development to disable push dispatch.
+# On production/staging set FIREBASE_CREDENTIALS_PATH in the environment or .env.
+FIREBASE_CREDENTIALS_PATH = config("FIREBASE_CREDENTIALS_PATH", default="")
+
 # ── Sentry ────────────────────────────────────────────────────────────────────
 # Set SENTRY_DSN in .env to enable.  Leave blank to run without Sentry (dev default).
 # SENTRY_ENVIRONMENT should be "development" / "staging" / "production".

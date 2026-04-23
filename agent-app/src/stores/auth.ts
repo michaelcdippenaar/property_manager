@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { api } from '../boot/axios'
+import type { Router } from 'vue-router'
 
 export interface User {
   id: number
@@ -25,6 +26,8 @@ export const useAuthStore = defineStore('auth', () => {
   const refreshToken = ref<string | null>(localStorage.getItem('refresh_token'))
   const user         = ref<User | null>(null)
   const agency       = ref<Agency | null>(null)
+  // Last registered push token — needed so we can revoke it on logout
+  const _pushToken   = ref<string | null>(localStorage.getItem('push_token'))
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
@@ -90,6 +93,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    // POPIA: revoke push token before clearing session
+    if (_pushToken.value) {
+      try {
+        const { revokePushToken } = await import('../services/push')
+        await revokePushToken(_pushToken.value, deregisterPushToken)
+      } catch {
+        // Non-fatal — proceed with logout
+      }
+    }
     try {
       if (refreshToken.value) {
         await api.post('/auth/logout/', { refresh: refreshToken.value })
@@ -101,13 +113,32 @@ export const useAuthStore = defineStore('auth', () => {
       refreshToken.value = null
       user.value         = null
       agency.value       = null
+      _pushToken.value   = null
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
+      localStorage.removeItem('push_token')
     }
   }
 
   async function registerPushToken(token: string, platform: 'ios' | 'android') {
     await api.post('/auth/push-token/', { token, platform })
+    _pushToken.value = token
+    localStorage.setItem('push_token', token)
+  }
+
+  async function deregisterPushToken(token: string) {
+    await api.delete('/auth/push-token/', { data: { token } })
+    _pushToken.value = null
+    localStorage.removeItem('push_token')
+  }
+
+  /**
+   * Initialise Capacitor push notifications after login.
+   * Requires a Vue Router instance for deep-link navigation.
+   */
+  async function startPush(router: Router) {
+    const { initialisePush } = await import('../services/push')
+    await initialisePush(registerPushToken, router)
   }
 
   return {
@@ -124,5 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     fetchMe,
     registerPushToken,
+    deregisterPushToken,
+    startPush,
   }
 })

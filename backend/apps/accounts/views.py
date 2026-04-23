@@ -230,8 +230,8 @@ class PushTokenView(APIView):
         platform = request.data.get("platform", "").strip().lower()
         if not token:
             return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
-        if platform not in ("ios", "android"):
-            return Response({"detail": "platform must be 'ios' or 'android'."}, status=status.HTTP_400_BAD_REQUEST)
+        if platform not in ("ios", "android", "web"):
+            return Response({"detail": "platform must be 'ios', 'android', or 'web'."}, status=status.HTTP_400_BAD_REQUEST)
 
         PushToken.objects.update_or_create(
             user=request.user,
@@ -245,6 +245,54 @@ class PushTokenView(APIView):
         if token:
             PushToken.objects.filter(user=request.user, token=token).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PushPreferenceView(APIView):
+    """
+    GET  /auth/push-preferences/   — list all category preferences for the user
+    POST /auth/push-preferences/   — upsert a category preference
+         Body: {"category": "rent", "enabled": true}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.notifications.models import PushPreference
+
+        prefs = PushPreference.objects.filter(user=request.user).values(
+            "category", "enabled"
+        )
+        # Fill in defaults for categories with no saved row
+        existing = {p["category"]: p["enabled"] for p in prefs}
+        result = [
+            {"category": cat, "enabled": existing.get(cat, True)}
+            for cat, _ in PushPreference.Category.choices
+        ]
+        return Response(result)
+
+    def post(self, request):
+        from apps.notifications.models import PushPreference
+
+        category = (request.data.get("category") or "").strip()
+        enabled = request.data.get("enabled")
+
+        if category not in dict(PushPreference.Category.choices):
+            return Response(
+                {"detail": f"category must be one of: {', '.join(dict(PushPreference.Category.choices))}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(enabled, bool):
+            return Response(
+                {"detail": "enabled must be a boolean."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        PushPreference.objects.update_or_create(
+            user=request.user,
+            category=category,
+            defaults={"enabled": enabled},
+        )
+        return Response({"category": category, "enabled": enabled})
 
 
 class MarkWelcomeSeenView(APIView):

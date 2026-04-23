@@ -50,6 +50,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    // POPIA: revoke Web Push subscription before clearing session
+    try {
+      const { unsubscribePush } = await import('../services/push')
+      await unsubscribePush(async (token) => {
+        await api.delete('/auth/push-token/', { data: { token } })
+      })
+    } catch { /* non-fatal */ }
+
     if (refreshToken.value) {
       try {
         await api.post('/auth/logout/', { refresh: refreshToken.value })
@@ -62,6 +70,17 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('refresh_token')
   }
 
+  /**
+   * Register the service worker silently after login.
+   * Does NOT request push permission — that happens from the POPIA opt-in banner.
+   */
+  async function initPush() {
+    try {
+      const { registerServiceWorker } = await import('../services/push')
+      await registerServiceWorker()
+    } catch { /* non-fatal */ }
+  }
+
   async function fetchMe() {
     const { data } = await api.get('/auth/me/')
     user.value = data
@@ -69,6 +88,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   return {
     accessToken, user, isAuthenticated, isTenant,
-    login, requestOtp, verifyOtp, logout, fetchMe, _setTokens,
+    login, requestOtp, verifyOtp, logout, fetchMe, _setTokens, initPush,
   }
 })

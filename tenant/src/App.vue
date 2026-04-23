@@ -6,6 +6,8 @@
       </Transition>
     </RouterView>
     <ToastContainer />
+    <!-- POPIA-compliant push opt-in banner (shown post-login, user-gesture only) -->
+    <PushOptInBanner v-if="isAuthenticated" />
   </div>
 </template>
 
@@ -13,7 +15,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
+import { storeToRefs } from 'pinia'
 import ToastContainer from './components/ToastContainer.vue'
+import PushOptInBanner from './components/PushOptInBanner.vue'
+import { useAuthStore } from './stores/auth'
+
+const authStore = useAuthStore()
+const { isAuthenticated } = storeToRefs(authStore)
 
 const router = useRouter()
 const transitionName = ref('slide-left')
@@ -33,6 +41,11 @@ onMounted(async () => {
     const { StatusBar, Style } = await import('@capacitor/status-bar')
     await StatusBar.setStyle({ style: Style.Dark })
     await StatusBar.setBackgroundColor({ color: '#2B2D6E' })
+  }
+
+  // Register service worker silently — no permission prompt here
+  if (authStore.isAuthenticated) {
+    authStore.initPush()
   }
 })
 </script>

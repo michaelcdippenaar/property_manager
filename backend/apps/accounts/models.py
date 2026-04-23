@@ -220,11 +220,12 @@ class OTPCode(models.Model):
 
 
 class PushToken(models.Model):
-    """FCM/APNs device token for push notifications."""
+    """FCM/APNs/Web Push device token for push notifications."""
 
     class Platform(models.TextChoices):
         IOS = "ios", "iOS"
         ANDROID = "android", "Android"
+        WEB = "web", "Web Push"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_tokens")
     token = models.TextField()

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 
@@ -36,3 +37,50 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         return f"{self.channel} → {self.to_address} ({self.status})"
+
+
+class PushPreference(models.Model):
+    """
+    Per-user push notification opt-in/out by category.
+
+    Categories mirror the event categories dispatched by push signals:
+      lease, mandate, rent, maintenance, chat
+
+    A missing row means the user has not expressed a preference; the service
+    defaults to *enabled* for all categories.
+
+    POPIA: only stored once the user explicitly interacts with the POPIA
+    opt-in banner (UI responsibility).
+    """
+
+    class Category(models.TextChoices):
+        LEASE = "lease", "Lease updates"
+        MANDATE = "mandate", "Mandate updates"
+        RENT = "rent", "Rent & payments"
+        MAINTENANCE = "maintenance", "Maintenance updates"
+        CHAT = "chat", "Chat messages"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="push_preferences",
+    )
+    category = models.CharField(max_length=20, choices=Category.choices)
+    enabled = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("user", "category")
+        ordering = ["user", "category"]
+
+    def __str__(self):
+        flag = "on" if self.enabled else "off"
+        return f"{self.user_id} | {self.category} = {flag}"
+
+    @classmethod
+    def is_enabled(cls, user, category: str) -> bool:
+        """Return True if the user has push enabled for *category* (default True)."""
+        try:
+            return cls.objects.get(user=user, category=category).enabled
+        except cls.DoesNotExist:
+            return True
