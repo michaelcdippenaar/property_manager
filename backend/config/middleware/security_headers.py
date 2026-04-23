@@ -26,15 +26,28 @@ Configuration (all optional, set in settings):
 
 Known safe origins pulled from CORS_ALLOWED_ORIGINS at import time so you
 don't repeat yourself.
+
+Nonce:
+  A cryptographically random nonce is generated per request and stored on
+  ``request.csp_nonce``.  In non-DEBUG (production/staging) the nonce replaces
+  ``unsafe-inline`` / ``unsafe-eval`` in both ``script-src`` and ``style-src``.
+  In DEBUG mode (local Vite HMR) the permissive fallbacks are preserved so the
+  dev server continues to work.
 """
 
 from __future__ import annotations
 
+import secrets
+
 from django.conf import settings
 
 
-def _csp_directives() -> str:
-    """Build the CSP directive string from settings."""
+def _csp_directives(nonce: str) -> str:
+    """Build the CSP directive string from settings.
+
+    Args:
+        nonce: Per-request base64url nonce included in script-src/style-src.
+    """
     allowed = list(getattr(settings, "CORS_ALLOWED_ORIGINS", []))
 
     # Gather origins that host static assets or API calls
@@ -59,12 +72,29 @@ def _csp_directives() -> str:
         if sentry_host not in connect_src:
             connect_src.append(sentry_host)
 
-    # Script-src: self + unsafe-inline is needed for Vite HMR in dev.
-    # In production, you'd ideally use nonces — flagged as a discovery item.
-    script_src = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+    debug = getattr(settings, "DEBUG", False)
 
-    # Style-src: self + unsafe-inline (Tailwind CSS-in-JS and Vue scoped styles)
-    style_src = ["'self'", "'unsafe-inline'"]
+    if debug:
+        # Development: Vite HMR injects inline scripts and uses eval for hot-reload.
+        # Keep unsafe-inline / unsafe-eval so the local dev server works.
+        script_src = ["'self'", "'unsafe-inline'", "'unsafe-eval'"]
+        # Tailwind JIT and Vue scoped styles also emit inline styles in dev.
+        style_src = ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"]
+    else:
+        # Production / staging: nonce-based policy.
+        # The Vite build emits only external <script type="module" src="..."> tags —
+        # no inline scripts — so 'self' + the nonce covers everything.
+        # Vue 3 template compiler is disabled in the production build (see
+        # admin/vite.config.ts), eliminating the unsafe-eval requirement.
+        nonce_token = f"'nonce-{nonce}'"
+        script_src = ["'self'", nonce_token, "'strict-dynamic'"]
+        # Style: external CSS files from the Vite build + Google Fonts link tag.
+        # 'unsafe-inline' removed; nonce covers any remaining inline style needs.
+        style_src = [
+            "'self'",
+            nonce_token,
+            "https://fonts.googleapis.com",
+        ]
 
     # img-src: allow data: URIs (base64 avatars, Leaflet map tiles, etc.)
     img_src = ["'self'", "data:", "blob:"] + api_origins
@@ -100,7 +130,12 @@ def _csp_directives() -> str:
 
 
 class SecurityHeadersMiddleware:
-    """Add supplementary security response headers on every response."""
+    """Add supplementary security response headers on every response.
+
+    Generates a per-request CSP nonce (16 bytes, base64url-encoded) and stores
+    it on ``request.csp_nonce``.  Django templates and views can read this
+    attribute to stamp any inline <script> or <style> blocks they emit.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -109,9 +144,13 @@ class SecurityHeadersMiddleware:
         )
 
     def __call__(self, request):
+        # Generate a fresh nonce for this request cycle.
+        nonce = secrets.token_urlsafe(16)
+        request.csp_nonce = nonce
+
         response = self.get_response(request)
 
-        csp = _csp_directives()
+        csp = _csp_directives(nonce)
         if self._csp_report_only:
             response["Content-Security-Policy-Report-Only"] = csp
         else:

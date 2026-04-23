@@ -36,8 +36,21 @@ export default defineConfig(({ mode }) => {
     template: 'treemap',
   })
 
+  const isProduction = mode !== 'development'
+
   return {
     plugins: [vue(), ...sentryPlugins, analyserPlugin],
+    resolve: {
+      alias: isProduction
+        ? {
+            // Point Vue to the runtime-only ESM bundle in production builds.
+            // @vitejs/plugin-vue pre-compiles all .vue templates at build time,
+            // so the in-browser template compiler is dead code — excluding it
+            // removes the need for 'unsafe-eval' in the Content-Security-Policy.
+            vue: 'vue/dist/vue.runtime.esm-bundler.js',
+          }
+        : {},
+    },
     build: {
       sourcemap: 'hidden', // Sentry plugin uploads .map files; 'hidden' strips //# sourceMappingURL= so browsers can't fetch them
       // Performance budget: initial JS < 350 KB gzipped.

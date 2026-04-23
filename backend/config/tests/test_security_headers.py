@@ -4,6 +4,8 @@ Tests for SecurityHeadersMiddleware and security-related settings.
 Covers:
   - SecurityHeadersMiddleware injects all required headers
   - CSP report-only vs enforce mode
+  - Per-request nonce generation: nonce present, unsafe-inline/unsafe-eval absent
+    in non-DEBUG (production) mode
   - CORS_ALLOWED_ORIGINS is an explicit list (no wildcard) in base settings
   - Session/CSRF cookie flags in staging settings
   - HSTS settings in production settings
@@ -53,7 +55,13 @@ pytestmark = [pytest.mark.unit, pytest.mark.green]
 class TestSecurityHeadersMiddlewareReportOnly:
     """Middleware with CSP_REPORT_ONLY = True (staging default)."""
 
-    def _get_middleware(self, report_only=True, extra_connect=None, sentry_dsn=""):
+    def _get_middleware(
+        self,
+        report_only=True,
+        extra_connect=None,
+        sentry_dsn="",
+        debug=False,
+    ):
         from config.middleware import security_headers as mod
 
         fake_settings = MagicMock()
@@ -66,6 +74,8 @@ class TestSecurityHeadersMiddlewareReportOnly:
         fake_settings.SECURITY_HEADERS_EXTRA_CONNECT = extra_connect or []
         fake_settings.SECURITY_HEADERS_CSP_REPORT_URI = ""
         fake_settings.SENTRY_DSN = sentry_dsn
+        # Explicitly control debug mode so the nonce/unsafe-inline branch is predictable.
+        fake_settings.DEBUG = debug
 
         def get_response(request):
             return _make_response()
@@ -149,6 +159,140 @@ class TestSecurityHeadersMiddlewareReportOnly:
         )
         csp = response["Content-Security-Policy-Report-Only"]
         assert "https://o123456.ingest.sentry.io" in csp
+
+
+# ---------------------------------------------------------------------------
+# CSP nonce hardening tests (RNT-SEC-023)
+# ---------------------------------------------------------------------------
+
+class TestCSPNonceHardening:
+    """Verify that production (DEBUG=False) CSP drops unsafe-inline/unsafe-eval
+    and injects a per-request nonce, while dev mode (DEBUG=True) keeps the
+    permissive fallbacks for Vite HMR compatibility."""
+
+    def _invoke(self, debug: bool, report_only: bool = True):
+        """Return (request, response) from a single middleware call."""
+        from config.middleware import security_headers as mod
+
+        fake_settings = MagicMock()
+        fake_settings.CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+        fake_settings.SECURITY_HEADERS_CSP_REPORT_ONLY = report_only
+        fake_settings.SECURITY_HEADERS_EXTRA_CONNECT = []
+        fake_settings.SECURITY_HEADERS_CSP_REPORT_URI = ""
+        fake_settings.SENTRY_DSN = ""
+        fake_settings.DEBUG = debug
+
+        captured_request = {}
+
+        def get_response(request):
+            captured_request["req"] = request
+            return _make_response()
+
+        with patch.object(mod, "settings", fake_settings):
+            middleware = mod.SecurityHeadersMiddleware(get_response)
+            middleware._csp_report_only = report_only
+            response = middleware(_make_request())
+
+        return captured_request["req"], response
+
+    def _get_csp(self, response, report_only: bool = True) -> str:
+        if report_only:
+            return response["Content-Security-Policy-Report-Only"]
+        return response["Content-Security-Policy"]
+
+    # --- Production mode (DEBUG=False) ---
+
+    def test_production_nonce_stored_on_request(self):
+        req, _ = self._invoke(debug=False)
+        assert hasattr(req, "csp_nonce"), "request.csp_nonce must be set by middleware"
+        nonce = req.csp_nonce
+        assert isinstance(nonce, str) and len(nonce) > 0
+
+    def test_production_nonce_unique_per_request(self):
+        req1, _ = self._invoke(debug=False)
+        req2, _ = self._invoke(debug=False)
+        assert req1.csp_nonce != req2.csp_nonce, "Each request must get a fresh nonce"
+
+    def test_production_nonce_in_script_src(self):
+        req, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        assert f"'nonce-{req.csp_nonce}'" in csp
+
+    def test_production_no_unsafe_inline_in_script_src(self):
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        # Extract just the script-src directive value for a targeted assertion.
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'unsafe-inline'" not in script_src, (
+            "'unsafe-inline' must not appear in script-src in production"
+        )
+
+    def test_production_no_unsafe_eval_in_script_src(self):
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'unsafe-eval'" not in script_src, (
+            "'unsafe-eval' must not appear in script-src in production"
+        )
+
+    def test_production_no_unsafe_inline_in_style_src(self):
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        style_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("style-src")), ""
+        )
+        assert "'unsafe-inline'" not in style_src, (
+            "'unsafe-inline' must not appear in style-src in production"
+        )
+
+    def test_production_strict_dynamic_in_script_src(self):
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'strict-dynamic'" in script_src
+
+    def test_production_google_fonts_in_style_src(self):
+        """Google Fonts stylesheet must be allowed for the admin SPA."""
+        _, response = self._invoke(debug=False)
+        csp = self._get_csp(response)
+        style_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("style-src")), ""
+        )
+        assert "https://fonts.googleapis.com" in style_src
+
+    # --- Dev mode (DEBUG=True) ---
+
+    def test_dev_mode_nonce_still_set_on_request(self):
+        """Even in dev, request.csp_nonce is populated (templates may use it)."""
+        req, _ = self._invoke(debug=True)
+        assert hasattr(req, "csp_nonce")
+        assert len(req.csp_nonce) > 0
+
+    def test_dev_mode_unsafe_inline_preserved_for_hmr(self):
+        _, response = self._invoke(debug=True)
+        csp = self._get_csp(response)
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'unsafe-inline'" in script_src, (
+            "Dev mode must keep unsafe-inline so Vite HMR works"
+        )
+
+    def test_dev_mode_unsafe_eval_preserved_for_hmr(self):
+        _, response = self._invoke(debug=True)
+        csp = self._get_csp(response)
+        script_src = next(
+            (d for d in csp.split(";") if d.strip().startswith("script-src")), ""
+        )
+        assert "'unsafe-eval'" in script_src, (
+            "Dev mode must keep unsafe-eval so Vite HMR works"
+        )
 
 
 # ---------------------------------------------------------------------------
