@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: blocked
+assigned_to: null
 depends_on: [RNT-016]
 asana_gid: "1214200629255776"
 created: 2026-04-22
@@ -43,3 +43,17 @@ The two remaining acceptance criteria (`./gradlew assembleDebug` succeeds and `a
 
 **2026-04-23 — reviewer**
 Review passed. Checked: `agent-app/src-capacitor/android/app/src/main/AndroidManifest.xml` — `android:allowBackup="false"` and `android:fullBackupOnly="false"` are both present and correctly placed in the `<application>` element. The two-line diff is the complete code-side fix; no backend code, no auth surface, no PII logged, no SQL involved. The two remaining criteria (build success, adb backup empty) are correctly deferred to the tester as device-runtime checks. Discovery filed: `tasks/discoveries/2026-04-23-mobile-flutter-allow-backup-enabled.md` — the Flutter tenant app at `mobile/android/app/src/main/AndroidManifest.xml` is missing `allowBackup="false"` and carries the same POPIA risk.
+
+**2026-04-23 — tester**
+
+## Test run — 2026-04-23
+
+Code-side checks (no device required):
+- PASS: `android:allowBackup="false"` present in `agent-app/src-capacitor/android/app/src/main/AndroidManifest.xml` line 5
+- PASS: `android:fullBackupOnly="false"` present on line 6, correctly placed in `<application>` element
+
+Device-runtime checks (blocked — device access prohibited in tester environment):
+- SKIP: `./gradlew assembleDebug` — requires Android build toolchain / emulator; device access not permitted
+- SKIP: `adb backup -apk com.tremly.klikk` — requires USB-connected debug device; device access not permitted
+
+The test plan's only stated item is the `adb backup` device test. Both remaining acceptance criteria require a connected device or full Android build environment. Blocking until a human tester with device access can validate the two runtime criteria.
