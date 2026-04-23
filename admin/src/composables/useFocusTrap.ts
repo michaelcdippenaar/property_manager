@@ -2,12 +2,13 @@
  * useFocusTrap — lightweight focus-trap composable for BaseModal and BaseDrawer.
  *
  * Usage:
- *   const { trapRef, activate, deactivate } = useFocusTrap(emit)
+ *   const { trapRef, activate, deactivate } = useFocusTrap(onEscape)
  *
  *   - Bind `trapRef` to the dialog panel element.
  *   - Call `activate()` after the panel is rendered (watch open → true + nextTick).
  *   - Call `deactivate()` before/after the panel closes.
- *   - Escape key calls emit('close') and deactivates automatically.
+ *   - When `onEscape` is a function, pressing Escape calls it and deactivates automatically.
+ *   - When `onEscape` is `null`, Escape key is swallowed but does NOT dismiss the dialog.
  */
 
 import { ref, onUnmounted, type Ref } from 'vue'
@@ -28,7 +29,7 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
   )
 }
 
-export function useFocusTrap(emit: (event: 'close') => void): {
+export function useFocusTrap(onEscape: (() => void) | null): {
   trapRef: Ref<HTMLElement | null>
   activate: () => void
   deactivate: () => void
@@ -42,7 +43,9 @@ export function useFocusTrap(emit: (event: 'close') => void): {
 
     if (e.key === 'Escape') {
       e.preventDefault()
-      emit('close')
+      if (onEscape !== null) {
+        onEscape()
+      }
       return
     }
 

@@ -10,7 +10,7 @@
     >
       <div v-if="open" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="$emit('close')" />
+        <div class="absolute inset-0 bg-black/40 backdrop-blur-sm" @click="closable && $emit('close')" />
 
         <!-- Panel -->
         <Transition
@@ -82,7 +82,7 @@ const emit = defineEmits<{ close: [] }>()
 
 const modalTitleId = useId()
 
-const { trapRef, activate, deactivate } = useFocusTrap(() => emit('close'))
+const { trapRef, activate, deactivate } = useFocusTrap(props.closable ? () => emit('close') : null)
 
 const sizeClass = computed(() => ({
   sm: 'sm:max-w-sm',
