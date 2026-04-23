@@ -27,7 +27,7 @@ class EmailChannel(Channel):
         purpose = context.get("purpose", "verification")
         ttl_minutes = context.get("ttl_minutes", 5)
 
-        subject = f"Your Klikk verification code: {code}"
+        subject = "Your Klikk verification code"
 
         message = render_to_string(
             "otp/email.txt",

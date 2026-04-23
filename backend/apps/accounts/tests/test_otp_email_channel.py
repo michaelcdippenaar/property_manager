@@ -43,9 +43,14 @@ class TestEmailChannelSend(TestCase):
         msg = self._send(recipient="alice@example.com")
         assert "alice@example.com" in msg.to
 
-    def test_email_subject_contains_code(self):
+    def test_email_subject_does_not_contain_code(self):
+        """POPIA minimum-necessity: OTP code must not appear in relay-visible subject."""
         msg = self._send(code="987654")
-        assert "987654" in msg.subject
+        assert "987654" not in msg.subject
+
+    def test_email_subject_is_generic(self):
+        msg = self._send(code="987654")
+        assert "verification code" in msg.subject.lower()
 
     def test_email_body_contains_code(self):
         msg = self._send(code="456789")
