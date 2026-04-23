@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214235771796729"
 created: 2026-04-23
@@ -63,3 +63,23 @@ Prevent operators from accidentally approving a Right-to-be-Forgotten DSAR for a
 - UI guardrail is non-blocking; override tests pass (`test_rtbf_approve_can_proceed_despite_active_lease_flag`).
 
 Out-of-scope follow-up recorded at `tasks/discoveries/2026-04-23-dsar-review-get-no-audit.md` — GET path has no audit log entry (asymmetric with POST approve/deny).
+
+2026-04-23 (tester): Test run — all checks pass.
+
+**Automated (`pytest apps/popia/tests/ -k rtbf -v`):** 10/10 selected tests passed, 39 deselected.
+- `test_approve_rtbf_tombstones_user` PASSED
+- `test_approve_rtbf_writes_audit_event` PASSED
+- `test_rtbf_review_get_returns_retention_flags_no_lease` PASSED
+- `test_rtbf_review_get_returns_dsar_request` PASSED
+- `test_sar_review_get_returns_null_retention_flags` PASSED
+- `test_rtbf_review_flags_active_lease` PASSED
+- `test_rtbf_review_flags_outstanding_payments` PASSED
+- `test_rtbf_approve_response_includes_retention_flags` PASSED
+- `test_tenant_cannot_access_review_get` PASSED
+- `test_rtbf_approve_can_proceed_despite_active_lease_flag` PASSED
+
+**Manual UI (code review):** `DSARQueueView.vue` reviewed in full.
+- `openReview()` is async; for RTBF requests it calls `GET /popia/dsar-queue/{id}/review/` and stores `retention_flags`.
+- Amber warning panel (`bg-amber-50`) renders when `has_active_lease` or `has_outstanding_payments` is `true`, listing specific issues with override note.
+- Two-click approve confirmation preserved: first click sets `reviewForm.action = 'approve'` and shows irreversibility warning; second click submits. Operator can override regardless of retention flags.
+- Tenant 403 asserted by `test_tenant_cannot_access_review_get`.
