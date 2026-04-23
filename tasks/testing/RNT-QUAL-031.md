@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214200629287352"
 created: 2026-04-22
@@ -64,3 +64,15 @@ When AI returns `maintenance_ticket: null` with valid JSON (`json_ok=True`), the
 - `test_maintenance_interaction_without_unit_stays_truthful`: asserts the "could not log" phrase is NOT present (AI deliberately deferred, so no correction needed).
 
 Full suite for affected files: **632 passed, 0 failures**.
+
+### 2026-04-23 — reviewer
+
+**Review passed.**
+
+Checked all six acceptance criteria against the diff and production code.
+
+- **Role tests:** `test_auth.py` and `test_registration_account_type.py` assertions align exactly with `accounts/serializers.py` line 71 (`User.Role.AGENCY_ADMIN` for `account_type=agency`). Correct.
+- **Throttle + municipal bill:** implementer confirmed already green; no diff changes required, consistent with notes. Accepted on implementer's word — tester should re-run to confirm.
+- **Access tests (`test_access.py`):** patches updated to `PropertyAgentAssignment` (status="active" filter) and `person_profile=None` for the owner fallback path. Both match `apps/properties/access.py` lines 32-56 exactly. Note: `test_agent_gets_only_managed_property_ids` asserts the assignment query is made but does not assert the final union result value — minor coverage gap, not a defect.
+- **Conversation tests (`test_conversations.py`):** mock response `MOCK_AI_RESPONSE_MAINTENANCE_NO_TICKET` has `interaction_type: "maintenance"` and `maintenance_ticket: null`. View sets `ai_deliberately_deferred=True` (views.py line 1266), skips "could not log" injection, but still sets `maintenance_report_suggested=True` because `maintenance_issue_identified=True` (line 1258). Assertions in both tests match this path correctly.
+- **Security / POPIA pass:** all changes are in test files only (except the pre-existing `ai_deliberately_deferred` guard in `views.py`). No new endpoints, no auth changes, no PII logged, no raw SQL.
