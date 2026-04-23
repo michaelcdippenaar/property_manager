@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214223123663001"
 created: 2026-04-23
@@ -48,3 +48,5 @@ Eliminate the three remaining raw `X-Forwarded-For` reads in `accounts` and `esi
   Also updated `test_hub/accounts/unit/test_audit.py::test_prefers_first_x_forwarded_for_address` — the test was asserting the old insecure "take leftmost XFF" behaviour. With `NUM_PROXIES=1` (default), `get_client_ip` correctly returns the second-from-last entry (`10.0.0.1`), not the spoofable leftmost entry (`203.0.113.7`). Renamed and updated assertion accordingly.
   Remaining `HTTP_X_FORWARDED_FOR` occurrences in `backend/apps/`: test fixture META dicts (not extracting IPs) and `the_volt/gateway/views.py` (Vault33 separate product, out of scope).
   Smoke check: 80 tests pass, 3 xfailed — all accounts/esigning unit+integration suites green.
+
+2026-04-23 — rentals-reviewer: Review passed. Checked: (1) all three raw XFF reads removed — LoginView._get_client_ip private method deleted, serializers.py _record_consent inlined extractor gone, esigning/views.py line 627 block replaced; (2) get_client_ip utility in backend/utils/http.py is proxy-aware (NUM_PROXIES setting, TRUSTED_PROXY_IPS allowlist, falls back to REMOTE_ADDR); (3) grep confirms zero remaining raw XFF extractions in backend/apps/ outside test fixture META dicts and the_volt/gateway/views.py (Vault33, out of scope); (4) test renamed and assertion updated to reflect correct proxy-aware behaviour (ips[-2] with NUM_PROXIES=1), not the old spoofable leftmost-entry logic; (5) no secrets, PII logging, or SQL issues introduced. No POPIA concerns. Approved.
