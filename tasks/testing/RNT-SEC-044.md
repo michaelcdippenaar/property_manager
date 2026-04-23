@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214241801064718"
 created: 2026-04-23
@@ -120,3 +120,11 @@ AC requires "a management command or scheduled task enforces this [retention]". 
 - Added `backend/apps/ai/tests/test_purge_old_interactions.py` with 16 pytest tests, all passing.
 - Tests cover: stale `GuideInteraction` deleted, fresh retained; stale `TenantChatSession` deleted (by `updated_at`), fresh retained; `--dry-run` deletes nothing but both model types still counted; `--days=N` override honoured (narrower deletes more, wider deletes less); `--dry-run` + `--days` combined.
 - Backdating uses `queryset.update(created_at=...)` / `queryset.update(updated_at=...)` to bypass `auto_now_add` / `auto_now` without touching signal or model internals.
+
+2026-04-24 — rentals-reviewer (pass-2): **Review passed.** Both previous blockers resolved.
+
+**Blocker 1 verified:** POPIA disclosure notice added to `tenant/src/views/chat/ChatDetailView.vue` in the `v-else-if="messages.length === 0"` welcome/empty state. Text matches Klikk voice spec. Bot icon imported consistently with ChatListView pattern. `backend/apps/ai/README.md` line 77 now references the correct path `tenant/src/views/chat/ChatDetailView.vue` — dead `web_app/src/components/TenantChat.vue` reference removed.
+
+**Blocker 2 verified:** `backend/apps/ai/tests/test_purge_old_interactions.py` (new, 16 tests). Ran `pytest apps/ai/tests/test_purge_old_interactions.py -v` locally — 16/16 PASSED, 0 failures. Covers: stale GuideInteraction deleted, fresh retained, boundary at cutoff, one day inside window; stale TenantChatSession deleted, fresh retained; --dry-run (both model types, no deletions); --days override (narrower deletes more, wider retains, session narrower, combined --dry-run+--days). Backdating approach via queryset.update is correct — avoids auto_now_add/auto_now signals cleanly.
+
+**No new issues found.** All original AC green. Overbroad bank regex remains a tracked discovery (non-blocking, deferred per PM direction).
