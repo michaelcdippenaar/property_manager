@@ -73,7 +73,7 @@ def test_pdf_generated(self, mock_post):
 ## Native Signing Flow
 
 When `signing_mode = "native"`, signing happens inside the Tremly app without
-redirecting to DocuSeal:
+any third-party signing service:
 
 1. `ESigningSubmission` created with `signing_mode="native"`
 2. Each signer receives an `ESigningPublicLink` (token-based, no login required)
@@ -126,7 +126,6 @@ Never delete audit events. Tests should verify an event is created for each acti
 
 ## Integration Dependencies
 
-- **DocuSeal API** — external e-signing service (mock in tests)
 - **Gotenberg** — PDF generation Docker service (mock in tests)
 - **Leases app** — `ESigningSubmission.lease` FK
 
@@ -150,5 +149,4 @@ Never delete audit events. Tests should verify an event is created for each acti
 - `gotenberg.py` unit tests (HTML to PDF conversion, page size, header/footer)
 - `ESigningAuditEvent` completeness: verify every action writes an event
 - Public link expiry edge cases (exactly at expiry boundary)
-- DocuSeal status polling (background job to check submission status)
 - Submission cancellation / expiry flow

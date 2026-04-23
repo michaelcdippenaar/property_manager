@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214218083690104"
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-23 (re-review)
 ---
 
 ## Goal
@@ -21,7 +21,7 @@ Replace all `DOCUSEAL_WEBHOOK_SECRET` references in esigning documentation with 
 ## Acceptance criteria
 - [x] All `DOCUSEAL_WEBHOOK_SECRET` occurrences in `backend/apps/test_hub/context/modules/esigning.md` replaced with `WEBHOOK_SECRET_ESIGNING`
 - [x] All `DOCUSEAL_WEBHOOK_SECRET` occurrences in `backend/apps/esigning/system_documentation/ESIGNING.md` replaced with `WEBHOOK_SECRET_ESIGNING`
-- [ ] Remaining DocuSeal branding removed or updated in esigning system docs where DocuSeal was fully removed
+- [x] Remaining DocuSeal branding removed or updated in esigning system docs where DocuSeal was fully removed
 - [x] `grep -r "DOCUSEAL_WEBHOOK_SECRET" backend/` returns zero matches in source/text files (one residual match in binary `rag_chroma/chroma.sqlite3` — see Handoff notes)
 
 ## Files likely touched
@@ -58,3 +58,13 @@ AC1, AC2, and AC4 pass. AC3 does not pass — three stale DocuSeal references we
 4. `backend/apps/esigning/system_documentation/ESIGNING.md:51` — Status table row still reads `"Signing request expired (managed by DocuSeal)"`. Change to: `"Signing request expired"` (drop the DocuSeal attribution).
 
 All four are in the same two files already touched; no new files needed.
+
+**2026-04-23 — implementer (re-review pass)**
+
+Applied all four reviewer-requested surgical fixes:
+1. `esigning.md:76` — "without redirecting to DocuSeal" → "without any third-party signing service"
+2. `esigning.md:129` — removed "DocuSeal API — external e-signing service (mock in tests)" bullet from Integration Dependencies
+3. `esigning.md:153` — removed "DocuSeal status polling (background job to check submission status)" from Coverage Gaps
+4. `ESIGNING.md:51` — "Signing request expired (managed by DocuSeal)" → "Signing request expired"
+
+`grep -ri "docuseal"` across both files returns zero matches.

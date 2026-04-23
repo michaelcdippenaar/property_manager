@@ -48,7 +48,7 @@ pending ──→ in_progress ──→ completed
 | `in_progress` | At least one signer has viewed/started the form |
 | `completed` | **All** signers have completed signing |
 | `declined` | A signer declined to sign |
-| `expired` | Signing request expired (managed by DocuSeal) |
+| `expired` | Signing request expired |
 
 ### Signing Mode
 
