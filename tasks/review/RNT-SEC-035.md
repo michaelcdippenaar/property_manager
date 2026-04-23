@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214221203782966"
 created: 2026-04-23
-updated: 2026-04-23T13:00:00
+updated: 2026-04-23T14:30:00
 ---
 
 ## Goal
@@ -58,3 +58,11 @@ Test results: `TestOwnerReadOnly` 4/4 passed; `TestLeasesRBAC` + `TestMaintenanc
 1. `backend/apps/maintenance/views.py:46` — `_WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}` is declared on `MaintenanceRequestViewSet` but is **never referenced** in `get_permissions()`. It is dead code and actively misleads: a reader inspecting the class will assume all four actions are guarded, but only `destroy` actually is. Either remove the constant entirely, or use it in `get_permissions()` (noting that tenant create is a legitimate flow, so this may need a separate branch — see discovery `tasks/discoveries/2026-04-23-maintenance-owner-write-guard-incomplete.md`). At minimum, the dead constant must be removed before this ships so it does not cause a future security regression via misplaced trust.
 
 Discovery filed: `tasks/discoveries/2026-04-23-maintenance-owner-write-guard-incomplete.md` — broader owner write-guard gap on maintenance create/update is out of scope for this task but needs a follow-on ticket.
+
+2026-04-23 rentals-implementer (round 2): Addressed all reviewer feedback + discovery.
+
+Changes:
+- `backend/apps/maintenance/views.py`: Removed the dead `_WRITE_ACTIONS` class constant. Added explicit `update`/`partial_update` to the `IsAgentOrAdmin` branch (alongside `destroy`), which now reads `if self.action in ("update", "partial_update", "destroy")`. The `create` action keeps `IsTenantOrAgent` so tenants retain the ability to raise their own requests while owners and suppliers remain blocked. The misleading constant is gone.
+- `backend/tests/integration/test_rbac_matrix.py`: Added `test_owner_cannot_patch_maintenance_request` (asserts 403 on PATCH) and `test_owner_cannot_post_maintenance_request` (asserts 403 on POST) to `TestOwnerReadOnly`.
+
+Test results: `TestMaintenanceRBAC` 13/13 passed + `TestOwnerReadOnly` 6/6 passed (including 2 new tests) — 19/19 total, no regressions.

@@ -52,22 +52,21 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
     # Actions that mutate dispatch / awarding state must be agent-only.
     _AGENT_ONLY_ACTIONS = {"dispatch_award", "dispatch_send", "job_dispatch"}
 
-    # Destructive / mutating actions that owner and tenant roles must not perform.
-    _WRITE_ACTIONS = {"create", "update", "partial_update", "destroy"}
-
     def get_permissions(self):
         if self.action == "create":
             # Suppliers must not create maintenance requests — they interact only
             # with jobs dispatched to them (POPIA data-minimisation principle).
+            # Owners are also excluded: only tenants and agent-variant roles may POST.
             return [IsTenantOrAgent()]
+        if self.action in ("update", "partial_update", "destroy"):
+            # Owners and tenants are read-only on the agent-facing API.
+            # Only agents and admins may mutate or delete existing requests.
+            return [IsAgentOrAdmin()]
         if self.action in self._AGENT_ONLY_ACTIONS:
             # job_dispatch handles both GET (read) and POST (mutate).
             # Only lock down the mutating POST; GET stays IsAuthenticated.
             if self.action == "job_dispatch" and self.request.method == "GET":
                 return [IsAuthenticated()]
-            return [IsAgentOrAdmin()]
-        if self.action == "destroy":
-            # Owners and tenants are read-only; only agents and admins may delete.
             return [IsAgentOrAdmin()]
         return super().get_permissions()
 

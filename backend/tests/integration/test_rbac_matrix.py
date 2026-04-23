@@ -1171,6 +1171,31 @@ class TestOwnerReadOnly:
             f"Owner DELETE maintenance expected 403, got {delete_resp.status_code}"
         )
 
+    def test_owner_cannot_patch_maintenance_request(self, world):
+        """MaintenanceRequestViewSet.get_permissions() returns IsAgentOrAdmin for
+        partial_update. Owners are read-only on the agent-facing maintenance API."""
+        c = _client_for(world["owner_a"])
+        resp = c.patch(
+            f"/api/v1/maintenance/{world['mr_a'].pk}/",
+            {"status": "resolved"},
+            format="json",
+        )
+        assert resp.status_code == 403, (
+            f"Owner PATCH maintenance expected 403, got {resp.status_code}"
+        )
+
+    def test_owner_cannot_post_maintenance_request(self, world):
+        """IsTenantOrAgent guard on create explicitly excludes the owner role.
+        Owners must receive 403 when attempting to POST a new maintenance request."""
+        c = _client_for(world["owner_a"])
+        resp = c.post("/api/v1/maintenance/", {
+            "title": "Owner injected issue", "description": "Should be blocked.",
+            "unit": world["unit_a"].pk, "priority": "low",
+        }, format="json")
+        assert resp.status_code == 403, (
+            f"Owner POST maintenance expected 403, got {resp.status_code}"
+        )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 14. MANDATE DOCUMENTS — agent/admin only
