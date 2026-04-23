@@ -139,7 +139,7 @@
             </div>
             <div>
               <label class="label">ID number</label>
-              <input v-model="local.representative_id_number" class="input font-mono" data-clarity-mask="true" />
+              <MaskedInput v-model="local.representative_id_number" class="input font-mono" />
             </div>
             <div>
               <label class="label">Email</label>
@@ -303,11 +303,11 @@
           </div>
           <div>
             <label class="label">Account no.</label>
-            <input v-model="ba.account_number" class="input font-mono" data-clarity-mask="true" />
+            <MaskedInput v-model="ba.account_number" class="input font-mono" />
           </div>
           <div>
             <label class="label">Branch code</label>
-            <input v-model="ba.branch_code" class="input font-mono" data-clarity-mask="true" />
+            <MaskedInput v-model="ba.branch_code" class="input font-mono" />
           </div>
           <div>
             <label class="label">Type</label>
@@ -717,6 +717,7 @@ import {
 import api from '../../api'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import PageHeader from '../../components/PageHeader.vue'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import { useToast } from '../../composables/useToast'

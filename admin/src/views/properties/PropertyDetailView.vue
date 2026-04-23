@@ -1604,7 +1604,7 @@
         </div>
         <div>
           <label class="label">ID / Passport number</label>
-          <input v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" data-clarity-mask="true" />
+          <MaskedInput v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" />
         </div>
 
         <div class="border-t border-gray-200 pt-4 mt-4">
@@ -1705,6 +1705,7 @@ import PropertyInformationEditor from '../../components/PropertyInformationEdito
 import type { PropertyInformationItem } from '../../types/property'
 import MandateTab from './MandateTab.vue'
 import ImportLeaseWizard from '../leases/ImportLeaseWizard.vue'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 import ESigningPanel from '../leases/ESigningPanel.vue'
 import {
   ArrowLeft, MoreHorizontal, FilePlus2, Ban, Upload, FileText,

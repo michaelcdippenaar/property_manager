@@ -177,7 +177,7 @@
                   </div>
                   <div>
                     <label class="label">ID / Passport</label>
-                    <input v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" data-clarity-mask="true" />
+                    <MaskedInput v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" />
                   </div>
                   <div>
                     <label class="label">Phone</label>
@@ -201,7 +201,7 @@
                 </div>
                 <div>
                   <label class="label">ID / Passport</label>
-                  <input v-model="newTenant.id_number" class="input font-mono" data-clarity-mask="true" />
+                  <MaskedInput v-model="newTenant.id_number" class="input font-mono" />
                 </div>
                 <div>
                   <label class="label">Phone</label>
@@ -313,7 +313,7 @@
                 </div>
                 <div>
                   <label class="label">ID / Passport</label>
-                  <input v-model="newGuarantor.id_number" class="input font-mono" data-clarity-mask="true" />
+                  <MaskedInput v-model="newGuarantor.id_number" class="input font-mono" />
                 </div>
                 <div>
                   <label class="label">Phone</label>
@@ -430,6 +430,7 @@ import {
   FileText, Download, CheckCircle2, AlertCircle,
 } from 'lucide-vue-next'
 import ESigningPanel from './ESigningPanel.vue'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 import { usePropertiesStore } from '../../stores/properties'
 import { usePersonsStore } from '../../stores/persons'
 

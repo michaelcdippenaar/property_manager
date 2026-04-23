@@ -9,8 +9,9 @@
  *   3. initClarity() is idempotent — calling it twice does nothing.
  *
  * Sensitive-field masking is handled at the component level via the
- * `data-clarity-mask` attribute.  This composable does not touch the DOM
- * beyond injecting the Clarity <script> tag.
+ * <MaskedInput> wrapper (admin/src/components/shared/MaskedInput.vue).
+ * The canonical list of PII field names lives in piiFields.ts.
+ * This composable does not touch the DOM beyond injecting the Clarity <script> tag.
  */
 
 const CLARITY_ENABLED = import.meta.env.VITE_ENABLE_CLARITY === 'true'

@@ -80,8 +80,8 @@
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="label text-xs">Account number</label><input v-model="profile.account_number" class="input" data-clarity-mask="true" /></div>
-          <div><label class="label text-xs">Branch code</label><input v-model="profile.branch_code" class="input" data-clarity-mask="true" /></div>
+          <div><label class="label text-xs">Account number</label><MaskedInput v-model="profile.account_number" class="input" /></div>
+          <div><label class="label text-xs">Branch code</label><MaskedInput v-model="profile.branch_code" class="input" /></div>
         </div>
       </div>
 
@@ -132,6 +132,7 @@
 import { ref, onMounted } from 'vue'
 import api from '../../api'
 import { Upload, FileText, Loader2 } from 'lucide-vue-next'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 
 const loading = ref(true)
 const saving = ref(false)

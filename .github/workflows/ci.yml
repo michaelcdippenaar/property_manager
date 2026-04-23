@@ -141,6 +141,9 @@ jobs:
       - name: Feature-flag drift guard (RNT-QUAL-047)
         run: npm run test:drift
 
+      - name: PII masking guard (RNT-SEC-042)
+        run: bash scripts/check-pii-masking.sh
+
       - name: TypeScript check
         run: npx vue-tsc --noEmit
 

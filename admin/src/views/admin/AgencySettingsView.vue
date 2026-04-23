@@ -105,11 +105,11 @@
             </div>
             <div>
               <label class="label">Account number</label>
-              <input v-model="form.trust_account_number" type="text" class="input" placeholder="Trust account number" data-clarity-mask="true" />
+              <MaskedInput v-model="form.trust_account_number" type="text" class="input" placeholder="Trust account number" />
             </div>
             <div>
               <label class="label">Branch code</label>
-              <input v-model="form.trust_branch_code" type="text" class="input" placeholder="e.g. 250655" data-clarity-mask="true" />
+              <MaskedInput v-model="form.trust_branch_code" type="text" class="input" placeholder="e.g. 250655" />
             </div>
           </div>
         </div>
@@ -265,6 +265,7 @@ import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { useAuthStore } from '../../stores/auth'
 import PageHeader from '../../components/PageHeader.vue'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 
 const { showToast } = useToast()
 const auth = useAuthStore()

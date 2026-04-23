@@ -219,11 +219,11 @@
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label class="label">Account number</label>
-                <input v-model="form.account_number" class="input" placeholder="62012345678" data-clarity-mask="true" />
+                <MaskedInput v-model="form.account_number" class="input" placeholder="62012345678" />
               </div>
               <div>
                 <label class="label">Branch code</label>
-                <input v-model="form.branch_code" class="input" placeholder="250655" data-clarity-mask="true" />
+                <MaskedInput v-model="form.branch_code" class="input" placeholder="250655" />
               </div>
             </div>
           </div>
@@ -472,6 +472,7 @@ import PageHeader from '../../components/PageHeader.vue'
 import LoadingState from '../../components/states/LoadingState.vue'
 import ErrorState from '../../components/states/ErrorState.vue'
 import { useToast } from '../../composables/useToast'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 
 const toast = useToast()
 
