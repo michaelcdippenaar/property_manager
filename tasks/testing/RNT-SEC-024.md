@@ -7,12 +7,12 @@ lifecycle_stage: 8
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: blocked
-assigned_to: null
+status: testing
+assigned_to: tester
 depends_on: [RNT-015]
 asana_gid: "1214197140899873"
 created: 2026-04-22
-updated: 2026-04-23T21:35:00Z
+updated: 2026-04-24T00:15:00Z
 ---
 
 ## Goal
@@ -138,3 +138,5 @@ Unit model __str__ returns `"{self.property.name} — Unit {self.unit_number}"`,
 
 **Conclusion:**
 Cannot proceed with RNT-SEC-024 testing until the RNT-QUAL-007 regression is fixed.
+
+2026-04-24 — implementer (RNT-QUAL-007 hotfix). Regression fixed: `push_signals.py` referenced non-existent `instance.unit_label` and `instance.tenant_name` attributes. Replaced with `str(instance.unit)` (which returns "Property Name — Unit 123") and `instance.primary_tenant.full_name if instance.primary_tenant else "Unknown"` respectively. All 38 tests in `test_rha_gate.py` now pass. RNT-SEC-024 is unblocked and moved to testing.
