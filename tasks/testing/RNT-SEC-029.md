@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: [RNT-016]
 asana_gid: "1214200629255776"
 created: 2026-04-22
@@ -40,3 +40,6 @@ RNT-016 is still in backlog but the Android platform is already scaffolded (the 
 Changed `android:allowBackup="true"` to `android:allowBackup="false"` and added `android:fullBackupOnly="false"` immediately below it in the `<application>` element. The `fullBackupOnly="false"` attribute suppresses the Android lint warning that fires when `allowBackup` is disabled without the accompanying attribute.
 
 The two remaining acceptance criteria (`./gradlew assembleDebug` succeeds and `adb backup` returns empty) require a connected device or emulator and are left for the tester to validate — they are runtime/device checks, not code changes. The XML change is the entire code-side fix.
+
+**2026-04-23 — reviewer**
+Review passed. Checked: `agent-app/src-capacitor/android/app/src/main/AndroidManifest.xml` — `android:allowBackup="false"` and `android:fullBackupOnly="false"` are both present and correctly placed in the `<application>` element. The two-line diff is the complete code-side fix; no backend code, no auth surface, no PII logged, no SQL involved. The two remaining criteria (build success, adb backup empty) are correctly deferred to the tester as device-runtime checks. Discovery filed: `tasks/discoveries/2026-04-23-mobile-flutter-allow-backup-enabled.md` — the Flutter tenant app at `mobile/android/app/src/main/AndroidManifest.xml` is missing `allowBackup="false"` and carries the same POPIA risk.
