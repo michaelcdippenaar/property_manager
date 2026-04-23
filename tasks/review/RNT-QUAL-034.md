@@ -7,21 +7,21 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214218109691410"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
 Fix `mandate_views.py` renew action so `notes` defaults to the source mandate's notes rather than an empty string, matching the behaviour of all other cloned fields.
 
 ## Acceptance criteria
-- [ ] `overrides.get("notes", "")` changed to `overrides.get("notes", mandate.notes)` in the renew action
-- [ ] Test added to `test_mandate_lifecycle.py` asserting notes are preserved when `notes` is omitted from the renew POST body
-- [ ] Existing tests remain green
+- [x] `overrides.get("notes", "")` changed to `overrides.get("notes", mandate.notes)` in the renew action
+- [x] Test added to `test_mandate_lifecycle.py` asserting notes are preserved when `notes` is omitted from the renew POST body
+- [x] Existing tests remain green
 
 ## Files likely touched
 - `backend/apps/properties/mandate_views.py` (line ~265)
@@ -38,3 +38,5 @@ Fix `mandate_views.py` renew action so `notes` defaults to the source mandate's 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-22 — Promoted from discovery `2026-04-22-mandate-renew-notes-not-inherited.md` found during RNT-QUAL-005 review.
+
+2026-04-23 — One-line fix in `mandate_views.py` line 265: changed default from `""` to `mandate.notes`. Added two tests to `MandateRenewalTest`: `test_renewal_inherits_notes_when_omitted` (confirms notes propagate when POST body omits the field) and `test_renewal_notes_can_be_overridden` (confirms explicit override wins). All 26 tests pass.

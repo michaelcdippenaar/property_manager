@@ -391,3 +391,27 @@ class MandateRenewalTest(MandateLifecycleBase):
             resp = self.client.post(f"/api/v1/properties/mandates/{m.pk}/renew/", format="json")
             self.assertEqual(resp.status_code, 201, f"{mandate_type}: {resp.data}")
             self.assertEqual(resp.data["mandate_type"], mandate_type)
+
+    def test_renewal_inherits_notes_when_omitted(self):
+        """Renewing without supplying notes should preserve the source mandate's notes."""
+        m = _active_mandate(self)
+        m.notes = "Special commission arrangement agreed with owner."
+        m.save(update_fields=["notes"])
+
+        resp = self.client.post(f"/api/v1/properties/mandates/{m.pk}/renew/", format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["notes"], "Special commission arrangement agreed with owner.")
+
+    def test_renewal_notes_can_be_overridden(self):
+        """Supplying notes in the renew POST body should use the provided value, not the source."""
+        m = _active_mandate(self)
+        m.notes = "Original notes."
+        m.save(update_fields=["notes"])
+
+        resp = self.client.post(
+            f"/api/v1/properties/mandates/{m.pk}/renew/",
+            {"notes": "Updated notes for renewal."},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["notes"], "Updated notes for renewal.")

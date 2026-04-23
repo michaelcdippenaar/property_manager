@@ -262,7 +262,7 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
             end_date              = overrides.get("end_date",              mandate.end_date),
             notice_period_days    = overrides.get("notice_period_days",    mandate.notice_period_days),
             maintenance_threshold = overrides.get("maintenance_threshold", mandate.maintenance_threshold),
-            notes                 = overrides.get("notes", ""),
+            notes                 = overrides.get("notes", mandate.notes),
             status                = RentalMandate.Status.DRAFT,
             previous_mandate      = mandate,
             created_by            = request.user,
