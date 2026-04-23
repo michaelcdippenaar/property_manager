@@ -1,7 +1,7 @@
 # Module: esigning
 
 **App path:** `apps/esigning/`
-**Domain:** E-signing workflows (DocuSeal), PDF generation (Gotenberg), audit trail, native in-app signing, public signing links.
+**Domain:** E-signing workflows (native in-app signing), PDF generation (Gotenberg), audit trail, public signing links.
 
 ---
 
@@ -9,47 +9,38 @@
 
 | Model | Key Fields |
 |-------|-----------|
-| `ESigningSubmission` | `lease` (FK→Lease), `docuseal_submission_id` (int, nullable), `status` (pending/completed/declined/expired), `signers` (JSON list of signer configs), `signed_pdf_url`, `completed_at`, `created_by` (FK→User), `signing_mode` (docuseal/native) |
+| `ESigningSubmission` | `lease` (FK→Lease), `status` (pending/completed/declined/expired), `signers` (JSON list of signer configs), `signed_pdf_file`, `completed_at`, `created_by` (FK→User), `signing_mode` (native) |
 | `ESigningAuditEvent` | Immutable audit log. Fields: `submission` (FK→ESigningSubmission), `event_type` (created/viewed/signed/declined/completed/webhook_received), `actor_email`, `ip_address`, `metadata` (JSON), `created_at` |
 | `ESigningPublicLink` | `submission` (FK→ESigningSubmission), `signer_role` (tenant/guarantor/landlord), `token` (UUID), `expires_at`, `is_used` |
 
 ---
 
-## DocuSeal Integration
+## Signing Services
 
 **File:** `apps/esigning/services.py`
 
-DocuSeal is a self-hosted or cloud e-signing service. Tremly uses HTML-based templates
-with `data-*` attribute field markers.
+Native in-app signing — Tremly hosts the full signing flow without any third-party e-signing service.
+HTML lease templates use `data-*` attribute field markers.
 
 ### Key service functions
 
 | Function | Purpose |
 |----------|---------|
-| `create_submission(lease, signers)` | POST to DocuSeal API to create a signing submission |
 | `generate_lease_html(lease, template)` | Render TipTap template with merge fields resolved → HTML string |
 | `extract_editable_merge_fields(html)` | Parse HTML and return list of `{{field}}` tokens |
-| `complete_native_signer(submission, signer_role, captured_data)` | Mark a signer complete in native mode without DocuSeal |
+| `complete_native_signer(submission, signer_role, captured_data)` | Mark a signer complete, store captured signature data |
 | `generate_signed_pdf(submission)` | Call Gotenberg to assemble signed PDF with signature overlays |
-
-### DocuSeal API calls (mock these in tests)
-
-```python
-# In tests, patch the HTTP layer:
-@patch("apps.esigning.services.requests.post")
-@patch("apps.esigning.services.requests.get")
-```
 
 ### Webhook
 
 `apps/esigning/webhooks.py` — `POST /api/v1/esigning/webhook/`
 
-DocuSeal sends webhook events when:
+Webhook events may be sent by machine-to-machine callbacks when:
 - A submission is created, viewed, signed, or completed
 - A signer declines
 
-**Validation:** HMAC-SHA256 signature check using `DOCUSEAL_WEBHOOK_SECRET`.
-In tests, set `DOCUSEAL_WEBHOOK_SECRET = ""` to disable signature validation,
+**Validation:** HMAC-SHA256 signature check using `WEBHOOK_SECRET_ESIGNING`.
+In tests, set `WEBHOOK_SECRET_ESIGNING = ""` to disable signature validation,
 or mock the HMAC check.
 
 Webhook handler writes an `ESigningAuditEvent` for every event received.
@@ -129,7 +120,7 @@ Never delete audit events. Tests should verify an event is created for each acti
 - `ESigningPublicLink.token` is UUID4, generated once, never regenerated
 - Expired public links must be rejected (check `expires_at < now`)
 - Already-used public links must be rejected (`is_used=True`)
-- HMAC webhook validation is enforced in production; skipped when `DOCUSEAL_WEBHOOK_SECRET=""`
+- HMAC webhook validation is enforced in production; skipped when `WEBHOOK_SECRET_ESIGNING=""`
 
 ---
 
