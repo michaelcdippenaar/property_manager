@@ -69,10 +69,10 @@ export function registerESigningTools(server) {
 
   server.tool(
     'esigning_public_link',
-    'Create a public signing link for a submitter',
-    { id: z.coerce.number(), submitter_id: z.coerce.number() },
-    async ({ id, submitter_id }) => {
-      const result = await apiPost(`esigning/submissions/${id}/public-link/`, { submitter_id });
+    'Create a public signing link for a signer by role',
+    { id: z.coerce.number(), signer_role: z.string().describe('The role of the signer, e.g. "tenant_1"') },
+    async ({ id, signer_role }) => {
+      const result = await apiPost(`esigning/submissions/${id}/public-link/`, { signer_role });
       return { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] };
     }
   );
@@ -158,7 +158,7 @@ export function registerESigningTools(server) {
 
       // Step 3: Get public link for first signer
       const linkRes = await apiPost(`esigning/submissions/${subId}/public-link/`, {
-        submitter_id: submission.signers?.[0]?.id || 1,
+        signer_role: submission.signers?.[0]?.role,
       });
       const linkData = linkRes.data || linkRes;
       const uuid = linkData.uuid;
@@ -275,7 +275,7 @@ Requires: lease_id with a valid native-signing template.`,
 
         // Get public link
         const linkRes = await apiPost(`esigning/submissions/${subId}/public-link/`, {
-          submitter_id: signer.id,
+          signer_role: signer.role,
         });
         if (!linkRes.ok) {
           results.steps.push({ step: `${signerStepPrefix}_public_link`, pass: false, error: linkRes.error });
