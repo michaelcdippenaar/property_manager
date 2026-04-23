@@ -18,9 +18,45 @@
             android:launchMode="singleTask"
             android:exported="true">
 
+            <!-- Standard launcher intent -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              App Links (Android verified deep links) — handles https://agent.klikk.co.za
+              and https://klikk.co.za links so they open directly in the app.
+
+              Required: host /.well-known/assetlinks.json on both domains.
+              See agent-app/docs/app-links.md for the expected JSON structure.
+
+              Covered deep-link paths (hash router — fragment handled by Vue Router):
+                /viewings/:id        → viewing-detail route
+                /viewings/:id/lease  → create-lease route
+                /properties/:id      → property-detail route
+                /leases              → leases list
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="agent.klikk.co.za" />
+            </intent-filter>
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="klikk.co.za" android:pathPrefix="/agent" />
+            </intent-filter>
+
+            <!-- Custom URL scheme fallback (e.g. klikk://viewings/42) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="za.co.klikk.agentapp" />
             </intent-filter>
 
         </activity>
@@ -36,7 +72,34 @@
         </provider>
     </application>
 
-    <!-- Permissions -->
+    <!-- ── Permissions ──────────────────────────────────────────────────────── -->
 
+    <!-- Network -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+      Camera — agents capture property photos and attach images to inspections,
+      viewings, and maintenance requests.  Runtime permission requested on first use.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Required to save captured images to external storage (Android < 10) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <!-- Android 13+ granular media permission for photo picker -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!--
+      Coarse location — used to show nearby properties and help suppliers
+      navigate to maintenance jobs.  Fine location is not collected;
+      POPIA: data minimisation principle applied.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Hardware features — declared as not required so devices without cameras
+         (e.g. tablets used by office-based agents) can still install the app.  -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+
 </manifest>

@@ -1,0 +1,39 @@
+Klikk Agent is the mobile command centre for South African property rental agents.
+
+Run your full rental pipeline from your phone — book viewings, capture prospects, create and send leases, track maintenance requests, and monitor your portfolio at a glance.
+
+KEY FEATURES
+
+Viewing management
+• Book and manage viewings with built-in calendar
+• Capture prospect details on-site with a tap
+• Convert a viewing into a lease in seconds
+
+Leases
+• Create legally compliant SA rental agreements
+• Send for e-signature without printing a single page
+• Track signing status in real time
+
+Maintenance
+• Log and assign maintenance requests
+• Co-ordinate suppliers with location-aware dispatch
+• Photo attachments for before/after documentation
+
+Pipeline & Dashboard
+• Full rental cycle visibility in one screen
+• Property portfolio at a glance
+• Today-view for your daily action list
+
+People
+• Tenant, owner, and supplier contact book
+• Search across all your managed properties
+
+DESIGNED FOR SOUTH AFRICAN RENTALS
+
+Klikk is built on the Rental Housing Act and aligned with POPIA data-privacy requirements. All data is stored securely on South African servers.
+
+REQUIREMENTS
+
+• Active Klikk Agent subscription (contact your agency or sign up at klikk.co.za)
+• Android 6.0 (API 23) or later
+• Internet connection required

@@ -1,0 +1,12 @@
+Initial beta release of Klikk Agent for TestFlight.
+
+What's included in this build:
+• Viewing management — book, reschedule, and track viewings
+• Lease creation — generate and send rental agreements for e-signature
+• Pipeline view — full rental lifecycle in one screen
+• Maintenance requests — log, assign, and track jobs
+• People directory — tenants, owners, and suppliers
+• Today view — daily action list for agents
+• Sentry crash reporting enabled
+
+We welcome your feedback — please email beta@klikk.co.za with any issues.

@@ -1,35 +1,157 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Apple Privacy Manifest — Klikk Agent iOS app.
+
+  Review checklist (update when adding new SDKs or API usage):
+    - NSPrivacyTracking: false — we do not track users across apps/websites.
+    - NSPrivacyTrackingDomains: empty — no cross-app tracking domains.
+    - NSPrivacyCollectedDataTypes: list every data category we send to Klikk servers.
+    - NSPrivacyAccessedAPITypes: every required-reason API used by our code or third-party SDKs.
+
+  Required-reason API reference:
+    https://developer.apple.com/documentation/bundleresources/privacy_manifest_files/describing_use_of_required_reason_api
+-->
 <plist version="1.0">
 <dict>
+	<!-- ── Tracking ────────────────────────────────────────────────────── -->
 	<key>NSPrivacyTracking</key>
 	<false/>
+
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
+
+	<!-- ── Collected data ──────────────────────────────────────────────── -->
+	<!--
+	  All data is collected for app functionality only (agent workflow).
+	  No data is used for advertising, third-party sharing, or profiling.
+	-->
 	<key>NSPrivacyCollectedDataTypes</key>
-	<array/>
+	<array>
+		<!-- Name — used to identify the logged-in agent -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Email address — agent login credential -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Phone number — stored against tenant/prospect records -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhoneNumber</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Photos/videos — property inspection images uploaded by agents -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Coarse location — used to show nearby properties / supplier proximity -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCoarseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Crash data — collected by Sentry for error monitoring -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<!-- Performance data — Sentry traces (tracesSampleRate = 0.05) -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePerformanceData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- ── Required-reason APIs ────────────────────────────────────────── -->
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
+		<!-- NSUserDefaults — Capacitor persists plugin state and app preferences -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
-				<!-- CA92.1: Access info from the same app that wrote it.
-				     Capacitor uses NSUserDefaults to persist app preferences and
-				     plugin state within the Klikk Agent app itself. -->
+				<!-- CA92.1: Access info from the same app that wrote it. -->
 				<string>CA92.1</string>
 			</array>
 		</dict>
+		<!-- File timestamp — Capacitor Filesystem plugin (within app sandbox) -->
 		<dict>
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
-				<!-- C617.1: Inside app or group container.
-				     The Capacitor Filesystem plugin reads/writes file timestamps
-				     within the app's own sandbox container. -->
+				<!-- C617.1: Inside app or group container. -->
 				<string>C617.1</string>
+			</array>
+		</dict>
+		<!-- System boot time — used by Sentry for performance measurement -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- 35F9.1: Measure time on-device (performance monitoring). -->
+				<string>35F9.1</string>
 			</array>
 		</dict>
 	</array>

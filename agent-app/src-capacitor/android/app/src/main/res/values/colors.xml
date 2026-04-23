@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Klikk brand Navy — primary colour for launcher background and splash -->
+    <color name="ic_launcher_background">#2B2D6E</color>
+    <!-- Splash screen background (core-splashscreen API) -->
+    <color name="splashBackground">#2B2D6E</color>
+</resources>

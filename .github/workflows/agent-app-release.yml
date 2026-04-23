@@ -1,0 +1,306 @@
+name: Agent App — Release Build
+
+# Triggered manually (for TestFlight / Play Store uploads) or on version tags.
+# Android AAB is uploaded to Play Store internal track.
+# iOS build is archived and uploaded to TestFlight.
+#
+# Required GitHub secrets:
+#   iOS:
+#     APPLE_API_KEY_ID              — App Store Connect API key ID
+#     APPLE_API_KEY_ISSUER_ID       — App Store Connect API issuer ID
+#     APPLE_API_PRIVATE_KEY         — App Store Connect API private key (.p8 content)
+#     IOS_DISTRIBUTION_CERT_BASE64  — Base64-encoded .p12 distribution certificate
+#     IOS_DISTRIBUTION_CERT_PASSWORD — Password for the .p12
+#     IOS_PROVISIONING_PROFILE_BASE64 — Base64-encoded mobileprovision file
+#
+#   Android:
+#     ANDROID_KEYSTORE_BASE64       — Base64-encoded .jks upload keystore
+#     ANDROID_KEYSTORE_STORE_PASSWORD
+#     ANDROID_KEYSTORE_KEY_ALIAS
+#     ANDROID_KEYSTORE_KEY_PASSWORD
+#     PLAY_SERVICE_ACCOUNT_JSON     — Google Play service account JSON (for upload)
+#
+#   Both:
+#     SENTRY_DSN_AGENT_IOS          — Sentry DSN for the iOS project
+#     SENTRY_DSN_AGENT_ANDROID      — Sentry DSN for the Android project
+#     SENTRY_AUTH_TOKEN             — For source map upload
+#     API_URL_PROD                  — https://api.klikk.co.za/api/v1
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version name (e.g. 1.0.1)'
+        required: true
+        default: '1.0.0'
+      version_code:
+        description: 'Build number / versionCode (must increment)'
+        required: true
+        default: '1'
+      target:
+        description: 'Build target'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - ios
+          - android
+
+  push:
+    tags:
+      - 'agent-v*'
+
+concurrency:
+  group: agent-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── Android ────────────────────────────────────────────────────────────────
+  android:
+    name: Android — Build + Upload to Play (internal track)
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'push' ||
+      inputs.target == 'android' ||
+      inputs.target == 'both'
+
+    defaults:
+      run:
+        working-directory: agent-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: agent-app/package-lock.json
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive version from tag (if push trigger)
+        if: github.event_name == 'push'
+        run: |
+          TAG="${{ github.ref_name }}"            # agent-v1.0.1
+          VERSION="${TAG#agent-v}"                # 1.0.1
+          echo "VERSION_NAME=$VERSION" >> $GITHUB_ENV
+          # Use Unix timestamp as versionCode for push-trigger builds
+          echo "VERSION_CODE=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Set version from workflow_dispatch inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "VERSION_NAME=${{ inputs.version_name }}" >> $GITHUB_ENV
+          echo "VERSION_CODE=${{ inputs.version_code }}" >> $GITHUB_ENV
+
+      - name: Build Quasar SPA
+        env:
+          API_URL: ${{ secrets.API_URL_PROD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN_AGENT_ANDROID }}
+          SENTRY_ENVIRONMENT: production
+          SENTRY_RELEASE: ${{ github.ref_name }}
+          SENTRY_TRACES_SAMPLE_RATE: '0.05'
+        run: npm run build
+
+      - name: npx cap sync android
+        run: npx cap sync android
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > \
+            src-capacitor/android/klikk-agent-upload.jks
+
+      - name: Write keystore.properties
+        run: |
+          cat > src-capacitor/android/keystore.properties << 'EOF'
+          storeFile=../klikk-agent-upload.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_STORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEYSTORE_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEYSTORE_KEY_PASSWORD }}
+          EOF
+
+      - name: Build release AAB
+        working-directory: agent-app/src-capacitor/android
+        run: |
+          ./gradlew bundleRelease \
+            -PversionCode=${{ env.VERSION_CODE }} \
+            -PversionName=${{ env.VERSION_NAME }}
+
+      - name: Upload AAB to Play Store (internal track)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: za.co.klikk.agentapp
+          releaseFiles: agent-app/src-capacitor/android/app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: agent-app/store-metadata/android/
+
+      - name: Upload Sentry source maps (Android)
+        if: always()
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          npx @sentry/cli sourcemaps upload \
+            --org klikk \
+            --project klikk-agent-android \
+            --release "${{ github.ref_name }}" \
+            dist/spa/assets/ || echo "Sentry upload skipped (no auth token)"
+
+  # ── iOS ────────────────────────────────────────────────────────────────────
+  ios:
+    name: iOS — Build + Upload to TestFlight
+    runs-on: macos-14   # Apple Silicon runner for Xcode 15
+    if: >
+      github.event_name == 'push' ||
+      inputs.target == 'ios' ||
+      inputs.target == 'both'
+
+    defaults:
+      run:
+        working-directory: agent-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: agent-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Derive version from tag (if push trigger)
+        if: github.event_name == 'push'
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#agent-v}"
+          echo "VERSION_NAME=$VERSION" >> $GITHUB_ENV
+          echo "VERSION_CODE=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Set version from workflow_dispatch inputs
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo "VERSION_NAME=${{ inputs.version_name }}" >> $GITHUB_ENV
+          echo "VERSION_CODE=${{ inputs.version_code }}" >> $GITHUB_ENV
+
+      - name: Build Quasar SPA
+        env:
+          API_URL: ${{ secrets.API_URL_PROD }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN_AGENT_IOS }}
+          SENTRY_ENVIRONMENT: production
+          SENTRY_RELEASE: ${{ github.ref_name }}
+          SENTRY_TRACES_SAMPLE_RATE: '0.05'
+        run: npm run build
+
+      - name: npx cap sync ios
+        run: npx cap sync ios
+
+      - name: Install CocoaPods
+        working-directory: agent-app/src-capacitor/ios/App
+        run: pod install
+
+      - name: Import distribution certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          p12-password: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+
+      - name: Import provisioning profile
+        uses: apple-actions/download-provisioning-profiles@v3
+        with:
+          bundle-id: za.co.klikk.agentapp
+          issuer-id: ${{ secrets.APPLE_API_KEY_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+
+      - name: Bump version in Xcode project
+        run: |
+          /usr/libexec/PlistBuddy -c \
+            "Set :CFBundleShortVersionString ${{ env.VERSION_NAME }}" \
+            src-capacitor/ios/App/App/Info.plist
+          sed -i '' \
+            "s/CURRENT_PROJECT_VERSION = .*/CURRENT_PROJECT_VERSION = ${{ env.VERSION_CODE }};/g" \
+            src-capacitor/ios/App/App.xcodeproj/project.pbxproj
+          sed -i '' \
+            "s/MARKETING_VERSION = .*/MARKETING_VERSION = ${{ env.VERSION_NAME }};/g" \
+            src-capacitor/ios/App/App.xcodeproj/project.pbxproj
+
+      - name: Build + Archive
+        run: |
+          xcodebuild \
+            -workspace src-capacitor/ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphoneos \
+            -configuration Release \
+            -archivePath ${{ runner.temp }}/KlikkAgent.xcarchive \
+            archive \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES
+
+      - name: Export IPA (App Store distribution)
+        run: |
+          cat > /tmp/ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>compileBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild \
+            -exportArchive \
+            -archivePath ${{ runner.temp }}/KlikkAgent.xcarchive \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath ${{ runner.temp }}/ipa
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: ${{ runner.temp }}/ipa/App.ipa
+          issuer-id: ${{ secrets.APPLE_API_KEY_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPLE_API_KEY_ID }}
+          api-private-key: ${{ secrets.APPLE_API_PRIVATE_KEY }}
+
+      - name: Upload Sentry source maps (iOS)
+        if: always()
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          npx @sentry/cli sourcemaps upload \
+            --org klikk \
+            --project klikk-agent-ios \
+            --release "${{ github.ref_name }}" \
+            dist/spa/assets/ || echo "Sentry upload skipped (no auth token)"
+
+      - name: Upload dSYMs to Sentry
+        if: always()
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          npx @sentry/cli debug-files upload \
+            --org klikk \
+            --project klikk-agent-ios \
+            ${{ runner.temp }}/KlikkAgent.xcarchive/dSYMs/ || echo "dSYM upload skipped"

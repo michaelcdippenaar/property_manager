@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  App Entitlements — Klikk Agent iOS
+
+  Universal Links (Associated Domains):
+    Allows agent.klikk.co.za links to open directly inside the app without
+    going through the browser. Deep-link routes (mandate detail, viewing detail,
+    lease detail) are handled by the Quasar hash router via the URL fragment.
+
+  Manual step required in App Store Connect:
+    1. Create an Associated Domains capability on the App ID (za.co.klikk.agentapp).
+    2. Host /.well-known/apple-app-site-association on agent.klikk.co.za.
+       See agent-app/docs/universal-links.md for the expected AASA JSON.
+
+  Push Notifications (APS):
+    Keep aps-environment set to "development" during TestFlight.
+    App Store Connect automatically substitutes "production" in the final build.
+-->
+<plist version="1.0">
+<dict>
+	<!-- Universal Links — opens klikk.co.za deep links directly in-app -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:agent.klikk.co.za</string>
+		<string>applinks:klikk.co.za</string>
+	</array>
+
+	<!-- Push Notifications — "development" for TestFlight; App Store Connect
+	     replaces this with "production" for the final release build.          -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

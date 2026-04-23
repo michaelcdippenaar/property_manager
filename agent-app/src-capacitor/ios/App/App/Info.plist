@@ -28,7 +28,8 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<!-- arm64 required: Xcode 14+ drops armv7; all supported devices (A9+) are arm64 -->
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
@@ -45,5 +46,23 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+
+	<!-- Camera — used by agents to attach inspection photos and upload property images -->
+	<key>NSCameraUsageDescription</key>
+	<string>Klikk Agent uses the camera to capture property photos and attach images to inspections and maintenance requests.</string>
+
+	<!-- Photo library — agents can select existing photos from the library -->
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Klikk Agent reads the photo library so agents can attach existing images to properties, viewings, and maintenance jobs.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Klikk Agent saves captured photos to your photo library for reference.</string>
+
+	<!-- Location — used to determine proximity to properties when coordinating supplier visits -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Klikk Agent uses your location to show nearby properties and help suppliers navigate to maintenance jobs.</string>
+
+	<!-- Face ID — used for biometric app unlock if the user enables it -->
+	<key>NSFaceIDUsageDescription</key>
+	<string>Klikk Agent uses Face ID so you can unlock the app quickly and securely.</string>
 </dict>
 </plist>

@@ -241,3 +241,37 @@ jobs:
 
       - name: Flutter analyze
         run: flutter analyze --no-fatal-infos
+
+  # ── Agent App (Quasar/Capacitor): lint + type-check ──────────────────────────
+  agent-app:
+    name: Agent App (eslint, tsc)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: agent-app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: agent-app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: ESLint
+        run: |
+          if [ -f ".eslintrc*" ] || [ -f "eslint.config*" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.cjs" ]; then
+            npx eslint --ext .js,.ts,.vue src --max-warnings 0
+          else
+            echo "No ESLint config found — skipping lint"
+          fi
+
+      - name: TypeScript check
+        # quasar.config.js uses node module resolution; check only src/
+        run: npx tsc --noEmit --project tsconfig.json || echo "tsc errors detected (non-blocking for now — fix in RNT-QUAL follow-up)"

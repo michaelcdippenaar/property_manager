@@ -1,5 +1,28 @@
 {
   "appId": "za.co.klikk.agentapp",
   "appName": "Klikk Agent",
-  "webDir": "www"
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#2B2D6E",
+      "androidSplashResourceName": "splash",
+      "androidScaleType": "CENTER_CROP",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "light",
+      "backgroundColor": "#2B2D6E",
+      "overlaysWebView": false
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "light",
+      "resizeOnFullScreen": true
+    }
+  }
 }
