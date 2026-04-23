@@ -1,20 +1,21 @@
 """
 AI Guide endpoint — POST /api/v1/ai/guide/
 
-Accepts { message, portal } and calls Anthropic claude-3-5-haiku with a
-tool-use loop.  Returns { reply, action } where `action` is a GuideAction-
-compatible dict (or null if no navigation was needed).
+Accepts { message } and calls Anthropic claude-3-5-haiku with a tool-use
+loop.  The portal is derived strictly from request.user.role — the client
+cannot supply or override it.  Returns { reply, action } where `action` is
+a GuideAction-compatible dict (or null if no navigation was needed).
 
 Persists each interaction to GuideInteraction for analytics.
 """
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 import anthropic
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
@@ -24,9 +25,12 @@ from rest_framework import status as drf_status
 from apps.ai.guide_tools import TOOL_ACTION_MAP, get_tools_for_portal, is_tool_allowed
 from apps.ai.models import GuideInteraction
 
+User = get_user_model()
+
 logger = logging.getLogger(__name__)
 
 GUIDE_MODEL = "claude-3-5-haiku-20241022"
+MESSAGE_MAX_LENGTH = 2000
 
 SYSTEM_PROMPT = """\
 You are the Klikk navigation assistant embedded in the property management admin portal.
@@ -40,31 +44,26 @@ Rules:
 5. Do not invent tool names. Only use the tools provided.
 """
 
-VALID_PORTALS = {"agent", "owner", "supplier"}
+# Maps User.Role values to the portal name used by the tool allowlist.
+# Roles not listed here are not permitted to use the AI Guide (403).
+_ROLE_TO_PORTAL: dict[str, str] = {
+    User.Role.ESTATE_AGENT: "agent",
+    User.Role.MANAGING_AGENT: "agent",
+    User.Role.AGENT: "agent",           # deprecated role — keep mapping
+    User.Role.AGENCY_ADMIN: "agent",
+    User.Role.ADMIN: "agent",
+    User.Role.OWNER: "owner",
+    User.Role.SUPPLIER: "supplier",
+}
+
+
+def _portal_for_user(user) -> str | None:
+    """Return the portal name for the given user, or None if not permitted."""
+    return _ROLE_TO_PORTAL.get(user.role)
 
 
 class AIGuideThrottle(UserRateThrottle):
     rate = "20/min"
-    scope = "ai_guide"
-
-
-def _get_anthropic_api_key() -> str:
-    """Return the Anthropic API key from settings or .env fallback."""
-    key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
-    if key:
-        return key
-    env_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "..", ".env")
-    )
-    try:
-        with open(env_path) as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("ANTHROPIC_API_KEY="):
-                    return line.split("=", 1)[1].strip().strip('"').strip("'")
-    except OSError:
-        pass
-    return ""
 
 
 def _call_guide(message: str, portal: str) -> dict[str, Any]:
@@ -72,7 +71,7 @@ def _call_guide(message: str, portal: str) -> dict[str, Any]:
     Run the claude-3-5-haiku tool-use loop and return
     { reply: str, action: dict | None, intent: str | None }.
     """
-    api_key = _get_anthropic_api_key()
+    api_key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
     if not api_key:
         return {
             "reply": "AI Guide is not configured. Please contact your administrator.",
@@ -163,7 +162,6 @@ class AIGuideView(APIView):
             )
 
         message = (request.data.get("message") or "").strip()
-        portal = (request.data.get("portal") or "agent").strip().lower()
 
         if not message:
             return Response(
@@ -171,8 +169,20 @@ class AIGuideView(APIView):
                 status=drf_status.HTTP_400_BAD_REQUEST,
             )
 
-        if portal not in VALID_PORTALS:
-            portal = "agent"
+        if len(message) > MESSAGE_MAX_LENGTH:
+            return Response(
+                {"detail": f"message must be {MESSAGE_MAX_LENGTH} characters or fewer."},
+                status=drf_status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Derive portal strictly from the authenticated user's role — never
+        # trust a client-supplied portal field (privilege escalation risk).
+        portal = _portal_for_user(request.user)
+        if portal is None:
+            return Response(
+                {"detail": "Your account role is not permitted to use the AI Guide."},
+                status=drf_status.HTTP_403_FORBIDDEN,
+            )
 
         try:
             result = _call_guide(message, portal)
