@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
+status: testing
 asana_gid: "1214177452645236"
-assigned_to: reviewer
+assigned_to: tester
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -74,3 +74,16 @@ Establish a baseline vulnerability posture across backend (pip), admin (npm), mo
 **Discovery filed:** `tasks/discoveries/2026-04-23-agent-app-quasar-capacitor-major-upgrade.md`
 
 **Note for reviewer:** `web_app/` directory does not exist (no `package.json` found) — the acceptance criteria referenced it but it appears the project uses `admin/` and `website/` instead. No action needed for `web_app/`.
+
+### 2026-04-23 — reviewer
+
+**Review passed.** Verified:
+- `pip-audit` backend clean (0 H/C).
+- `npm audit` admin: 0 H/C; website: 0 H/C; agent-app: 6 highs remaining (devDeps only, discovery filed at `tasks/discoveries/2026-04-23-agent-app-quasar-capacitor-major-upgrade.md`).
+- `.github/workflows/security.yml` — YAML parses (`yaml.safe_load` OK); runs on PR, push to main, and weekly cron `0 7 * * 1` (Monday 07:00 UTC); jobs: pip-audit, npm audit (admin, website, agent-app).
+- `.github/dependabot.yml` — YAML parses; weekly Monday schedule for pip (backend), npm (admin, website, agent-app), github-actions.
+- Agent-app CI uses `--audit-level=critical` with explicit TODO comment on lines 107–109 of `security.yml` referring to the follow-up discovery.
+- `docs/ops/dependency-audit-2026-04.md` captures baseline with per-project pre/post tables and deferred mediums.
+- Flutter apps (`mobile/`, `tenant_app/`) correctly excluded. `web_app/` does not exist — confirmed in handoff note.
+
+Handing off to tester.
