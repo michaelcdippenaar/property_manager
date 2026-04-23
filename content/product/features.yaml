@@ -59,6 +59,13 @@ features:
     key_files:
       - backend/apps/leases/builder_views.py
       - backend/apps/leases/template_views.py
+      - backend/apps/leases/merge_fields.py
+      - backend/apps/leases/rha_check.py
+      - backend/apps/leases/schema.py
+      - admin/src/views/leases/LeaseBuilderView.vue
+      - admin/src/views/leases/SubmitLeaseView.vue
+      - agent-app/src/pages/CreateLeasePage.vue
+      - agent-app/src/pages/CreateDirectLeasePage.vue
     headline: "AI Lease Generation"
     tagline: "RHA-compliant leases in minutes, not hours"
     description: >
@@ -101,8 +108,12 @@ features:
     category: leases
     backend_app: leases
     key_files:
+      - backend/apps/leases/template_views.py
       - admin/src/composables/useTiptapEditor.ts
+      - admin/src/composables/usePageBreaks.ts
       - admin/src/views/leases/TemplateEditorView.vue
+      - admin/src/views/leases/TiptapEditorView.vue
+      - admin/src/views/leases/LeaseTemplatesView.vue
     headline: "Rich Template Editor"
     tagline: "Full control over every clause"
     description: >
@@ -124,6 +135,8 @@ features:
     backend_app: leases
     key_files:
       - backend/apps/leases/clause_views.py
+      - admin/src/views/leases/LeaseBuilderView.vue
+      - services/tremly-mcp/lib/tools/clauses.mjs
     headline: "Clause Library"
     tagline: "Save, reuse, and AI-generate clauses"
     description: >
@@ -146,9 +159,21 @@ features:
     category: esigning
     backend_app: esigning
     key_files:
+      - backend/apps/esigning/models.py
       - backend/apps/esigning/views.py
+      - backend/apps/esigning/services.py
+      - backend/apps/esigning/consumers.py
+      - backend/apps/esigning/webhooks.py
+      - backend/apps/esigning/audit.py
+      - backend/apps/esigning/gotenberg.py
+      - backend/apps/esigning/serializers.py
       - admin/src/views/signing/PublicSignView.vue
       - admin/src/views/signing/SignatureCapture.vue
+      - admin/src/views/signing/SigningDocumentViewer.vue
+      - admin/src/views/leases/ESigningPanel.vue
+      - admin/src/composables/useESigningSocket.ts
+      - admin/src/composables/useGlobalSigningNotifications.ts
+      - tenant/src/views/esigning/LeaseSigningView.vue
     headline: "Native E-Signing"
     tagline: "Sign from any device, no account needed"
     description: >
@@ -171,7 +196,11 @@ features:
     category: maintenance
     backend_app: maintenance
     key_files:
-      - backend/apps/maintenance/supplier_matching.py
+      - backend/apps/maintenance/matching.py
+      - backend/apps/maintenance/supplier_views.py
+      - backend/apps/maintenance/supplier_serializers.py
+      - admin/src/views/suppliers/DirectoryView.vue
+      - admin/src/views/suppliers/DispatchView.vue
     headline: "Supplier Matching"
     tagline: "Best match, every time"
     description: >
@@ -192,7 +221,18 @@ features:
     category: maintenance
     backend_app: maintenance
     key_files:
+      - backend/apps/maintenance/models.py
       - backend/apps/maintenance/views.py
+      - backend/apps/maintenance/serializers.py
+      - backend/apps/maintenance/signals.py
+      - backend/apps/maintenance/tasks.py
+      - backend/apps/maintenance/notifications.py
+      - backend/apps/maintenance/agent_assist_views.py
+      - backend/apps/maintenance/monitor_views.py
+      - admin/src/views/maintenance/MaintenanceDetailView.vue
+      - admin/src/views/maintenance/RequestsView.vue
+      - admin/src/views/maintenance/SuppliersView.vue
+      - agent-app/src/pages/MaintenancePage.vue
     headline: "AI Maintenance Triage"
     tagline: "Report, classify, dispatch, resolve"
     description: >
@@ -214,8 +254,16 @@ features:
     category: tenant
     backend_app: null
     key_files:
-      - mobile/
-      - tenant_app/
+      - tenant/src/App.vue
+      - tenant/src/views/shell/AppShell.vue
+      - tenant/src/views/home/HomeView.vue
+      - tenant/src/views/issues/IssuesView.vue
+      - tenant/src/views/issues/ReportIssueView.vue
+      - tenant/src/views/leases/LeaseView.vue
+      - tenant/src/views/chat/ChatDetailView.vue
+      - tenant/src/views/esigning/LeaseSigningView.vue
+      - tenant/src/views/settings/SettingsView.vue
+      - backend/apps/tenant_portal/views.py
     headline: "Tenant Mobile App"
     tagline: "Everything tenants need, on their phone"
     description: >
@@ -237,6 +285,14 @@ features:
     backend_app: maintenance
     key_files:
       - backend/apps/maintenance/consumers.py
+      - backend/apps/maintenance/routing.py
+      - backend/apps/ai/guide_views.py
+      - backend/apps/ai/guide_tools.py
+      - backend/apps/ai/scrubber.py
+      - backend/apps/ai/tenant_context.py
+      - backend/apps/ai/skills_registry.py
+      - tenant/src/views/chat/ChatDetailView.vue
+      - tenant/src/views/chat/ChatListView.vue
     headline: "AI Tenant Chat"
     tagline: "Property-aware AI, always on"
     description: >
@@ -258,9 +314,14 @@ features:
     shipped_date: 2026-03-01
     product: rentals
     category: portals
-    backend_app: accounts
+    backend_app: properties
     key_files:
-      - admin/src/views/owner/
+      - backend/apps/properties/dashboard_service.py
+      - backend/apps/properties/dashboard_signals.py
+      - backend/apps/properties/dashboard_views.py
+      - backend/apps/properties/owner_views.py
+      - admin/src/views/owner/OwnerDashboard.vue
+      - admin/src/views/owner/OwnerPropertiesView.vue
     headline: "Owner Dashboard"
     tagline: "Real-time visibility into your investment"
     description: >
@@ -280,7 +341,16 @@ features:
     category: portals
     backend_app: maintenance
     key_files:
-      - admin/src/views/supplier/
+      - backend/apps/maintenance/supplier_views.py
+      - backend/apps/maintenance/supplier_serializers.py
+      - backend/apps/maintenance/models.py
+      - admin/src/views/supplier/CalendarView.vue
+      - admin/src/views/supplier/InvoicesView.vue
+      - admin/src/views/supplier/JobsListView.vue
+      - admin/src/views/supplier/SupplierProfileView.vue
+      - admin/src/views/suppliers/DirectoryView.vue
+      - admin/src/views/suppliers/DispatchView.vue
+      - admin/src/views/suppliers/SuppliersLayout.vue
     headline: "Supplier Portal"
     tagline: "Receive jobs, quote, manage your calendar"
     description: >
@@ -327,7 +397,14 @@ features:
     product: rentals
     category: financials
     backend_app: leases
-    key_files: []
+    key_files:
+      - backend/apps/leases/serializers.py
+      - backend/apps/leases/views.py
+      - backend/apps/payments/models.py
+      - backend/apps/payments/views.py
+      - backend/apps/payments/serializers.py
+      - backend/apps/payments/reconciliation.py
+      - tenant/src/views/leases/LeaseView.vue
     headline: "Rent Tracking"
     tagline: "Payment references, tracking and receipts"
     description: >
@@ -346,7 +423,13 @@ features:
     product: rentals
     category: leases
     backend_app: leases
-    key_files: []
+    key_files:
+      - backend/apps/leases/models.py
+      - backend/apps/leases/views.py
+      - backend/apps/leases/serializers.py
+      - backend/apps/leases/tasks.py
+      - admin/src/views/leases/LeaseCalendarView.vue
+      - admin/src/views/leases/LeaseOverviewView.vue
     headline: "Lease Renewal"
     tagline: "Auto-remind, negotiate, generate renewal"
     description: >
