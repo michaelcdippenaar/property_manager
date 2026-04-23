@@ -337,6 +337,11 @@ OTP_MAX_ISSUES_PER_HOUR = 5
 ESIGNING_PUBLIC_LINK_EXPIRY_DAYS = config("ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", default=14, cast=int)
 SIGNING_PUBLIC_APP_BASE_URL = config("SIGNING_PUBLIC_APP_BASE_URL", default="").strip().rstrip("/")
 
+# Tenant web-app base URL — used to build /invite/<token> links in tenant invite emails.
+# Defaults to localhost:5174 (Vite dev port for web_app). Set to the production
+# tenant web-app URL in staging/production (e.g. https://app.klikk.co.za).
+TENANT_APP_BASE_URL = config("TENANT_APP_BASE_URL", default="").strip().rstrip("/")
+
 # Gotenberg — Chromium-based HTML→PDF service (docker-compose: gotenberg on port 3000)
 GOTENBERG_URL = config("GOTENBERG_URL", default="http://localhost:3000")
 

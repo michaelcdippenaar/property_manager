@@ -200,7 +200,7 @@ onMounted(async () => {
     if (status === 410 && detail === 'invite_cancelled') {
       cancelledBy.value = e.response.data?.invited_by ?? 'your agent'
       state.value = 'cancelled'
-    } else if (detail?.includes('already been used') || detail?.includes('already exists')) {
+    } else if (detail?.includes('already been used')) {
       state.value = 'used'
     } else {
       // 400 "Invalid invite link." or anything else → 404-style

@@ -1,21 +1,24 @@
 """
-Integration tests for AcceptInviteView (GET + POST).
+Integration tests for AcceptInviteView (GET + POST) and invite URL generation.
 
 Covers:
   - Happy path: GET pre-fills email; POST creates user, returns JWT tokens
   - Expired (already-accepted) invite → 400
   - Cancelled invite → 410
   - Unknown / invalid token → 400
+  - URL-by-role branching: tenant → /invite/<token>; others → /accept-invite?token=
 
 Run with:
     cd backend && pytest apps/accounts/tests/test_invite_accept.py -v
 """
 import uuid
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import User, UserInvite
+from apps.accounts.admin_views import _build_invite_url
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -179,3 +182,55 @@ class AcceptInvitePostErrorTests(APITestCase):
         }
         resp = self.client.post(ACCEPT_URL, payload, format="json")
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+# ─────────────────────────────────────────────────────────────────
+# URL-by-role branching (_build_invite_url)
+# ─────────────────────────────────────────────────────────────────
+
+class BuildInviteUrlTests(APITestCase):
+    """Unit tests for _build_invite_url — asserts the correct host/path per role."""
+
+    def setUp(self):
+        self.inviter = _make_inviter()
+
+    @override_settings(TENANT_APP_BASE_URL="https://app.klikk.co.za")
+    def test_tenant_invite_uses_tenant_app_path_param(self):
+        invite = _make_invite(self.inviter, role="tenant")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertEqual(url, f"https://app.klikk.co.za/invite/{invite.token}")
+
+    @override_settings(TENANT_APP_BASE_URL="")
+    def test_tenant_invite_falls_back_to_localhost_5174(self):
+        invite = _make_invite(self.inviter, role="tenant")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertEqual(url, f"http://localhost:5174/invite/{invite.token}")
+
+    def test_agent_invite_uses_admin_accept_invite_query_param(self):
+        invite = _make_invite(self.inviter, role="agent")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertEqual(url, f"https://admin.klikk.co.za/accept-invite?token={invite.token}")
+
+    def test_owner_invite_uses_admin_accept_invite_query_param(self):
+        invite = _make_invite(self.inviter, role="owner")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertEqual(url, f"https://admin.klikk.co.za/accept-invite?token={invite.token}")
+
+    def test_supplier_invite_uses_admin_accept_invite_query_param(self):
+        invite = _make_invite(self.inviter, role="supplier")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertEqual(url, f"https://admin.klikk.co.za/accept-invite?token={invite.token}")
+
+    def test_tenant_url_contains_path_token_not_query_param(self):
+        """Tenant URL must use path-param form, not ?token= query-param form."""
+        invite = _make_invite(self.inviter, role="tenant")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertIn(f"/invite/{invite.token}", url)
+        self.assertNotIn("?token=", url)
+
+    def test_non_tenant_url_contains_query_param_not_path_segment(self):
+        """Non-tenant URLs must use ?token= form, not /invite/<token> path form."""
+        invite = _make_invite(self.inviter, role="agent")
+        url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
+        self.assertIn(f"?token={invite.token}", url)
+        self.assertNotIn("/invite/", url)

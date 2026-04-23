@@ -138,11 +138,31 @@ def _resolve_base_url(request):
     return origin or getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
 
 
+def _build_invite_url(invite, admin_base_url):
+    """Return the correct accept-invite URL for the given invite role.
+
+    Tenants land on the tenant web-app at ``/invite/<token>`` (path-param form).
+    All other roles (agent, owner, supplier, admin, viewer …) land on the admin
+    SPA at ``/accept-invite?token=<token>`` (query-param form), which is the
+    route already declared in admin/src/router/index.ts.
+    """
+    from django.conf import settings
+
+    if invite.role == "tenant":
+        tenant_base = (
+            getattr(settings, "TENANT_APP_BASE_URL", "").strip().rstrip("/")
+            or "http://localhost:5174"
+        )
+        return f"{tenant_base}/invite/{invite.token}"
+
+    return f"{admin_base_url}/accept-invite?token={invite.token}"
+
+
 def _send_invite_email(invite, sender_name, base_url, first_name=""):
     """Send (or re-send) the branded invite email for a UserInvite."""
     from apps.notifications.services import send_email
 
-    invite_url = f"{base_url}/invite/{invite.token}"
+    invite_url = _build_invite_url(invite, admin_base_url=base_url)
     greeting_line = f"Hi {first_name}," if first_name else "Hi there,"
     role_display = invite.role.replace("_", " ").capitalize()
 
