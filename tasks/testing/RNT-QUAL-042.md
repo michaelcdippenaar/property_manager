@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214227864198350"
 created: 2026-04-23
@@ -46,3 +46,5 @@ Restrict `TenantConversationsListCreateView` (and sibling tenant portal views) s
 2026-04-23 rentals-pm: Promoted from discovery `2026-04-23-tenant-portal-not-restricted-to-tenants.md`. Discovered during QA-009. Low data-leakage risk (scoped by user) but junk-data and potential unhandled exception in `build_tenant_context` for non-tenant users make this worth fixing before launch.
 
 2026-04-23 implementer: Applied `IsTenantOrAgent` permission class (already existed in `apps/accounts/permissions.py`) to all four tenant portal views: `TenantConversationsListCreateView`, `TenantConversationDetailView`, `TenantConversationMaintenanceDraftView`, and `TenantConversationMessageCreateView`. Guarded `build_tenant_context` call in the message view behind a `request.user.role == TENANT` check so agents using support tooling never hit the missing-lease path. Replaced the loose `test_supplier_conversation_is_scoped_to_supplier` test (which allowed 201) with four stricter tests: supplier POST 403, supplier GET 403, owner POST 403, owner GET 403. All 5 tests pass (`pytest tests/integration/test_rbac_matrix.py -k "tenant_portal" -v --reuse-db`).
+
+2026-04-23 reviewer: Review passed. Verified all six acceptance criteria against commit c9e1138. `IsTenantOrAgent` (TENANT + all agent variants, excludes OWNER/SUPPLIER) correctly applied to all four tenant portal views. `build_tenant_context` guard uses `request.user.role == _User.Role.TENANT` — correct and safe. Four new strict 403 assertions cover supplier POST/GET and owner POST/GET; existing positive-path tests for tenant (200 list) and agent (200 list) remain intact. No raw SQL, no PII logging, no auth bypass. Minor style note: `User` model is imported inline at line 1148 of `views.py` rather than at module level — `apps.accounts` is already imported in the same file so a top-level import would be cleaner, but this is a cosmetic issue only and does not affect correctness or security.
