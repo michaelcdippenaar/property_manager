@@ -7,12 +7,12 @@ lifecycle_stage: 11
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177140664256"
 assigned_to: null
 depends_on: []
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-23
 ---
 
 ## Goal
