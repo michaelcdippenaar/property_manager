@@ -1598,7 +1598,7 @@
         </div>
         <div>
           <label class="label">ID / Passport number</label>
-          <input v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" />
+          <input v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" data-clarity-mask="true" />
         </div>
 
         <div class="border-t border-gray-200 pt-4 mt-4">

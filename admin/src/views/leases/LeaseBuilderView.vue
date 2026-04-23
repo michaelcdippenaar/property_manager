@@ -451,7 +451,7 @@ const PersonBlock = defineComponent({
           h('input', { class: props.hasError && !p.full_name ? errCls : cls, value: p.full_name, placeholder: 'Full name *', onInput: (e: any) => upd('full_name', e.target.value) }),
         ]),
         h('div', [
-          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', onInput: (e: any) => upd('id_number', e.target.value) }),
+          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
         h('div', [
           h('input', { class: cls, value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),

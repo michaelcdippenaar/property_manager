@@ -119,7 +119,7 @@
             :src="pdfUrl"
             class="flex-1 w-full"
             style="border:none;"
-            data-clarity-mask="True"
+            data-clarity-mask="true"
           />
         </div>
 
@@ -511,7 +511,7 @@ const PersonBlock = defineComponent({
         ]),
         h('div', [
           h('label', { class: 'label' }, 'ID / Passport'),
-          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID number', onInput: (e: any) => upd('id_number', e.target.value) }),
+          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID number', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
         h('div', [
           h('label', { class: 'label' }, 'Phone'),

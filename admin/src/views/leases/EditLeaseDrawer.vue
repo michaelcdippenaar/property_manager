@@ -177,7 +177,7 @@
                   </div>
                   <div>
                     <label class="label">ID / Passport</label>
-                    <input v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" />
+                    <input v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" data-clarity-mask="true" />
                   </div>
                   <div>
                     <label class="label">Phone</label>
@@ -201,7 +201,7 @@
                 </div>
                 <div>
                   <label class="label">ID / Passport</label>
-                  <input v-model="newTenant.id_number" class="input font-mono" />
+                  <input v-model="newTenant.id_number" class="input font-mono" data-clarity-mask="true" />
                 </div>
                 <div>
                   <label class="label">Phone</label>
@@ -313,7 +313,7 @@
                 </div>
                 <div>
                   <label class="label">ID / Passport</label>
-                  <input v-model="newGuarantor.id_number" class="input font-mono" />
+                  <input v-model="newGuarantor.id_number" class="input font-mono" data-clarity-mask="true" />
                 </div>
                 <div>
                   <label class="label">Phone</label>

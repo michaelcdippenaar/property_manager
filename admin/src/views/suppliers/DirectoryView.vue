@@ -231,11 +231,11 @@
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label class="label">Account number</label>
-                <input v-model="form.account_number" class="input" placeholder="62012345678" />
+                <input v-model="form.account_number" class="input" placeholder="62012345678" data-clarity-mask="true" />
               </div>
               <div>
                 <label class="label">Branch code</label>
-                <input v-model="form.branch_code" class="input" placeholder="250655" />
+                <input v-model="form.branch_code" class="input" placeholder="250655" data-clarity-mask="true" />
               </div>
             </div>
           </div>

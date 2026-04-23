@@ -81,7 +81,7 @@
                 :class="{ 'input-error': fieldErrors.password }"
                 placeholder="Min. 8 characters"
                 autocomplete="new-password"
-                data-clarity-mask="True"
+                data-clarity-mask="true"
               />
               <button
                 type="button"

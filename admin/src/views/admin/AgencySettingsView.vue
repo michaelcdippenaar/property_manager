@@ -105,11 +105,11 @@
             </div>
             <div>
               <label class="label">Account number</label>
-              <input v-model="form.trust_account_number" type="text" class="input" placeholder="Trust account number" />
+              <input v-model="form.trust_account_number" type="text" class="input" placeholder="Trust account number" data-clarity-mask="true" />
             </div>
             <div>
               <label class="label">Branch code</label>
-              <input v-model="form.trust_branch_code" type="text" class="input" placeholder="e.g. 250655" />
+              <input v-model="form.trust_branch_code" type="text" class="input" placeholder="e.g. 250655" data-clarity-mask="true" />
             </div>
           </div>
         </div>

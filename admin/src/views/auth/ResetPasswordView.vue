@@ -11,11 +11,11 @@
           <form @submit.prevent="handleReset" class="space-y-4">
             <div>
               <label for="reset-password" class="label">New password</label>
-              <input id="reset-password" v-model="password" type="password" class="input" placeholder="Min 8 characters" minlength="8" required autocomplete="new-password" data-clarity-mask="True" />
+              <input id="reset-password" v-model="password" type="password" class="input" placeholder="Min 8 characters" minlength="8" required autocomplete="new-password" data-clarity-mask="true" />
             </div>
             <div>
               <label for="reset-confirm-password" class="label">Confirm password</label>
-              <input id="reset-confirm-password" v-model="confirm" type="password" class="input" placeholder="Repeat password" required autocomplete="new-password" data-clarity-mask="True" />
+              <input id="reset-confirm-password" v-model="confirm" type="password" class="input" placeholder="Repeat password" required autocomplete="new-password" data-clarity-mask="true" />
             </div>
             <div v-if="error" role="alert" class="flex items-center gap-2 p-3 bg-danger-50 border border-danger-100 rounded-lg text-danger-700 text-sm">
               <AlertCircle :size="15" aria-hidden="true" />

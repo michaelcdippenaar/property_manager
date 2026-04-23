@@ -105,7 +105,7 @@
           </div>
           <div>
             <label class="label">SA ID / Passport</label>
-            <input v-model="form.representative_id_number" class="input font-mono" data-clarity-mask="True" />
+            <input v-model="form.representative_id_number" class="input font-mono" data-clarity-mask="true" />
           </div>
           <div>
             <label class="label">Phone</label>
@@ -129,11 +129,11 @@
           </div>
           <div>
             <label class="label">Branch code</label>
-            <input v-model="form.bank_details.branch_code" class="input font-mono" placeholder="250655" />
+            <input v-model="form.bank_details.branch_code" class="input font-mono" placeholder="250655" data-clarity-mask="true" />
           </div>
           <div>
             <label class="label">Account number</label>
-            <input v-model="form.bank_details.account_number" class="input font-mono" data-clarity-mask="True" />
+            <input v-model="form.bank_details.account_number" class="input font-mono" data-clarity-mask="true" />
           </div>
           <div>
             <label class="label">Account type</label>

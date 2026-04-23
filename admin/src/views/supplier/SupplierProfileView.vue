@@ -80,8 +80,8 @@
           </div>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="label text-xs">Account number</label><input v-model="profile.account_number" class="input" /></div>
-          <div><label class="label text-xs">Branch code</label><input v-model="profile.branch_code" class="input" /></div>
+          <div><label class="label text-xs">Account number</label><input v-model="profile.account_number" class="input" data-clarity-mask="true" /></div>
+          <div><label class="label text-xs">Branch code</label><input v-model="profile.branch_code" class="input" data-clarity-mask="true" /></div>
         </div>
       </div>
 

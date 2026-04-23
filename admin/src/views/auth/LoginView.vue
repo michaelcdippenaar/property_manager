@@ -36,7 +36,7 @@
                 class="input pr-10"
                 placeholder="••••••••"
                 required
-                data-clarity-mask="True"
+                data-clarity-mask="true"
               />
               <button
                 type="button"

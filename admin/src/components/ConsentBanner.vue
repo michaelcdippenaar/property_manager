@@ -17,9 +17,9 @@
             movement, and screen content — sensitive fields (passwords, ID
             numbers, bank details) are automatically hidden.
             <a
-              href="/privacy"
+              href="https://www.klikk.co.za/privacy"
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               class="consent-banner__link"
             >Privacy policy</a>.
           </p>

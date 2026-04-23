@@ -804,7 +804,7 @@
               class="w-full flex-1 bg-white shadow-md border-0 rounded"
               style="min-height: 800px;"
               title="Template PDF preview"
-              data-clarity-mask="True"
+              data-clarity-mask="true"
             />
           </div>
 

@@ -47,15 +47,15 @@
       <h3 class="font-semibold text-gray-900">Change Password</h3>
       <div v-if="hasPassword">
         <label class="label">Current password</label>
-        <input v-model="pwForm.current_password" type="password" class="input" />
+        <input v-model="pwForm.current_password" type="password" class="input" data-clarity-mask="true" />
       </div>
       <div>
         <label class="label">New password</label>
-        <input v-model="pwForm.new_password" type="password" class="input" placeholder="Min 8 characters" />
+        <input v-model="pwForm.new_password" type="password" class="input" placeholder="Min 8 characters" data-clarity-mask="true" />
       </div>
       <div>
         <label class="label">Confirm new password</label>
-        <input v-model="pwConfirm" type="password" class="input" />
+        <input v-model="pwConfirm" type="password" class="input" data-clarity-mask="true" />
       </div>
       <div v-if="pwMsg" :class="pwMsgError ? 'text-danger-600' : 'text-success-600'" class="text-sm">
         {{ pwMsg }}

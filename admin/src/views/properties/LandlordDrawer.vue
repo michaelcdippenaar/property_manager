@@ -63,7 +63,7 @@
             </div>
             <div>
               <label class="label">ID number</label>
-              <input v-model="local.representative_id_number" class="input font-mono" />
+              <input v-model="local.representative_id_number" class="input font-mono" data-clarity-mask="true" />
             </div>
             <div>
               <label class="label">Email</label>
@@ -150,11 +150,11 @@
             </div>
             <div>
               <label class="label">Account no.</label>
-              <input v-model="ba.account_number" class="input input-sm font-mono" />
+              <input v-model="ba.account_number" class="input input-sm font-mono" data-clarity-mask="true" />
             </div>
             <div>
               <label class="label">Branch code</label>
-              <input v-model="ba.branch_code" class="input input-sm font-mono" />
+              <input v-model="ba.branch_code" class="input input-sm font-mono" data-clarity-mask="true" />
             </div>
             <div>
               <label class="label">Type</label>

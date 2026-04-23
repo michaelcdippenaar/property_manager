@@ -104,7 +104,7 @@
                 minlength="8"
                 required
                 autocomplete="new-password"
-                data-clarity-mask="True"
+                data-clarity-mask="true"
               />
               <button
                 type="button"
