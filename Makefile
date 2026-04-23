@@ -11,3 +11,4 @@ compile-emails:
 check-emails:
 	@bash scripts/compile_email_templates.sh --check
 # Test comment - OPS-022 cache verification
+# Second test comment - OPS-022 cache verification round 2
