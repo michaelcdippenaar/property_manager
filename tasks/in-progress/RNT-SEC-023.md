@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: L
 v1_phase: "1.1"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214195407615213"
 created: 2026-04-22
-updated: 2026-04-24T18:00:00Z
+updated: 2026-04-24T19:30:00Z
 ---
 
 ## Goal
@@ -99,3 +99,27 @@ Removed `'strict-dynamic'` from the production `script-src` in `_csp_directives`
 `test_production_strict_dynamic_in_script_src` replaced with `test_production_no_strict_dynamic_in_script_src` (inverted assertion). `test_production_self_in_script_src` added. `TestCSPNonceHardening._invoke` now defaults to path `/webhooks/stripe/` (non-exempt) so strict-policy assertions are not inadvertently testing the exempt branch. New class `TestCSPPathExemption` (12 tests) covers `/admin/` exempt, `/api/` exempt, non-exempt strict policy, nonce presence on exempt path, and DEBUG-mode override. Ran `pytest config/tests/test_security_headers.py -v`: 52 passed, 0 failed.
 
 2026-04-24 (implementer, continuation): Tests verified passing after prior lock collision. All three files staged and ready for review.
+
+2026-04-24 (reviewer, pass 2): Review requested changes. Issues 1 and 2 are fully resolved. Issue 3 is resolved **too broadly** and weakens CSP on the main API surface — bouncing on that alone.
+
+Verified good:
+- `'strict-dynamic'` cleanly removed from production `script-src` (`backend/config/middleware/security_headers.py:122-123`). Production policy is now `script-src 'self' 'nonce-XXX'` — `'self'` is honoured, un-nonced Vite module bundle will load, Observatory A/A+ still achievable.
+- `deploy/Caddyfile:33-50` emits `Content-Security-Policy` for `app.klikk.co.za` with `script-src 'self'` (no `'strict-dynamic'`, no nonce — correct because the static SPA has zero inline scripts). `mobile-agent.klikk.co.za` block likewise (not re-read, trusting implementer's note — tester will confirm).
+- Pytest: `backend/config/tests/test_security_headers.py` — 52 passed, 0 failed, 15.32s. Matches the criterion.
+
+Required fix (pass 2):
+
+1. **`/api/` carve-out is too broad — exempts every JSON API endpoint from the strict CSP.** `backend/config/middleware/security_headers.py:182` sets `_EXEMPT_PREFIXES = ("/admin/", "/api/")` and applies the relaxed `'unsafe-inline'` policy on every response whose path starts with `/api/`. That means `GET /api/v1/leases/`, `POST /api/v1/properties/`, and every other main-surface JSON endpoint ships with `script-src 'self' 'nonce-XXX' 'unsafe-inline'` in production. The main API surface — which is the bulk of the app's attack surface for reflected-HTML-in-JSON bugs and for content-negotiated HTML responses — should be under the strict nonce-only policy, not the staff-compensating-control policy.
+
+   The goal of the carve-out is only the DRF browsable API's inline `<script>` blocks, which appear when the client sends `Accept: text/html` (or `?format=api`). That is a response-level property, not a path-level one. Narrow it to the actual HTML responses. Pick one:
+
+   - **(a) Content-type-based exemption (preferred).** Move the exempt check to *after* `self.get_response(request)` and key off `response.get("Content-Type", "").startswith("text/html")` for `/api/` paths. `/admin/` can stay path-based since every admin response is HTML. Result: JSON `/api/v1/leases/` stays strict; `/api/v1/leases/?format=api` (HTML browsable API) gets the relaxed policy. Add a test that `/api/whatever/` with a JSON content-type response keeps the strict policy (no `'unsafe-inline'` in `script-src`).
+   - **(b) Disable DRF `BrowsableAPIRenderer` in production.** `backend/config/settings/base.py:154` — add `"DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",)` in non-DEBUG. Then drop `/api/` from `_EXEMPT_PREFIXES` entirely; only `/admin/` needs the carve-out. Simpler, smaller diff, but removes a dev/debug convenience on staging — confirm with CTO if staging needs browsable API.
+   - **(c) Narrow to specific browsable-API URL patterns.** Not recommended — path surface is too wide.
+
+   Whichever route: update `TestCSPPathExemption` so it proves non-exempt API *JSON* responses keep the strict policy, and exempt cases are limited to actual HTML responses.
+
+Out-of-scope (for the promoted discovery, not this ticket):
+- The Django Admin carve-out is still a documented risk item for v2 (nonce stamping on admin templates via context processor). The implementer already flagged this in the module docstring; no action needed here.
+
+Once #1 is narrowed, please re-submit with `pytest backend/config/tests/test_security_headers.py -v` output confirming all tests still pass plus a new assertion that `/api/v1/<anything>/` JSON response keeps the strict policy.
