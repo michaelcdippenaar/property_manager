@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
+status: done
 asana_gid: "1214177452645236"
-assigned_to: tester
+assigned_to: null
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -87,3 +87,19 @@ Establish a baseline vulnerability posture across backend (pip), admin (npm), mo
 - Flutter apps (`mobile/`, `tenant_app/`) correctly excluded. `web_app/` does not exist — confirmed in handoff note.
 
 Handing off to tester.
+
+### 2026-04-23 — tester
+
+**Test run**
+
+| Check | Result |
+|---|---|
+| `pip-audit -r backend/requirements.txt` | PASS — "No known vulnerabilities found" |
+| `npm audit --audit-level=high` (admin/) | PASS — exit 0, 0 H/C (2 moderate: esbuild/vite dev-server, deferred) |
+| `npm audit --audit-level=high` (website/) | PASS — exit 0, 0 vulnerabilities |
+| `npm audit --audit-level=critical` (agent-app/) | PASS — exit 0; 6 highs present but all devDeps, threshold correctly set to critical per discovery |
+| `yaml.safe_load('.github/workflows/security.yml')` | PASS — parses OK |
+| `yaml.safe_load('.github/dependabot.yml')` | PASS — parses OK |
+| `docs/ops/dependency-audit-2026-04.md` exists and non-empty | PASS — 144 lines, 5264 bytes |
+
+All 7 checks pass. agent-app 6 remaining highs are devDeps requiring major version bumps; CI threshold correctly uses `--audit-level=critical` with a TODO comment referencing the follow-up discovery. No regressions observed.
