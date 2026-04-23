@@ -104,6 +104,13 @@ const router = createRouter({
       meta: { requiresAuth: true, depth: 2 },
     },
 
+    {
+      path: '/privacy/my-data',
+      name: 'my-data',
+      component: () => import('../views/privacy/MyDataView.vue'),
+      meta: { requiresAuth: true, depth: 2 },
+    },
+
     // Catch-all
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],

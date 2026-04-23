@@ -168,6 +168,7 @@ const router = createRouter({
         { path: 'testing/runs', name: 'TestingRuns', component: () => import('../views/testing/TestingRunsView.vue'), meta: { title: 'Test Runs' } },
         { path: 'testing/selfcheck', name: 'TestingSelfCheck', component: () => import('../views/testing/TestingSelfCheckView.vue'), meta: { title: 'Self Check' } },
         { path: 'admin/devops', name: 'admin-devops', component: () => import('../views/admin/DevOpsView.vue'), meta: { title: 'DevOps' } },
+        { path: 'compliance/dsar-queue', name: 'dsar-queue', component: () => import('../views/compliance/DSARQueueView.vue'), meta: { title: 'DSAR Queue', roles: ['admin', 'agency_admin'] } },
         { path: 'components', name: 'component-library', component: () => import('../views/admin/ComponentsView.vue'), meta: { title: 'Component Library' } },
       ],
     },

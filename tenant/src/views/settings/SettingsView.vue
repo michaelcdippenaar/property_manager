@@ -35,6 +35,13 @@
             <span class="flex-1 text-sm font-medium text-gray-900">AI Assistant</span>
             <ChevronRight :size="16" class="text-gray-300" />
           </div>
+          <div class="list-row touchable" @click="router.push({ name: 'my-data' })">
+            <div class="list-row-icon bg-gray-100">
+              <ShieldCheck :size="18" class="text-gray-500" />
+            </div>
+            <span class="flex-1 text-sm font-medium text-gray-900">My data (POPIA)</span>
+            <ChevronRight :size="16" class="text-gray-300" />
+          </div>
         </div>
       </div>
 
@@ -57,7 +64,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { ChevronRight, LogOut, FileText, MessageCircle } from 'lucide-vue-next'
+import { ChevronRight, LogOut, FileText, MessageCircle, ShieldCheck } from 'lucide-vue-next'
 import AppHeader from '../../components/AppHeader.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
