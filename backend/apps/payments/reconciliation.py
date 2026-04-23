@@ -1,5 +1,5 @@
 """
-Rent reconciliation engine — RNT-QUAL-004.
+Rent reconciliation engine — RNT-QUAL-004 / RNT-005.
 
 All mutations go through these functions so that:
   - Invoice status is always consistent with payment totals.
@@ -19,14 +19,28 @@ assign_unmatched(unmatched, invoice, *, actor, payment_date, source, payer_name)
 
 carry_credit_forward(old_invoice, new_invoice, *, actor)
     When an overpaid invoice rolls into the next cycle, transfer the credit.
+
+ingest_bank_payment(amount, payment_date, reference, *, payer_name, actor)
+    Auto-match an incoming bank payment to a lease by payment_reference.
+    Returns (RentPayment, None) on match, or (None, UnmatchedPayment) on miss.
+
+flag_arrears(as_of_date, *, grace_days)
+    Return queryset of RentInvoice rows that are past-due by at least grace_days.
+
+generate_receipt(invoice)
+    Return a dict representing a payment receipt for a fully-paid invoice.
+    Raises ValueError if the invoice is not fully paid.
 """
 
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
+from django.conf import settings
 from django.db import transaction
+from django.db.models import QuerySet
 from django.utils import timezone
 
 from .models import PaymentAuditLog, RentInvoice, RentPayment, UnmatchedPayment
@@ -338,6 +352,240 @@ def carry_credit_forward(
     )
 
     return credit
+
+
+# ── RNT-005: Reference-based auto-match ──────────────────────────────────── #
+
+
+@transaction.atomic
+def ingest_bank_payment(
+    amount: Decimal,
+    payment_date: datetime.date,
+    reference: str,
+    *,
+    payer_name: str = "",
+    source: str = RentPayment.SOURCE_TENANT,
+    actor=None,
+) -> tuple[RentPayment | None, UnmatchedPayment | None]:
+    """
+    Auto-match an incoming bank deposit to a lease by ``payment_reference``.
+
+    Match algorithm
+    ---------------
+    1. Look for an ACTIVE lease whose ``payment_reference`` matches ``reference``
+       (case-insensitive, stripped).  The most recent open invoice (status in
+       unpaid/partially_paid) on that lease is targeted.
+    2. If exactly one match is found, apply the payment normally.
+    3. If zero or >1 matches, quarantine as UnmatchedPayment for operator review.
+
+    Returns
+    -------
+    (RentPayment, None)      — successful auto-match
+    (None, UnmatchedPayment) — no/ambiguous match; operator action required
+    """
+    from apps.leases.models import Lease
+
+    clean_ref = reference.strip()
+
+    if not clean_ref:
+        # Empty reference — always unmatched
+        um = UnmatchedPayment.objects.create(
+            amount=amount,
+            payment_date=payment_date,
+            reference=reference,
+            payer_name=payer_name,
+        )
+        _log(
+            PaymentAuditLog.EntityType.UNMATCHED,
+            um.pk,
+            "ingest_unmatched",
+            actor=actor,
+            detail={"reason": "empty_reference", "amount": str(amount)},
+        )
+        return None, um
+
+    matching_leases = Lease.objects.filter(
+        payment_reference__iexact=clean_ref,
+        status=Lease.Status.ACTIVE,
+    )
+
+    if matching_leases.count() != 1:
+        um = UnmatchedPayment.objects.create(
+            amount=amount,
+            payment_date=payment_date,
+            reference=reference,
+            payer_name=payer_name,
+        )
+        reason = "no_match" if matching_leases.count() == 0 else "ambiguous_match"
+        _log(
+            PaymentAuditLog.EntityType.UNMATCHED,
+            um.pk,
+            "ingest_unmatched",
+            actor=actor,
+            detail={"reason": reason, "reference": clean_ref, "amount": str(amount)},
+        )
+        return None, um
+
+    lease = matching_leases.get()
+
+    # Find the oldest open invoice (unpaid or partially_paid) on this lease
+    open_invoice = (
+        RentInvoice.objects.filter(
+            lease=lease,
+            status__in=[RentInvoice.Status.UNPAID, RentInvoice.Status.PARTIALLY_PAID],
+        )
+        .order_by("period_start")
+        .first()
+    )
+
+    if open_invoice is None:
+        # No open invoice — quarantine (could be advance payment or duplicate)
+        um = UnmatchedPayment.objects.create(
+            amount=amount,
+            payment_date=payment_date,
+            reference=reference,
+            payer_name=payer_name,
+        )
+        _log(
+            PaymentAuditLog.EntityType.UNMATCHED,
+            um.pk,
+            "ingest_unmatched",
+            actor=actor,
+            detail={
+                "reason": "no_open_invoice",
+                "lease_id": lease.pk,
+                "reference": clean_ref,
+                "amount": str(amount),
+            },
+        )
+        return None, um
+
+    payment = apply_payment(
+        open_invoice,
+        amount,
+        payment_date=payment_date,
+        reference=reference,
+        payer_name=payer_name,
+        source=source,
+        actor=actor,
+    )
+    return payment, None
+
+
+# ── RNT-005: Arrears flagging ─────────────────────────────────────────────── #
+
+#: Default grace period in days before a late invoice is considered arrears.
+#: Override via settings.RENT_ARREARS_GRACE_DAYS.
+_DEFAULT_ARREARS_GRACE_DAYS: int = 3
+
+
+def flag_arrears(
+    as_of_date: datetime.date | None = None,
+    *,
+    grace_days: int | None = None,
+) -> QuerySet:
+    """
+    Return a QuerySet of RentInvoice rows that are in arrears.
+
+    An invoice is in arrears when::
+
+        due_date + grace_days < as_of_date  AND  status in (unpaid, partially_paid)
+
+    Parameters
+    ----------
+    as_of_date:
+        Reference date.  Defaults to today (UTC).
+    grace_days:
+        Days after due_date before the invoice counts as arrears.
+        Falls back to ``settings.RENT_ARREARS_GRACE_DAYS`` (default 3).
+
+    Returns
+    -------
+    QuerySet[RentInvoice]  (not yet evaluated — callers may further filter/annotate)
+    """
+    if as_of_date is None:
+        as_of_date = timezone.now().date()
+
+    if grace_days is None:
+        grace_days = getattr(settings, "RENT_ARREARS_GRACE_DAYS", _DEFAULT_ARREARS_GRACE_DAYS)
+
+    arrears_threshold = as_of_date - datetime.timedelta(days=grace_days)
+
+    return RentInvoice.objects.filter(
+        status__in=[RentInvoice.Status.UNPAID, RentInvoice.Status.PARTIALLY_PAID],
+        due_date__lt=arrears_threshold,
+    )
+
+
+# ── RNT-005: Receipt generation ───────────────────────────────────────────── #
+
+
+def generate_receipt(invoice: RentInvoice) -> dict:
+    """
+    Return a dict representing a payment receipt for a fully-paid invoice.
+
+    Raises
+    ------
+    ValueError
+        If the invoice is not in ``paid`` or ``overpaid`` status (i.e. not
+        fully settled).
+
+    Receipt dict keys
+    -----------------
+    invoice_id, lease_id, lease_number,
+    period_start, period_end,
+    amount_due, amount_paid, credit_balance, balance_remaining,
+    status, due_date,
+    payments: list of payment summaries,
+    generated_at
+    """
+    invoice.refresh_from_db()
+    if invoice.status not in (RentInvoice.Status.PAID, RentInvoice.Status.OVERPAID):
+        raise ValueError(
+            f"Cannot generate receipt for invoice #{invoice.pk}: "
+            f"status is '{invoice.status}' (must be 'paid' or 'overpaid')."
+        )
+
+    cleared_payments = invoice.payments.filter(status=RentPayment.Status.CLEARED).order_by("payment_date")
+
+    payment_lines = [
+        {
+            "payment_id": p.pk,
+            "amount": str(p.amount),
+            "payment_date": p.payment_date.isoformat(),
+            "reference": p.reference,
+            "payer_name": p.payer_name,
+            "source": p.source,
+        }
+        for p in cleared_payments
+    ]
+
+    lease = invoice.lease
+    receipt = {
+        "invoice_id": invoice.pk,
+        "lease_id": invoice.lease_id,
+        "lease_number": getattr(lease, "lease_number", None) or str(invoice.lease_id),
+        "period_start": invoice.period_start.isoformat(),
+        "period_end": invoice.period_end.isoformat(),
+        "amount_due": str(invoice.amount_due),
+        "amount_paid": str(invoice.amount_paid),
+        "credit_balance": str(invoice.credit_balance),
+        "balance_remaining": str(invoice.balance_remaining),
+        "status": invoice.status,
+        "due_date": invoice.due_date.isoformat(),
+        "payments": payment_lines,
+        "generated_at": timezone.now().isoformat(),
+    }
+
+    _log(
+        PaymentAuditLog.EntityType.INVOICE,
+        invoice.pk,
+        "receipt_generated",
+        lease_id=invoice.lease_id,
+        detail={"amount_paid": str(invoice.amount_paid)},
+    )
+
+    return receipt
 
 
 # ── Notification helpers ──────────────────────────────────────────────────── #
