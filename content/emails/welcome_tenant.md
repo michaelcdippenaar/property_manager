@@ -2,7 +2,7 @@
 template_id: welcome_tenant
 subject: "Welcome to Klikk — your tenant account is ready"
 heading: "Welcome to Klikk"
-cta_label: "View your lease"
+cta_label: "Go to your portal"
 cta_url_key: "portal_url"
 ---
 
