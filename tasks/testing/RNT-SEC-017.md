@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-22
@@ -46,3 +46,12 @@ Promoted from discovery: `2026-04-22-totp-accountant-viewer-roles.md` (RNT-SEC-0
 - No DB migration needed: `TOTP_REQUIRED_ROLES` is a Python set constant, not persisted to the database.
 - Added `AccountantViewerTOTPGateTests` class to `backend/apps/test_hub/accounts/integration/test_2fa.py` with 8 tests covering both roles across in-grace, past-grace (hard-blocked), enrolled (two_fa_required), and successful TOTP verify flows.
 - All 37 tests in the 2FA suite pass (0 regressions).
+
+**2026-04-23 — reviewer (approved)**
+1. `TOTP_REQUIRED_ROLES` in `backend/apps/accounts/models.py` lines 446-447 confirmed: `User.Role.ACCOUNTANT` and `User.Role.VIEWER` both present.
+2. 8 new tests in `AccountantViewerTOTPGateTests` cover all four branches per role: in-grace (access + enroll flag), past-grace (hard-blocked, no access token), enrolled (two_fa_required + two_fa_token, no access), and full TOTP verify flow (access + refresh tokens issued). Test structure mirrors existing `LoginTwoFAGateTests` — consistent with codebase conventions.
+3. No DB migration required — confirmed `TOTP_REQUIRED_ROLES` is a Python set constant.
+4. Security pass: no new endpoints introduced; change is purely additive to the set constant; no raw SQL, no PII logged, no secrets. Auth gate logic not modified — only the membership set widens.
+5. No regressions flagged — implementer reports all 37 2FA suite tests pass.
+
+Review passed.
