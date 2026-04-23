@@ -81,12 +81,7 @@ jobs:
           SECRET_KEY: ci-test-secret-key-not-used-in-production
           DEBUG: "True"
           ALLOWED_HOSTS: "localhost,127.0.0.1"
-        run: |
-          pytest --tb=short -q \
-            --cov=apps \
-            --cov-report=term-missing \
-            --cov-report=html:htmlcov \
-            --cov-report=xml:coverage.xml
+        run: pytest --tb=short -q
 
       - name: Upload coverage HTML report
         if: always()
@@ -208,6 +203,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: email-templates/package-lock.json
 
       - name: Make scripts executable
         run: chmod +x scripts/compile_email_templates.sh
