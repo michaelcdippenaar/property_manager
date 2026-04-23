@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214241211323911"
 created: 2026-04-23
@@ -57,3 +57,12 @@ Remove hardcoded real credentials (`mc@tremly.com` / `Number55dip`) from the `im
 - Build verified: `quasar build -m spa` succeeds with no errors.
 - Grep tests pass: no `Number55dip` or hardcoded `mc@tremly.com` in source code.
 - **Note on password rotation:** Code fix assumes MC has pre-rotated the password in staging/production per the P0 priority. History cleanup (git filter-repo) deferred per acceptance criteria.
+
+2026-04-24 rentals-reviewer: Review passed. Checked:
+- LoginPage.vue lines 119-132: no `mc@tremly.com` / `Number55dip` literals; pre-fill correctly gated on `import.meta.env.DEV && VITE_DEV_LOGIN_EMAIL` (empty fallback). Opt-in double-gate is the right pattern.
+- admin/src/views/auth/LoginView.vue and tenant/src/views/auth/LoginView.vue: no DEV pre-fill, no hardcoded creds (grep clean).
+- agent-app/.env.development.example: `VITE_DEV_LOGIN_EMAIL` / `VITE_DEV_LOGIN_PASSWORD` present (commented) with explicit WARNING never to commit real creds.
+- scripts/check_hardcoded_credentials.sh: regex `ref(.*@.*\.com` tested against the original pattern `ref(import.meta.env.DEV ? 'mc@tremly.com' : '')` — matches. Wired into .pre-commit-config.yaml as a local hook scoped to `\.(vue|ts|tsx)$`.
+- `git log -p -S 'Number55dip'` at HEAD: only the removal commit 2aaa96a9 shows it. Source tree clean.
+- Out-of-scope find: `admin/src/views/leases/ESigningPanel.vue:839` has a dummy default signer `email: 'mc@tremly.com'` — logged as discovery `2026-04-24-esigning-panel-dummy-email-default.md`. Not a credential exposure, does not block this task.
+- Reminder: rotating the live password for `mc@tremly.com` in staging/production remains an MC action; history rewrite deferred per AC.
