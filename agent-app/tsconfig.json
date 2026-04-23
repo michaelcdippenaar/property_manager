@@ -1,6 +1,8 @@
 {
-  "extends": "@quasar/app-vite/tsconfig-preset",
   "compilerOptions": {
+    "module": "Preserve",
+    "strict": true,
+    "lib": ["es2022", "dom"],
     "baseUrl": ".",
     "paths": {
       "src/*": ["src/*"],
@@ -11,5 +13,10 @@
       "stores/*": ["src/stores/*"],
       "boot/*": ["src/boot/*"]
     }
-  }
+  },
+  "include": [
+    "./**/*.d.ts",
+    "src/**/*.ts",
+    "src/**/*.vue"
+  ]
 }

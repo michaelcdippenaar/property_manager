@@ -1,12 +1,18 @@
 /* eslint-env node */
-const { configure } = require('quasar/wrappers')
+import { configure } from 'quasar/wrappers'
+import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+
+// Load .env file for the current NODE_ENV (optional — falls back to process.env / CI)
+const require = createRequire(import.meta.url)
 try {
-  require('dotenv').config({ path: `.env.${process.env.NODE_ENV || 'development'}` })
+  const dotenv = require('dotenv')
+  dotenv.config({ path: `.env.${process.env.NODE_ENV || 'development'}` })
 } catch {
   /* dotenv optional — use process.env / CI */
 }
 
-module.exports = configure(function (/* ctx */) {
+export default configure(function (/* ctx */) {
   return {
     boot: [
       'axios',

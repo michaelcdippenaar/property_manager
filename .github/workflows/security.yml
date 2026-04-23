@@ -98,13 +98,7 @@ jobs:
           cache-dependency-path: agent-app/package-lock.json
 
       - name: Install dependencies
-        # legacy-peer-deps needed until capacitor/quasar major-version alignment
-        # (tracked in RNT-SEC-010 handoff notes)
-        run: npm ci --legacy-peer-deps --audit=false
+        run: npm ci --audit=false
 
       - name: npm audit (high + critical only)
-        # Known-unresolvable highs pending @quasar/app-vite + @capacitor/cli
-        # major upgrade (separate follow-up task). Temporarily allow up to 6
-        # highs until that task lands.
-        # TODO: remove --audit-level=critical when follow-up is complete
-        run: npm audit --audit-level=critical
+        run: npm audit --audit-level=high
