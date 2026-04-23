@@ -15,11 +15,12 @@ from decimal import Decimal
 from unittest.mock import MagicMock, patch, PropertyMock
 
 
-pytestmark = pytest.mark.unit
+# ── rha_check module ──────────────────────────────────────────────────────
+# Unit tests (no DB) have pytestmark=unit applied per-class below.
+# Integration tests use pytest.mark.django_db directly.
+# ──────────────────────────────────────────────────────────────────────── #
 
-
-# ── rha_check module ──────────────────────────────────────────────────── #
-
+@pytest.mark.unit
 class TestRhaCheckModule:
     """Unit tests for rha_check.run_rha_checks() — no DB required."""
 
@@ -194,6 +195,7 @@ class TestRhaCheckModule:
 
 # ── Lease model methods ───────────────────────────────────────────────── #
 
+@pytest.mark.unit
 class TestLeaseModelMethods:
     """Unit tests for Lease.assert_rha_ready() and record_rha_override()."""
 
@@ -317,6 +319,7 @@ class TestLeaseModelMethods:
 
 # ── RNT-015: escalation_clause / renewal_clause / domicilium_address ──── #
 
+@pytest.mark.unit
 class TestRhaMandatoryClauseFields:
     """
     Tests for RNT-015 — the three new RHA s5(3) mandatory clause fields.
@@ -465,3 +468,176 @@ class TestRhaMandatoryClauseFields:
                 assert key in flag, f"Flag missing key '{key}': {flag}"
             assert flag["severity"] == "blocking"
             assert "RHA" in flag["section"]
+
+
+# ── View endpoint integration tests ──────────────────────────────────────
+# RNT-SEC-024: verify that the rha-check and rha-override API endpoints
+# return the correct response shape and enforce role-based access control.
+# ──────────────────────────────────────────────────────────────────────── #
+
+@pytest.mark.integration
+@pytest.mark.django_db
+class TestRhaCheckEndpoints:
+    """
+    Integration tests for:
+      GET  /api/v1/leases/{id}/rha-check/
+      POST /api/v1/leases/{id}/rha-override/
+
+    Verifies:
+    1. rha-check response keys are ``flags``, ``blocking``, ``advisory``,
+       ``override`` (NOT ``rha_flags`` / ``rha_override`` — the mis-named keys
+       that caused the frontend to silently see no flags in eed71cb).
+    2. rha-override requires agency_admin or staff; tenant → 403.
+    3. rha-override requires a non-empty reason; blank → 400.
+    4. agency_admin can record a valid override.
+    """
+
+    def _make_db_lease(self, tc, *, with_blocking_flag=False):
+        """Create a minimal DB lease suitable for endpoint testing."""
+        from datetime import date, timedelta
+        from decimal import Decimal
+
+        agent = tc.create_agent(email="rha-agent@test.com")
+        unit = tc.create_unit()
+        kwargs = {
+            "start_date": date.today(),
+            "end_date": date.today() + timedelta(days=365),
+            "monthly_rent": Decimal("8000.00"),
+            "deposit": Decimal("16000.00"),
+            "status": "pending",
+            "notice_period_days": 30,
+            "escalation_clause": "CPI-linked annual escalation.",
+            "renewal_clause": "Renewable on mutual written agreement.",
+            "domicilium_address": "1 Test Road, Stellenbosch, 7600",
+        }
+        if with_blocking_flag:
+            # Introduce a blocking flag: rent = 0
+            kwargs["monthly_rent"] = Decimal("0.00")
+        return tc.create_lease(unit=unit, **kwargs)
+
+    def test_rha_check_response_keys(self, tremly, api_client):
+        """GET rha-check must return flags/blocking/advisory/override keys."""
+        lease = self._make_db_lease(tremly)
+        admin = tremly.create_user(
+            email="admin-rha@test.com", role="agency_admin"
+        )
+        api_client.force_authenticate(user=admin)
+        resp = api_client.get(f"/api/v1/leases/{lease.pk}/rha-check/")
+        assert resp.status_code == 200
+        data = resp.json()
+        # These are the keys the frontend reads — they must exist
+        assert "flags" in data, "Response must contain 'flags' key"
+        assert "blocking" in data, "Response must contain 'blocking' key"
+        assert "advisory" in data, "Response must contain 'advisory' key"
+        assert "override" in data, "Response must contain 'override' key"
+        # Must NOT contain the old mis-named keys
+        assert "rha_flags" not in data, (
+            "Response must NOT contain deprecated 'rha_flags' key — "
+            "frontend reads 'flags' (RNT-SEC-024 fix)"
+        )
+        assert "rha_override" not in data, (
+            "Response must NOT contain deprecated 'rha_override' key — "
+            "frontend reads 'override' (RNT-SEC-024 fix)"
+        )
+
+    def test_rha_check_returns_blocking_for_incomplete_lease(self, tremly, api_client):
+        """rha-check on a lease with zero rent returns at least one blocking flag."""
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        admin = tremly.create_user(
+            email="admin-blocking@test.com", role="agency_admin"
+        )
+        api_client.force_authenticate(user=admin)
+        resp = api_client.get(f"/api/v1/leases/{lease.pk}/rha-check/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["blocking"]) > 0, "Expected at least one blocking flag for zero-rent lease"
+
+    def test_rha_override_tenant_is_rejected(self, tremly, api_client):
+        """Tenant-role user → POST rha-override must return 403."""
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        tenant = tremly.create_tenant(email="tenant-override@test.com")
+        api_client.force_authenticate(user=tenant)
+        resp = api_client.post(
+            f"/api/v1/leases/{lease.pk}/rha-override/",
+            {"reason": "should be blocked"},
+            format="json",
+        )
+        assert resp.status_code == 403, (
+            f"Tenant must be rejected with 403 (got {resp.status_code})"
+        )
+
+    def test_rha_override_agent_is_rejected(self, tremly, api_client):
+        """Agent (non-admin) role → POST rha-override must return 403."""
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        agent = tremly.create_agent(email="agent-override@test.com")
+        api_client.force_authenticate(user=agent)
+        resp = api_client.post(
+            f"/api/v1/leases/{lease.pk}/rha-override/",
+            {"reason": "should be blocked"},
+            format="json",
+        )
+        assert resp.status_code == 403, (
+            f"Agent must be rejected with 403 (got {resp.status_code})"
+        )
+
+    def test_rha_override_empty_reason_rejected(self, tremly, api_client):
+        """agency_admin with empty reason → 400."""
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        admin = tremly.create_user(
+            email="admin-empty-reason@test.com", role="agency_admin"
+        )
+        api_client.force_authenticate(user=admin)
+        resp = api_client.post(
+            f"/api/v1/leases/{lease.pk}/rha-override/",
+            {"reason": ""},
+            format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_rha_override_agency_admin_succeeds(self, tremly, api_client):
+        """agency_admin with blocking flags and a valid reason → 200, override recorded."""
+        from decimal import Decimal
+
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        # Run a check first so rha_flags is populated
+        lease.refresh_rha_flags()
+
+        admin = tremly.create_user(
+            email="admin-override-ok@test.com", role="agency_admin"
+        )
+        api_client.force_authenticate(user=admin)
+        resp = api_client.post(
+            f"/api/v1/leases/{lease.pk}/rha-override/",
+            {"reason": "Landlord confirmed verbal waiver — proceeds at own risk"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Backend returns { detail, override } — verify correct key
+        assert "override" in data, "rha-override response must contain 'override' key"
+        assert data["override"]["reason"] == "Landlord confirmed verbal waiver — proceeds at own risk"
+        assert "user_email" in data["override"]
+        assert "overridden_at" in data["override"]
+
+    def test_rha_override_response_key_is_override_not_rha_override(self, tremly, api_client):
+        """
+        POST rha-override must return 'override' key (not 'rha_override').
+        This test pins the contract that the Vue submitOverride() function relies on
+        (fixed in RNT-SEC-024 — eed71cb shipped with the wrong key name).
+        """
+        lease = self._make_db_lease(tremly, with_blocking_flag=True)
+        lease.refresh_rha_flags()
+
+        admin = tremly.create_user(
+            email="admin-key-check@test.com", role="agency_admin"
+        )
+        api_client.force_authenticate(user=admin)
+        resp = api_client.post(
+            f"/api/v1/leases/{lease.pk}/rha-override/",
+            {"reason": "Contract key shape test"},
+            format="json",
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "override" in data, "Key must be 'override', not 'rha_override'"
+        assert "rha_override" not in data, "Deprecated key 'rha_override' must not appear"

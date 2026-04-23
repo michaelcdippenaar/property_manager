@@ -193,8 +193,8 @@
           </div>
         </li>
       </ul>
-      <!-- Override — staff / agency_admin only -->
-      <div v-if="!showOverrideForm" class="pt-1">
+      <!-- Override — staff / agency_admin only (hidden from lower-role users) -->
+      <div v-if="canRecordOverride && !showOverrideForm" class="pt-1">
         <button
           class="text-xs text-danger-500 hover:text-danger-700 underline underline-offset-2 transition-colors"
           @click="showOverrideForm = true"
@@ -202,7 +202,7 @@
           Override as authorised user (reason required)
         </button>
       </div>
-      <div v-else class="space-y-2 pt-1 border-t border-danger-200">
+      <div v-else-if="canRecordOverride && showOverrideForm" class="space-y-2 pt-1 border-t border-danger-200">
         <label class="label text-danger-700">Override reason *</label>
         <textarea
           v-model="overrideReason"
@@ -438,8 +438,16 @@ import BaseModal from '../../components/BaseModal.vue'
 import { useESigningSocket } from '../../composables/useESigningSocket'
 import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { usePersonsStore } from '../../stores/persons'
+import { useAuthStore } from '../../stores/auth'
 
 const personsStore = usePersonsStore()
+const authStore = useAuthStore()
+
+/** Only staff and agency_admin users may record an RHA override. */
+const canRecordOverride = computed(() => {
+  const role = authStore.user?.role ?? ''
+  return role === 'agency_admin' || role === 'admin'
+})
 
 // ── Document type config ─────────────────────────────────────────────── //
 const SIGNER_DOC_TYPES = [
@@ -641,8 +649,9 @@ async function loadRhaFlags() {
   if (!props.leaseId) return
   try {
     const { data } = await api.get(`/leases/${props.leaseId}/rha-check/`)
-    rhaFlags.value = data.rha_flags ?? []
-    rhaOverride.value = data.rha_override ?? null
+    // Backend returns { flags, blocking, advisory, override } — map to local refs
+    rhaFlags.value = data.flags ?? []
+    rhaOverride.value = data.override ?? null
   } catch {
     // Silent — RHA check is a best-effort pre-flight; don't block the panel
   }
@@ -656,7 +665,8 @@ async function submitOverride() {
     const { data } = await api.post(`/leases/${props.leaseId}/rha-override/`, {
       reason: overrideReason.value.trim(),
     })
-    rhaOverride.value = data.rha_override
+    // Backend returns { detail, override } — map to local ref
+    rhaOverride.value = data.override
     showOverrideForm.value = false
     overrideReason.value = ''
   } catch (e: any) {
