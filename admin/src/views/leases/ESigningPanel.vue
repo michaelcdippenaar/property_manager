@@ -439,6 +439,7 @@ import { useESigningSocket } from '../../composables/useESigningSocket'
 import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { usePersonsStore } from '../../stores/persons'
 import { useAuthStore } from '../../stores/auth'
+import { trackEvent } from '../../plugins/plausible'
 
 const personsStore = usePersonsStore()
 const authStore = useAuthStore()
@@ -544,6 +545,7 @@ const { connected: wsConnected } = useESigningSocket(
       if (event.signed_pdf_url) {
         latestSub.value.signed_pdf_url = event.signed_pdf_url
       }
+      trackEvent('first_lease_signed')
       loadSubmissions()
       emit('signed')
     } else if (event.type === 'signer_completed') {

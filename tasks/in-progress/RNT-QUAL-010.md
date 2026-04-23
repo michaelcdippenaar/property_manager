@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: backlog
+status: in-progress
 asana_gid: "1214177309739070"
-assigned_to: null
+assigned_to: implementer
 depends_on: [UX-005]
 created: 2026-04-22
 updated: 2026-04-22

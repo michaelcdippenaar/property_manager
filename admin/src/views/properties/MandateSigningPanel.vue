@@ -135,6 +135,7 @@ import api from '../../api'
 import { useESigningSocket } from '../../composables/useESigningSocket'
 import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { useToast } from '../../composables/useToast'
+import { trackEvent } from '../../plugins/plausible'
 
 const props = defineProps<{ submissionId: number }>()
 const { showToast } = useToast()
@@ -160,6 +161,7 @@ const { connected: wsConnected } = useESigningSocket(
     if (event.type === 'submission_completed') {
       submission.value.status = 'completed'
       if (event.signed_pdf_url) submission.value.signed_pdf_url = event.signed_pdf_url
+      trackEvent('first_mandate_signed')
       load()
       emit('signed')
     } else if (event.type === 'signer_completed') {

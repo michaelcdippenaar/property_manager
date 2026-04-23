@@ -359,6 +359,7 @@ import ErrorState from '../../components/states/ErrorState.vue'
 import AddressAutocomplete from '../../components/AddressAutocomplete.vue'
 import type { AddressResult } from '../../components/AddressAutocomplete.vue'
 import { extractApiError } from '../../utils/api-errors'
+import { trackEvent } from '../../plugins/plausible'
 import { PROPERTY_TYPES, PROPERTY_TYPE_VALUES } from '../../constants/property'
 import { useLandlordsStore } from '../../stores/landlords'
 import { usePropertiesStore } from '../../stores/properties'
@@ -584,6 +585,8 @@ async function createProperty() {
   }
 
   saving.value = true
+  // Capture count before creation so we can detect the "first property" moment.
+  const wasFirstProperty = properties.value.length === 0
   try {
     const created = await propertiesStore.create(newProperty.value)
 
@@ -599,6 +602,10 @@ async function createProperty() {
         }
         throw ownershipErr
       }
+    }
+
+    if (wasFirstProperty) {
+      trackEvent('first_property_created')
     }
 
     dialog.value = false

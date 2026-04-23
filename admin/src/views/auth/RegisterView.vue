@@ -46,7 +46,7 @@
             type="button"
             class="btn-primary w-full justify-center py-2.5"
             :disabled="!form.account_type"
-            @click="step = 2"
+            @click="step = 2; trackEvent('signup_started', { account_type: form.account_type })"
           >
             Continue
           </button>
@@ -193,6 +193,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useGoogleAuth } from '../../composables/useGoogleAuth'
 import { Eye, EyeOff, AlertCircle, Loader2, Building2, Home, ChevronLeft } from 'lucide-vue-next'
 import api from '../../api'
+import { trackEvent } from '../../plugins/plausible'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -289,6 +290,9 @@ async function handleRegister() {
       tos_document_id: tosDocumentId.value,
       privacy_document_id: privacyDocumentId.value,
     })
+    // Fire conversion event before redirect so plausible.js has a chance to
+    // drain the stub queue. The stub buffers it if the script hasn't loaded yet.
+    trackEvent('signup_completed', { account_type: form.account_type || 'individual' })
     // After registration + auto-login, redirect to dashboard
     router.push(auth.homeRoute)
   } catch (e: any) {
