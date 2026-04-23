@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214221203782966"
 created: 2026-04-23
-updated: 2026-04-23T14:30:00
+updated: 2026-04-23T15:00:00
 ---
 
 ## Goal
@@ -66,3 +66,7 @@ Changes:
 - `backend/tests/integration/test_rbac_matrix.py`: Added `test_owner_cannot_patch_maintenance_request` (asserts 403 on PATCH) and `test_owner_cannot_post_maintenance_request` (asserts 403 on POST) to `TestOwnerReadOnly`.
 
 Test results: `TestMaintenanceRBAC` 13/13 passed + `TestOwnerReadOnly` 6/6 passed (including 2 new tests) — 19/19 total, no regressions.
+
+2026-04-23 rentals-reviewer: Review passed (round 2).
+
+Checked: dead `_WRITE_ACTIONS` constant removed from `MaintenanceRequestViewSet`; `update`/`partial_update`/`destroy` branch now correctly returns `[IsAgentOrAdmin()]`; `create` retains `IsTenantOrAgent` preserving tenant POST access; `LeaseViewSet` uses `_WRITE_ACTIONS` via `get_permissions()` correctly covering all four mutating actions; two new `TestOwnerReadOnly` tests assert strict 403 for owner PATCH and POST on maintenance; no raw SQL, no PII logged, all queries parameterised via ORM; POPIA pass clean. All five acceptance criteria satisfied with no regressions reported.
