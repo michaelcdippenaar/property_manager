@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: done
 depends_on: []
 asana_gid: "1214237287752937"
 created: 2026-04-22
@@ -43,3 +43,7 @@ The fix — `_isolate_throttle_cache` autouse fixture inside `TestPublicSignMinu
 Smoke-check: `pytest apps/esigning/ apps/test_hub/esigning/ -v` ran clean — 243 passed, 0 failed, all 17 rate-limit tests passed.
 
 All three acceptance criteria are satisfied by the existing implementation. Forwarding to review as-is.
+
+### 2026-04-23 — reviewer
+
+Review passed. Verified `_isolate_throttle_cache` autouse fixture present at lines 72-104 of `backend/apps/test_hub/esigning/unit/test_rate_limits.py`: LocMemCache with location `"throttle-tests"` (AC1 satisfied via equivalent per-class fixture rather than decorator — acceptable), `SimpleRateThrottle.THROTTLE_RATES` patched with yield teardown. Implementer confirmed all 17 rate-limit tests pass (243 total, 0 failed). Task is test-only code, no security surface, no tester handoff required. Closed as done — superseded by RNT-QUAL-032 which already shipped the fix.
