@@ -78,17 +78,17 @@ PLANNED stages shown greyed: Notice · Screening · Deposit · Move-Out · Move-
 
 **Voice-over:**
 "Every tenancy follows the same cycle — from signing a mandate with the owner, through
-finding and screening tenants, to lease signing, rent collection, maintenance, and renewal.
-Klikk tracks each step so nothing gets missed."
+booking viewings, lease signing, rent collection, maintenance, and renewal.
+Tenant screening and advertising are coming soon. Klikk tracks each step so nothing gets missed."
 
 **On-screen text:**
 The rental cycle — 15 stages, circular.
 Pink = live today. Grey = coming soon.
 
 **Caption:**
-[Every tenancy follows the same cycle — from signing a mandate with the owner, through finding
-and screening tenants, to lease signing, rent collection, maintenance, and renewal. Klikk tracks
-each step so nothing gets missed.]
+[Every tenancy follows the same cycle — from signing a mandate with the owner, through booking
+viewings, lease signing, rent collection, maintenance, and renewal. Tenant screening and
+advertising are coming soon. Klikk tracks each step so nothing gets missed.]
 
 ---
 
@@ -129,8 +129,8 @@ Highlight tap targets with a brief pink ripple each time.
 
 **Voice-over:**
 "Your first step is adding a property. Tap Properties, then the plus button. Enter the address
-and save. Once a property is in Klikk, you can sign the mandate with the owner, list it, and
-book viewings — all without leaving your phone."
+and save. Once it's in, sign the mandate with the owner and book your first viewing —
+all without leaving your phone."
 
 **On-screen text:**
 Step 1: Add your first property.
@@ -138,8 +138,8 @@ Properties → + → Save.
 
 **Caption:**
 [Your first step is adding a property. Tap Properties, then the plus button. Enter the address
-and save. Once a property is in Klikk, you can sign the mandate with the owner, list it, and
-book viewings — all without leaving your phone.]
+and save. Once it's in, sign the mandate with the owner and book your first viewing —
+all without leaving your phone.]
 
 ---
 
@@ -155,7 +155,7 @@ appear one at a time (stagger 0.3 s each):
 
 Below that: "Help is always one tap away — tap the ? icon in the app."
 
-Final frame: App Store / Google Play badge pair, bottom-centre. Hold for 4 s.
+Final frame: App Store / Google Play badge pair, bottom-centre. Hold for 3 s.
 
 **Voice-over:**
 "To get going: add your first property, invite the owner to sign the mandate digitally,

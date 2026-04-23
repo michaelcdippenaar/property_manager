@@ -55,18 +55,16 @@ name and address. The Signed badge (green tick) is shown clearly.
 Zoom in on the Signed badge for a beat, then pull back to show the full summary card.
 
 **Voice-over:**
-"Your lease is saved here. You can read it any time — the rent amount, your move-in date,
-and the end date of your fixed-term agreement. If you ever have a question about what
-you signed, the answer is in this app."
+"Your lease is saved here. Read it any time — your rent amount, move-in date, and end
+date are all there. Questions about what you signed? The answer is in this app."
 
 **On-screen text:**
 Your lease — always accessible.
 Rent · Dates · Your signed copy.
 
 **Caption:**
-[Your lease is saved here. You can read it any time — the rent amount, your move-in date, and
-the end date of your fixed-term agreement. If you ever have a question about what you signed,
-the answer is in this app.]
+[Your lease is saved here. Read it any time — your rent amount, move-in date, and end date are
+all there. Questions about what you signed? The answer is in this app.]
 
 ---
 
@@ -135,9 +133,8 @@ Below that: "Questions? Chat to us in the app."
 Final frame: App Store / Google Play badge pair. Hold 3 s.
 
 **Voice-over:**
-"Start by reading through your lease — it's the first tab. Then try logging a maintenance
-job, even a small one, so you know how it works before you really need it.
-Welcome home."
+"Start with your lease — it's the first tab. Then log a quick maintenance job, so you
+know how it works before you need it. Welcome home."
 
 **On-screen text:**
 Your next 5 minutes:
@@ -147,8 +144,8 @@ Your next 5 minutes:
 Questions? Open the AI chat.
 
 **Caption:**
-[Start by reading through your lease — it's the first tab. Then try logging a maintenance job,
-even a small one, so you know how it works before you really need it. Welcome home.]
+[Start with your lease — it's the first tab. Then log a quick maintenance job, so you know
+how it works before you need it. Welcome home.]
 
 ---
 

@@ -7,9 +7,9 @@ lifecycle_stage: null
 priority: P1
 effort: L
 v1_phase: "1.0"
-status: review
+status: in-progress
 asana_gid: "1214177462154266"
-assigned_to: reviewer
+assigned_to: implementer
 depends_on: []
 created: 2026-04-22
 updated: 2026-04-23
@@ -89,3 +89,35 @@ Give tenants, owners, and prospects a self-service way to request a copy of thei
 4. PDF export (as opposed to JSON zip) is not implemented — the AC says "JSON + PDF summary" but producing a PDF requires Gotenberg integration. The ZIP contains machine-readable JSON. The README.txt inside provides a human-readable summary. A discovery has been dropped below.
 
 **Discovery:** `tasks/discoveries/2026-04-23-popia-pdf-export.md` — Gotenberg PDF generation for the SAR export is out of scope for v1 but worth scheduling as a v1.1 improvement.
+
+### 2026-04-23 — reviewer — changes requested
+
+Compliance-critical review. Strong implementation overall — models, tombstone logic, atomic erasure, hash-chained audit events (via RNT-SEC-008), RBAC (admin + agency_admin only, NOT agent), denial-reason validation, bottom-sheet tenant confirmation, admin "cannot be undone" warning, and 30 green tests. The following must be addressed before testing.
+
+**Must-fix:**
+
+1. **Download token is not bound to the requesting user.** `backend/apps/popia/views.py` `ExportDownloadView` sets `permission_classes = []` and `authentication_classes = []` — anyone holding the token can download the ZIP. The acceptance criteria in the task brief explicitly require "signed download tokens: 7-day TTL, signed (tamper-proof), **bound to requesting user (can't be shared)**". Either (a) require the data subject to be authenticated and verify `job.dsar_request.requester == request.user` before serving the file, or (b) add a second authentication factor to the download (e.g. re-confirm via one-time email code, or require login + token). Random-secret alone is not "bound to user" — it is bearer. Add a test that asserts a different authenticated user presenting a valid token gets 403/404.
+
+2. **Token is not single-use in practice.** The docstring claims "Token is single-use by design (invalidated after download)" but the code never marks the token consumed after `FileResponse`. Either implement single-use by setting `job.status = CONSUMED` (or clearing `archive_path`) after stream start, or remove the misleading docstring. A re-issuable 7-day link is fine but the claim must match behaviour.
+
+3. **Download file is served via `open(zip_path, "rb")` without a file handle close guarantee** if `FileResponse` fails mid-stream. Not a security issue, but use `FileResponse` with path directly (Django handles closure) or wrap in context manager.
+
+**Should-fix (promote to discovery if you prefer, but note in handoff):**
+
+4. **Export scope is missing a few PII-bearing tables** listed in the review brief. Current export includes profile, leases, payments, maintenance, audit events (as actor). It omits: `OTPAuditLog`, notification/email delivery logs, `AuditEvent` rows where user appears only in `after_snapshot`/`target_repr` (not as actor), and any comms threads. The brief explicitly called out "audit events where they are the data subject" — currently you only include events where `actor=user`. Add a second query: events where `target_repr` references the user or `after_snapshot` contains the user's id/email. Log as a discovery if out of scope for v1, but the current README.txt claims "all personal information" which is now overstated.
+
+5. **No legal-hold pre-check on RTBF approval.** An operator can approve an RTBF while the user still has an `active` lease. This is acceptable per "operator judgment" design, but consider surfacing active-lease/retention flags in the review modal so the operator sees them before clicking approve. Fine to drop as discovery.
+
+6. **`is_anonymised` field referenced via `hasattr` guard** (implementer note #3) — the tombstone works, but without the field you cannot query/filter anonymised users, and the admin queue could surface tombstoned accounts. Open a follow-up task (or discovery) for the accounts migration.
+
+7. **SAR approval path in `DSARReviewView` is a no-op** because the export auto-runs at submission and the request is pre-set to `IN_REVIEW`. Either remove SAR from the operator-review code path (SARs never need approval, they auto-fulfil), or flip the SAR flow to require approval before `run_export_job_async` fires. Current state is confusing: operator can "approve" a SAR that's already been fulfilled.
+
+**Good to see:**
+- Atomic `@transaction.atomic` on `execute_erasure`.
+- OutstandingToken/OTPCode/PushToken revocation inside tombstone.
+- Denial-reason required via serializer-level validation.
+- `requester_email` denormalised for post-tombstone audit trail.
+- Retention statement embedded in the ZIP's README.txt with POPIA s23 citation and Information Officer contact.
+- Tests cover anonymous access, cross-user isolation, duplicate prevention, expired token, RTBF→tombstone end-to-end, audit-event assertions.
+
+Fix items 1–3, then either close 4–7 inline or drop discoveries and link them here. Back to you.
