@@ -1360,6 +1360,7 @@ class TenantConversationMessageCreateView(APIView):
             "maintenance_report_suggested": maintenance_report_suggested,
             "interaction_type": interaction_type,
             "severity": severity,
+            "needs_staff_input": needs_staff_input,
             "skills_used": skills_used,
             **_linked_payload(),
         }
