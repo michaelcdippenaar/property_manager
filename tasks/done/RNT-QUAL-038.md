@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214229778497908"
 created: 2026-04-23
@@ -57,3 +57,5 @@ All 11 tests now pass. No regressions — the 4 already-passing auth/config test
 4. Happy path image + PDF tests updated to use `_fake_tool_use_response()` — consistent with `tool_use`-based flow.
 5. All 11 tests pass locally (confirmed by running the suite — `11 passed, 12 warnings in 22.39s`).
 Security pass: endpoint retains `IsAuthenticated` + `IsAgentOrAdmin` permissions, no PII logged, no raw SQL, file input validated before use. The dead `file_block is None` guard is left in place as a defensive fallback — acceptable. No scope creep, no regressions detected.
+
+2026-04-23 — rentals-tester: All 11 tests pass. pytest apps/test_hub/properties/integration/test_municipal_bill_view.py -v — 11 passed, 0 failed.
