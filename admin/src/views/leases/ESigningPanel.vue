@@ -834,10 +834,19 @@ async function openLandlordSigningLink() {
 function buildDefaultSigners(): DraftSigner[] {
   const tenants = props.leaseTenants ?? []
   if (!tenants.length) {
-    // Pre-populated test defaults (remove before production)
-    return [
-      { name: 'Marius du Plessis', email: 'mc@tremly.com', phone: '0821234567', role: 'Tenant', send_email: true },
-    ]
+    // Dev-only stub — no signer pre-filled in production builds
+    if (import.meta.env.DEV && import.meta.env.VITE_DEV_SIGNER_EMAIL) {
+      return [
+        {
+          name:       import.meta.env.VITE_DEV_SIGNER_NAME  || 'Dev Signer',
+          email:      import.meta.env.VITE_DEV_SIGNER_EMAIL,
+          phone:      import.meta.env.VITE_DEV_SIGNER_PHONE || '',
+          role:       'Tenant',
+          send_email: true,
+        },
+      ]
+    }
+    return []
   }
   const signers: DraftSigner[] = tenants.map((t, i) => ({
     name:               t.person?.full_name ?? t.full_name ?? '',
