@@ -425,4 +425,3 @@ def on_maintenance_activity(sender, instance, created: bool, **kwargs):
             },
             category="chat",
         )
-
