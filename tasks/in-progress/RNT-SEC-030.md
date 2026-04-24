@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214202102067961"
 created: 2026-04-22
@@ -60,3 +60,35 @@ Changes made:
 - `backend/apps/test_hub/accounts/integration/test_2fa.py`: Replaced old `AccountantViewerTOTPGateTests` (which tested the wrong behaviour) with `AccountantViewerNoTOTPGateTests` and added `OwnerOptional2FATests` (6 new tests covering first-login prompt, skip persistence, skip endpoint, non-optional-role rejection, enrolled owner flow).
 
 All 39 tests pass. No regressions in existing agent/admin TOTP gate tests.
+
+**2026-04-24 — rentals-reviewer: Review requested changes.**
+
+Backend implementation is correct and DEC-018-aligned. Role matrix, login branches, skip endpoint, migration, and test coverage all verified. All 39 tests pass locally. However, the task is incomplete: the PM scoped frontend guards into this ticket, and zero frontend files were touched.
+
+What I verified and approved backend-side:
+- `TOTP_REQUIRED_ROLES` = {ADMIN, AGENCY_ADMIN, AGENT, MANAGING_AGENT, ESTATE_AGENT} — matches DEC-018.
+- `TOTP_OPTIONAL_ROLES` = {OWNER} — matches DEC-018.
+- `backend/apps/accounts/views.py:141-152` — owner optional branch issues full JWTs and toggles `two_fa_suggest_setup` based on `skipped_2fa_setup_at`. JWT claims do NOT carry a permanent 2FA-bypass flag — confirmed via `RefreshToken.for_user(user)` with no custom claims.
+- `Skip2FASetupView` (`backend/apps/accounts/views.py:311-330`) — `IsAuthenticated`, 400s non-optional roles, stamps `skipped_2fa_setup_at`, idempotent.
+- Required-role login gate (`views.py:100-131`) unchanged: in-grace returns tokens + enroll flag; past-grace returns no tokens. Existing tests cover both.
+- Migration `0021_add_skipped_2fa_setup_at.py` — single clean file (nullable DateTimeField, no data ops). `git log --follow` shows it was authored in commit 044fbf25 (RNT-QUAL-052) — only one copy exists, no duplication.
+- Test coverage: `AccountantViewerNoTOTPGateTests` (accountant/viewer → full tokens, no flags) + `OwnerOptional2FATests` (6 cases: first-login prompt, post-skip flag cleared, skip endpoint stamps, agent-cannot-skip 400, enrolled owner still gets 2FA challenge, owner in OPTIONAL set). Tenant bypass covered by pre-existing `test_tenant_login_no_totp_returns_full_tokens`.
+- Secrets hygiene / no PII logging / no raw SQL — clean.
+
+Numbered fixes required:
+
+1. **admin/src/stores/auth.ts** — after a login response, handle `two_fa_suggest_setup: true` on the success path (owner role). When present, set a store flag (e.g. `suggestTwoFASetup`) that the router can read. Also expose an action `skipTwoFASetup()` that POSTs to `/auth/2fa/skip/` and clears the flag.
+
+2. **admin/src/views/auth/LoginView.vue** — after successful login, if `two_fa_suggest_setup === true`, redirect to `/auth/setup-2fa` (TwoFAEnrollView) with a "Skip for now" control. Hitting "Skip for now" must call the store `skipTwoFASetup()` action then proceed to the portal. Do not force the redirect otherwise.
+
+3. **admin/src/views/auth/TwoFAEnrollView.vue** — add a visible "Skip for now" button that is only shown when the current user is in the optional-2FA branch (store flag from #1). Hidden for required-2FA users (must not let them skip).
+
+4. **agent-app/src/stores/auth.ts + agent-app/src/pages/LoginPage.vue + agent-app/src/pages/TwoFAEnrollPage.vue** — mirror the three changes above. Most agent-app users are `agent` (required), but an owner can sign in on agent-app; the same optional path needs handling there too. If the product decision is "agent-app is strictly staff and owners don't log in there", state that explicitly in handoff notes and skip this file — otherwise implement it.
+
+5. **No web_app/tenant_app changes.** Confirm in handoff that the tenant web app has no 2FA enrollment UI triggered by this flow (tenant role is neither required nor optional, so the login response won't carry `two_fa_suggest_setup`; no guard change needed). A one-line check in handoff is enough.
+
+6. **Frontend regression check** — confirm the existing required-role flow (`two_fa_enroll_required` / `two_fa_hard_blocked` redirect to enroll page) still works after the LoginView.vue changes. Run `cd admin && npm run build` and `cd agent-app && npm run build` to catch type errors.
+
+No new tests required for the frontend — the backend suite covers the contract. A manual smoke (login as owner → see prompt → skip → relog → no prompt) is sufficient.
+
+Moving to `in-progress/`.
