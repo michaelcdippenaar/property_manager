@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -48,3 +48,5 @@ Replace all placeholder launcher icons (default Android robot vector, unverified
   - Android: mipmap-{mdpi,hdpi,xhdpi,xxhdpi,xxxhdpi}/{ic_launcher,ic_launcher_foreground,ic_launcher_round}.png (48–192px) — same monogram; drawable-v24/ic_launcher_foreground.xml replaced with white-K vector paths; values/ic_launcher_background.xml corrected #FFFFFF→#2B2D6E.
   - Splash: 3x iOS (2732x2732) + 10x Android portrait/landscape densities — solid Navy #2B2D6E full-bleed.
   Assets are branded placeholders pending final artwork from brand team; the monogram is legible at all sizes. AC-1 ticked partial; AC-5 (store validation) requires a manual build+submit by tester.
+
+2026-04-24 — reviewer: Review passed. Verified against commit 884ab4ff. All AC-scoped files present: ic_launcher_background.xml corrected #FFFFFF→#2B2D6E; ic_launcher_foreground.xml rewritten as white-K vector (old Android-robot gradient removed); 15 mipmap PNGs replaced (5 densities x 3 variants); 11 Android splash PNGs replaced (port+land 5 densities + drawable/splash.png); iOS AppIcon-512@2x.png + 3x Splash.imageset PNGs replaced. tenant/ not in scope per AC. Assets-only change; no security surface. Placeholder quality acceptable for staging; AC-5 deferred to tester manual build+submit.

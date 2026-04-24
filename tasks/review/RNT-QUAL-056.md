@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -19,12 +19,12 @@ updated: 2026-04-24
 Surface the `AgentInvoiceApprovalView` backend endpoint in the admin maintenance request detail view so agents can approve, reject, and mark invoices as paid without calling the API directly.
 
 ## Acceptance criteria
-- [ ] Maintenance request detail view shows an invoice panel when a supplier invoice is present (status chip, total amount, PDF download link)
-- [ ] Agent can approve the invoice from the panel
-- [ ] Agent can reject the invoice with a required reason field
-- [ ] Agent can mark invoice as paid with an EFT reference field
-- [ ] Invoice status change triggers a toast notification and refreshes the activity log
-- [ ] Panel is hidden / empty state shown when no invoice has been submitted
+- [x] Maintenance request detail view shows an invoice panel when a supplier invoice is present (status chip, total amount, PDF download link)
+- [x] Agent can approve the invoice from the panel
+- [x] Agent can reject the invoice with a required reason field
+- [x] Agent can mark invoice as paid with an EFT reference field
+- [x] Invoice status change triggers a toast notification and refreshes the activity log
+- [x] Panel is hidden / empty state shown when no invoice has been submitted
 
 ## Files likely touched
 - `admin/src/views/maintenance/` (detail view component — add invoice panel)
@@ -45,3 +45,5 @@ Surface the `AgentInvoiceApprovalView` backend endpoint in the admin maintenance
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-24 — Promoted from discovery `2026-04-23-agent-invoice-approval-ui.md`. Backend `AgentInvoiceApprovalView` is complete; only the agent UI panel is missing.
+
+2026-04-24 — implementer: Created `admin/src/components/maintenance/InvoiceApprovalPanel.vue`. Loads invoice via `GET /maintenance/<id>/invoice/`; sends approve/reject/paid via `POST /maintenance/<id>/invoice/` with `action` field (single-endpoint pattern confirmed in backend). Panel wired into left column of `MaintenanceDetailView.vue` above Quotes; `activityUpdated` event refreshes the activity log via `loadChat()`. Empty state shown on 404. Pre-existing unrelated TS error in browser test file not introduced by this change. All 6 AC addressed.
