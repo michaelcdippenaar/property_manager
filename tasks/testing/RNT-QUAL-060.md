@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -55,3 +55,5 @@ Implement the notification preferences settings screen in both agent-app and ten
 - FAIL: automated pytest `apps/accounts/tests/ -k push_pref` — exit code 5, 0 tests collected. No push_pref test file exists in `backend/apps/accounts/tests/`. Test plan step cannot be confirmed; a developer must add `test_push_preferences.py` before this task can pass.
 
 2026-04-24 — Unblocked (implementer). Created `backend/apps/test_hub/accounts/integration/test_push_preferences.py` (canonical location, matches existing test_hub/accounts/integration/ pattern). 9 tests covering: GET returns all 5 categories with correct defaults, GET returns saved preference, GET unauthenticated 401, POST creates/upserts preference, POST unauthenticated 401, POST invalid category 400, POST missing enabled 400, POST string-enabled 400. All 9 passed green. Test plan command updated — correct path is `apps/test_hub/accounts/integration/test_push_preferences.py`, not `apps/accounts/tests/`.
+
+2026-04-24 — Review passed (round 2). Verified new `backend/apps/test_hub/accounts/integration/test_push_preferences.py`: 9 tests, all green (24.65s). Coverage: GET 401 unauth, GET returns all 5 categories default-true, GET reflects saved rows; POST 401 unauth, POST creates, POST upserts existing, POST invalid category 400, POST missing `enabled` 400, POST non-boolean `enabled` 400. Uses `reverse("push-preferences")`, TremlyAPITestCase, pytest.mark.integration/green. No secrets/PII leaks. → testing.
