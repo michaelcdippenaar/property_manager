@@ -46,27 +46,32 @@ class LeaseBuilderSessionCreateTests(TremlyAPITestCase):
 
     def test_create_session_with_existing_lease(self):
         """
-        BUG: builder_views.py line 152 uses prefetch_related("tenants__person")
-        but the correct related_name is "co_tenants". This causes an AttributeError.
-        Fix: change to prefetch_related("co_tenants__person").
+        Creating a builder session pre-populated from an existing lease that
+        belongs to the requesting agent must succeed (201).
+
+        The prefetch_related("co_tenants__person") path is tested here —
+        the old bug used "tenants__person" (wrong related_name) and raised
+        AttributeError.  That bug was fixed; this test asserts the fix holds.
         """
         prop = self.create_property(agent=self.agent)
         unit = self.create_unit(property_obj=prop)
         person = self.create_person(full_name="Existing Tenant")
         lease = self.create_lease(unit=unit, primary_tenant=person)
         self.authenticate(self.agent)
-        with self.assertRaises(AttributeError):
-            self.client.post(
-                reverse("builder-session-create"),
-                {"existing_lease_id": lease.pk},
-                format="json",
-            )
+        resp = self.client.post(
+            reverse("builder-session-create"),
+            {"existing_lease_id": lease.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
+        self.assertIn("session_id", resp.data)
 
     def test_idor_create_session_any_lease(self):
         """
-        SECURITY AUDIT (vuln #8): Any user can pass any existing_lease_id
-        to pre-populate a builder session with another user's lease data.
-        Also triggers the 'tenants' prefetch bug (same as above).
+        SECURITY (IDOR guard): a user must not be able to pre-populate a builder
+        session from a lease managed by a different agent.
+        The endpoint must return 403 (not 404, to avoid enumeration) when the
+        requesting user is not the property's managing agent.
         """
         other_agent = self.create_agent(email="other@test.com")
         prop = self.create_property(agent=other_agent, name="Other Prop")
@@ -75,13 +80,12 @@ class LeaseBuilderSessionCreateTests(TremlyAPITestCase):
         lease = self.create_lease(unit=unit, primary_tenant=person)
 
         self.authenticate(self.agent)
-        # Triggers the prefetch_related("tenants__person") bug
-        with self.assertRaises(AttributeError):
-            self.client.post(
-                reverse("builder-session-create"),
-                {"existing_lease_id": lease.pk},
-                format="json",
-            )
+        resp = self.client.post(
+            reverse("builder-session-create"),
+            {"existing_lease_id": lease.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 403)
 
     def test_create_session_invalid_template(self):
         self.authenticate(self.agent)

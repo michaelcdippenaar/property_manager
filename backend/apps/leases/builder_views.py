@@ -245,12 +245,23 @@ class LeaseBuilderSessionCreateView(APIView):
                 lease = Lease.objects.select_related(
                     "unit__property"
                 ).prefetch_related("co_tenants__person").get(pk=existing_lease_id)
-                initial_state = _lease_to_state(lease)
             except Lease.DoesNotExist:
                 return Response(
                     {"error": "Lease not found."},
                     status=status.HTTP_404_NOT_FOUND,
                 )
+
+            # IDOR guard: the requesting user must be the managing agent for this
+            # lease's property.  Return 403 (not 404) to avoid enumeration — the
+            # resource exists, the caller is simply not permitted to access it.
+            property_agent = lease.unit.property.agent if (lease.unit and lease.unit.property) else None
+            if property_agent != request.user:
+                return Response(
+                    {"error": "You do not have permission to access this lease."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            initial_state = _lease_to_state(lease)
 
         session = LeaseBuilderSession.objects.create(
             created_by=request.user,
