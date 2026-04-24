@@ -72,8 +72,7 @@ Add users by role: Viewer R50/mo · Agent R90/mo · Admin R150/mo.
 ## The case in numbers
 
 > WeConnectU charges R150–200/unit. A 100-unit portfolio on WeConnectU costs R15,000–R20,000/month.
-> The same portfolio on Klikk Pro is **R2,500/month flat**.
-> At capacity, that is R25/unit — 83–87% cheaper at 100 units.
+> The same portfolio on Klikk Pro is **R2,500/month flat** — 83–87% cheaper.
 > Break-even vs WeConnectU: **17 units**.
 
 ---

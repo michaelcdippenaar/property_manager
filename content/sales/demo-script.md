@@ -2,6 +2,7 @@
 
 _For sales reps and product demos. All screens referenced are live in the production app._
 _All features cited are BUILT (verified against content/product/features.yaml 2026-04-23)._
+_Pricing from `content/product/pricing.yaml`. Flat-rate per organisation — do NOT quote per-unit prices for Klikk. Tier keys: free · pro · enterprise · custom._
 
 ---
 
@@ -150,9 +151,9 @@ _[If the prospect asks about the tenant app:]_ "Let me show you that next."
 **Screen:** Pricing page or slide — use the relevant tier for their portfolio size
 
 **What you say:**
-"Pricing is straightforward. The free tier covers up to 5 properties with no credit card — you can run a real tenancy on it today. Pro is R2,500/month flat, which covers up to 50 properties or 100 units. If you are managing [their portfolio size], that works out to R[X] per unit per month."
+"Pricing is straightforward. The free tier covers up to 5 properties with no credit card — you can run a real tenancy on it today. Pro is R2,500/month flat — one price for up to 50 properties or 100 units, regardless of your unit count. Enterprise is R4,000/month base and covers 100+ properties with white-label portals and an SLA."
 
-_[Use this calculation: R2,500 / their unit count = per-unit cost. At 100 units: R25/unit. At 50 units: R50/unit. Compare against "WeConnectU charges R150–200/unit".]_
+_[For context: WeConnectU charges R150–200/unit. A 100-unit portfolio on WeConnectU costs R15,000–R20,000/month. Klikk Pro is R2,500 flat. You break even against WeConnectU at 17 units. Do not frame Klikk's price as a per-unit rate — it is a flat monthly fee.]_
 
 "There are no setup fees. No per-transaction fees on the base plan. You can start on free today and upgrade when you need to."
 

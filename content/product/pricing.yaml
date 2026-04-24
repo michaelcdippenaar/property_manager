@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════
 # KLIKK PRICING — Per-organisation model (ZAR, excl VAT)
 # Updated: 2026-04-15
-# Tiers: Free (BYOK AI) → Pro R2,500 → Agency R4,000 → Enterprise
+# Tiers: Free (BYOK AI) → Pro R2,500 → Enterprise R4,000 base → Custom (POA)
 # ═══════════════════════════════════════════════════════════════
 
 currency: ZAR
@@ -197,7 +197,7 @@ tiers:
       mcp: true
 
 user_roles:
-  # Role-based add-ons for Pro, Agency, Enterprise (per user per month, excl VAT)
+  # Role-based add-ons for Pro, Enterprise, Custom (per user per month, excl VAT)
   - role: viewer
     label: "Viewer"
     description: "Read-only access to portfolio data and reports"
@@ -215,12 +215,12 @@ user_roles:
     price_label: "R150/user/month"
 
 platform_addons:
-  # Available on Pro, Agency, Enterprise — and optionally on Free
+  # Available on Pro, Enterprise, Custom — and optionally on Free
   - slug: tenant_screening
     label: "Tenant Screening"
     icon: "search-user"
     description: "Full TPN credit bureau checks — rental payment history, ITC score, ID verification, and fraud flags. Run checks directly from the tenant application flow."
-    available_on: [free, pro, agency, enterprise]
+    available_on: [free, pro, enterprise, custom]
     free_tier_available: true
     price_label: "Per check"
     price_note: "Charged per screening report. TPN bureau rates apply."
@@ -236,7 +236,7 @@ platform_addons:
     label: "Trust Account + Wallet"
     icon: "bank"
     description: "PPRA-compliant trust account with a built-in organisation wallet. The wallet is required for all financial flows — rent collection, disbursements, invoicing, and accounting write-back. Activate once; everything financial runs through it."
-    available_on: [pro, agency, enterprise]
+    available_on: [pro, enterprise, custom]
     free_tier_available: false
     price_label: "% of rent processed"
     price_note: "Transaction fee on processed rent. No monthly subscription. Wallet included with Trust Account activation."
@@ -285,7 +285,7 @@ platform_addons:
     label: "Marketplace"
     icon: "store"
     description: "Revenue-generating marketplace for tenants — sell prepaid electricity, fibre internet packages, water, and other household services directly in the tenant app."
-    available_on: [free, pro, agency, enterprise]
+    available_on: [free, pro, enterprise, custom]
     free_tier_available: true
     price_label: "Revenue share"
     price_note: "Commission on transactions processed. No setup fee. Profits returned as cash or platform credits."
@@ -310,7 +310,7 @@ platform_addons:
     label: "Advertising"
     icon: "megaphone"
     description: "Service providers and brands pay to advertise to tenants inside the Klikk tenant app, owner portal, and notification channels. Property managers earn a share of ad revenue generated on their portfolio."
-    available_on: [pro, agency, enterprise]
+    available_on: [pro, enterprise, custom]
     free_tier_available: false
     price_label: "Per campaign"
     price_note: "Advertisers pay per campaign. Property managers earn revenue share on impressions served to their tenants."
