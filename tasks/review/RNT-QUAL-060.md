@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: blocked
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -53,3 +53,5 @@ Implement the notification preferences settings screen in both agent-app and ten
 - PASS: tenant router — route `notification-preferences` at `/settings/notifications` wired to `NotificationPreferencesView.vue` (tenant/src/router/index.ts:121-123)
 - PASS: POPIA disclosure — both view files contain POPIA s18 purpose-notification text
 - FAIL: automated pytest `apps/accounts/tests/ -k push_pref` — exit code 5, 0 tests collected. No push_pref test file exists in `backend/apps/accounts/tests/`. Test plan step cannot be confirmed; a developer must add `test_push_preferences.py` before this task can pass.
+
+2026-04-24 — Unblocked (implementer). Created `backend/apps/test_hub/accounts/integration/test_push_preferences.py` (canonical location, matches existing test_hub/accounts/integration/ pattern). 9 tests covering: GET returns all 5 categories with correct defaults, GET returns saved preference, GET unauthenticated 401, POST creates/upserts preference, POST unauthenticated 401, POST invalid category 400, POST missing enabled 400, POST string-enabled 400. All 9 passed green. Test plan command updated — correct path is `apps/test_hub/accounts/integration/test_push_preferences.py`, not `apps/accounts/tests/`.
