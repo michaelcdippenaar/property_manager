@@ -105,7 +105,7 @@
           </div>
           <div>
             <label class="label">SA ID / Passport</label>
-            <input v-model="form.representative_id_number" class="input font-mono" data-clarity-mask="true" />
+            <MaskedInput v-model="form.representative_id_number" class="input font-mono" />
           </div>
           <div>
             <label class="label">Phone</label>
@@ -129,11 +129,11 @@
           </div>
           <div>
             <label class="label">Branch code</label>
-            <input v-model="form.bank_details.branch_code" class="input font-mono" placeholder="250655" data-clarity-mask="true" />
+            <MaskedInput v-model="form.bank_details.branch_code" class="input font-mono" placeholder="250655" />
           </div>
           <div>
             <label class="label">Account number</label>
-            <input v-model="form.bank_details.account_number" class="input font-mono" data-clarity-mask="true" />
+            <MaskedInput v-model="form.bank_details.account_number" class="input font-mono" />
           </div>
           <div>
             <label class="label">Account type</label>
@@ -210,6 +210,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { Loader2, UserCircle } from 'lucide-vue-next'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
+import MaskedInput from '../../components/shared/MaskedInput.vue'
 import { useLandlordsStore } from '../../stores/landlords'
 import { useOwnershipsStore } from '../../stores/ownerships'
 import { extractApiError } from '../../utils/api-errors'

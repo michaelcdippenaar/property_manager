@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -19,9 +19,9 @@ updated: 2026-04-24
 Replace the three remaining bare `<input data-clarity-mask="true">` elements in `LandlordTab.vue` with the `<MaskedInput>` wrapper to align with the post-RNT-SEC-042 codebase standard and eliminate the fragile attribute-based masking pattern.
 
 ## Acceptance criteria
-- [ ] `representative_id_number`, `branch_code`, and `account_number` fields in `LandlordTab.vue` use `<MaskedInput>` (imported from `../../components/shared/MaskedInput.vue`)
-- [ ] The bare `<input data-clarity-mask="true">` pattern is removed from these three fields
-- [ ] No functional regression: values still bind correctly via v-model
+- [x] `representative_id_number`, `branch_code`, and `account_number` fields in `LandlordTab.vue` use `<MaskedInput>` (imported from `../../components/shared/MaskedInput.vue`)
+- [x] The bare `<input data-clarity-mask="true">` pattern is removed from these three fields
+- [x] No functional regression: values still bind correctly via v-model
 - [ ] CI lint / clarity-mask guard passes
 
 ## Files likely touched
@@ -41,3 +41,5 @@ Replace the three remaining bare `<input data-clarity-mask="true">` elements in 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-24 — Promoted from discovery `2026-04-23-landlord-tab-pii-not-migrated-to-masked-input.md`. No active POPIA leak (attribute masking is present), but inconsistent with post-RNT-SEC-042 standard.
+
+2026-04-24 — Swapped all three bare `<input data-clarity-mask="true">` elements for `<MaskedInput>` and added the import from `../../components/shared/MaskedInput.vue`. Pattern matches LandlordDrawer.vue. No lint script available in admin; vue-tsc reports one pre-existing unrelated error in a browser test file, LandlordTab.vue itself is clean.

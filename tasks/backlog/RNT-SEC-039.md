@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: backlog
+assigned_to: null
 depends_on: []
 asana_gid: "1214237326490411"
 created: 2026-04-23
@@ -65,3 +65,5 @@ Close two residual gaps from RNT-SEC-008: add RBAC regression tests for the audi
 Re-run `cd backend && pytest apps/audit/ -xvs` after the change; all 31+ tests must still be green.
 
 Move back to `in-progress/` once fixed.
+
+2026-04-24 autopilot: bounced back to backlog after in-progress stall with no commits — re-pickup

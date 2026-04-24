@@ -37,3 +37,5 @@ The maintenance health monitor endpoint (`/api/v1/maintenance/monitor/health/`) 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-24 — rentals-pm: Promoted from discovery `2026-04-23-test-hub-remaining-regressions-post-infra-fix.md`. One of four regression tasks split from that discovery. Three tests in this class are currently failing with 403.
+
+2026-04-24 autopilot: bounced back to backlog after in-progress stall with no commits — re-pickup
