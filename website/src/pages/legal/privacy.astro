@@ -284,6 +284,15 @@ const versions = [
           </table>
         </section>
 
+        <!-- Pending attorney review disclaimer -->
+        <div class="attorney-disclaimer reveal">
+          <div class="disclaimer-icon" aria-hidden="true">⚠</div>
+          <div class="disclaimer-text">
+            <strong>Pending attorney review</strong> — this document is a good-faith draft and will be finalised
+            by our legal counsel. Please contact <a href="mailto:support@klikk.co.za">support@klikk.co.za</a> with questions.
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -453,4 +462,28 @@ const versions = [
     padding-top: 32px;
     margin-top: 32px;
   }
+
+  /* Pending attorney review disclaimer */
+  .attorney-disclaimer {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: #fff7ed;
+    border: 2px solid #fb923c;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 48px;
+  }
+  .disclaimer-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .disclaimer-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #7c2d12;
+  }
+  .disclaimer-text strong { color: #9a3412; }
+  .disclaimer-text a { color: #9a3412; text-decoration: underline; }
 </style>

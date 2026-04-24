@@ -1,0 +1,442 @@
+---
+/**
+ * Cookie Policy — POPIA s11 + ECTA s45 + plain English
+ *
+ * SA context: first-party only, Plausible is cookieless (no opt-out needed),
+ * essential platform cookies, POPIA lawful basis (contractual necessity s11(1)(b)).
+ *
+ * Version history kept; pending attorney review.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const EFFECTIVE_DATE = '24 April 2026';
+const VERSION = '0.1-draft';
+
+const versions = [
+  { version: '0.1-draft', date: '24 April 2026', summary: 'Initial draft — pending attorney review.' },
+];
+---
+
+<BaseLayout
+  title="Cookie Policy — Klikk"
+  description="How Klikk uses cookies on the klikk.co.za website and platform. Plausible Analytics is cookieless. Essential cookies only."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>Cookie Policy</h1>
+        <p class="legal-meta">Version {VERSION} &mdash; Effective {EFFECTIVE_DATE}</p>
+        <p class="legal-subtitle">
+          This policy explains how Klikk (Pty) Ltd uses cookies and similar technologies on the
+          klikk.co.za website and platform, in accordance with the
+          <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong> and the
+          <strong>Electronic Communications and Transactions Act 25 of 2002 (ECTA s45)</strong>.
+        </p>
+      </div>
+
+      <nav class="legal-toc reveal">
+        <p class="toc-label">Jump to section</p>
+        <ol>
+          <li><a href="#what-are-cookies">What are cookies?</a></li>
+          <li><a href="#who-we-are">Who we are</a></li>
+          <li><a href="#types">Types of cookies</a></li>
+          <li><a href="#plausible">Plausible Analytics</a></li>
+          <li><a href="#platform-cookies">Platform cookies</a></li>
+          <li><a href="#your-rights">Your rights &amp; opt-out</a></li>
+          <li><a href="#lawful-basis">Lawful basis (POPIA s11)</a></li>
+          <li><a href="#changes">Changes</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ol>
+      </nav>
+
+      <div class="legal-body">
+
+        <section id="what-are-cookies" class="reveal">
+          <h2>1. What are cookies?</h2>
+          <p>
+            Cookies are small text files that a website stores on your browser or device when you visit.
+            They help websites remember your preferences and work correctly between page visits.
+          </p>
+          <p>
+            South African law addresses cookies and similar tracking technologies primarily under
+            <strong>POPIA</strong> (where cookies process personal information) and
+            <strong>ECTA s45</strong> (where cookies facilitate unsolicited electronic communications).
+          </p>
+        </section>
+
+        <section id="who-we-are" class="reveal">
+          <h2>2. Who we are</h2>
+          <p>
+            <strong>Klikk (Pty) Ltd</strong> ("Klikk", "we", "us") is the <strong>Responsible Party</strong>
+            as defined in POPIA s1. We determine the purpose and means of processing personal information
+            collected through the Klikk platform and this website.
+          </p>
+          <div class="info-box">
+            <strong>Information Officer (POPIA s56):</strong><br />
+            Email: <a href="mailto:info-officer@klikk.co.za">info-officer@klikk.co.za</a><br />
+            Support enquiries: <a href="mailto:support@klikk.co.za">support@klikk.co.za</a>
+          </div>
+        </section>
+
+        <section id="types" class="reveal">
+          <h2>3. Types of cookies</h2>
+
+          <h3>3.1 First-party vs third-party</h3>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Type</th><th>What it means</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>First-party</strong></td>
+                <td>Set directly by klikk.co.za — we control them</td>
+              </tr>
+              <tr>
+                <td><strong>Third-party</strong></td>
+                <td>Set by an external service (e.g. analytics, embedded content)</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            Klikk uses <strong>first-party cookies only</strong> on the platform application.
+            We do not serve third-party advertising trackers.
+          </p>
+
+          <h3>3.2 Session vs persistent</h3>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Type</th><th>Duration</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Session</strong></td>
+                <td>Deleted when you close your browser</td>
+                <td>Authentication, security tokens</td>
+              </tr>
+              <tr>
+                <td><strong>Persistent</strong></td>
+                <td>Remain until expiry date or manual deletion</td>
+                <td>Preferences, consent records</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>3.3 Essential vs analytics</h3>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Category</th><th>Description</th><th>Can you opt out?</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Essential</strong></td>
+                <td>Required for the platform to function — authentication tokens, CSRF protection, security tokens</td>
+                <td>No — disabling these breaks core features</td>
+              </tr>
+              <tr>
+                <td><strong>Analytics</strong></td>
+                <td>Plausible Analytics on the marketing website — <strong>cookieless</strong>, no personal information collected</td>
+                <td>Not applicable — no cookies used</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>
+            <strong>Klikk does not use advertising, retargeting, or cross-site tracking cookies.</strong>
+          </p>
+        </section>
+
+        <section id="plausible" class="reveal">
+          <h2>4. Plausible Analytics — cookieless measurement</h2>
+          <p>
+            The klikk.co.za marketing website uses <strong>Plausible Analytics</strong>, a privacy-first
+            web analytics tool. Plausible:
+          </p>
+          <ul>
+            <li>Does <strong>not</strong> use cookies or local storage</li>
+            <li>Does <strong>not</strong> collect personal information or cross-site browsing history</li>
+            <li>Does <strong>not</strong> track individuals across sessions</li>
+            <li>Aggregates page views, referral sources, and device types only</li>
+            <li>Is self-hosted on South African infrastructure (AWS af-south-1)</li>
+          </ul>
+          <div class="info-box info-box--success">
+            <strong>No opt-out required.</strong> Because Plausible processes no personal information,
+            POPIA consent requirements for analytics do not apply.
+          </div>
+        </section>
+
+        <section id="platform-cookies" class="reveal">
+          <h2>5. Cookies used in the Klikk platform</h2>
+          <p>When you are logged in to the Klikk platform (app.klikk.co.za), the following cookies may be set:</p>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Cookie name</th><th>Type</th><th>Duration</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>access_token</code></td>
+                <td>Essential (httpOnly, Secure)</td>
+                <td>Short-lived (session)</td>
+                <td>JWT access token for API authentication</td>
+              </tr>
+              <tr>
+                <td><code>refresh_token</code></td>
+                <td>Essential (httpOnly, Secure)</td>
+                <td>7 days</td>
+                <td>JWT refresh token for session renewal</td>
+              </tr>
+              <tr>
+                <td><code>csrftoken</code></td>
+                <td>Essential</td>
+                <td>Session</td>
+                <td>Cross-Site Request Forgery (CSRF) protection</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="legal-note">
+            All platform cookies are set with <code>Secure</code> and <code>HttpOnly</code> flags where applicable,
+            limiting exposure to scripts and insecure connections.
+          </p>
+        </section>
+
+        <section id="your-rights" class="reveal">
+          <h2>6. Your rights and how to manage cookies</h2>
+
+          <h3>6.1 Platform cookies (essential)</h3>
+          <p>
+            Essential platform cookies cannot be individually disabled without breaking functionality.
+            You may delete them at any time by:
+          </p>
+          <ul>
+            <li>Logging out of the platform — this clears your session cookies immediately</li>
+            <li>Clearing your browser's cookies and site data for klikk.co.za</li>
+          </ul>
+
+          <h3>6.2 Marketing website (cookieless)</h3>
+          <p>
+            Because the marketing website uses Plausible Analytics (no cookies), there is nothing to opt out of.
+          </p>
+
+          <h3>6.3 Browser-level cookie management</h3>
+          <p>You can control cookies through your browser settings:</p>
+          <ul>
+            <li><strong>Chrome:</strong> Settings &rarr; Privacy and security &rarr; Cookies and other site data</li>
+            <li><strong>Safari:</strong> Preferences &rarr; Privacy &rarr; Manage Website Data</li>
+            <li><strong>Firefox:</strong> Settings &rarr; Privacy &amp; Security &rarr; Cookies and Site Data</li>
+            <li><strong>Edge:</strong> Settings &rarr; Cookies and site permissions &rarr; Cookies and site data</li>
+          </ul>
+          <div class="info-box info-box--warn">
+            <strong>Note:</strong> Blocking all cookies on app.klikk.co.za will prevent you from
+            logging in and using the platform.
+          </div>
+        </section>
+
+        <section id="lawful-basis" class="reveal">
+          <h2>7. Lawful basis for cookie processing (POPIA s11)</h2>
+          <p>
+            Where our cookies process personal information (e.g. authentication tokens linked to your account),
+            we rely on <strong>contractual necessity (POPIA s11(1)(b))</strong> — the processing is necessary
+            to provide the service you have signed up for.
+          </p>
+          <p>
+            We do not rely on consent for essential cookies because disabling them makes the service inoperable.
+            Where we introduce any optional cookies in future, we will obtain clear opt-in consent before setting them
+            and this policy will be updated accordingly.
+          </p>
+        </section>
+
+        <section id="changes" class="reveal">
+          <h2>8. Changes to this policy</h2>
+          <p>
+            We will update this policy if we introduce new cookie types or tracking technologies. Material changes
+            will be communicated at least <strong>30 days</strong> before they take effect, published at
+            klikk.co.za/legal/cookies, and notified to registered users by email.
+          </p>
+        </section>
+
+        <section class="legal-contact reveal" id="contact">
+          <h2>9. Contact</h2>
+          <ul>
+            <li><strong>Support &amp; cookie queries:</strong> <a href="mailto:support@klikk.co.za">support@klikk.co.za</a></li>
+            <li><strong>Privacy / Information Officer:</strong> <a href="mailto:info-officer@klikk.co.za">info-officer@klikk.co.za</a></li>
+            <li><strong>Information Regulator of South Africa:</strong> <a href="https://inforeg.org.za" target="_blank" rel="noopener">inforeg.org.za</a></li>
+          </ul>
+        </section>
+
+        <section class="version-history reveal">
+          <h2>Version history</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Version</th><th>Date</th><th>Summary</th></tr>
+            </thead>
+            <tbody>
+              {versions.map(v => (
+                <tr>
+                  <td>{v.version}</td>
+                  <td>{v.date}</td>
+                  <td>{v.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Pending attorney review disclaimer -->
+        <div class="attorney-disclaimer reveal">
+          <div class="disclaimer-icon" aria-hidden="true">⚠</div>
+          <div class="disclaimer-text">
+            <strong>Pending attorney review</strong> — this document is a good-faith draft and will be finalised
+            by our legal counsel. Please contact <a href="mailto:support@klikk.co.za">support@klikk.co.za</a> with questions.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .legal-header { margin-bottom: 40px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .legal-subtitle { font-size: 17px; color: #374151; line-height: 1.7; }
+  .legal-toc {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 12px;
+  }
+  .legal-toc ol {
+    list-style: decimal;
+    padding-left: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+  }
+  .legal-toc a { font-size: 14px; color: var(--color-navy); text-decoration: none; }
+  .legal-toc a:hover { color: var(--color-accent); text-decoration: underline; }
+  .legal-body section { margin-bottom: 52px; }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 { font-size: 15px; font-weight: 600; color: #374151; margin-top: 20px; margin-bottom: 8px; }
+  .legal-body p { font-size: 15px; line-height: 1.75; color: #374151; margin-bottom: 12px; }
+  .legal-body ul { padding-left: 22px; margin-bottom: 16px; }
+  .legal-body li { font-size: 15px; line-height: 1.7; color: #374151; margin-bottom: 6px; }
+  .legal-body a { color: var(--color-navy); text-decoration: underline; }
+  .legal-body a:hover { color: var(--color-accent); }
+  .legal-body code {
+    font-family: monospace;
+    font-size: 13px;
+    background: #f3f4f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #374151;
+  }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td { border-bottom: none; }
+  .legal-table tr:nth-child(even) td { background: #f9fafb; }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  .info-box a { color: #1d4ed8; }
+  .info-box--success {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #166534;
+  }
+  .info-box--warn {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #92400e;
+  }
+  .legal-note { font-size: 13px; color: #6b7280; font-style: italic; }
+  .version-history { border-top: 2px solid #e5e7eb; padding-top: 32px; margin-top: 32px; }
+
+  /* Pending attorney review disclaimer */
+  .attorney-disclaimer {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: #fff7ed;
+    border: 2px solid #fb923c;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 48px;
+  }
+  .disclaimer-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .disclaimer-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #7c2d12;
+  }
+  .disclaimer-text strong { color: #9a3412; }
+  .disclaimer-text a { color: #9a3412; }
+</style>

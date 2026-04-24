@@ -1,0 +1,402 @@
+---
+/**
+ * Acceptable Use Policy — plain English, SA context
+ *
+ * SA law: RHA, POPIA, FICA, POCA, PEPUDA, CPA, Copyright Act, Trade Marks Act.
+ * Graduated enforcement: warning → suspension → termination.
+ * Reporting abuse to support@klikk.co.za.
+ * Pending attorney review.
+ */
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const EFFECTIVE_DATE = '24 April 2026';
+const VERSION = '0.1-draft';
+
+const versions = [
+  { version: '0.1-draft', date: '24 April 2026', summary: 'Initial draft — pending attorney review.' },
+];
+---
+
+<BaseLayout
+  title="Acceptable Use Policy — Klikk"
+  description="Klikk Acceptable Use Policy. Prohibited conduct, enforcement, and how to report abuse. Governing law: Republic of South Africa."
+>
+  <div class="legal-page">
+    <div class="legal-inner">
+
+      <div class="legal-header reveal">
+        <div class="section-label">Legal</div>
+        <h1>Acceptable Use Policy</h1>
+        <p class="legal-meta">Version {VERSION} &mdash; Effective {EFFECTIVE_DATE}</p>
+        <p class="legal-subtitle">
+          This policy sets out the rules for using the Klikk platform. It applies to all users —
+          property managers, letting agents, landlords, property owners, and tenants.
+          Breaching it may result in suspension or permanent termination of your account.
+        </p>
+      </div>
+
+      <nav class="legal-toc reveal">
+        <p class="toc-label">Jump to section</p>
+        <ol>
+          <li><a href="#purpose">Purpose</a></li>
+          <li><a href="#who">Who this applies to</a></li>
+          <li><a href="#prohibited">Prohibited conduct</a></li>
+          <li><a href="#enforcement">Enforcement</a></li>
+          <li><a href="#third-party">Third-party content</a></li>
+          <li><a href="#reporting">Reporting abuse</a></li>
+          <li><a href="#jurisdiction">Governing law</a></li>
+          <li><a href="#changes">Changes</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ol>
+      </nav>
+
+      <div class="legal-body">
+
+        <section id="purpose" class="reveal">
+          <h2>1. Purpose</h2>
+          <p>
+            This Acceptable Use Policy ("AUP") explains what you can and cannot do on the Klikk platform.
+            It applies alongside our <a href="/legal/terms">Terms of Service</a> — where there is a conflict,
+            the Terms of Service take precedence.
+          </p>
+          <p>
+            By creating an account or using the Klikk platform, you agree to follow this AUP.
+          </p>
+        </section>
+
+        <section id="who" class="reveal">
+          <h2>2. Who this applies to</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>User type</th><th>Covered?</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Agency admins</td><td>Yes</td></tr>
+              <tr><td>Agents and staff</td><td>Yes</td></tr>
+              <tr><td>Property owners</td><td>Yes</td></tr>
+              <tr><td>Tenants (where platform access is granted)</td><td>Yes</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="prohibited" class="reveal">
+          <h2>3. Prohibited conduct</h2>
+          <p>You must not use the Platform to:</p>
+
+          <h3>3.1 Illegal activity</h3>
+          <ul>
+            <li>Conduct any activity that is unlawful under South African law, including the <strong>Rental Housing Act 50 of 1999 (RHA)</strong>, the <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong>, the <strong>Financial Intelligence Centre Act 38 of 2001 (FICA)</strong>, the <strong>Prevention of Organised Crime Act 121 of 1998 (POCA)</strong>, or any other applicable legislation.</li>
+            <li>Unfairly discriminate against any person in tenant selection or any other platform activity on any ground prohibited by the <strong>Constitution of the Republic of South Africa, 1996</strong> or the RHA (s4(1)(b)).</li>
+            <li>Process or store proceeds of crime, engage in money laundering, or circumvent FICA obligations.</li>
+          </ul>
+
+          <h3>3.2 Harmful or offensive content</h3>
+          <ul>
+            <li>Upload, share, or transmit content that is defamatory, harassing, threatening, obscene, fraudulent, or that constitutes hate speech under the <strong>Promotion of Equality and Prevention of Unfair Discrimination Act 4 of 2000 (PEPUDA)</strong>.</li>
+            <li>Publish false or misleading information about properties, landlords, tenants, or other users.</li>
+          </ul>
+
+          <h3>3.3 Spam and unsolicited communications</h3>
+          <ul>
+            <li>Send unsolicited commercial communications ("spam") to tenants, owners, or third parties via the Platform in violation of <strong>ECTA s45</strong> or POPIA consent requirements.</li>
+            <li>Harvest contact details from the Platform for use in bulk marketing campaigns without the recipient's prior consent.</li>
+          </ul>
+
+          <h3>3.4 Scraping and automated extraction</h3>
+          <ul>
+            <li>Use automated scripts, bots, crawlers, or other tools to scrape, extract, copy, or harvest data from the Platform without Klikk's prior written consent.</li>
+            <li>Export or download data at scale for purposes outside your legitimate use of the Platform.</li>
+            <li>Use the Platform's API in a manner inconsistent with your subscription tier or these Terms.</li>
+          </ul>
+
+          <h3>3.5 Reverse engineering and security</h3>
+          <ul>
+            <li>Attempt to reverse-engineer, decompile, disassemble, or extract the source code of the Platform or its underlying infrastructure.</li>
+            <li>Probe, scan, or test the Platform's security vulnerabilities without Klikk's written authorisation.</li>
+            <li>Introduce malware, ransomware, viruses, or any code designed to damage, disable, or gain unauthorised access to the Platform or other users' data.</li>
+            <li>Attempt to circumvent authentication, access controls, or rate limits.</li>
+          </ul>
+
+          <h3>3.6 Impersonation and identity fraud</h3>
+          <ul>
+            <li>Impersonate any person, entity, or organisation — including Klikk staff, government bodies, or another user.</li>
+            <li>Use a false identity to register an account or obtain services.</li>
+            <li>Submit false documentation (e.g. forged lease agreements, fabricated identity documents) through the Platform.</li>
+          </ul>
+
+          <h3>3.7 Intellectual property infringement</h3>
+          <ul>
+            <li>Upload or transmit material that infringes the copyright, trademark, trade secret, patent, or other intellectual property rights of a third party, in violation of the <strong>Copyright Act 98 of 1978</strong> or the <strong>Trade Marks Act 194 of 1993</strong>.</li>
+            <li>Use Klikk's trademarks, logos, or branding without express written permission.</li>
+          </ul>
+
+          <h3>3.8 Platform integrity</h3>
+          <ul>
+            <li>Resell, sublicense, or commercially exploit Platform access without Klikk's written consent.</li>
+            <li>Use the Platform to operate a competing service or to benchmark Klikk's systems without authorisation.</li>
+            <li>Interfere with the availability or performance of the Platform or its infrastructure.</li>
+          </ul>
+        </section>
+
+        <section id="enforcement" class="reveal">
+          <h2>4. Enforcement</h2>
+          <p>
+            Klikk investigates suspected AUP violations and takes action proportionate to the severity of the breach.
+          </p>
+
+          <h3>4.1 Graduated response</h3>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Severity</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Minor</strong> — first offence, unintentional</td>
+                <td>Written warning; user advised to correct behaviour</td>
+              </tr>
+              <tr>
+                <td><strong>Moderate</strong> — repeated or deliberate</td>
+                <td>Temporary suspension with minimum 5 business days' written notice</td>
+              </tr>
+              <tr>
+                <td><strong>Serious</strong> — fraud, illegal content, security attack, data harvesting</td>
+                <td>Immediate suspension without notice, pending investigation</td>
+              </tr>
+              <tr>
+                <td><strong>Confirmed serious breach</strong></td>
+                <td>Permanent termination; data retained for legal obligations; referral to law enforcement where required</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>4.2 Appeals</h3>
+          <p>
+            If your account is suspended, you may appeal within <strong>10 business days</strong> by emailing
+            <a href="mailto:support@klikk.co.za">support@klikk.co.za</a> with the subject line
+            "AUP Appeal — [your account email]". We will review your appeal and respond within 10 business days.
+          </p>
+
+          <h3>4.3 Law enforcement cooperation</h3>
+          <p>
+            Klikk will cooperate with South African law enforcement and regulatory bodies — including the
+            South African Police Service, the Information Regulator, and the National Consumer Commission —
+            in accordance with applicable law.
+          </p>
+        </section>
+
+        <section id="third-party" class="reveal">
+          <h2>5. Your responsibility for third-party content</h2>
+          <p>
+            You are responsible for all content uploaded, transmitted, or shared through your Klikk account,
+            including content uploaded by your agents or employees. Ensure that any personal information
+            you submit about tenants, property owners, or other third parties is collected and shared
+            lawfully under POPIA s11.
+          </p>
+          <div class="info-box">
+            <strong>POPIA reminder:</strong> You are a <strong>Responsible Party</strong> in respect of
+            personal information you collect about tenants and submit to the Platform. You must have a
+            lawful basis for each category of personal information you process.
+          </div>
+        </section>
+
+        <section id="reporting" class="reveal">
+          <h2>6. Reporting abuse</h2>
+          <p>
+            If you witness or become aware of a breach of this AUP by another user, please report it to us at
+            <a href="mailto:support@klikk.co.za">support@klikk.co.za</a> with as much detail as possible.
+            We treat all reports confidentially.
+          </p>
+          <p>Reports can also be directed to:</p>
+          <ul>
+            <li><strong>Information Regulator (POPIA / data misuse):</strong> <a href="https://inforeg.org.za" target="_blank" rel="noopener">inforeg.org.za</a></li>
+            <li><strong>South African Police Service (criminal conduct):</strong> <a href="https://www.saps.gov.za" target="_blank" rel="noopener">saps.gov.za</a></li>
+            <li><strong>National Consumer Commission (CPA violations):</strong> <a href="https://www.thencc.org.za" target="_blank" rel="noopener">thencc.org.za</a></li>
+          </ul>
+        </section>
+
+        <section id="jurisdiction" class="reveal">
+          <h2>7. Governing law</h2>
+          <p>
+            This AUP is governed by the laws of the <strong>Republic of South Africa</strong>.
+            Any dispute arising from this AUP will be subject to the jurisdiction of the High Court of South Africa
+            (Western Cape Division) or the Magistrates' Court with jurisdiction, at Klikk's election.
+            The parties consent to the jurisdiction of South African courts.
+          </p>
+        </section>
+
+        <section id="changes" class="reveal">
+          <h2>8. Changes to this AUP</h2>
+          <p>
+            We may update this AUP from time to time. Material changes will be communicated by email and
+            in-app notification at least <strong>30 days</strong> before they take effect.
+            Continued use of the Platform after the effective date constitutes acceptance of the revised AUP.
+          </p>
+        </section>
+
+        <section class="legal-contact reveal" id="contact">
+          <h2>9. Contact</h2>
+          <ul>
+            <li><strong>Support &amp; abuse reports:</strong> <a href="mailto:support@klikk.co.za">support@klikk.co.za</a></li>
+            <li><strong>Legal enquiries:</strong> <a href="mailto:legal@klikk.co.za">legal@klikk.co.za</a></li>
+          </ul>
+        </section>
+
+        <section class="version-history reveal">
+          <h2>Version history</h2>
+          <table class="legal-table">
+            <thead>
+              <tr><th>Version</th><th>Date</th><th>Summary</th></tr>
+            </thead>
+            <tbody>
+              {versions.map(v => (
+                <tr>
+                  <td>{v.version}</td>
+                  <td>{v.date}</td>
+                  <td>{v.summary}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Pending attorney review disclaimer -->
+        <div class="attorney-disclaimer reveal">
+          <div class="disclaimer-icon" aria-hidden="true">⚠</div>
+          <div class="disclaimer-text">
+            <strong>Pending attorney review</strong> — this document is a good-faith draft and will be finalised
+            by our legal counsel. Please contact <a href="mailto:support@klikk.co.za">support@klikk.co.za</a> with questions.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .legal-page {
+    background: var(--color-surface-warm);
+    min-height: 100vh;
+    padding: 80px 24px 120px;
+  }
+  .legal-inner {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .legal-header { margin-bottom: 40px; }
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 12px;
+  }
+  .legal-header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 8px;
+  }
+  .legal-meta { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+  .legal-subtitle { font-size: 17px; color: #374151; line-height: 1.7; }
+  .legal-toc {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+  .toc-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 12px;
+  }
+  .legal-toc ol {
+    list-style: decimal;
+    padding-left: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 4px 16px;
+  }
+  .legal-toc a { font-size: 14px; color: var(--color-navy); text-decoration: none; }
+  .legal-toc a:hover { color: var(--color-accent); text-decoration: underline; }
+  .legal-body section { margin-bottom: 52px; }
+  .legal-body h2 {
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--color-navy);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  .legal-body h3 { font-size: 15px; font-weight: 600; color: #374151; margin-top: 20px; margin-bottom: 8px; }
+  .legal-body p { font-size: 15px; line-height: 1.75; color: #374151; margin-bottom: 12px; }
+  .legal-body ul { padding-left: 22px; margin-bottom: 16px; }
+  .legal-body li { font-size: 15px; line-height: 1.7; color: #374151; margin-bottom: 6px; }
+  .legal-body a { color: var(--color-navy); text-decoration: underline; }
+  .legal-body a:hover { color: var(--color-accent); }
+  .legal-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .legal-table th {
+    background: var(--color-navy);
+    color: white;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+  }
+  .legal-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+    vertical-align: top;
+  }
+  .legal-table tr:last-child td { border-bottom: none; }
+  .legal-table tr:nth-child(even) td { background: #f9fafb; }
+  .info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #1e40af;
+    line-height: 1.6;
+    margin-top: 16px;
+  }
+  .info-box a { color: #1d4ed8; }
+  .legal-note { font-size: 13px; color: #6b7280; font-style: italic; }
+  .version-history { border-top: 2px solid #e5e7eb; padding-top: 32px; margin-top: 32px; }
+
+  /* Pending attorney review disclaimer */
+  .attorney-disclaimer {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    background: #fff7ed;
+    border: 2px solid #fb923c;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-top: 48px;
+  }
+  .disclaimer-icon {
+    font-size: 22px;
+    flex-shrink: 0;
+    line-height: 1.4;
+  }
+  .disclaimer-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #7c2d12;
+  }
+  .disclaimer-text strong { color: #9a3412; }
+  .disclaimer-text a { color: #9a3412; }
+</style>
