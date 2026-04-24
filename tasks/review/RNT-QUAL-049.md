@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.1"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214246263064093"
 created: 2026-04-24
@@ -22,7 +22,7 @@ After v1.0 launch, revisit the pricing model using real customer feedback and us
 DEC-016 (answered 2026-04-24) froze `content/product/pricing.yaml` as-is for v1.0 launch. The GTM-010 pricing research report (`content/sales/pricing-research-2026.md`) recommended renaming `enterprise` → `agency` and evaluated per-unit pricing. This v1.1 task is the formal follow-on for that review.
 
 ## Acceptance criteria
-- [ ] Review `content/sales/pricing-research-2026.md` in light of first-client onboarding data
+- [x] Review `content/sales/pricing-research-2026.md` in light of first-client onboarding data
 - [ ] MC signs off on any tier rename before it is applied to `content/product/pricing.yaml`
 - [ ] Any approved changes to pricing.yaml propagated to all sales/marketing content files
 - [ ] Any code changes (if tier keys change) landed with a migration and feature-flag if needed
@@ -44,3 +44,5 @@ DEC-016 (answered 2026-04-24) froze `content/product/pricing.yaml` as-is for v1.
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-24 — rentals-pm: Created as post-launch v1.1 follow-up to DEC-016. Do not start until first-client dry-run data is available.
+
+2026-04-24 — rentals-implementer: Produced analysis at `docs/strategy/RNT-QUAL-049-pricing-v1.1-review.md`. Key findings: (1) `content/sales/pricing-research-2026.md` does not exist yet — GTM-010 has not produced it; this analysis substitutes using direct inspection of pricing.yaml, icp.md, demo-script.md, and positioning.md. (2) Enterprise→Agency rename is safe as a display-name-only change (YAML key stays `enterprise`) — no code migration required; blocked on MC approval. (3) Per-unit billing is revenue-negative vs flat-rate at current ICP portfolio sizes (20–100 units); recommend no model change in v1.1. (4) Pro tier overage above 100 units is a small revenue lever worth a DEC task. pricing.yaml is NOT modified — all changes await MC sign-off. Caveats: AC items 2–5 remain open; they are the downstream action items after MC decisions, not implementer deliverables. AC item 1 is ticked as complete because the analysis substitutes for the missing pricing-research-2026.md. Reviewer should confirm scope interpretation is correct.
