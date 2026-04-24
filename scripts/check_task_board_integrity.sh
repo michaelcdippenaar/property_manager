@@ -197,10 +197,52 @@ for state in $STATE_DIRS; do
     filename="$(basename "$filepath")"
     base="${filename%.md}"
     if echo "$base" | grep -qE '^[A-Z][A-Z0-9-]+-[0-9]+$'; then
-      # Extract DEC-NNN references from the depends_on: frontmatter field only.
-      # Scanning the full file produces false positives when prose or handoff
-      # notes mention a DEC ID as an example (e.g. "DEC-9999" in OPS-027).
-      dec_refs="$(grep -E '^depends_on:' "$filepath" 2>/dev/null | grep -oE 'DEC-[0-9]+' | sort -u || true)"
+      # Extract DEC-NNN references strictly from the YAML frontmatter block.
+      # Frontmatter is delimited by the first two "---" lines. We parse only
+      # lines inside that block so prose / handoff notes mentioning DEC-NNN
+      # as examples (e.g. "DEC-9999" in OPS-027) never trigger this check.
+      #
+      # Handles both YAML forms:
+      #   inline:    depends_on: [DEC-001, DEC-002]
+      #   multiline: depends_on:\n  - DEC-001\n  - DEC-002
+      #
+      # The awk script:
+      #   - skips lines until the opening "---" (line 1 of file)
+      #   - collects lines until the closing "---"
+      #   - once inside frontmatter, captures the depends_on: block (inline
+      #     or multi-line list items that immediately follow it)
+      #   - prints any DEC-NNN tokens found
+      dec_refs="$(awk '
+        BEGIN { in_fm=0; in_dep=0 }
+        # Opening --- on line 1 only
+        NR==1 && /^---[[:space:]]*$/ { in_fm=1; next }
+        # Closing --- ends frontmatter
+        in_fm && /^---[[:space:]]*$/ { in_fm=0; next }
+        !in_fm { next }
+        # Inside frontmatter: detect depends_on line
+        /^depends_on:[[:space:]]*/ {
+          in_dep=1
+          # Split on any non-ID character so brackets/commas never interfere.
+          # This handles inline form: depends_on: [DEC-001, DEC-002]
+          n = split($0, a, /[^A-Z0-9-]+/)
+          for (i=1; i<=n; i++) {
+            if (a[i] ~ /^DEC-[0-9]+$/) print a[i]
+          }
+          # A closing ] on the same line means the array is fully consumed.
+          if (/\]/) in_dep=0
+          next
+        }
+        # Multi-line list items (  - DEC-NNN) that follow depends_on:
+        in_dep && /^[[:space:]]+-[[:space:]]/ {
+          n = split($0, a, /[^A-Z0-9-]+/)
+          for (i=1; i<=n; i++) {
+            if (a[i] ~ /^DEC-[0-9]+$/) print a[i]
+          }
+          next
+        }
+        # Any other frontmatter key ends the depends_on block
+        in_dep && /^[a-z_]+:/ { in_dep=0 }
+      ' "$filepath" 2>/dev/null | sort -u || true)"
       for dec in $dec_refs; do
         dec_file_done="${TASKS_DIR}/done/${dec}.md"
         dec_file_backlog="${TASKS_DIR}/backlog/${dec}.md"
@@ -216,6 +258,40 @@ done
 if [ "$DEC_ERROR_FOUND" -eq 0 ]; then
   info "DEC reference check: PASS"
 fi
+
+# ---------------------------------------------------------------------------
+# SELF-TEST DOCUMENTATION (no runtime code — describes expected behaviour)
+# ---------------------------------------------------------------------------
+# The DEC-reference check above is scoped strictly to the YAML frontmatter
+# block of each task file.  Specifically:
+#
+#   IGNORED (prose in body):
+#     ## Handoff notes
+#     I inserted bogus DEC-9999 to test the guard. <-- NOT flagged
+#     Tested against DEC-0001 pattern.              <-- NOT flagged
+#
+#   CHECKED (frontmatter depends_on only):
+#     ---
+#     depends_on: [DEC-001, DEC-002]   <-- inline form — checked
+#     ---
+#
+#     ---
+#     depends_on:
+#       - DEC-001                      <-- multiline form — checked
+#       - DEC-002
+#     ---
+#
+# To manually verify:
+#   1. Prose test (should exit 0):
+#        echo "DEC-9999 in prose" >> tasks/in-progress/OPS-027.md
+#        bash scripts/check_task_board_integrity.sh; echo "exit: $?"
+#        git checkout tasks/in-progress/OPS-027.md
+#
+#   2. Dangling-DEC test (should exit 1):
+#        sed -i '' 's/depends_on: \[\]/depends_on: [DEC-9999]/' tasks/in-progress/OPS-027.md
+#        bash scripts/check_task_board_integrity.sh; echo "exit: $?"
+#        git checkout tasks/in-progress/OPS-027.md
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
 # Summary
