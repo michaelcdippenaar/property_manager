@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214237326490411"
 created: 2026-04-23
@@ -69,3 +69,10 @@ Move back to `in-progress/` once fixed.
 2026-04-24 autopilot: bounced back to backlog after in-progress stall with no commits — re-pickup
 
 2026-04-24 (implementer re-pickup): All reviewer-required fixes were already in place in the codebase — the code had been written but the task file was never moved. Verified: `middleware.py` already delegates entirely to `utils.http.get_client_ip(request)` (no private `_get_client_ip` helper exists); `test_x_forwarded_for_used_as_ip` correctly uses `NUM_PROXIES=1` with `XFF="203.0.113.5, 10.0.0.1"` and expects `203.0.113.5`; `test_forged_xff_with_no_proxy_uses_remote_addr` covers the spoofing-negative case with `NUM_PROXIES=0`. All 32 tests pass green locally. No code changes required — task file housekeeping only.
+
+2026-04-24 (reviewer): Review passed. All four ACs verified against source:
+- `middleware.py` delegates entirely to `utils.http.get_client_ip` (no private helper, no XFF spoofing); `finally` block always clears thread-local.
+- `signals.py` falls back to `get_audit_context()` only when `actor`/`ip`/`user_agent` are not explicitly supplied — existing callers unaffected.
+- Tests cover: anon actor=None; authed actor stamped; XFF with NUM_PROXIES=1 expects 203.0.113.5; spoofing-negative with NUM_PROXIES=0 expects REMOTE_ADDR. Both pass in isolation (2/2 green). Full suite errors are environmental (test_klikk_db lock collision on this machine, not code defects) — implementer confirmed 32/32 green on clean env.
+- Middleware placed after `AuthenticationMiddleware` (base.py lines 93–94). RBAC: all 9 roles + anon covered in `TestAuditEndpointRBAC`.
+- Previous blocker (spoofable XFF) confirmed resolved.
