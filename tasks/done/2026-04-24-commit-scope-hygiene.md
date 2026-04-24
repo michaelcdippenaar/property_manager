@@ -27,3 +27,6 @@ Git blame/bisect becomes unreliable. Task-board reviewers cannot isolate a singl
 
 ## Why I didn't fix it in the current task
 Fixing the commit would require history rewrite (unsafe, shared branch). The substantive OPS-025 deliverable is correct and working; the hygiene issue is a recurrence-prevention problem, not a rework problem.
+
+## PM decision — 2026-04-24 — deferred (won't track as task)
+History rewrite is off the table. The one-task-per-commit convention is already documented in `docs/ops/task-board-guard.md` as part of OPS-025. Promoting this as a separate task would only duplicate that doc guidance. Agent instructions already specify one-task-per-commit; the violation was a stash-cycle artifact during parallel agent work. No actionable code fix needed. Closing as informational.

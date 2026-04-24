@@ -5,6 +5,7 @@ from unittest import mock
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
+from apps.accounts.models import Agency
 from apps.leases.models import LeaseBuilderSession, LeaseTemplate
 from apps.test_hub.base.test_case import TremlyAPITestCase
 
@@ -86,6 +87,39 @@ class LeaseBuilderSessionCreateTests(TremlyAPITestCase):
             format="json",
         )
         self.assertEqual(resp.status_code, 403)
+
+
+    def test_colleague_can_create_session_on_agency_lease(self):
+        """
+        SECURITY (positive case): an AGENCY_ADMIN in the same agency as the
+        lease's managing agent must be allowed to create a builder session --
+        i.e. the IDOR guard must not regress legitimate agency-wide access.
+
+        Pins the canonical get_accessible_property_ids semantics: if a future
+        change tightens the guard back to single-agent ownership, this test
+        will catch the regression.
+        """
+        agency = Agency.objects.create(name="Shared Agency")
+        # agent1 is the managing agent (property.agent FK); belongs to agency.
+        agent1 = self.create_agent(email="agent1@test.com", agency=agency)
+        prop = self.create_property(agent=agent1, name="Agency Prop")
+        unit = self.create_unit(property_obj=prop)
+        person = self.create_person(full_name="Agency Tenant")
+        lease = self.create_lease(unit=unit, primary_tenant=person)
+
+        # agency_admin is a colleague in the same agency -- should have full access.
+        agency_admin = self.create_user(
+            email="agencyadmin@test.com",
+            role="agency_admin",
+            agency=agency,
+        )
+        self.authenticate(agency_admin)
+        resp = self.client.post(
+            reverse("builder-session-create"),
+            {"existing_lease_id": lease.pk},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201)
 
     def test_create_session_invalid_template(self):
         self.authenticate(self.agent)

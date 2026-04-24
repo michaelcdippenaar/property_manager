@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214246426569538"
 created: 2026-04-24
@@ -20,7 +20,7 @@ The lease builder session-create endpoint no longer raises `AttributeError` on d
 
 ## Acceptance criteria
 - [ ] `POST /api/v1/leases/builder/session/` with an existing session for the same lease returns 400 (or 409 Conflict), not 200
-- [ ] `POST /api/v1/leases/builder/session/` with a lease owned by a different agent returns 403 (IDOR guard)
+- [x] `POST /api/v1/leases/builder/session/` with a lease owned by a different agent returns 403 (IDOR guard)
 - [x] `apps/test_hub/leases/integration/test_builder.py::LeaseBuilderSessionCreateTests::test_create_session_with_existing_lease` passes
 - [x] `apps/test_hub/leases/integration/test_builder.py::LeaseBuilderSessionCreateTests::test_idor_create_session_any_lease` passes
 - [x] No regression on normal session creation flow
@@ -56,3 +56,5 @@ The lease builder session-create endpoint no longer raises `AttributeError` on d
 Not blocking but worth flagging: the 403 body `{"error": "You do not have permission to access this lease."}` confirms lease existence to an unauthorised caller (mild enumeration leak). Acceptable for now — matches `Lease.DoesNotExist` → 404 elsewhere in the same view — but if you want to harden, return 404 for both "not found" and "no access" and keep the distinction in server logs only. Out of scope for this ticket.
 
 Migration `backend/apps/accounts/migrations/0021_add_skipped_2fa_setup_at.py` is in-scope-adjacent (unblocks the test DB) and has been independently confirmed clean in the RNT-SEC-030 review thread — leaving in place.
+
+2026-04-24 — implementer (re-review): Replaced the direct FK comparison `property.agent == request.user` with the canonical `get_accessible_property_ids(request.user)` helper from `apps/properties/access.py`. Import added at line 22 of `builder_views.py`. Defence-in-depth check added: if `lease.unit` or `lease.unit.property` is None, return 403 immediately before calling the helper. New test `test_colleague_can_create_session_on_agency_lease` added — creates an Agency, assigns agent1 (managing agent via property.agent FK) and agency_admin (AGENCY_ADMIN role, same agency), verifies agency_admin gets 201 on the same lease; existing 403 test (`test_idor_create_session_any_lease`) and 201 test (`test_create_session_with_existing_lease`) still pass. All 17 builder tests green. AC-1 ("duplicate session returns 400") is left un-ticked — `existing_lease_id` copies lease state into a new session; it does not imply a uniqueness constraint on active sessions per lease. Propose to PM: drop AC-1 or split to a new ticket with a clear model contract (unique constraint on source_lease + status=active).

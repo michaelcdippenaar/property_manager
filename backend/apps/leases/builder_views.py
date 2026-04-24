@@ -19,6 +19,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
 from apps.accounts.decorators import requires_feature
+from apps.properties.access import get_accessible_property_ids
 from rest_framework.response import Response
 from rest_framework import status
 
@@ -251,11 +252,19 @@ class LeaseBuilderSessionCreateView(APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            # IDOR guard: the requesting user must be the managing agent for this
-            # lease's property.  Return 403 (not 404) to avoid enumeration — the
-            # resource exists, the caller is simply not permitted to access it.
-            property_agent = lease.unit.property.agent if (lease.unit and lease.unit.property) else None
-            if property_agent != request.user:
+            # IDOR guard: the requesting user must have access to the property that
+            # owns this lease.  Uses the canonical helper so that AGENCY_ADMIN,
+            # co-managing agents (PropertyAgentAssignment), ACCOUNTANT, VIEWER, and
+            # ADMIN are all respected.  Return 403 (not 404) to avoid enumeration —
+            # the resource exists, the caller is simply not permitted to access it.
+            # Defence-in-depth: treat a missing unit/property as forbidden too.
+            if not (lease.unit and lease.unit.property):
+                return Response(
+                    {"error": "You do not have permission to access this lease."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            accessible_property_ids = set(get_accessible_property_ids(request.user))
+            if lease.unit.property_id not in accessible_property_ids:
                 return Response(
                     {"error": "You do not have permission to access this lease."},
                     status=status.HTTP_403_FORBIDDEN,
