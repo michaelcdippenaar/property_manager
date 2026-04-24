@@ -6,14 +6,14 @@ description: >
   proxy, Let's Encrypt auto-HTTPS, TLS certificates, HSTS, DNS records (A/AAAA/CNAME/MX),
   subdomain routing, Django production settings (ALLOWED_HOSTS, CSRF_TRUSTED_ORIGINS,
   CORS_ALLOWED_ORIGINS), AWS SES transactional email, SPF/DKIM/DMARC records,
-  Google Workspace coexistence on the apex domain, mail.klikk.co.za, Cloudflare CDN,
+  Google Workspace coexistence on the apex domain, Cloudflare CDN,
   CloudFront, Cloudflare Authenticated Origin Pulls, cache-control headers, production
   PostgreSQL backup/restore, staging environment parity, release process, blue-green or
   rolling deploys, zero-downtime deploys, health checks, or environment variable
   management. Trigger phrases: "deploy to prod", "configure DNS", "set up TLS",
   "Caddyfile", "Let's Encrypt", "HSTS preload", "ALLOWED_HOSTS", "CSRF error in prod",
   "CORS failing in prod", "SES DKIM", "DMARC", "SPF record", "mail deliverability",
-  "mail-tester", "mail.klikk.co.za", "Google Workspace", "Cloudflare cache",
+  "mail-tester", "apex sender", "no-reply@klikk.co.za", "Google Workspace", "Cloudflare cache",
   "static assets", "origin protection", "CDN cache", "pg_dump backup", "restore backup",
   "staging environment", "release checklist", "env vars", ".env.production",
   "zero downtime deploy", "rollback", "subdomain redirect", "301 redirect",
@@ -40,7 +40,7 @@ Production-readiness expertise for Klikk. Covers OPS-001 (CI/CD), OPS-003 (backu
 | `api.klikk.co.za` | Django API | Canonical |
 | `backend.klikk.co.za` | → `api.klikk.co.za` | 301 redirect (sunset 90d after launch) |
 | `status.klikk.co.za` | Uptime status page | Canonical |
-| `mail.klikk.co.za` | AWS SES transactional | Isolated SPF/DKIM/DMARC |
+| `klikk.co.za` (apex) | AWS SES transactional sender | DKIM CNAMEs coexist with Google Workspace |
 | `www.klikk.co.za` | → `klikk.co.za` | 301 redirect |
 
 **Never change this map without a new DEC task.** It's load-bearing across Django settings, mobile app configs, CORS, and MC's muscle memory.
@@ -103,36 +103,41 @@ CORS_ALLOWED_ORIGINS = [  # no wildcards, ever
 
 Add `SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")` so Django trusts Caddy's TLS termination.
 
-## Dual-domain email: Google Workspace + AWS SES
+## Apex-sender email: Google Workspace + AWS SES coexisting on `klikk.co.za`
 
-**The critical rule:** human mail (`mc@klikk.co.za`) lives on Google Workspace at the apex `klikk.co.za`. Transactional mail comes from AWS SES on the `mail.klikk.co.za` subdomain. They must **never share SPF/DKIM records**, or DMARC will start failing for one side.
+**DEC-023 (locked 2026-04-24):** Both human mail (Google Workspace) and transactional mail (AWS SES af-south-1) live on the `klikk.co.za` apex. No `mail.` subdomain. Coexistence works because DKIM uses distinct selector CNAMEs per sender and SPF supports multiple `include:` directives.
 
-### Apex `klikk.co.za` — leave alone
+- **Transactional from:** `no-reply@klikk.co.za`
+- **Reply-to:** `support@klikk.co.za`
+- **Human mail:** unchanged (`mc@klikk.co.za` on Google Workspace)
 
-Keep Google Workspace's existing records:
-- `TXT @ "v=spf1 include:_spf.google.com ~all"`
-- Google-issued DKIM CNAMEs (`google._domainkey` etc.)
-- `TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@klikk.co.za"`
+### SPF — single apex record, both senders included
 
-Do not touch these when setting up SES.
+Replace the Google-only SPF with a combined record (one `TXT` record per domain, never two):
+```
+TXT @  "v=spf1 include:_spf.google.com include:amazonses.com ~all"
+```
 
-### Subdomain `mail.klikk.co.za` — SES isolated
+### DKIM — both sets of CNAMEs coexist
 
-From the SES console (verified identity `mail.klikk.co.za`), publish:
-- SPF: `TXT mail "v=spf1 include:amazonses.com ~all"`
-- DKIM: three `CNAME` records from the SES console (Easy DKIM)
-- DMARC: `TXT _dmarc.mail "v=DMARC1; p=quarantine; rua=mailto:dmarc@klikk.co.za; pct=100"` at launch; escalate to `p=reject` after 30 days of clean reports.
-- MAIL FROM domain in SES: set to `mail.klikk.co.za` so bounce handling uses the subdomain (keeps apex clean).
+- Keep Google's existing `google._domainkey` CNAME (or `google*._domainkey` selectors).
+- Add SES Easy DKIM's three selector CNAMEs (e.g. `<token1>._domainkey.klikk.co.za`, `<token2>._domainkey.klikk.co.za`, `<token3>._domainkey.klikk.co.za`) directly on the apex. DKIM is selector-scoped — the two senders never collide.
+- SES MAIL FROM domain: leave as `amazonses.com` default (or set to a dedicated `bounce.klikk.co.za` subdomain **only** for bounce handling if SES requests custom MAIL FROM).
 
-All transactional senders use `noreply@mail.klikk.co.za` or `notifications@mail.klikk.co.za`, reply-to `hello@klikk.co.za`.
+### DMARC — single apex policy covers both
+
+```
+TXT _dmarc "v=DMARC1; p=quarantine; rua=mailto:dmarc@klikk.co.za; pct=100"
+```
+Launch at `p=quarantine`; escalate to `p=reject` after 30 days of clean aggregate reports.
 
 ### Verification
 
 ```bash
-dig +short TXT klikk.co.za                   # Google SPF
-dig +short TXT mail.klikk.co.za              # SES SPF
-dig +short TXT _dmarc.mail.klikk.co.za       # SES DMARC
-dig +short CNAME <selector>._domainkey.mail.klikk.co.za  # SES DKIM
+dig +short TXT klikk.co.za                          # combined SPF — must include both _spf.google.com and amazonses.com
+dig +short TXT _dmarc.klikk.co.za                   # apex DMARC
+dig +short CNAME google._domainkey.klikk.co.za      # Google DKIM
+dig +short CNAME <ses-selector>._domainkey.klikk.co.za  # SES DKIM (×3 selectors)
 ```
 
 Then send a test SES email → paste the headers into `mail-tester.com` → target ≥ 9/10.
