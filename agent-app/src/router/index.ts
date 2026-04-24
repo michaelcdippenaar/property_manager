@@ -135,6 +135,12 @@ export default route(function (/* { store, ssrContext } */) {
             meta: { title: 'Settings', showFab: false },
           },
           {
+            path: 'settings/notifications',
+            name: 'notification-preferences',
+            component: () => import('../pages/NotificationPreferencesPage.vue'),
+            meta: { title: 'Notifications', showBackBtn: true, showFab: false },
+          },
+          {
             path: 'viewings/new',
             name: 'book-viewing',
             component: () => import('../pages/BookViewingPage.vue'),

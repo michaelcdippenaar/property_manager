@@ -88,6 +88,27 @@
       </q-list>
     </q-card>
 
+    <!-- Notifications -->
+    <div class="section-header">
+      Notifications
+    </div>
+    <q-card flat class="settings-card q-mb-md">
+      <q-list>
+        <q-item clickable v-ripple @click="router.push('/settings/notifications')">
+          <q-item-section avatar>
+            <q-icon name="notifications" color="grey-5" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Push notification preferences</q-item-label>
+            <q-item-label caption>Manage which categories you receive</q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-icon name="chevron_right" color="grey-4" />
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-card>
+
     <!-- Sign out -->
     <div class="section-header">
       Account

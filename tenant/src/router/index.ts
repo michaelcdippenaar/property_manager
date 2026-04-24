@@ -117,6 +117,13 @@ const router = createRouter({
       meta: { requiresAuth: true, depth: 2 },
     },
 
+    {
+      path: '/settings/notifications',
+      name: 'notification-preferences',
+      component: () => import('../views/settings/NotificationPreferencesView.vue'),
+      meta: { requiresAuth: true, depth: 2 },
+    },
+
     // Catch-all
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
