@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214246263099480"
 created: 2026-04-24
@@ -44,3 +44,5 @@ updated: 2026-04-24
 2026-04-24 — rentals-pm: Promoted from discovery `2026-04-24-esigning-panel-dummy-email-default.md`. Found during RNT-SEC-045 review. Not a credential leak but ships a real staff email in the production JS bundle and risks triggering real e-sign requests during agent testing.
 
 2026-04-24 — rentals-implementer: Replaced the hardcoded signer block in `buildDefaultSigners()` with a `return []` path. A dev-only stub remains available: if `VITE_DEV_SIGNER_EMAIL` is set and `import.meta.env.DEV` is true, ESigningPanel pre-fills a test signer using `VITE_DEV_SIGNER_NAME`, `VITE_DEV_SIGNER_EMAIL`, and `VITE_DEV_SIGNER_PHONE` env vars — identical pattern to `agent-app/src/pages/LoginPage.vue` (RNT-SEC-045). Three new vars documented in `admin/.env.development.example` with a WARNING banner. `scripts/check_hardcoded_credentials.sh` extended with a second check (Check 2) that greps for `email: '...'` / `email: "..."` assignment patterns in .vue/.ts source and fails if any match is outside a DEV guard; false-positive tested against the full codebase (placeholder attributes, mailto links, form labels are excluded by the tighter regex). Vite build (`npx vite build`) completes cleanly and `grep` over `admin/dist/` confirms the email and phone are absent from the production bundle. The pre-existing `vue-tsc` error in `src/__tests__/browser/focus-trap-keyboard.browser.test.ts` (wrong arg count) is unrelated to this task and was present before these changes.
+
+2026-04-24 — rentals-reviewer: Review passed. Verified (1) ESigningPanel.vue:834-850 — prod path returns `[]`, dev stub gated on both `import.meta.env.DEV` AND `VITE_DEV_SIGNER_EMAIL` (Vite tree-shakes in prod build). (2) `.env.development.example` adds three VITE_DEV_SIGNER_* vars, commented out, with WARNING banner matching RNT-SEC-045 style. (3) `scripts/check_hardcoded_credentials.sh` Check 2 regex confirmed via negative self-test (temp file with `email: 'bad@real.com'` → script exits 1; removed after); excludes placeholder= attrs, mailto, __tests__, .spec., example.com. Pre-commit wired via `.pre-commit-config.yaml` on *.vue/*.ts. Script passes clean on current tree. (4) `grep -r` over `admin/dist` for mc@tremly.com / 0821234567 / mc@klikk.co.za → zero hits. (5) Repo-wide grep for leftover PII: only two hits, both absolute filesystem paths (DevOpsView.vue:331, run_haiku_reindex.py:7) — not emails, out of scope, flagging as pre-existing local-dev leak worth a follow-up but not blocking. (6) Commit scope is tight: 3 source files + task file. No secrets, no unrelated churn.
