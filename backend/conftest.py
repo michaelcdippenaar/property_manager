@@ -58,8 +58,15 @@ def _reset_drf_throttle_cache():
 
 @pytest.fixture
 def api_client():
-    """DRF API test client."""
-    return APIClient()
+    """DRF API test client.
+
+    Sets Accept: application/json so DRF never falls back to the Browsable
+    API HTML renderer.  Tests that specifically need HTML can override:
+        api_client.credentials()  # clears the default Accept header
+    """
+    client = APIClient()
+    client.credentials(HTTP_ACCEPT="application/json")
+    return client
 
 
 @pytest.fixture

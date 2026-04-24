@@ -4,11 +4,14 @@ from .base import *
 
 DEBUG = True
 CORS_ALLOW_ALL_ORIGINS = True
+# Include testserver so Django's test client (APIClient) is not rejected by
+# CommonMiddleware with a 400 DisallowedHost during pytest runs.
+ALLOWED_HOSTS = list(ALLOWED_HOSTS) + ["testserver"]
 
-# ── django-silk — request/SQL profiler (dev only) ─────────────────────────────
+# -- django-silk -- request/SQL profiler (dev only) ----------------------------
 # Browse at http://localhost:8000/silk/
 # Intercepts lease/*, esigning/*, payments/* to surface slow queries and p95.
-# Excluded from staging/production settings — zero overhead in prod.
+# Excluded from staging/production settings -- zero overhead in prod.
 INSTALLED_APPS = list(INSTALLED_APPS) + ["silk"]
 MIDDLEWARE = ["silk.middleware.SilkyMiddleware"] + list(MIDDLEWARE)
 
@@ -36,6 +39,6 @@ if "test" in sys.argv:
             "otp_verify": "1000/min",
         },
     }
-    # Remove silk from the test runner — avoid creating silk tables in test DB
+    # Remove silk from the test runner -- avoid creating silk tables in test DB
     INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "silk"]
     MIDDLEWARE = [m for m in MIDDLEWARE if "silk" not in m.lower()]
