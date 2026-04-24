@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214202102067961"
 created: 2026-04-22
@@ -122,3 +122,27 @@ All six numbered fixes addressed:
 Existing required-role flow (`two_fa_enroll_required` / `two_fa_hard_blocked`) unmodified in both LoginView.vue and LoginPage.vue — those branches execute before the new `two_fa_suggest_setup` check.
 
 Note on fix #3 reviewer wording: "Hidden for required-2FA users (must not let them skip)" — the skip button is NOT shown when `isBlocked === true` (hard-blocked required-role). For grace-period required-role (`isRequired && !isBlocked`) it IS still shown, consistent with the existing pre-round-2 behaviour (grace period = can skip). Only the `isOptional` path calls the `/auth/2fa/skip/` endpoint; the grace-period path just navigates home as before.
+
+
+**2026-04-24 — rentals-reviewer (round 2): Review passed.**
+
+All six numbered fixes from round 1 implemented correctly. Verified:
+
+1. admin/src/stores/auth.ts — suggestTwoFASetup ref (in-memory, not persisted), set from data.two_fa_suggest_setup === true in both login() and googleAuth(). skipTwoFASetup() POSTs /auth/2fa/skip/ and clears flag. logout() clears flag. No Pinia persistence plugin registered in either app — confirms no cross-session/cross-machine leak.
+2. admin/src/views/auth/LoginView.vue L191-195 — two_fa_suggest_setup branch routes to 2fa-enroll?optional=1, placed AFTER the required/hard-blocked/enroll-required branches so no regression to mandatory flow.
+3. admin/src/views/auth/TwoFAEnrollView.vue — isOptional from ?optional=1. Skip button condition isOptional || (isRequired && !isBlocked). For isOptional → calls auth.skipTwoFASetup() (backend stamps skipped_2fa_setup_at). For grace-period required flow → just navigates home (consistent with pre-existing behaviour and DEC-018: required users cannot opt out, but grace-period soft-skip was already the product behaviour; this ticket does not change that). Hard-blocked required users never see the skip button.
+4. admin/src/router/index.ts L257-260 — guard runs after the public-route check, so /login is not affected. Logout is a store action (no route), so no logout bypass issue. Guard exempts 2fa-enroll so no loop.
+5. agent-app parity — stores/auth.ts, boot/auth-guard.ts, pages/LoginPage.vue, pages/TwoFAEnrollPage.vue all mirror admin. Owners logging in on agent-app get the same optional flow.
+6. Tenant web app — implementer said web_app/ absent and that's correct, but a tenant/ web app does exist with its own 2FA views. I verified: backend views.py L141-152 only emits two_fa_suggest_setup for users in TOTP_OPTIONAL_ROLES (= {OWNER}); tenants never carry the flag, so tenant/src/views/auth/LoginView.vue (which does not check for the flag) is correctly unaffected. No tenant-side change needed.
+
+Security/POPIA pass:
+- Flag is server-driven on every login; not stored in localStorage; refresh tokens cannot flip it.
+- No secrets/PII logged; no raw SQL; skip endpoint auth = IsAuthenticated, rejects non-optional roles with 400.
+- Scope clean: commit touches only admin/src/{stores,views/auth,router}, agent-app/src/{stores,pages,boot}, and the task file. No sweep-ins.
+
+DEC-018 mental test matrix:
+- staff/agent without TOTP → backend returns 2fa-challenge with no tokens → required enroll branch → no skip. Confirmed.
+- owner without TOTP → backend returns tokens + suggest_setup=true → optional branch → skip button visible → skip POSTs to /auth/2fa/skip/ → on next login suggest_setup=false → no redirect. Confirmed.
+- accountant/viewer/tenant → no suggest_setup flag → normal login → no redirect. Confirmed.
+
+Build clean per implementer note; diff does not show any broken imports (lucide KeyRound removed because unused, ShieldCheck retained for both notice banners). Handing to tester.

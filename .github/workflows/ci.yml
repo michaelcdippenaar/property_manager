@@ -27,6 +27,19 @@ jobs:
           # GITLEAKS_LICENSE not required for public repos or self-hosted
         # Config is in .gitleaks.toml at repo root
 
+  # ── Task board integrity guard (OPS-025) ─────────────────────────────────────
+  task-board-guard:
+    name: Task board integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x scripts/check_task_board_integrity.sh
+
+      - name: Check task board integrity
+        run: bash scripts/check_task_board_integrity.sh
+
   # ── Python: ruff lint + black format check + pytest ──────────────────────────
   backend:
     name: Backend (ruff, black, pytest)

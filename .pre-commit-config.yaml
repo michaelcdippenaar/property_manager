@@ -37,6 +37,16 @@ repos:
         files: "\\.(vue|ts|tsx)$"
         pass_filenames: false
 
+  # ── Task board integrity guard (OPS-025) ────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: check-task-board-integrity
+        name: "task-board: no duplicate or orphan task IDs"
+        language: script
+        entry: scripts/check_task_board_integrity.sh
+        pass_filenames: false
+        files: "^tasks/"
+
   # ── Trailing whitespace / file hygiene ─────────────────────────────────────
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
