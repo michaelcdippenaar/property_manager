@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -57,3 +57,5 @@ Verify every push notification deep-link route actually exists in the agent-app 
 - `tenant_invoice_detail` → was `/payments/:id` (no route); corrected to `/home/dashboard` as fallback.
 
 Caveats for reviewer: where no detail page exists the fallback is the closest list/dashboard. As detail pages are added in future tasks, these mappings should be tightened to pass the entity ID. Manual device smoke-test (AC-3/4) is left for the tester.
+
+2026-04-24 — reviewer: Verified all SCREEN_ROUTES in agent-app/src/services/push.ts match defined paths in agent-app/src/router/index.ts (/leases, /pipeline, /maintenance, /today — all nested under /). Verified urlMap in tenant/public/sw.js matches tenant/src/router/index.ts (/home/lease, /issues/:id, /home/dashboard). Fallbacks to list views are reasonable given no detail pages exist yet. AC-1 and AC-2 satisfied; AC-3/AC-4 (device smoke-test) defer to tester. Review passed.
