@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214237326490411"
 created: 2026-04-23
@@ -67,3 +67,5 @@ Re-run `cd backend && pytest apps/audit/ -xvs` after the change; all 31+ tests m
 Move back to `in-progress/` once fixed.
 
 2026-04-24 autopilot: bounced back to backlog after in-progress stall with no commits — re-pickup
+
+2026-04-24 (implementer re-pickup): All reviewer-required fixes were already in place in the codebase — the code had been written but the task file was never moved. Verified: `middleware.py` already delegates entirely to `utils.http.get_client_ip(request)` (no private `_get_client_ip` helper exists); `test_x_forwarded_for_used_as_ip` correctly uses `NUM_PROXIES=1` with `XFF="203.0.113.5, 10.0.0.1"` and expects `203.0.113.5`; `test_forged_xff_with_no_proxy_uses_remote_addr` covers the spoofing-negative case with `NUM_PROXIES=0`. All 32 tests pass green locally. No code changes required — task file housekeeping only.
