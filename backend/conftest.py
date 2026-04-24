@@ -25,6 +25,33 @@ def pytest_collection_modifyitems(items):
 
 
 @pytest.fixture(autouse=True)
+def _clear_contenttypes_cache():
+    """
+    Clear Django's in-process ContentType cache before and after every test.
+
+    Under pytest-xdist, each worker creates its own test database but workers
+    that share a process inherit the same ContentType._cache dict.  When a
+    worker's DB is torn down, cached ContentType PKs from that DB are stale —
+    any signal handler that calls ContentType.objects.get_for_model() in a
+    subsequent test will try to INSERT an AuditEvent referencing a
+    content_type_id that no longer exists in the new DB, producing:
+
+        IntegrityError: audit_auditevent … content_type_id … is not present
+        in table "django_content_type"
+
+    Clearing the per-model cache before and after every test forces a fresh DB
+    lookup on first access within each test, which always resolves to a valid
+    row in the current DB.  The before-clear handles the case where a previous
+    test's teardown left stale cache entries that would poison the next test's
+    setUp() call.
+    """
+    from django.contrib.contenttypes.models import ContentType
+    ContentType.objects.clear_cache()
+    yield
+    ContentType.objects.clear_cache()
+
+
+@pytest.fixture(autouse=True)
 def _reset_drf_throttle_cache():
     """
     DRF throttles use Django's default cache backend (locmem in tests) and share

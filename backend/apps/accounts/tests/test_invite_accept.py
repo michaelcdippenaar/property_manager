@@ -10,6 +10,22 @@ Covers:
 
 Run with:
     cd backend && pytest apps/accounts/tests/test_invite_accept.py -v
+
+xdist note
+----------
+These tests use Django's APITestCase (TestCase-based).  Under pytest-xdist each
+worker creates its own test database; all workers in the same OS process share the
+in-process ContentType._cache dict.  When a worker's DB is torn down, cached
+ContentType PKs become stale — the audit signal fires on the next User.save() and
+tries to INSERT an AuditEvent with a content_type_id that no longer exists in the
+new DB, producing:
+
+    IntegrityError: audit_auditevent … content_type_id … is not present in
+    table "django_content_type"
+
+The fix lives in conftest.py: the autouse _clear_contenttypes_cache fixture flushes
+ContentType._cache both before and after every test, preventing cross-worker cache
+poisoning without any change to the test classes themselves.
 """
 import uuid
 from django.test import override_settings
