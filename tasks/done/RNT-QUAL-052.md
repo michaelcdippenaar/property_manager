@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214246426569538"
 created: 2026-04-24
@@ -67,3 +67,5 @@ Migration `backend/apps/accounts/migrations/0021_add_skipped_2fa_setup_at.py` is
 - AC-1 ("duplicate session returns 400") remains unticked per implementer's PM-facing recommendation — PM to decide drop-or-split.
 
 PM note — scope collision with OPS-027: commit `8193a529` (this task) edits `scripts/check_task_board_integrity.sh` to narrow DEC-NNN scanning to `^depends_on:` only. This is OPS-027's AC-1 exactly. OPS-027 is still `tasks/in-progress/OPS-027.md` and has not committed to this file. OPS-027 implementer must rebase on main; AC-1 is already satisfied in `8193a529`, but AC-4 (update `docs/ops/task-board-guard.md`) plus AC-2/3 manual verification remain. No revert required — scope creep here was justified (was blocking the pre-commit hook for this task).
+
+2026-04-24 — rentals-tester: Test run. `pytest apps/test_hub/leases/integration/test_builder.py::LeaseBuilderSessionCreateTests -v` — 7/7 PASSED. Tests verified: test_colleague_can_create_session_on_agency_lease (201), test_create_session (201), test_create_session_invalid_lease, test_create_session_invalid_template, test_create_session_with_existing_lease (201), test_create_session_with_template, test_idor_create_session_any_lease (403). IDOR guard confirmed via canonical get_accessible_property_ids helper. AC-1 (duplicate session returns 400) remains unticked per implementer/reviewer recommendation — PM to decide drop-or-split. All in-scope ACs pass.
