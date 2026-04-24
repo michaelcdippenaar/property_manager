@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-24
