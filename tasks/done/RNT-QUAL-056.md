@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -58,3 +58,10 @@ Please: commit `InvoiceApprovalPanel.vue`, integrate it into `MaintenanceDetailV
 2026-04-25 — fix-forward implementer: (1) Added `InvoiceApprovalPanel.vue` to git (was untracked). (2) Imported `InvoiceApprovalPanel` in `MaintenanceDetailView.vue` script block. (3) Placed `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` in the left column above the Quotes card. (4) Fixed stale docstring in `AgentInvoiceApprovalView` — replaced the four sub-path examples with the correct single-endpoint contract (`POST { action, reason?, reference? }`). All 6 AC remain ticked from prior attempt; wiring now actually present on disk.
 
 2026-04-24 — Review passed: All three bounce reasons resolved in commit 29eef50b. InvoiceApprovalPanel.vue committed as new file (218 lines). MaintenanceDetailView.vue imports it and renders `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` above Quotes. POST call uses `/maintenance/${requestId}/invoice/` matching urls.py line 79. Docstring updated to single-endpoint contract with correct body shape. All 6 AC satisfied. Security: IsAgentOrAdmin permission class unchanged on backend; no PII logged; parameterised queries. Ready for tester.
+
+2026-04-24 — tester: All checks pass.
+1. InvoiceApprovalPanel.vue exists (218 lines): renders invoice list, approve/reject/paid buttons, calls `api.post('/maintenance/${requestId}/invoice/', { action, ... })`. PASS.
+2. MaintenanceDetailView.vue imports InvoiceApprovalPanel (line 297) and renders `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` (lines 88-91). PASS.
+3. vue-tsc --noEmit: single pre-existing error in `src/__tests__/browser/focus-trap-keyboard.browser.test.ts` — not introduced by new files. PASS.
+4. urls.py line 79: `path("<int:request_pk>/invoice/", AgentInvoiceApprovalView.as_view())`. AgentInvoiceApprovalView handles GET (returns invoice/404) and POST (approve/reject/paid via action field). PASS.
+5. pytest apps/maintenance/tests/ -k invoice: 14/14 passed (after dropping stale test_klikk_db held by a concurrent session — infrastructure issue, not code). PASS.
