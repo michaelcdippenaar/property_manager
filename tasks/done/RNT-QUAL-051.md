@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214246576345008"
 created: 2026-04-24
@@ -43,3 +43,5 @@ The maintenance health monitor endpoint (`/api/v1/maintenance/monitor/health/`) 
 2026-04-24 implementer: Fixed by changing `AgentHealthCheckView.permission_classes` from `[IsAuthenticated, IsAdmin]` to `[IsAuthenticated, IsAgentOrAdmin]` in `backend/apps/maintenance/monitor_views.py`. The view's comment said "admin only" but the tests authenticate as agent users and all 3 `AgentHealthCheckTests` expect 200 — consistent with every other monitor view in the same file which all use `IsAgentOrAdmin`. Non-agent/admin roles (tenants, owners, suppliers) still receive 403. All 3 tests pass confirmed with `--create-db`.
 
 2026-04-24 reviewer: Review passed. Verified: (1) all 4 other views in monitor_views.py use IsAgentOrAdmin — change is consistent; (2) response always returns `overall` + `checks` keys (lines 442-448); (3) all 3 AgentHealthCheckTests pass green; (4) no new endpoints, no raw SQL, no PII logged. One note: the AC says "admin" but the tests only authenticate as agent — the change correctly broadens to IsAgentOrAdmin per the existing file convention. Approved.
+
+2026-04-24 tester: Test run — AgentHealthCheckTests (3 tests) via `pytest apps/test_hub/maintenance/integration/test_monitor.py::AgentHealthCheckTests -v`. Result: 3 passed in 33.72s. All pass.
