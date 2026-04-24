@@ -7,9 +7,9 @@
  *   <entity>_id   — primary key string for the target object
  *
  * Tenant screen → URL mapping:
- *   tenant_lease_detail      → /lease
- *   tenant_maintenance_detail → /maintenance/<maintenance_id>
- *   tenant_invoice_detail    → /payments/<invoice_id>
+ *   tenant_lease_detail       → /home/lease
+ *   tenant_maintenance_detail → /issues/<maintenance_id>  (issues = maintenance)
+ *   tenant_invoice_detail     → /home/dashboard  (no payments route yet)
  */
 
 /* global self, clients */
@@ -44,10 +44,14 @@ self.addEventListener('notificationclick', (event) => {
   const data = event.notification.data || {}
   const screen = data.screen || ''
 
+  // Paths must match tenant/src/router/index.ts exactly.
+  // tenant_lease_detail  → /home/lease  (nested under AppShell at /home)
+  // tenant_maintenance_detail → /issues/:id  (issues = maintenance in tenant)
+  // tenant_invoice_detail → /home/dashboard  (no payments route yet)
   const urlMap = {
-    tenant_lease_detail: '/lease',
-    tenant_maintenance_detail: `/maintenance/${data.maintenance_id || ''}`,
-    tenant_invoice_detail: `/payments/${data.invoice_id || ''}`,
+    tenant_lease_detail: '/home/lease',
+    tenant_maintenance_detail: data.maintenance_id ? `/issues/${data.maintenance_id}` : '/home/dashboard',
+    tenant_invoice_detail: '/home/dashboard',
   }
 
   const targetUrl = urlMap[screen] || '/'

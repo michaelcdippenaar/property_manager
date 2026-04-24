@@ -19,12 +19,18 @@
 import { Platform } from 'quasar'
 import type { Router } from 'vue-router'
 
-// Screen → route mapping for agent deep-links
+// Screen → route mapping for agent deep-links.
+// Routes must correspond to defined paths in agent-app/src/router/index.ts.
+// Where no dedicated detail page exists, we fall back to the closest list view.
 const SCREEN_ROUTES: Record<string, (data: Record<string, string>) => string> = {
-  lease_detail:       (d) => `/leases/${d.lease_id}`,
-  mandate_detail:     (d) => `/mandates/${d.mandate_id}`,
-  maintenance_detail: (d) => `/maintenance/${d.maintenance_id}`,
-  invoice_detail:     (d) => `/payments/invoices/${d.invoice_id}`,
+  // No lease detail page — navigate to the leases list
+  lease_detail:       (_d) => '/leases',
+  // No dedicated mandates page — pipeline is where mandate cards live
+  mandate_detail:     (_d) => '/pipeline',
+  // No maintenance detail page — navigate to the maintenance list
+  maintenance_detail: (_d) => '/maintenance',
+  // No payments/invoices page — fall back to today's task summary
+  invoice_detail:     (_d) => '/today',
 }
 
 /**
