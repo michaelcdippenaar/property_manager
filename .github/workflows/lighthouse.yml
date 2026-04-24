@@ -39,7 +39,7 @@ jobs:
         run: npm run build
 
       - name: Upload bundle analyser report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: website-bundle-stats
           path: website/dist/bundle-stats.html
@@ -83,7 +83,7 @@ jobs:
           VITE_APP_RELEASE: "ci-perf"
 
       - name: Upload bundle analyser report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: admin-bundle-stats
           path: admin/dist/bundle-stats.html
@@ -134,7 +134,7 @@ jobs:
         run: npx vite build
 
       - name: Upload bundle analyser report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tenant-bundle-stats
           path: tenant/dist/bundle-stats.html
