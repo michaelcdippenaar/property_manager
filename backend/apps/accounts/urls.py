@@ -5,7 +5,7 @@ from .views import (
     TenantsListView, PersonViewSet, PersonDetailView, PersonDocumentListCreateView,
     PersonDocumentDetailView, PushTokenView, PushPreferenceView, MarkWelcomeSeenView,
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
-    AcceptInviteView,
+    AcceptInviteView, Skip2FASetupView,
 )
 from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView, AgencyBillingView
 from .oauth_views import GoogleAuthView
@@ -52,6 +52,7 @@ urlpatterns = [
     # Agency billing / tier enforcement
     path("agency/billing/", AgencyBillingView.as_view(), name="agency-billing"),
     # ── TOTP 2FA ──────────────────────────────────────────────────────────────
+    path("2fa/skip/", Skip2FASetupView.as_view(), name="2fa-skip"),
     path("2fa/status/", TOTPStatusView.as_view(), name="2fa-status"),
     path("2fa/setup/", TOTPSetupView.as_view(), name="2fa-setup"),
     path("2fa/setup/confirm/", TOTPSetupConfirmView.as_view(), name="2fa-setup-confirm"),

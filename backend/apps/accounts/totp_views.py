@@ -37,7 +37,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .audit import log_auth_event
-from .models import User, UserTOTP, TOTPRecoveryCode, TOTP_REQUIRED_ROLES, TOTP_GRACE_PERIOD_DAYS
+from .models import User, UserTOTP, TOTPRecoveryCode, TOTP_REQUIRED_ROLES, TOTP_OPTIONAL_ROLES, TOTP_GRACE_PERIOD_DAYS
 from .throttles import AuthAnonThrottle, OTPVerifyThrottle
 
 
@@ -93,6 +93,7 @@ def _user_data(user: User) -> dict:
 def _totp_status_for_user(user: User) -> dict:
     """Compute 2FA status fields for the current user."""
     required = user.role in TOTP_REQUIRED_ROLES
+    optional = user.role in TOTP_OPTIONAL_ROLES
     try:
         totp = user.totp
         enrolled = totp.is_active
@@ -117,10 +118,12 @@ def _totp_status_for_user(user: User) -> dict:
 
     return {
         "required": required,
+        "optional": optional,
         "enrolled": enrolled,
         "in_grace_period": in_grace,
         "hard_blocked": hard_blocked,
         "grace_deadline": grace_deadline,
+        "skipped_setup": user.skipped_2fa_setup_at is not None if optional else None,
     }
 
 

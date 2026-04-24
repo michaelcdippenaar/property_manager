@@ -11,7 +11,7 @@ from unittest import mock
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.accounts.models import User, UserTOTP, TOTPRecoveryCode, TOTP_REQUIRED_ROLES
+from apps.accounts.models import User, UserTOTP, TOTPRecoveryCode, TOTP_REQUIRED_ROLES, TOTP_OPTIONAL_ROLES
 from apps.test_hub.base.test_case import TremlyAPITestCase
 
 pytestmark = [pytest.mark.integration, pytest.mark.green]
@@ -90,115 +90,104 @@ class LoginTwoFAGateTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 400)
 
 
-# ── ACCOUNTANT / VIEWER TOTP gate tests ───────────────────────────────────────
+# ── ACCOUNTANT / VIEWER — no TOTP gate (DEC-018) ─────────────────────────────
 
-class AccountantViewerTOTPGateTests(TremlyAPITestCase):
+class AccountantViewerNoTOTPGateTests(TremlyAPITestCase):
     """
-    RNT-SEC-017: ACCOUNTANT and VIEWER must be subject to the same TOTP gate as
-    other privileged roles (ADMIN, AGENT, OWNER, etc.).
+    DEC-018 (2026-04-24): ACCOUNTANT and VIEWER are NOT in TOTP_REQUIRED_ROLES or
+    TOTP_OPTIONAL_ROLES for v1.0.  They must receive full tokens immediately on
+    login with no 2FA gate or suggestion prompt.
     """
 
-    # ---- ACCOUNTANT without TOTP enrolled (in-grace) ----
+    def test_accountant_not_in_required_roles(self):
+        self.assertNotIn(User.Role.ACCOUNTANT, TOTP_REQUIRED_ROLES)
+        self.assertNotIn(User.Role.ACCOUNTANT, TOTP_OPTIONAL_ROLES)
 
-    def test_accountant_login_not_enrolled_in_grace_gets_access_and_enroll_flag(self):
+    def test_viewer_not_in_required_roles(self):
+        self.assertNotIn(User.Role.VIEWER, TOTP_REQUIRED_ROLES)
+        self.assertNotIn(User.Role.VIEWER, TOTP_OPTIONAL_ROLES)
+
+    def test_accountant_login_gets_full_tokens_no_2fa_flags(self):
+        """Accountant login must return full tokens with no 2FA flags set."""
         user = self.create_user(email="acc_new@test.com", password="pass12345", role="accountant")
         resp = self.client.post(reverse("auth-login"), {"email": "acc_new@test.com", "password": "pass12345"})
         self.assertEqual(resp.status_code, 200)
         self.assertIn("access", resp.data)
-        self.assertTrue(resp.data.get("two_fa_enroll_required"))
         self.assertFalse(resp.data.get("two_fa_required", False))
+        self.assertFalse(resp.data.get("two_fa_enroll_required", False))
+        self.assertFalse(resp.data.get("two_fa_suggest_setup", False))
 
-    # ---- ACCOUNTANT past grace: hard-blocked ----
-
-    def test_accountant_login_not_enrolled_past_grace_hard_blocked(self):
-        user = self.create_user(email="acc_late@test.com", password="pass12345", role="accountant")
-        past_deadline = timezone.now() - timedelta(days=1)
-        UserTOTP.objects.create(user=user, secret="", grace_deadline=past_deadline)
-
-        resp = self.client.post(reverse("auth-login"), {"email": "acc_late@test.com", "password": "pass12345"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertNotIn("access", resp.data)
-        self.assertTrue(resp.data.get("two_fa_hard_blocked"))
-        self.assertTrue(resp.data.get("two_fa_enroll_required"))
-
-    # ---- ACCOUNTANT fully enrolled: gets two_fa_token, not full tokens yet ----
-
-    def test_accountant_login_enrolled_returns_two_fa_token(self):
-        user = self.create_user(email="acc_ok@test.com", password="pass12345", role="accountant")
-        _enroll_user(user)
-
-        resp = self.client.post(reverse("auth-login"), {"email": "acc_ok@test.com", "password": "pass12345"})
-        self.assertEqual(resp.status_code, 200)
-        self.assertTrue(resp.data.get("two_fa_required"))
-        self.assertIn("two_fa_token", resp.data)
-        self.assertNotIn("access", resp.data)
-
-    # ---- ACCOUNTANT completes TOTP verify → full tokens ----
-
-    def test_accountant_totp_verify_issues_full_tokens(self):
-        user = self.create_user(email="acc_verify@test.com", password="pass12345", role="accountant")
-        totp_rec, _ = _enroll_user(user)
-
-        login_resp = self.client.post(reverse("auth-login"), {"email": "acc_verify@test.com", "password": "pass12345"})
-        two_fa_token = login_resp.data.get("two_fa_token")
-        self.assertIsNotNone(two_fa_token)
-
-        code = _current_code(totp_rec)
-        resp = self.client.post(reverse("2fa-verify"), {"two_fa_token": two_fa_token, "totp_code": code})
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("access", resp.data)
-        self.assertIn("refresh", resp.data)
-
-    # ---- VIEWER without TOTP enrolled (in-grace) ----
-
-    def test_viewer_login_not_enrolled_in_grace_gets_access_and_enroll_flag(self):
+    def test_viewer_login_gets_full_tokens_no_2fa_flags(self):
+        """Viewer login must return full tokens with no 2FA flags set."""
         user = self.create_user(email="view_new@test.com", password="pass12345", role="viewer")
         resp = self.client.post(reverse("auth-login"), {"email": "view_new@test.com", "password": "pass12345"})
         self.assertEqual(resp.status_code, 200)
         self.assertIn("access", resp.data)
-        self.assertTrue(resp.data.get("two_fa_enroll_required"))
         self.assertFalse(resp.data.get("two_fa_required", False))
+        self.assertFalse(resp.data.get("two_fa_enroll_required", False))
+        self.assertFalse(resp.data.get("two_fa_suggest_setup", False))
 
-    # ---- VIEWER past grace: hard-blocked ----
 
-    def test_viewer_login_not_enrolled_past_grace_hard_blocked(self):
-        user = self.create_user(email="view_late@test.com", password="pass12345", role="viewer")
-        past_deadline = timezone.now() - timedelta(days=1)
-        UserTOTP.objects.create(user=user, secret="", grace_deadline=past_deadline)
+# ── Owner optional 2FA prompt tests (DEC-018) ────────────────────────────────
 
-        resp = self.client.post(reverse("auth-login"), {"email": "view_late@test.com", "password": "pass12345"})
+class OwnerOptional2FATests(TremlyAPITestCase):
+    """
+    DEC-018: Owner role receives a first-login suggestion prompt
+    ("We recommend enabling 2FA") with a skip option.  Owners are never
+    hard-blocked.  Skipping persists via skipped_2fa_setup_at.
+    """
+
+    def test_owner_in_optional_roles_not_required(self):
+        self.assertIn(User.Role.OWNER, TOTP_OPTIONAL_ROLES)
+        self.assertNotIn(User.Role.OWNER, TOTP_REQUIRED_ROLES)
+
+    def test_owner_first_login_gets_full_tokens_and_suggest_flag(self):
+        """First-time owner login: full tokens issued and two_fa_suggest_setup=True."""
+        owner = self.create_user(email="owner_first@test.com", password="pass12345", role="owner")
+        resp = self.client.post(reverse("auth-login"), {"email": "owner_first@test.com", "password": "pass12345"})
         self.assertEqual(resp.status_code, 200)
-        self.assertNotIn("access", resp.data)
-        self.assertTrue(resp.data.get("two_fa_hard_blocked"))
-        self.assertTrue(resp.data.get("two_fa_enroll_required"))
+        self.assertIn("access", resp.data)
+        self.assertFalse(resp.data.get("two_fa_required", False))
+        self.assertFalse(resp.data.get("two_fa_enroll_required", False))
+        self.assertTrue(resp.data.get("two_fa_suggest_setup", False))
 
-    # ---- VIEWER fully enrolled: gets two_fa_token ----
+    def test_owner_after_skip_no_suggest_flag(self):
+        """After skipping, subsequent logins must not show the suggestion prompt."""
+        from django.utils import timezone as tz
+        owner = self.create_user(email="owner_skip@test.com", password="pass12345", role="owner")
+        owner.skipped_2fa_setup_at = tz.now()
+        owner.save(update_fields=["skipped_2fa_setup_at"])
 
-    def test_viewer_login_enrolled_returns_two_fa_token(self):
-        user = self.create_user(email="view_ok@test.com", password="pass12345", role="viewer")
-        _enroll_user(user)
+        resp = self.client.post(reverse("auth-login"), {"email": "owner_skip@test.com", "password": "pass12345"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("access", resp.data)
+        self.assertFalse(resp.data.get("two_fa_suggest_setup", False))
 
-        resp = self.client.post(reverse("auth-login"), {"email": "view_ok@test.com", "password": "pass12345"})
+    def test_owner_skip_endpoint_stamps_skipped_at(self):
+        """POST /auth/2fa/skip/ persists skipped_2fa_setup_at for owner."""
+        owner = self.create_user(email="owner_skip2@test.com", password="pass12345", role="owner")
+        self.authenticate(owner)
+        resp = self.client.post(reverse("2fa-skip"))
+        self.assertEqual(resp.status_code, 200)
+        owner.refresh_from_db()
+        self.assertIsNotNone(owner.skipped_2fa_setup_at)
+
+    def test_non_optional_role_cannot_call_skip(self):
+        """Agent (required role) calling /auth/2fa/skip/ gets 400."""
+        agent = self.create_user(email="agent_skip@test.com", password="pass12345", role="agent")
+        self.authenticate(agent)
+        resp = self.client.post(reverse("2fa-skip"))
+        self.assertEqual(resp.status_code, 400)
+
+    def test_owner_enrolled_gets_two_fa_token(self):
+        """Owner who voluntarily enrolled in TOTP gets the standard 2FA challenge on login."""
+        owner = self.create_user(email="owner_enrolled@test.com", password="pass12345", role="owner")
+        _enroll_user(owner)
+        resp = self.client.post(reverse("auth-login"), {"email": "owner_enrolled@test.com", "password": "pass12345"})
         self.assertEqual(resp.status_code, 200)
         self.assertTrue(resp.data.get("two_fa_required"))
         self.assertIn("two_fa_token", resp.data)
         self.assertNotIn("access", resp.data)
-
-    # ---- VIEWER completes TOTP verify → full tokens ----
-
-    def test_viewer_totp_verify_issues_full_tokens(self):
-        user = self.create_user(email="view_verify@test.com", password="pass12345", role="viewer")
-        totp_rec, _ = _enroll_user(user)
-
-        login_resp = self.client.post(reverse("auth-login"), {"email": "view_verify@test.com", "password": "pass12345"})
-        two_fa_token = login_resp.data.get("two_fa_token")
-        self.assertIsNotNone(two_fa_token)
-
-        code = _current_code(totp_rec)
-        resp = self.client.post(reverse("2fa-verify"), {"two_fa_token": two_fa_token, "totp_code": code})
-        self.assertEqual(resp.status_code, 200)
-        self.assertIn("access", resp.data)
-        self.assertIn("refresh", resp.data)
 
 
 # ── TOTP verify tests ─────────────────────────────────────────────────────────

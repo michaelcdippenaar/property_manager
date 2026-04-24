@@ -79,6 +79,11 @@ class User(AbstractBaseUser, PermissionsMixin):
         null=True, blank=True,
         help_text="When the tenant first dismissed the welcome screen; null = not yet seen.",
     )
+    skipped_2fa_setup_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="When an optional-2FA user (e.g. owner) last skipped the 2FA setup prompt. "
+                  "Null means they have not been prompted yet or never skipped.",
+    )
 
     objects = UserManager()
 
@@ -446,16 +451,22 @@ class LoginAttempt(models.Model):
 
 # ── 2FA / TOTP ────────────────────────────────────────────────────────────────
 
-# Roles that MUST enroll in TOTP before full access is granted.
+# Roles that MUST enroll in TOTP before full access is granted (DEC-018).
+# ACCOUNTANT and VIEWER are excluded for v1.0.
+# OWNER is in TOTP_OPTIONAL_ROLES — prompted but not blocked.
 TOTP_REQUIRED_ROLES = {
     User.Role.ADMIN,
     User.Role.AGENCY_ADMIN,
     User.Role.AGENT,
     User.Role.MANAGING_AGENT,
     User.Role.ESTATE_AGENT,
+}
+
+# Roles for which 2FA is recommended but skippable (DEC-018).
+# These users receive a one-time suggestion prompt; skipping is persisted via
+# User.skipped_2fa_setup_at so they are not nagged on every subsequent login.
+TOTP_OPTIONAL_ROLES = {
     User.Role.OWNER,
-    User.Role.ACCOUNTANT,
-    User.Role.VIEWER,
 }
 
 # Grace period before a required-2FA user is hard-blocked (days).

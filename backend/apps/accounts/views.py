@@ -16,7 +16,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.shortcuts import get_object_or_404
 from .models import (
     User, OTPCode, Person, PersonDocument, PushToken, LoginAttempt, UserInvite, Agency,
-    UserTOTP, TOTP_REQUIRED_ROLES, TOTP_GRACE_PERIOD_DAYS,
+    UserTOTP, TOTP_REQUIRED_ROLES, TOTP_OPTIONAL_ROLES, TOTP_GRACE_PERIOD_DAYS,
 )
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
@@ -136,6 +136,19 @@ class LoginView(APIView):
             return Response({
                 "two_fa_required": True,
                 "two_fa_token": two_fa_token,
+            }, status=status.HTTP_200_OK)
+
+        # ── Optional 2FA prompt (e.g. owner role) ────────────────────────────
+        totp_optional = user.role in TOTP_OPTIONAL_ROLES
+        if totp_optional and not totp_enrolled:
+            refresh = RefreshToken.for_user(user)
+            # Only suggest setup if the user has never skipped the prompt before.
+            suggest = user.skipped_2fa_setup_at is None
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserSerializer(user).data,
+                "two_fa_suggest_setup": suggest,
             }, status=status.HTTP_200_OK)
 
         # No 2FA required/enrolled — issue full tokens directly
@@ -293,6 +306,28 @@ class PushPreferenceView(APIView):
             defaults={"enabled": enabled},
         )
         return Response({"category": category, "enabled": enabled})
+
+
+class Skip2FASetupView(APIView):
+    """
+    POST /auth/2fa/skip/
+    Authenticated.  Called by optional-2FA users (owner role) who click
+    "Skip for now" on the 2FA setup suggestion prompt.  Stamps
+    skipped_2fa_setup_at so subsequent logins no longer show the prompt.
+    Idempotent — calling again just refreshes the timestamp.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        if user.role not in TOTP_OPTIONAL_ROLES:
+            return Response(
+                {"detail": "2FA skip is not applicable for your role."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.skipped_2fa_setup_at = timezone.now()
+        user.save(update_fields=["skipped_2fa_setup_at"])
+        return Response({"detail": "2FA setup prompt dismissed."})
 
 
 class MarkWelcomeSeenView(APIView):
