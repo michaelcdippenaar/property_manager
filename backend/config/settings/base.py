@@ -21,7 +21,24 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 # Set ENABLE_TEST_ENDPOINTS=true in staging .env only — never in production.
 ENABLE_TEST_ENDPOINTS = config("ENABLE_TEST_ENDPOINTS", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
-CSRF_TRUSTED_ORIGINS = ["http://localhost:5178", "http://127.0.0.1:5178", "http://127.0.0.1:5173", "http://localhost:5173", "http://192.168.1.176:9501"]
+
+# CSRF_TRUSTED_ORIGINS: dev defaults are listed below.
+# In staging/production the CSRF_TRUSTED_ORIGINS env var is set in .env.staging /
+# .env.production and those values are merged on top of the dev defaults.
+# See .env.staging and .env.production for the full production origin lists.
+_CSRF_DEV_DEFAULTS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
+    "http://192.168.1.176:9501",
+]
+_csrf_extra = config("CSRF_TRUSTED_ORIGINS", default="")
+CSRF_TRUSTED_ORIGINS = _CSRF_DEV_DEFAULTS + [
+    o.strip() for o in _csrf_extra.split(",") if o.strip()
+]
 
 DJANGO_APPS = [
     "daphne",
@@ -206,7 +223,11 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-CORS_ALLOWED_ORIGINS = [
+# CORS_ALLOWED_ORIGINS: dev defaults are listed below.
+# In staging/production the CORS_EXTRA_ORIGINS env var appends additional origins
+# (see .env.staging / .env.production). No wildcards are used — explicit list only.
+_CORS_DEV_DEFAULTS = [
+    # ── Local development ──────────────────────────────────────────────────────
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5174",
@@ -219,9 +240,30 @@ CORS_ALLOWED_ORIGINS = [
     # Capacitor agent-app (iOS WebView origin + Android WebView origin)
     "capacitor://localhost",
     "http://localhost",
+    # ── Production canonical origins ───────────────────────────────────────────
     # Marketing website
     "https://klikk.co.za",
     "https://www.klikk.co.za",
+    # Admin SPA — agents / property managers
+    "https://app.klikk.co.za",
+    # Sunset redirect origin (agent. → app.); remove after 90 days
+    "https://agent.klikk.co.za",
+    # Tenant web app
+    "https://tenant.klikk.co.za",
+    # Agent mobile PWA (Quasar)
+    "https://mobile-agent.klikk.co.za",
+    # Tenant mobile PWA (Quasar)
+    "https://mobile-tenant.klikk.co.za",
+    # ── Staging canonical origins ──────────────────────────────────────────────
+    "https://staging-app.klikk.co.za",
+    "https://staging-tenant.klikk.co.za",
+    "https://staging-mobile-agent.klikk.co.za",
+    # staging-api is the backend itself; browsers never need to CORS-fetch it
+    # from staging-api — so only the frontend origins are listed here.
+]
+_cors_extra = config("CORS_EXTRA_ORIGINS", default="")
+CORS_ALLOWED_ORIGINS = _CORS_DEV_DEFAULTS + [
+    o.strip() for o in _cors_extra.split(",") if o.strip()
 ]
 
 CONTACT_EMAIL = config("CONTACT_EMAIL", default="mc@klikk.co.za")
@@ -358,7 +400,21 @@ TENANT_APP_BASE_URL = config("TENANT_APP_BASE_URL", default="").strip().rstrip("
 # Gotenberg — Chromium-based HTML→PDF service (docker-compose: gotenberg on port 3000)
 GOTENBERG_URL = config("GOTENBERG_URL", default="http://localhost:3000")
 
-# Email (Django) — Gmail: smtp.gmail.com:587 + app password; see apps/notifications/NOTIFICATIONS.md
+# ── Email ─────────────────────────────────────────────────────────────────────
+# Dev default: console backend (no credentials needed).
+# Staging/production: AWS SES SMTP relay — credentials supplied via SSM / .env.secrets.
+#
+# SES SMTP settings (af-south-1):
+#   EMAIL_HOST=email-smtp.af-south-1.amazonaws.com
+#   EMAIL_PORT=587
+#   EMAIL_HOST_USER=<SES SMTP username from IAM>    ← from SSM / .env.secrets
+#   EMAIL_HOST_PASSWORD=<SES SMTP password>         ← from SSM / .env.secrets
+#   DEFAULT_FROM_EMAIL=Klikk <no-reply@klikk.co.za>
+#   SERVER_EMAIL=no-reply@klikk.co.za
+#   EMAIL_REPLY_TO=support@klikk.co.za
+#
+# See docs/ops/email-deliverability.md for domain verification, DKIM, SPF, DMARC,
+# bounce/complaint SNS setup and sandbox → production access request steps.
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend",
@@ -369,6 +425,15 @@ EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="noreply@localhost")
+SERVER_EMAIL = config("SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
+EMAIL_REPLY_TO = config("EMAIL_REPLY_TO", default="support@klikk.co.za")
+
+# AWS SES region (used by django-ses if EMAIL_BACKEND is switched to SESBackend)
+AWS_SES_REGION_NAME = config("AWS_SES_REGION", default="af-south-1")
+AWS_SES_REGION_ENDPOINT = config(
+    "AWS_SES_REGION_ENDPOINT",
+    default=f"email-smtp.{AWS_SES_REGION_NAME}.amazonaws.com",
+)
 
 # SMS / WhatsApp (Twilio)
 TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")

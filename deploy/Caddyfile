@@ -1,5 +1,5 @@
 {
-  # Email used for Let's Encrypt account (optional but recommended)
+  # Email used for Let's Encrypt account
   email admin@klikk.co.za
 }
 
@@ -11,6 +11,10 @@
   }
 }
 
+(hsts_header) {
+  header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+}
+
 (optional_basic_auth) {
   # If BASIC_AUTH_USER/HASH are empty, this directive will error.
   # Keep them set in production if you truly want "no Google detection".
@@ -19,25 +23,57 @@
   }
 }
 
-# Marketing site (public — no Basic Auth; optional noindex headers only)
-klikk.co.za {
-  redir https://www.klikk.co.za{uri} permanent
+# ─────────────────────────────────────────────────────────────────────────────
+# REDIRECTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# www → apex (permanent)
+www.klikk.co.za {
+  import hsts_header
+  redir https://klikk.co.za{uri} permanent
 }
 
-www.klikk.co.za {
+# agent. → app. (sunset redirect — remove after 90 days of app. stability)
+agent.klikk.co.za {
+  import hsts_header
+  redir https://app.klikk.co.za{uri} permanent
+}
+
+# backend. → api. (sunset redirect — remove after 90 days)
+backend.klikk.co.za {
+  import hsts_header
+  redir https://api.klikk.co.za{uri} permanent
+}
+
+# Staging redirect aliases (mirror the pattern for consistency)
+staging-www.klikk.co.za {
+  import hsts_header
   import no_index_headers
+  redir https://staging-app.klikk.co.za{uri} permanent
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PRODUCTION — canonical virtual hosts
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Marketing site (Astro static build)
+klikk.co.za {
+  import hsts_header
+
+  # CSP for static marketing site — allows Google Fonts, analytics, etc.
+  header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://plausible.klikk.co.za; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://plausible.klikk.co.za https://api.klikk.co.za; media-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
   reverse_proxy website_web:80
 }
 
-# Admin SPA (public login)
+# Admin SPA (Vue 3, admin/)
 app.klikk.co.za {
+  import hsts_header
   import no_index_headers
 
-  # CSP for the static SPA shell.  No nonce is needed here because the Vite
-  # build emits zero inline scripts — only <script type="module" src="...">
-  # external tags.  'self' therefore covers all module scripts without
-  # 'strict-dynamic' (which would incorrectly shadow 'self').
-  # Django-side SecurityHeadersMiddleware keeps its own nonce for rendered
+  # CSP for the static SPA shell. No nonce needed — Vite build emits only
+  # <script type="module" src="..."> external tags. 'self' covers all module
+  # scripts. Django SecurityHeadersMiddleware keeps its own nonce for rendered
   # pages; this header applies only to the Caddy-served SPA origin.
   header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za https://backend.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
@@ -50,10 +86,48 @@ app.klikk.co.za {
   reverse_proxy admin_web:80
 }
 
+# Tenant web app (web_app/)
+tenant.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  # Proxy media requests to backend
+  handle /media/* {
+    reverse_proxy backend:8000
+  }
+
+  reverse_proxy tenant_web:80
+}
+
+# Agent mobile PWA (Quasar, agent-app/)
+mobile-agent.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  # Same static-SPA CSP rationale as app.klikk.co.za above.
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za https://backend.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  reverse_proxy agent_app_web:80
+}
+
+# Tenant mobile PWA (Quasar, tenant-app/)
+mobile-tenant.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  reverse_proxy tenant_app_web:80
+}
+
 # Django API + Volt MCP
 # /mcp/ → volt_mcp:8765 (owner MCP server, bearer-token auth)
 # everything else → backend:8000 (Django REST API)
-backend.klikk.co.za {
+api.klikk.co.za {
+  import hsts_header
+
   # Volt Owner MCP — streamable HTTP endpoint
   handle /mcp/* {
     reverse_proxy volt_mcp:8765 {
@@ -76,12 +150,61 @@ backend.klikk.co.za {
   }
 }
 
-# Agent mobile web (Quasar SPA)
-mobile-agent.klikk.co.za {
+# ─────────────────────────────────────────────────────────────────────────────
+# STAGING — virtual hosts (same EC2, staging Docker Compose profile / ports)
+# Staging services bind on different host ports; Caddy routes to them by
+# upstream name. Uses the same Let's Encrypt ACME flow — valid TLS on day one.
+# Staging subdomains are noindex + carry the same HSTS as prod so the header
+# is consistent, but HSTS preload is only submitted for prod surfaces.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Staging admin SPA
+staging-app.klikk.co.za {
+  import hsts_header
   import no_index_headers
 
-  # Same static-SPA CSP rationale as app.klikk.co.za above.
-  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://api.klikk.co.za https://backend.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://staging-api.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
-  reverse_proxy agent_app_web:80
+  handle /media/* {
+    reverse_proxy staging_backend:8000
+  }
+
+  reverse_proxy staging_admin_web:80
+}
+
+# Staging tenant web app
+staging-tenant.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://staging-api.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  handle /media/* {
+    reverse_proxy staging_backend:8000
+  }
+
+  reverse_proxy staging_tenant_web:80
+}
+
+# Staging agent mobile PWA
+staging-mobile-agent.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://staging-api.klikk.co.za; media-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+  reverse_proxy staging_agent_app_web:80
+}
+
+# Staging Django API
+staging-api.klikk.co.za {
+  import hsts_header
+  import no_index_headers
+
+  reverse_proxy staging_backend:8000 {
+    transport http {
+      read_timeout 180s
+      write_timeout 180s
+    }
+  }
 }
