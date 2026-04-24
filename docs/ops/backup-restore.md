@@ -80,34 +80,75 @@ age-keygen -o klikk-backup-age.key
 
 ---
 
-## 4. Required Secrets (`backend/.env.secrets`)
+## 4. Environment Variables
+
+### 4a. Non-secret config (committed — `backend/.env.staging` / `backend/.env.production`)
+
+These are safe to commit.  They differ between staging and production:
+
+| Variable | Staging | Production |
+|----------|---------|-----------|
+| `BACKUP_S3_BUCKET` | `klikk-backups-af` | `klikk-backups-af-prod` |
+| `BACKUP_S3_PREFIX` | `klikk-staging` | `klikk-production` |
+| `BACKUP_AWS_REGION` | `af-south-1` | `af-south-1` |
+
+**Staging-first deployment:** provision and test on staging before enabling
+production.  The non-secret stubs are already present in `backend/.env.staging`.
+
+### 4b. Secrets (`backend/.env.secrets` — never committed)
 
 Add these lines to the secrets file on every server:
 
 ```bash
 # ── Backup ────────────────────────────────────────────────────────────────────
-BACKUP_S3_BUCKET=klikk-backups-af
-BACKUP_S3_PREFIX=klikk-production          # or klikk-staging
-AWS_DEFAULT_REGION=af-south-1
+# IAM user klikk-backup (write + list, no delete)
+# Retrieve from Bitwarden "Klikk → Backup IAM credentials"
 AWS_ACCESS_KEY_ID=<klikk-backup IAM key>
 AWS_SECRET_ACCESS_KEY=<klikk-backup IAM secret>
-AGE_PUBLIC_KEY=age1<...>                    # recipient public key (NOT the private key)
+# Canonical env var name; script also accepts legacy alias AGE_PUBLIC_KEY.
+BACKUP_ENCRYPTION_KEY=age1<...>             # recipient public key (NOT the private key)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/... # optional; set for failure alerts
 ALERT_EMAIL=mc@tremly.com                    # optional; backup failure email
 ```
+
+### 4c. Graceful skip (CI / pre-provisioning)
+
+`backup.sh` checks for infrastructure credentials before running.  If
+`BACKUP_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`BACKUP_ENCRYPTION_KEY`, or `BACKUP_AWS_REGION` are absent the script logs a
+`SKIP:` message and exits **0** (non-fatal).  This means:
+- CI pipelines that execute `backup.sh` will not fail while infra is unprovisioned.
+- Staging containers will start cleanly and attempt a real backup once secrets are populated.
+
+Database variables (`DB_HOST`, `DB_PASSWORD`, etc.) remain fatal — a missing DB
+password is always a misconfiguration.
+
+### 4d. Env var aliases
+
+| Canonical name | Legacy alias | Notes |
+|----------------|-------------|-------|
+| `BACKUP_ENCRYPTION_KEY` | `AGE_PUBLIC_KEY` | Script promotes legacy value automatically |
+| `BACKUP_AWS_REGION` | `AWS_DEFAULT_REGION` | Script promotes legacy value; AWS CLI still reads `AWS_DEFAULT_REGION` |
 
 ---
 
 ## 5. Starting the Backup Service
 
-The backup service runs in a separate Docker Compose file that is layered on top
-of the main production stack:
+The backup service runs in a separate Docker Compose file layered on top of the
+main stack.  Use the appropriate base file for your environment:
 
 ```bash
 ssh mc@<server>
 cd ~/apps/property_manager
 
-# Start/restart backup service alongside production stack
+# Staging (recommended first deployment target — uses klikk-backups-af bucket)
+docker compose \
+  -f deploy/docker-compose.staging.yml \
+  -f deploy/docker-compose.backup.yml \
+  -f deploy/docker-compose.backup.staging.yml \
+  up -d backup drill_reminder
+
+# Production (uses klikk-backups-af-prod bucket via .env.production)
 docker compose \
   -f deploy/docker-compose.prod.yml \
   -f deploy/docker-compose.backup.yml \
@@ -125,6 +166,14 @@ docker compose \
 ## 6. Triggering a Manual Backup
 
 ```bash
+# Staging
+docker compose \
+  -f deploy/docker-compose.staging.yml \
+  -f deploy/docker-compose.backup.yml \
+  -f deploy/docker-compose.backup.staging.yml \
+  exec backup /scripts/backup.sh
+
+# Production
 docker compose \
   -f deploy/docker-compose.prod.yml \
   -f deploy/docker-compose.backup.yml \
@@ -132,6 +181,8 @@ docker compose \
 ```
 
 Check the exit code: `echo $?` should be `0`.
+A `SKIP:` exit (code 0) means infrastructure credentials are not yet set — see
+§ 4c.
 
 ---
 

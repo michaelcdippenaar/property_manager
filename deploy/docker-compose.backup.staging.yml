@@ -1,0 +1,26 @@
+version: "3.9"
+
+# =============================================================================
+#  Klikk — backup service — STAGING override
+#
+#  Overrides the env_file in docker-compose.backup.yml to use the staging
+#  non-secret config (BACKUP_S3_BUCKET=klikk-backups-af, BACKUP_S3_PREFIX=klikk-staging).
+#
+#  Usage (staging server):
+#    docker compose \
+#      -f deploy/docker-compose.staging.yml \
+#      -f deploy/docker-compose.backup.yml \
+#      -f deploy/docker-compose.backup.staging.yml \
+#      up -d backup drill_reminder
+# =============================================================================
+
+services:
+  backup:
+    env_file:
+      - ../backend/.env.staging    # BACKUP_S3_BUCKET, BACKUP_S3_PREFIX, BACKUP_AWS_REGION
+      - ../backend/.env.secrets    # DB_PASSWORD, AWS creds, BACKUP_ENCRYPTION_KEY, alert channels
+
+  drill_reminder:
+    env_file:
+      - ../backend/.env.staging    # inherit BACKUP_AWS_REGION for context
+      - ../backend/.env.secrets    # alert channel secrets

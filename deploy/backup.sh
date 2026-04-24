@@ -12,18 +12,23 @@
 #
 #  Required environment variables:
 #   DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
-#   BACKUP_S3_BUCKET          e.g. klikk-backups-af
-#   BACKUP_S3_PREFIX          e.g. klikk-production  (no trailing slash)
-#   AGE_PUBLIC_KEY            age1... recipient key
+#   BACKUP_S3_BUCKET          e.g. klikk-backups-af (env-driven; staging uses klikk-backups-af, prod klikk-backups-af-prod)
+#   BACKUP_S3_PREFIX          e.g. klikk-staging or klikk-production  (no trailing slash)
+#   BACKUP_ENCRYPTION_KEY     age1... recipient key (alias: AGE_PUBLIC_KEY)
 #   AWS_ACCESS_KEY_ID         backup IAM user (write-only)
 #   AWS_SECRET_ACCESS_KEY     backup IAM user
-#   AWS_DEFAULT_REGION        af-south-1
+#   BACKUP_AWS_REGION         af-south-1 (alias: AWS_DEFAULT_REGION)
 #   MEDIA_DIR                 host path to Django MEDIA_ROOT (mounted into container)
 #
 #  Optional:
 #   SLACK_WEBHOOK_URL         if set, POSTs failure JSON to this URL
 #   ALERT_EMAIL               if set, sends failure email via mailx
 #   MONTHLY_BACKUP_PREFIX     e.g. klikk-production/monthly  (defaults derived)
+#
+#  Graceful skip: if AWS credentials or encryption key are absent the script
+#  logs a warning and exits 0 (non-fatal) so CI pipelines do not break.
+#  The DB credential check remains fatal — a missing DB_PASSWORD is a
+#  misconfiguration that should surface immediately.
 # =============================================================================
 set -euo pipefail
 
@@ -35,6 +40,12 @@ die() {
   log "ERROR: $*"
   _alert_failure "$*"
   exit 1
+}
+
+# Exit 0 but log loudly — used when infrastructure creds are not yet provisioned.
+skip() {
+  log "SKIP: $* — backup not configured; exiting without error (set required env vars to enable)"
+  exit 0
 }
 
 _alert_failure() {
@@ -61,16 +72,37 @@ _alert_failure() {
   fi
 }
 
+# ── env var aliases ───────────────────────────────────────────────────────────
+# BACKUP_ENCRYPTION_KEY is the canonical name; AGE_PUBLIC_KEY is the legacy alias.
+# BACKUP_AWS_REGION is the canonical name; AWS_DEFAULT_REGION is the legacy alias.
+
+if [[ -z "${BACKUP_ENCRYPTION_KEY:-}" && -n "${AGE_PUBLIC_KEY:-}" ]]; then
+  BACKUP_ENCRYPTION_KEY="${AGE_PUBLIC_KEY}"
+fi
+export BACKUP_ENCRYPTION_KEY
+
+if [[ -z "${BACKUP_AWS_REGION:-}" && -n "${AWS_DEFAULT_REGION:-}" ]]; then
+  BACKUP_AWS_REGION="${AWS_DEFAULT_REGION}"
+fi
+# aws CLI reads AWS_DEFAULT_REGION; keep both in sync
+export BACKUP_AWS_REGION
+export AWS_DEFAULT_REGION="${BACKUP_AWS_REGION:-}"
+
 # ── validate env ─────────────────────────────────────────────────────────────
 
-required_vars=(
-  DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD
+# Infrastructure credentials — skip non-fatally if absent (CI/staging without infra)
+infra_vars=(
   BACKUP_S3_BUCKET BACKUP_S3_PREFIX
-  AGE_PUBLIC_KEY
-  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
-  MEDIA_DIR
+  BACKUP_ENCRYPTION_KEY
+  AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY BACKUP_AWS_REGION
 )
-for var in "${required_vars[@]}"; do
+for var in "${infra_vars[@]}"; do
+  [[ -n "${!var:-}" ]] || skip "Required infra env var ${var} is not set"
+done
+
+# Database credentials — fatal if absent (misconfiguration, not missing infra)
+db_vars=(DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD MEDIA_DIR)
+for var in "${db_vars[@]}"; do
   [[ -n "${!var:-}" ]] || die "Required env var ${var} is not set"
 done
 
@@ -105,7 +137,7 @@ PGPASSWORD="${DB_PASSWORD}" pg_dump \
 log "Dump size: $(du -sh "${DUMP_FILE}" | cut -f1)"
 
 log "Encrypting dump with age"
-age --recipient="${AGE_PUBLIC_KEY}" --output="${DUMP_ENC}" "${DUMP_FILE}" \
+age --recipient="${BACKUP_ENCRYPTION_KEY}" --output="${DUMP_ENC}" "${DUMP_FILE}" \
   || die "age encryption failed"
 
 rm -f "${DUMP_FILE}"
