@@ -62,8 +62,10 @@ import { useRouter } from 'vue-router'
 import { MessageCircle, ChevronRight, Plus, Bot } from 'lucide-vue-next'
 import AppHeader from '../../components/AppHeader.vue'
 import api from '../../api'
+import { useToast } from '../../composables/useToast'
 
 const router = useRouter()
+const toast = useToast()
 const conversations = ref<any[]>([])
 const loading = ref(true)
 
@@ -81,7 +83,14 @@ async function createConversation(prefill?: string) {
   try {
     const res = await api.post('/tenant-portal/conversations/', {})
     router.push({ name: 'chat-detail', params: { id: res.data.id }, query: prefill ? { prefill } : undefined })
-  } catch { /* ignore */ }
+  } catch (err: any) {
+    const status = err?.response?.status
+    if (status === 401 || status === 403) {
+      router.push({ name: 'login' })
+    } else {
+      toast.error("Couldn't start a chat — please try again")
+    }
+  }
 }
 
 async function startWithPrompt(prompt: string) {
