@@ -29,6 +29,17 @@ const FEATURE_FLAGS_TS = resolve(REPO_ROOT, 'admin', 'src', 'composables', 'useF
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
+ * Matches a two-space-indented feature-block key line in features.yaml
+ * (e.g. `  some_feature_key:`). Used to detect a new feature block boundary
+ * so `lastSlug` is reset when a block lacks a `slug:` or `status:` line,
+ * preventing a stale slug from pairing with a later block's status.
+ *
+ * Kept in sync with the equivalent constant in
+ * admin/scripts/check-feature-flag-drift.mjs.
+ */
+const FEATURE_BLOCK_BOUNDARY_RE = /^  \w[\w-]*:/
+
+/**
  * Extract every slug with `status: PLANNED` from features.yaml.
  * Uses a simple line-scan so there's no external YAML dependency.
  */
@@ -48,6 +59,13 @@ function extractPlannedSlugsFromYaml(yamlText: string): Set<string> {
       if (statusMatch[2] === 'PLANNED' && lastSlug) {
         planned.add(lastSlug)
       }
+      lastSlug = null
+      continue
+    }
+    // Feature-block boundary: a new top-level feature key resets lastSlug so a
+    // block that has a `slug:` but no `status:` cannot leak its slug into the
+    // next block. Mirrors the reset in check-feature-flag-drift.mjs.
+    if (FEATURE_BLOCK_BOUNDARY_RE.test(line)) {
       lastSlug = null
     }
   }

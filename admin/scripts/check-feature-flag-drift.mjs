@@ -37,6 +37,19 @@ const FEATURE_FLAGS_TS = resolve(REPO_ROOT, 'admin', 'src', 'composables', 'useF
 //
 // Strategy: scan line-by-line, collect slug when the very next `status:` line
 // after the slug line says PLANNED.
+
+/**
+ * Matches a two-space-indented feature-block key line in features.yaml
+ * (e.g. `  some_feature_key:`). Used to detect a new feature block boundary
+ * so `lastSlug` is reset when a block lacks a `slug:` or `status:` line,
+ * preventing a stale slug from pairing with a later block's status.
+ *
+ * Kept in sync with the equivalent constant in
+ * admin/src/composables/__tests__/useFeatureFlags.drift.test.ts.
+ */
+// eslint-disable-next-line no-useless-escape
+const FEATURE_BLOCK_BOUNDARY_RE = /^  \w[\w-]*:/
+
 function extractPlannedSlugsFromYaml(yamlText) {
   const lines = yamlText.split('\n')
   const planned = new Set()
@@ -57,13 +70,11 @@ function extractPlannedSlugsFromYaml(yamlText) {
       lastSlug = null
       continue
     }
-    // Any top-level key (feature block boundary) resets slug
-    if (/^  \w/.test(line) && !/^\s{4}/.test(line)) {
-      // Two-space indent = feature key level — reset if we see a new one
-      // but only if it's not a value continuation
-      if (!line.match(/^\s{2,3}\w+:\s/) && !line.match(/^  #/)) {
-        lastSlug = null
-      }
+    // Feature-block boundary: a new top-level feature key resets lastSlug so a
+    // block that has a `slug:` but no `status:` cannot leak its slug into the
+    // next block. Mirrors the reset in useFeatureFlags.drift.test.ts.
+    if (FEATURE_BLOCK_BOUNDARY_RE.test(line)) {
+      lastSlug = null
     }
   }
 
