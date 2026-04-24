@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.1"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -36,3 +36,5 @@ Ensure new developers can discover and configure `CAPACITOR_SERVER_URL` for live
 2026-04-24 — Promoted from discovery `2026-04-23-agent-app-capacitor-server-url-example.md`. Pure DX improvement; deferred to v1.1 as non-blocking.
 
 2026-04-24 — implementer: Added commented `CAPACITOR_SERVER_URL` block to `agent-app/.env.development.example` (with dev-only warning). Added "Live-reload on device" section to `agent-app/README.md` with step-by-step instructions and a production-safety warning. Also added the variable to the Environment Variables table in the README. No code touched.
+
+2026-04-24 — Review passed. Checked `.env.development.example` line 17 (commented entry + dev-only/prod-safety warning present) and `agent-app/README.md` lines 35-54 (Live-reload section with steps + Env Vars table entry). Both acceptance criteria satisfied. No code risk; no auth/POPIA surface. Approved.
