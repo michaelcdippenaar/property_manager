@@ -72,6 +72,37 @@ Do **not** set `class_atomics` or `@pytest.mark.django_db(transaction=True)`
 unless your test genuinely needs a `TransactionTestCase` — it will bypass the
 transaction rollback and leave data in the DB for subsequent tests.
 
+## Test isolation rules
+
+The full suite (`pytest apps/test_hub/ -q`) must always pass with **0 failures**.
+Three autouse fixtures in `conftest.py` maintain isolation across the ~1 570-test run:
+
+| Fixture | What it guards | How |
+|---------|---------------|-----|
+| `_reset_drf_throttle_cache` | DRF rate-limit state + `SimpleRateThrottle.THROTTLE_RATES` class var | `cache.clear()` before + after every test; snapshot/restore the class var |
+| `_clear_contenttypes_cache` | Stale ContentType PKs (xdist / DB-reset edge cases) | `ContentType.objects.clear_cache()` before + after every test |
+| `pytest_collection_modifyitems` | `@pytest.mark.red` test enforcement | wraps collected items with `xfail(strict=True)` |
+
+**Rules for test authors:**
+
+1. **Never use `TransactionTestCase` or `@pytest.mark.django_db(transaction=True)`** unless the test genuinely requires it. Transaction tests bypass rollback and leave data for subsequent tests.
+2. **Never patch `SimpleRateThrottle.THROTTLE_RATES` at module/class level.** Patch it inside the test method (or use `@override_settings`) so the autouse fixture can restore it.
+3. **Never use `cache.set()` with a long TTL and expect data to survive** between tests — the autouse fixture calls `cache.clear()` after every test.
+4. **Use `@override_settings` for settings mutations.** It reverts atomically; bare `settings.FOO = X` in a test body leaks.
+5. **Signal receivers that call `ContentType.objects.get_for_model()`** are safe because the cache-clear fixture runs before setUp — no need for per-test ContentType teardown.
+
+**Regression guard tests** live at `apps/test_hub/base/test_suite_isolation.py` (added in QA-020).  They will fail immediately if any of the three autouse fixtures above is removed or re-scoped from `function` to `session`.
+
+**Re-introduction detection:**
+
+```bash
+# Run full suite — must be 0 failed
+pytest apps/test_hub/ --no-cov -q
+
+# Run only isolation regression guard
+pytest apps/test_hub/base/test_suite_isolation.py -v --no-cov
+```
+
 ## TDD markers
 
 | Marker | Meaning |
