@@ -243,8 +243,8 @@ class PushTokenView(APIView):
         platform = request.data.get("platform", "").strip().lower()
         if not token:
             return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
-        if platform not in ("ios", "android", "web"):
-            return Response({"detail": "platform must be 'ios', 'android', or 'web'."}, status=status.HTTP_400_BAD_REQUEST)
+        if platform not in ("ios", "android"):
+            return Response({"platform": ["Invalid platform. Must be one of: ios, android."]}, status=status.HTTP_400_BAD_REQUEST)
 
         PushToken.objects.update_or_create(
             user=request.user,
