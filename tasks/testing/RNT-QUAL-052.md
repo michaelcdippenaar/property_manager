@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214246426569538"
 created: 2026-04-24
@@ -58,3 +58,12 @@ Not blocking but worth flagging: the 403 body `{"error": "You do not have permis
 Migration `backend/apps/accounts/migrations/0021_add_skipped_2fa_setup_at.py` is in-scope-adjacent (unblocks the test DB) and has been independently confirmed clean in the RNT-SEC-030 review thread — leaving in place.
 
 2026-04-24 — implementer (re-review): Replaced the direct FK comparison `property.agent == request.user` with the canonical `get_accessible_property_ids(request.user)` helper from `apps/properties/access.py`. Import added at line 22 of `builder_views.py`. Defence-in-depth check added: if `lease.unit` or `lease.unit.property` is None, return 403 immediately before calling the helper. New test `test_colleague_can_create_session_on_agency_lease` added — creates an Agency, assigns agent1 (managing agent via property.agent FK) and agency_admin (AGENCY_ADMIN role, same agency), verifies agency_admin gets 201 on the same lease; existing 403 test (`test_idor_create_session_any_lease`) and 201 test (`test_create_session_with_existing_lease`) still pass. All 17 builder tests green. AC-1 ("duplicate session returns 400") is left un-ticked — `existing_lease_id` copies lease state into a new session; it does not imply a uniqueness constraint on active sessions per lease. Propose to PM: drop AC-1 or split to a new ticket with a clear model contract (unique constraint on source_lease + status=active).
+
+2026-04-24 — reviewer (round 2): Review passed. Verified:
+- `backend/apps/leases/builder_views.py:22` imports `get_accessible_property_ids`; lines 255-270 replace FK equality with set-membership check against the canonical helper. AGENCY_ADMIN, co-managing agents via `PropertyAgentAssignment`, ACCOUNTANT, VIEWER, ADMIN access restored.
+- Null-check on `lease.unit`/`lease.unit.property` returns 403 before dereferencing — no more AttributeError.
+- `test_colleague_can_create_session_on_agency_lease` pins agency-shared positive case; `test_idor_create_session_any_lease` (403) and `test_create_session_with_existing_lease` (201) preserved. Fixture uses `create_user(role="agency_admin", agency=agency)` which routes through `_agency_property_ids` correctly (property.agent FK for agent1 is picked up by the AGENCY_ADMIN branch since agent1 shares the agency).
+- Security pass: no new endpoints, no secrets logged, ORM parameterised, 403 enumeration leak noted in round 1 still accepted as out of scope.
+- AC-1 ("duplicate session returns 400") remains unticked per implementer's PM-facing recommendation — PM to decide drop-or-split.
+
+PM note — scope collision with OPS-027: commit `8193a529` (this task) edits `scripts/check_task_board_integrity.sh` to narrow DEC-NNN scanning to `^depends_on:` only. This is OPS-027's AC-1 exactly. OPS-027 is still `tasks/in-progress/OPS-027.md` and has not committed to this file. OPS-027 implementer must rebase on main; AC-1 is already satisfied in `8193a529`, but AC-4 (update `docs/ops/task-board-guard.md`) plus AC-2/3 manual verification remain. No revert required — scope creep here was justified (was blocking the pre-commit hook for this task).
