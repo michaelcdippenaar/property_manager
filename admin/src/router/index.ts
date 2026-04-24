@@ -40,6 +40,14 @@ const router = createRouter({
       component: () => import('../views/signing/PublicSignView.vue'),
       meta: { public: true, allowWhenAuthenticated: true },
     },
+    // ── Legal re-acceptance gate (OPS-004) ──────────────────────────────────
+    {
+      path: '/legal/re-accept',
+      name: 'legal-re-accept',
+      component: () => import('../views/auth/LegalReAcceptView.vue'),
+      meta: { requiresAuth: true },
+    },
+
     // ── 2FA flows (public — user not yet fully authenticated) ──────────────
     {
       path: '/2fa/challenge',
@@ -257,6 +265,11 @@ router.beforeEach(async (to) => {
   // Optional 2FA setup pending (owner role, DEC-018): redirect to enroll view unless already there
   if (auth.suggestTwoFASetup && to.name !== '2fa-enroll') {
     return { name: '2fa-enroll', query: { optional: '1' } }
+  }
+
+  // Legal re-acceptance gate (OPS-004): redirect if any docs need re-ack
+  if (auth.hasPendingLegal && to.name !== 'legal-re-accept') {
+    return { name: 'legal-re-accept' }
   }
 
   // Redirect `/` to role-specific dashboard

@@ -29,6 +29,16 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const suggestTwoFASetup = ref(false)
 
+  /**
+   * Non-empty when the authenticated user has one or more legal documents
+   * requiring re-acknowledgement (requires_re_ack = true, not yet consented).
+   * Populated by `checkPendingLegal()` after login / page load.
+   * Router guard redirects to /legal/re-accept when this is non-empty.
+   */
+  const pendingLegalDocs = ref<Array<{ id: number; doc_type: string; version: string; title: string }>>([])
+
+  const hasPendingLegal = computed(() => pendingLegalDocs.value.length > 0)
+
   const isAuthenticated = computed(() => !!accessToken.value)
   const STAFF_ROLES = ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant', 'viewer']
   const isAgent = computed(() => STAFF_ROLES.includes(user.value?.role ?? ''))
@@ -60,8 +70,31 @@ export const useAuthStore = defineStore('auth', () => {
     if (data.access && data.refresh) {
       _setTokens(data)
       suggestTwoFASetup.value = data.two_fa_suggest_setup === true
+      // Check for legal documents requiring re-acknowledgement (OPS-004).
+      await checkPendingLegal()
     }
     return data
+  }
+
+  /**
+   * Fetch /api/v1/legal/pending/ and populate `pendingLegalDocs`.
+   * Safe to call at any time; silently clears on error (e.g. no network).
+   */
+  async function checkPendingLegal(): Promise<void> {
+    try {
+      const { data } = await api.get('/legal/pending/')
+      pendingLegalDocs.value = Array.isArray(data) ? data : []
+    } catch {
+      pendingLegalDocs.value = []
+    }
+  }
+
+  /**
+   * Record consent for a document then refresh the pending list.
+   */
+  async function acceptLegalDoc(documentId: number): Promise<void> {
+    await api.post('/legal/consent/', { document: documentId })
+    await checkPendingLegal()
   }
 
   async function register(payload: {
@@ -88,6 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (data.access && data.refresh) {
       _setTokens(data)
       suggestTwoFASetup.value = data.two_fa_suggest_setup === true
+      await checkPendingLegal()
     }
     return data
   }
@@ -121,6 +155,7 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = null
     user.value = null
     suggestTwoFASetup.value = false
+    pendingLegalDocs.value = []
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
   }
@@ -145,7 +180,8 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken, user, agency, isAuthenticated,
     isAgent, isSupplier, isOwner, isTenant, isAgency, homeRoute,
     suggestTwoFASetup,
+    pendingLegalDocs, hasPendingLegal,
     login, register, googleAuth, logout, fetchMe, fetchAgency, _setTokens,
-    skipTwoFASetup,
+    skipTwoFASetup, checkPendingLegal, acceptLegalDoc,
   }
 })
