@@ -32,12 +32,26 @@ Property viewings, prospect capture, and lease creation for agents using Quasar 
    ```
    The app opens at `http://localhost:5176` by default.
 
+## Live-reload on device
+
+When running a Capacitor native build on a physical iOS or Android device (not the simulator/emulator), the device cannot reach `localhost` on your machine. You need to tell Capacitor to load the Vite dev server from your machine's LAN IP instead.
+
+1. Find your machine's LAN IP (e.g. `192.168.1.10`).
+2. In `.env.development`, uncomment and set:
+   ```
+   CAPACITOR_SERVER_URL=http://192.168.1.10:5176
+   ```
+3. Run `npm run dev` to start Vite, then in a separate terminal run `npx cap run ios` or `npx cap run android`.
+
+`capacitor.config.ts` reads `CAPACITOR_SERVER_URL` and injects it as `server.url` so the native WebView hot-reloads against your dev server. Leave this variable **unset** (or remove it entirely) in staging and production — setting it in those environments will make the app point at a developer's laptop instead of the real backend.
+
 ## Environment Variables
 
 ### Development (`.env.development`)
 See `.env.development.example` for all available variables.
 - `API_URL` — Backend API base URL (default: `http://localhost:8000/api/v1`)
 - `GOOGLE_CLIENT_ID` — Google OAuth client ID (required for login)
+- `CAPACITOR_SERVER_URL` — LAN URL for live-reload on a physical device (see "Live-reload on device" above; dev-only)
 - Sentry variables — leave blank to skip error reporting in dev
 
 ### Staging (`.env.staging`)

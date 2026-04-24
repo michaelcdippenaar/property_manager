@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: null
 created: 2026-04-24
-updated: 2026-04-25
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -56,3 +56,5 @@ Surface the `AgentInvoiceApprovalView` backend endpoint in the admin maintenance
 Please: commit `InvoiceApprovalPanel.vue`, integrate it into `MaintenanceDetailView.vue` (import + template placement + `@activityUpdated="loadChat(maintenanceId)"`), and re-raise for review.
 
 2026-04-25 — fix-forward implementer: (1) Added `InvoiceApprovalPanel.vue` to git (was untracked). (2) Imported `InvoiceApprovalPanel` in `MaintenanceDetailView.vue` script block. (3) Placed `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` in the left column above the Quotes card. (4) Fixed stale docstring in `AgentInvoiceApprovalView` — replaced the four sub-path examples with the correct single-endpoint contract (`POST { action, reason?, reference? }`). All 6 AC remain ticked from prior attempt; wiring now actually present on disk.
+
+2026-04-24 — Review passed: All three bounce reasons resolved in commit 29eef50b. InvoiceApprovalPanel.vue committed as new file (218 lines). MaintenanceDetailView.vue imports it and renders `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` above Quotes. POST call uses `/maintenance/${requestId}/invoice/` matching urls.py line 79. Docstring updated to single-endpoint contract with correct body shape. All 6 AC satisfied. Security: IsAgentOrAdmin permission class unchanged on backend; no PII logged; parameterised queries. Ready for tester.
