@@ -27,6 +27,9 @@
 #   DEPLOY_ENV                set to "production" to enable prod-safety checks
 #   BACKUP_ALLOW_SKIP_IN_PROD if set to "true", silently skip even in production
 #                             (NOT recommended — for emergency break-glass use only)
+#   BACKUP_HEARTBEAT_URL      dead-man's switch URL pinged after every successful
+#                             S3 upload (UptimeRobot Heartbeat / healthchecks.io).
+#                             The monitor must alert if no ping arrives in ~26 hours.
 #
 #  Graceful skip: if AWS credentials or encryption key are absent the script
 #  logs a warning and exits 0 (non-fatal) so CI pipelines do not break.
@@ -223,7 +226,20 @@ aws s3 sync "${MEDIA_DIR}" "s3://${BACKUP_S3_BUCKET}/${MEDIA_S3_PREFIX}/" \
   --no-progress \
   || die "media sync failed"
 
-# ── 6. Done ───────────────────────────────────────────────────────────────────
+# ── 6. Dead-man's switch — heartbeat ping ─────────────────────────────────────
+# Ping the heartbeat URL on every successful upload so an external monitor
+# (UptimeRobot "Heartbeat" / Better Uptime / healthchecks.io) can alert if no
+# ping arrives within ~26 hours.  The check is fail-open: a failed ping is
+# logged but does NOT fail the backup itself.
+if [[ -n "${BACKUP_HEARTBEAT_URL:-}" ]]; then
+  log "Pinging dead-man's switch: ${BACKUP_HEARTBEAT_URL}"
+  curl -s --max-time 10 "${BACKUP_HEARTBEAT_URL}" \
+    || log "WARNING: heartbeat ping failed (backup still succeeded)"
+else
+  log "INFO: BACKUP_HEARTBEAT_URL not set — dead-man's switch not configured"
+fi
+
+# ── 7. Done ───────────────────────────────────────────────────────────────────
 
 rm -f "${DUMP_ENC}"
 log "Backup completed successfully. checksum=${DUMP_CHECKSUM} bucket=${BACKUP_S3_BUCKET} prefix=${BACKUP_S3_PREFIX}"

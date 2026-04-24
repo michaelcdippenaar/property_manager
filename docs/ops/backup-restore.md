@@ -317,6 +317,49 @@ Recommendation: always set at least one alert channel.
 
 ---
 
+## 9a. Dead-Man's Switch (Heartbeat Monitor)
+
+**Added 2026-04-24.**  Failure alerts only fire when the script runs and fails.
+They do not alert when the backup job is never scheduled, when the container
+silently dies, or when cron misses a run.  A heartbeat monitor inverts this:
+it alerts when it stops receiving pings.
+
+### How it works
+
+`backup.sh` pings `BACKUP_HEARTBEAT_URL` after every successful S3 upload
+(step 6 in the script).  If no ping arrives within the configured window the
+monitor fires an alert.
+
+The ping is fail-open: if the HTTP request to the heartbeat URL itself fails,
+the backup run is still considered successful — only a warning is logged.
+
+### Setup (UptimeRobot)
+
+1. Log in to **UptimeRobot → New Monitor → Heartbeat**.
+2. Set **Heartbeat Interval** = **1440 minutes** (24 h) and **Grace Period** =
+   **120 minutes** (2 h). This matches the ~26-hour expected window.
+3. Copy the generated ping URL (e.g. `https://heartbeat.uptimerobot.com/m<id>-<token>`).
+4. In `backend/.env.production` (non-secret, committed), uncomment and set:
+   ```
+   BACKUP_HEARTBEAT_URL=https://heartbeat.uptimerobot.com/m<id>-<token>
+   ```
+5. Add the UptimeRobot monitor to the **#ops-alerts** Slack integration in the
+   UptimeRobot dashboard so missed-heartbeat alerts are routed to Slack.
+
+### Alternative: healthchecks.io
+
+1. Create a new check at <https://healthchecks.io> — period = 24 h,
+   grace = 1 h.
+2. Copy the ping URL (e.g. `https://hc-ping.com/<uuid>`).
+3. Set `BACKUP_HEARTBEAT_URL` as above.
+
+### Testing
+
+Run a one-off manual backup (see § 6) and confirm the monitor transitions to
+**Up** / **OK** within a minute of the ping.
+
+---
+
 ## 10. Retention Summary
 
 | Type | Copies kept | Storage class |
