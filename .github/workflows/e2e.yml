@@ -39,7 +39,7 @@ jobs:
 
     steps:
       # ── Checkout ──────────────────────────────────────────────────────────
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       # ── Node + dependencies ───────────────────────────────────────────────
       - name: Set up Node.js
