@@ -42,8 +42,25 @@ from apps.maintenance.models import (
 from apps.esigning.models import ESigningSubmission
 
 
+class _JsonAPIClient(APIClient):
+    """APIClient subclass that always negotiates JSON.
+
+    DRF's default APIClient sends ``Accept: */*`` which causes the browsable
+    HTML renderer to fire whenever a browser-like request comes in.  This
+    subclass forces ``Accept: application/json`` on every request so test
+    assertions can always call ``resp.json()`` without wrapping in
+    ``HTTP_ACCEPT`` kwargs on every call.
+    """
+
+    def request(self, **kwargs):
+        kwargs.setdefault("HTTP_ACCEPT", "application/json")
+        return super().request(**kwargs)
+
+
 class TremlyAPITestCase(APITestCase):
     """Base test class with factory helpers for all Tremly models."""
+
+    client_class = _JsonAPIClient
 
     # ── User factories ──
 
