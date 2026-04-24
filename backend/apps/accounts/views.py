@@ -254,9 +254,19 @@ class PushTokenView(APIView):
         return Response({"detail": "Token registered."})
 
     def delete(self, request):
+        """
+        Deregister a push token for the authenticated user (POPIA device deregistration).
+
+        Body: {"token": "<device-token>"}
+
+        Behaviour:
+        - 400 if `token` is missing from the request body.
+        - 204 if the token was deleted, or if it never existed (idempotent).
+        """
         token = request.data.get("token", "").strip()
-        if token:
-            PushToken.objects.filter(user=request.user, token=token).delete()
+        if not token:
+            return Response({"detail": "token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        PushToken.objects.filter(user=request.user, token=token).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

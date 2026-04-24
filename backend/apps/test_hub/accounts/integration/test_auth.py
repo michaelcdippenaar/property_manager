@@ -232,9 +232,21 @@ class PushTokenTests(TremlyAPITestCase):
     def test_delete_push_token(self):
         self.authenticate(self.user)
         PushToken.objects.create(user=self.user, token="del_me", platform="ios")
-        resp = self.client.delete(self.url, {"token": "del_me"})
+        resp = self.client.delete(self.url, {"token": "del_me"}, format="json", HTTP_ACCEPT="application/json")
         self.assertEqual(resp.status_code, 204)
         self.assertFalse(PushToken.objects.filter(token="del_me").exists())
+
+    def test_delete_push_token_nonexistent_returns_204(self):
+        """DELETE with a token that doesn't exist is idempotent — returns 204."""
+        self.authenticate(self.user)
+        resp = self.client.delete(self.url, {"token": "does_not_exist"}, format="json", HTTP_ACCEPT="application/json")
+        self.assertEqual(resp.status_code, 204)
+
+    def test_delete_push_token_missing_token_returns_400(self):
+        """DELETE without a token body param returns 400 Bad Request."""
+        self.authenticate(self.user)
+        resp = self.client.delete(self.url, {}, format="json", HTTP_ACCEPT="application/json")
+        self.assertEqual(resp.status_code, 400)
 
     def test_update_existing_push_token(self):
         self.authenticate(self.user)
