@@ -641,10 +641,13 @@ class AgentInvoiceApprovalView(APIView):
     """
     Agent reviews a supplier invoice: approve / reject / mark as paid.
 
-    GET    /maintenance/<request_pk>/invoice/        — view invoice
-    POST   /maintenance/<request_pk>/invoice/approve/ — approve
-    POST   /maintenance/<request_pk>/invoice/reject/  — reject with reason
-    POST   /maintenance/<request_pk>/invoice/paid/    — mark paid (EFT reference)
+    GET  /maintenance/<request_pk>/invoice/
+         Returns the invoice for the maintenance request (404 if none).
+
+    POST /maintenance/<request_pk>/invoice/
+         Single-endpoint pattern — body: { "action": "approve"|"reject"|"paid",
+         "reason": "<str>",      # required when action="reject"
+         "reference": "<str>" }  # optional EFT ref when action="paid"
     """
 
     permission_classes = [IsAgentOrAdmin]

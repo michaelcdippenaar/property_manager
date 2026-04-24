@@ -36,7 +36,7 @@
       <!-- Two-column layout: info left, chat right -->
       <div class="grid lg:grid-cols-[1fr_1fr] gap-5 items-start">
 
-        <!-- Left column: details + quotes -->
+        <!-- Left column: details + invoice + quotes -->
         <div class="space-y-5 min-w-0">
           <!-- Description -->
           <div class="card px-5 py-4">
@@ -83,6 +83,12 @@
               </div>
             </div>
           </div>
+
+          <!-- Invoice approval -->
+          <InvoiceApprovalPanel
+            :requestId="issue.id"
+            @activityUpdated="loadChat(issue.id)"
+          />
 
           <!-- Quotes -->
           <div class="card px-5 py-4">
@@ -288,6 +294,7 @@ import { ArrowLeft, Send, Loader2, MapPin, AlertCircle } from 'lucide-vue-next'
 import EmptyState from '../../components/EmptyState.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import PageHeader from '../../components/PageHeader.vue'
+import InvoiceApprovalPanel from '../../components/maintenance/InvoiceApprovalPanel.vue'
 import { useToast } from '../../composables/useToast'
 
 const route = useRoute()

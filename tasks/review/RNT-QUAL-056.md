@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: null
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 ---
 
 ## Goal
@@ -54,3 +54,5 @@ Surface the `AgentInvoiceApprovalView` backend endpoint in the admin maintenance
 3. Note: the docstring on `AgentInvoiceApprovalView` (lines 641-648 of views.py) lists separate `/approve/`, `/reject/`, `/paid/` sub-paths, but the actual URL (urls.py line 79) and the POST handler both use a single `POST /maintenance/<id>/invoice/` with an `action` field. The docstring is stale/misleading — fix it or leave a note for the tester; it is not blocking UI delivery but will confuse future developers.
 
 Please: commit `InvoiceApprovalPanel.vue`, integrate it into `MaintenanceDetailView.vue` (import + template placement + `@activityUpdated="loadChat(maintenanceId)"`), and re-raise for review.
+
+2026-04-25 — fix-forward implementer: (1) Added `InvoiceApprovalPanel.vue` to git (was untracked). (2) Imported `InvoiceApprovalPanel` in `MaintenanceDetailView.vue` script block. (3) Placed `<InvoiceApprovalPanel :requestId="issue.id" @activityUpdated="loadChat(issue.id)" />` in the left column above the Quotes card. (4) Fixed stale docstring in `AgentInvoiceApprovalView` — replaced the four sub-path examples with the correct single-endpoint contract (`POST { action, reason?, reference? }`). All 6 AC remain ticked from prior attempt; wiring now actually present on disk.
