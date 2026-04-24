@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214202102067961"
 created: 2026-04-22
@@ -146,3 +146,13 @@ DEC-018 mental test matrix:
 - accountant/viewer/tenant → no suggest_setup flag → normal login → no redirect. Confirmed.
 
 Build clean per implementer note; diff does not show any broken imports (lucide KeyRound removed because unused, ShieldCheck retained for both notice banners). Handing to tester.
+
+**2026-04-24 — rentals-tester: Test run**
+
+- `pytest apps/test_hub/accounts/integration/test_2fa.py -v` — 39 passed, 0 failed (37.94s)
+  - LoginTwoFAGateTests (5 tests): PASS
+  - AccountantViewerNoTOTPGateTests (4 tests): PASS
+  - OwnerOptional2FATests (6 tests): PASS
+  - All remaining agent/admin TOTP gate tests: PASS
+
+All acceptance criteria confirmed by test results. Frontend builds verified by implementer (admin: 0 errors; agent-app: 0 errors). Moving to done/.
