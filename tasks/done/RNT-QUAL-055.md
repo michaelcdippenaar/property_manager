@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214252955502720"
 created: 2026-04-24
@@ -56,3 +56,19 @@ Additionally:
 **2026-04-24 — reviewer**
 
 Review passed. Verified: (1) root cause diagnosis is correct — BrowsableAPIRenderer wraps 204 as 200 HTML under DEBUG=True; HTTP_ACCEPT="application/json" is the right test fix. (2) 400 guard on missing token is a sensible tightening (prior silent no-op was POPIA-relevant noise). (3) View still IsAuthenticated + user-scoped queryset — no IDOR. (4) Two new tests cover missing-token 400 and idempotent 204. (5) No scope creep, no regressions to test_create_push_token / test_platform_validation. Handing to tester.
+
+**2026-04-24 — tester**
+
+Test run: `pytest apps/test_hub/accounts/integration/test_auth.py::PushTokenTests -v`
+
+- test_delete_push_token — PASS
+- test_delete_push_token_missing_token_returns_400 — PASS
+- test_delete_push_token_nonexistent_returns_204 — PASS
+- test_register_push_token_android — PASS
+- test_register_push_token_invalid_platform — PASS
+- test_register_push_token_ios — PASS
+- test_register_push_token_missing_token — PASS
+- test_register_push_token_unauthenticated — PASS
+- test_update_existing_push_token — PASS
+
+9/9 passed. All acceptance criteria met.
