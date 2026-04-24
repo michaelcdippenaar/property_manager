@@ -197,8 +197,10 @@ for state in $STATE_DIRS; do
     filename="$(basename "$filepath")"
     base="${filename%.md}"
     if echo "$base" | grep -qE '^[A-Z][A-Z0-9-]+-[0-9]+$'; then
-      # Extract DEC-NNN references from anywhere in the file
-      dec_refs="$(grep -oE 'DEC-[0-9]+' "$filepath" 2>/dev/null | sort -u || true)"
+      # Extract DEC-NNN references from the depends_on: frontmatter field only.
+      # Scanning the full file produces false positives when prose or handoff
+      # notes mention a DEC ID as an example (e.g. "DEC-9999" in OPS-027).
+      dec_refs="$(grep -E '^depends_on:' "$filepath" 2>/dev/null | grep -oE 'DEC-[0-9]+' | sort -u || true)"
       for dec in $dec_refs; do
         dec_file_done="${TASKS_DIR}/done/${dec}.md"
         dec_file_backlog="${TASKS_DIR}/backlog/${dec}.md"
