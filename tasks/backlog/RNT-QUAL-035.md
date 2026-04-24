@@ -6,7 +6,7 @@ feature: ""
 lifecycle_stage: null
 priority: P2
 effort: L
-v1_phase: "1.0"
+v1_phase: "1.1"
 status: backlog
 assigned_to: null
 depends_on: []
@@ -48,3 +48,5 @@ Allow a `RentalMandate` to collect signatures from all co-owners of a property b
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-22 — Promoted from discovery `2026-04-22-multi-owner-signing.md` found during RNT-QUAL-005 review. Data-model change required; single-owner flow must not regress.
+
+2026-04-24 — rentals-pm: Deferred post-launch per MC directive 2026-04-24. Single-owner mandates cover the first-client dry-run. v1_phase set to "1.1". Task moved to backlog/ for v1.1 planning. No implementation work in v1.0.

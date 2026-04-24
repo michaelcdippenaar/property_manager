@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P0
 effort: L
 v1_phase: "1.0"
-status: backlog
+status: done
 assigned_to: null
 depends_on: [DEC-019]
 asana_gid: "1214227840418702"
@@ -69,3 +69,5 @@ Replace the current Google Authenticator TOTP second-factor with a settings-sele
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-23 rentals-pm: Task authored. Blocked on DEC-019 — do not start implementation until MC answers OTP provider, budget, fallback, and grace period questions.
+
+2026-04-24 — rentals-pm: CANCELLED for v1.0. DEC-019 answered 2026-04-24 — MC chose to keep TOTP as the only 2FA method for launch. SMS OTP deferred to v1.1. This task is closed with no implementation. `UserTOTP` and `TOTPRecoveryCode` models remain active.
