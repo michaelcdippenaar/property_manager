@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -45,3 +45,5 @@ Replace the spoofable `_client_ip()` helper in `config/contact.py` with the hard
 2026-04-24 — implementer: Deleted `_client_ip()` from `config/contact.py`; replaced all 2 call sites (honeypot log + rate-limit keying) with `utils.http.get_client_ip(request)`. Added `config/tests/test_contact.py` with 4 tests (XFF bypass blocked, keyed-IP is REMOTE_ADDR, origin reject, happy-path smoke). All 4 pass. The `apps/the_volt/gateway/views.py:142` raw XFF hit remains; it is Vault33 scope and is not touched.
 
 2026-04-24 — reviewer: Approved. Verified _client_ip() deleted, both call sites use utils.http.get_client_ip, grep confirms no raw XFF in Rentals production code (the_volt out of scope, utils/http.py + tests expected). 4 tests cover bypass vector: 6th request with forged XFF returns 429, stored ip_address equals REMOTE_ADDR not forged value, origin reject, happy-path. → testing.
+
+2026-04-24 — tester: All 4 automated tests pass (test_forged_xff_does_not_bypass_rate_limit, test_keyed_ip_is_remote_addr_not_xff, test_unknown_origin_rejected, test_happy_path_creates_enquiry). No failures. → done.
