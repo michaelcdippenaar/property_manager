@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
@@ -61,6 +61,45 @@ def _resolve_user(person_or_user):
 # ─── Lease signals ────────────────────────────────────────────────────────────
 
 
+
+
+# -- Pre-save status snapshots ------------------------------------------------
+# Store the current DB status before save so post_save receivers can detect
+# genuine transitions rather than firing on every save of an already-set record.
+
+
+def _snapshot_status(sender, instance, **kwargs):
+    """Store current persisted status on instance._old_status before save."""
+    if instance.pk:
+        try:
+            instance._old_status = (
+                sender.objects.filter(pk=instance.pk).values_list("status", flat=True).get()
+            )
+        except sender.DoesNotExist:
+            instance._old_status = None
+    else:
+        instance._old_status = None
+
+
+@receiver(pre_save, sender="leases.Lease")
+def _snapshot_lease_status(sender, instance, **kwargs):
+    _snapshot_status(sender, instance, **kwargs)
+
+
+@receiver(pre_save, sender="properties.RentalMandate")
+def _snapshot_mandate_status(sender, instance, **kwargs):
+    _snapshot_status(sender, instance, **kwargs)
+
+
+@receiver(pre_save, sender="payments.RentInvoice")
+def _snapshot_invoice_status(sender, instance, **kwargs):
+    _snapshot_status(sender, instance, **kwargs)
+
+
+@receiver(pre_save, sender="maintenance.MaintenanceRequest")
+def _snapshot_maintenance_status(sender, instance, **kwargs):
+    _snapshot_status(sender, instance, **kwargs)
+
 @receiver(post_save, sender="leases.Lease")
 def on_lease_status_change(sender, instance, created: bool, **kwargs):
     """
@@ -68,9 +107,15 @@ def on_lease_status_change(sender, instance, created: bool, **kwargs):
       • status == pending  → lease sent for signing
       • status == active   → lease signed (all parties)
     """
+    if created:
+        return
+
     update_fields = kwargs.get("update_fields")
-    status_changed = update_fields is None or "status" in (update_fields or [])
-    if not status_changed:
+    if update_fields is not None and "status" not in update_fields:
+        return
+
+    old_status = getattr(instance, "_old_status", None)
+    if instance.status == old_status:
         return
 
     tenant_user = _resolve_user(instance.primary_tenant)
@@ -130,7 +175,14 @@ def on_mandate_status_change(sender, instance, created: bool, **kwargs):
     if update_fields is not None and "status" not in update_fields:
         return
 
+    if created:
+        return
+
     if instance.status != "active":
+        return
+
+    old_status = getattr(instance, "_old_status", None)
+    if instance.status == old_status:
         return
 
     # Agent: mandate → property → agent
@@ -167,7 +219,14 @@ def on_rent_invoice_paid(sender, instance, created: bool, **kwargs):
     if update_fields is not None and "status" not in update_fields:
         return
 
+    if created:
+        return
+
     if instance.status not in ("paid", "overpaid"):
+        return
+
+    old_status = getattr(instance, "_old_status", None)
+    if instance.status == old_status:
         return
 
     agent_user = None
@@ -288,23 +347,29 @@ def on_maintenance_request_change(sender, instance, created: bool, **kwargs):
         )
     else:
         # Status update — only notify tenant
-        if update_fields is None or "status" in (update_fields or []):
-            status_label = dict(
-                open="opened",
-                in_progress="in progress",
-                resolved="resolved",
-                closed="closed",
-            ).get(instance.status, instance.status)
-            _push(
-                tenant_user,
-                title="Maintenance update",
-                body=f"Your request '{instance.title}' is now {status_label}.",
-                data={
-                    "screen": "tenant_maintenance_detail",
-                    "maintenance_id": str(instance.pk),
-                },
-                category="maintenance",
-            )
+        if update_fields is not None and "status" not in update_fields:
+            return
+
+        old_status = getattr(instance, "_old_status", None)
+        if instance.status == old_status:
+            return
+
+        status_label = dict(
+            open="opened",
+            in_progress="in progress",
+            resolved="resolved",
+            closed="closed",
+        ).get(instance.status, instance.status)
+        _push(
+            tenant_user,
+            title="Maintenance update",
+            body=f"Your request '{instance.title}' is now {status_label}.",
+            data={
+                "screen": "tenant_maintenance_detail",
+                "maintenance_id": str(instance.pk),
+            },
+            category="maintenance",
+        )
 
 
 @receiver(post_save, sender="maintenance.MaintenanceActivity")
@@ -360,3 +425,5 @@ def on_maintenance_activity(sender, instance, created: bool, **kwargs):
             },
             category="chat",
         )
+
+# TEST
