@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.1"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -38,3 +38,5 @@ Ensure new developers can discover and configure `CAPACITOR_SERVER_URL` for live
 2026-04-24 — implementer: Added commented `CAPACITOR_SERVER_URL` block to `agent-app/.env.development.example` (with dev-only warning). Added "Live-reload on device" section to `agent-app/README.md` with step-by-step instructions and a production-safety warning. Also added the variable to the Environment Variables table in the README. No code touched.
 
 2026-04-24 — Review passed. Checked `.env.development.example` line 17 (commented entry + dev-only/prod-safety warning present) and `agent-app/README.md` lines 35-54 (Live-reload section with steps + Env Vars table entry). Both acceptance criteria satisfied. No code risk; no auth/POPIA surface. Approved.
+
+2026-04-24 — tester: All checks pass. (1) `.env.development.example` line 16 carries "DEV ONLY — must NOT be set in staging or production builds", line 17 has commented `CAPACITOR_SERVER_URL=` entry. (2) `agent-app/README.md` line 35 "Live-reload on device" section present with steps and prod-safety warning; line 54 Env Vars table row present. (3) `git show HEAD -- agent-app/` produced no output — no .ts/.vue code touched. All acceptance criteria satisfied.

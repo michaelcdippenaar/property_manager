@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: L
 v1_phase: "1.1"
-status: backlog
-assigned_to: null
+status: blocked
+assigned_to: rentals-pm
 depends_on: []
 asana_gid: "1214203875365414"
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -50,3 +50,5 @@ Allow a `RentalMandate` to collect signatures from all co-owners of a property b
 2026-04-22 — Promoted from discovery `2026-04-22-multi-owner-signing.md` found during RNT-QUAL-005 review. Data-model change required; single-owner flow must not regress.
 
 2026-04-24 — rentals-pm: Deferred post-launch per MC directive 2026-04-24. Single-owner mandates cover the first-client dry-run. v1_phase set to "1.1". Task moved to backlog/ for v1.1 planning. No implementation work in v1.0.
+
+2026-04-24 — rentals-implementer: Task is effort L, already PM-flagged as v1.1 scope. Requires data-model migration (M2M/through-table), mandate_services refactor, e-signing webhook changes, MandateTab.vue updates, and new test coverage — too large for a single implementer pass and explicitly out of v1.0 scope. Moved to blocked/ for PM to confirm v1.1 scheduling.
