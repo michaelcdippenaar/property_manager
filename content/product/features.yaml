@@ -918,6 +918,81 @@ features:
     homepage_section: features
     lifecycle_step: null
 
+  # ── Security & Compliance ─────────────────────────────────
+
+  two_factor_authentication:
+    name: "Two-Factor Authentication (2FA)"
+    slug: two-factor-authentication
+    status: BUILT
+    shipped_date: 2026-04-24
+    product: shared
+    release: v1
+    category: security
+    backend_app: accounts
+    key_files:
+      - backend/apps/accounts/models.py
+      - backend/apps/accounts/views.py
+      - backend/apps/accounts/totp_views.py
+      - backend/apps/accounts/urls.py
+      - admin/src/stores/auth.ts
+      - admin/src/views/auth/TwoFAEnrollView.vue
+      - admin/src/views/auth/LoginView.vue
+      - admin/src/router/index.ts
+      - agent-app/src/stores/auth.ts
+      - agent-app/src/pages/TwoFAEnrollPage.vue
+      - agent-app/src/pages/LoginPage.vue
+    headline: "Two-Factor Authentication"
+    tagline: "Staff accounts protected, owner login stays frictionless"
+    what_it_does: >
+      Agents, agency admins, and managing agents must set up an authenticator
+      app (TOTP — Google Authenticator, Authy, etc.) before they can access
+      Klikk. Property owners are prompted to set up 2FA on first login but
+      can skip it for now. Accountants, viewers, and tenants log in normally
+      with no extra step. The system enforces this without any manual
+      configuration — it just works when staff accounts are created.
+    icon: shield
+    show_on_homepage: false
+    lifecycle_step: null
+
+  legal_consent_gate:
+    name: "Legal Consent & Re-Accept Gate"
+    slug: legal-consent-gate
+    status: BUILT
+    shipped_date: 2026-04-24
+    product: shared
+    release: v1
+    category: compliance
+    backend_app: legal
+    key_files:
+      - backend/apps/legal/models.py
+      - backend/apps/legal/views.py
+      - backend/apps/legal/serializers.py
+      - backend/apps/legal/urls.py
+      - admin/src/stores/auth.ts
+      - admin/src/views/auth/RegisterView.vue
+      - admin/src/views/auth/LegalReAcceptView.vue
+      - admin/src/router/index.ts
+      - website/src/pages/legal/privacy.astro
+      - website/src/pages/legal/terms.astro
+      - website/src/pages/legal/popia.astro
+      - website/src/pages/legal/paia-manual.astro
+      - website/src/pages/legal/cookies.astro
+      - website/src/pages/legal/acceptable-use.astro
+    headline: "Legal Pages & Consent Tracking"
+    tagline: "POPIA-compliant from day one"
+    what_it_does: >
+      Klikk now has a full set of SA-specific legal pages (Privacy Policy,
+      Terms of Service, POPIA statement, PAIA manual, Cookie Policy, and
+      Acceptable Use Policy). When a new agency registers, they must tick
+      the Terms and Privacy Policy before their account is created — and
+      that consent is recorded against their account with a timestamp and
+      IP address for audit purposes. If the Terms are updated in future,
+      existing users will be shown a re-accept screen the next time they
+      log in and cannot proceed until they accept the new version.
+    icon: file-text
+    show_on_homepage: false
+    lifecycle_step: null
+
   # ── MCP Server ────────────────────────────────────────────
 
   klikk_mcp:
