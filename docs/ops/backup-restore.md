@@ -107,21 +107,45 @@ AWS_ACCESS_KEY_ID=<klikk-backup IAM key>
 AWS_SECRET_ACCESS_KEY=<klikk-backup IAM secret>
 # Canonical env var name; script also accepts legacy alias AGE_PUBLIC_KEY.
 BACKUP_ENCRYPTION_KEY=age1<...>             # recipient public key (NOT the private key)
-SLACK_WEBHOOK_URL=https://hooks.slack.com/... # optional; set for failure alerts
+SLACK_WEBHOOK_URL=https://hooks.slack.com/... # set this — skip events also notify via Slack
 ALERT_EMAIL=mc@tremly.com                    # optional; backup failure email
 ```
 
-### 4c. Graceful skip (CI / pre-provisioning)
+### 4c. Graceful skip (CI / pre-provisioning) and production safety
 
 `backup.sh` checks for infrastructure credentials before running.  If
 `BACKUP_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-`BACKUP_ENCRYPTION_KEY`, or `BACKUP_AWS_REGION` are absent the script logs a
-`SKIP:` message and exits **0** (non-fatal).  This means:
-- CI pipelines that execute `backup.sh` will not fail while infra is unprovisioned.
-- Staging containers will start cleanly and attempt a real backup once secrets are populated.
+`BACKUP_ENCRYPTION_KEY`, or `BACKUP_AWS_REGION` are absent the script enters the
+`skip()` path.
 
-Database variables (`DB_HOST`, `DB_PASSWORD`, etc.) remain fatal — a missing DB
-password is always a misconfiguration.
+**Production safety (added 2026-04-24):** the skip path now distinguishes
+environments:
+
+| Scenario | `DEPLOY_ENV` | `BACKUP_ALLOW_SKIP_IN_PROD` | Behaviour |
+|----------|-------------|----------------------------|-----------|
+| CI / staging — infra not yet provisioned | not set / `staging` | — | logs `SKIP:`, exits 0 (non-fatal) |
+| Production — infra provisioned correctly | `production` | — | never reaches skip; runs normally |
+| Production — accidental missing cred | `production` | not set | **exits 1** (fatal) — alerts Slack if `SLACK_WEBHOOK_URL` set |
+| Production — emergency break-glass | `production` | `true` | logs `SKIP:`, exits 0 (non-fatal) — still alerts Slack |
+
+When `SLACK_WEBHOOK_URL` is set, **all** skip events (any environment) POST a
+Slack notification before exit so the miss is always visible.
+
+Set `DEPLOY_ENV=production` in `backend/.env.production` (already non-secret config).
+
+`BACKUP_ALLOW_SKIP_IN_PROD=true` is a break-glass escape hatch only — do not set
+it in normal operation.
+
+Database variables (`DB_HOST`, `DB_PASSWORD`, etc.) remain fatal in all
+environments — a missing DB password is always a misconfiguration.
+
+**New env vars summary:**
+
+| Variable | Where to set | Purpose |
+|----------|-------------|---------|
+| `DEPLOY_ENV` | `backend/.env.production` / `backend/.env.staging` | Controls prod-fatal skip behaviour. Set to `production` on the production server. |
+| `BACKUP_ALLOW_SKIP_IN_PROD` | `backend/.env.secrets` (break-glass only) | If `true`, overrides fatal-skip in production. Leave unset in normal operation. |
+| `SLACK_WEBHOOK_URL` | `backend/.env.secrets` | Slack incoming webhook URL. Receives both failure and skip alerts. |
 
 ### 4d. Env var aliases
 

@@ -21,12 +21,18 @@
 #   MEDIA_DIR                 host path to Django MEDIA_ROOT (mounted into container)
 #
 #  Optional:
-#   SLACK_WEBHOOK_URL         if set, POSTs failure JSON to this URL
+#   SLACK_WEBHOOK_URL         if set, POSTs failure/skip JSON to this URL
 #   ALERT_EMAIL               if set, sends failure email via mailx
 #   MONTHLY_BACKUP_PREFIX     e.g. klikk-production/monthly  (defaults derived)
+#   DEPLOY_ENV                set to "production" to enable prod-safety checks
+#   BACKUP_ALLOW_SKIP_IN_PROD if set to "true", silently skip even in production
+#                             (NOT recommended — for emergency break-glass use only)
 #
 #  Graceful skip: if AWS credentials or encryption key are absent the script
 #  logs a warning and exits 0 (non-fatal) so CI pipelines do not break.
+#  EXCEPTION: when DEPLOY_ENV=production and BACKUP_ALLOW_SKIP_IN_PROD is not
+#  "true", missing infra creds are treated as fatal (exit 1) to prevent silent
+#  no-ops in prod.  Staging/CI can still skip silently.
 #  The DB credential check remains fatal — a missing DB_PASSWORD is a
 #  misconfiguration that should surface immediately.
 # =============================================================================
@@ -42,9 +48,27 @@ die() {
   exit 1
 }
 
-# Exit 0 but log loudly — used when infrastructure creds are not yet provisioned.
+# Exit 0 (non-fatal) when infrastructure creds are not yet provisioned.
+# In production (DEPLOY_ENV=production) this is fatal unless BACKUP_ALLOW_SKIP_IN_PROD=true.
+# Always POSTs to SLACK_WEBHOOK_URL when set, so the miss is visible.
 skip() {
-  log "SKIP: $* — backup not configured; exiting without error (set required env vars to enable)"
+  local MISSING="$*"
+  log "SKIP: ${MISSING} — backup not configured; exiting without error (set required env vars to enable)"
+
+  # Notify via Slack if webhook is configured (fail-open: webhook failure is non-fatal)
+  if [[ -n "${SLACK_WEBHOOK_URL:-}" ]]; then
+    curl -s -X POST "${SLACK_WEBHOOK_URL}" \
+      -H "Content-Type: application/json" \
+      --data "{\"text\":\"backup SKIP in env=${DEPLOY_ENV:-unset} — missing creds: ${MISSING}. Host: $(hostname)\"}" \
+      || log "WARNING: Slack skip-alert failed to send"
+  fi
+
+  # In production, missing infra creds are fatal unless the break-glass override is set.
+  if [[ "${DEPLOY_ENV:-}" == "production" && "${BACKUP_ALLOW_SKIP_IN_PROD:-}" != "true" ]]; then
+    log "ERROR: DEPLOY_ENV=production — missing infra creds are fatal. Set BACKUP_ALLOW_SKIP_IN_PROD=true to override (not recommended)."
+    exit 1
+  fi
+
   exit 0
 }
 
@@ -91,14 +115,19 @@ export AWS_DEFAULT_REGION="${BACKUP_AWS_REGION:-}"
 # ── validate env ─────────────────────────────────────────────────────────────
 
 # Infrastructure credentials — skip non-fatally if absent (CI/staging without infra)
+# Collect ALL missing vars first so the Slack alert lists them all at once.
 infra_vars=(
   BACKUP_S3_BUCKET BACKUP_S3_PREFIX
   BACKUP_ENCRYPTION_KEY
   AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY BACKUP_AWS_REGION
 )
+missing_infra=()
 for var in "${infra_vars[@]}"; do
-  [[ -n "${!var:-}" ]] || skip "Required infra env var ${var} is not set"
+  [[ -n "${!var:-}" ]] || missing_infra+=("${var}")
 done
+if [[ ${#missing_infra[@]} -gt 0 ]]; then
+  skip "Required infra env vars not set: ${missing_infra[*]}"
+fi
 
 # Database credentials — fatal if absent (misconfiguration, not missing infra)
 db_vars=(DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD MEDIA_DIR)
