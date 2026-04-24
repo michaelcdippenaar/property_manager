@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214252955502720"
 created: 2026-04-24
@@ -52,3 +52,7 @@ Additionally:
 - Non-existent token: chosen behaviour is 204 idempotent (not 404) — documented in view docstring.
 - Added two new test cases: `test_delete_push_token_nonexistent_returns_204` and `test_delete_push_token_missing_token_returns_400`.
 - All 9 `PushTokenTests` pass.
+
+**2026-04-24 — reviewer**
+
+Review passed. Verified: (1) root cause diagnosis is correct — BrowsableAPIRenderer wraps 204 as 200 HTML under DEBUG=True; HTTP_ACCEPT="application/json" is the right test fix. (2) 400 guard on missing token is a sensible tightening (prior silent no-op was POPIA-relevant noise). (3) View still IsAuthenticated + user-scoped queryset — no IDOR. (4) Two new tests cover missing-token 400 and idempotent 204. (5) No scope creep, no regressions to test_create_push_token / test_platform_validation. Handing to tester.
