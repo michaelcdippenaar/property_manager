@@ -380,11 +380,11 @@ class AgentHealthCheckView(APIView):
       - Chat log writable
       - Skills populated
 
-    Restricted to admin users only — response includes infrastructure paths,
-    model names, and API key presence which must not be exposed to non-admin
-    agents (estate_agent, agency_admin, etc.).
+    Restricted to agent-or-admin users — response includes infrastructure
+    paths, model names, and API key presence. Tenants, suppliers, and owners
+    are blocked; any agent variant or system admin may access.
     """
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
 
     def get(self, request):
         checks = []
