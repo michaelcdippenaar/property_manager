@@ -17,6 +17,20 @@ secrets.json
 *_secrets.json
 gitleaks-report.*
 
+
+# Coverage artefacts — never commit
+.coverage
+backend/.coverage
+coverage.xml
+backend/coverage.xml
+admin/coverage.xml
+
+# Env config files — non-secret but noisy; keep out of index
+backend/.env.production
+backend/.env.staging
+admin/.env.production
+admin/.env.staging
+
 # Python
 backend/.venv/
 __pycache__/
