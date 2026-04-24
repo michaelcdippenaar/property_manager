@@ -162,6 +162,7 @@ async function handleLogin() {
  * - two_fa_required=true  → /2fa/challenge  (TOTP code needed before access)
  * - two_fa_enroll_required=true + hard_blocked → /2fa/enroll (must enroll, no access yet)
  * - two_fa_enroll_required=true (grace period) → /2fa/enroll (nudge but tokens already set)
+ * - two_fa_suggest_setup=true → /2fa/enroll with optional=1 (owner role, skip-able, DEC-018)
  * - normal → go to homeRoute
  */
 async function _handle2FA(data: any) {
@@ -184,6 +185,12 @@ async function _handle2FA(data: any) {
       // Tokens already set by auth.login — can access app but should enroll
       router.push({ name: '2fa-enroll', query: { token: data.two_fa_token, required: '1' } })
     }
+    return
+  }
+
+  if (data.two_fa_suggest_setup) {
+    // Owner role optional-2FA prompt — tokens already set, can skip (DEC-018)
+    router.push({ name: '2fa-enroll', query: { optional: '1' } })
     return
   }
 

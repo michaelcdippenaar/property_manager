@@ -22,6 +22,11 @@ export default boot(({ router }) => {
       return '/login'
     }
 
+    // Optional 2FA setup pending (owner role, DEC-018): redirect to enroll view unless already there
+    if (auth.suggestTwoFASetup && to.name !== '2fa-enroll') {
+      return { name: '2fa-enroll', query: { optional: '1' } }
+    }
+
     return true
   })
 })

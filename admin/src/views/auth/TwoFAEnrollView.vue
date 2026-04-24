@@ -17,6 +17,15 @@
         </div>
       </div>
 
+      <!-- Optional 2FA prompt (owner role, DEC-018) -->
+      <div v-else-if="isOptional" class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-blue-800 text-sm flex items-start gap-3">
+        <ShieldCheck :size="18" class="flex-shrink-0 mt-0.5" />
+        <div>
+          <p class="font-semibold">Secure your account with 2FA</p>
+          <p class="text-xs mt-1">Two-factor authentication is optional for your role but strongly recommended. You can skip this for now and set it up later from your profile.</p>
+        </div>
+      </div>
+
       <!-- Grace period nudge -->
       <div v-else-if="isRequired" class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm flex items-start gap-3">
         <ShieldCheck :size="18" class="flex-shrink-0 mt-0.5" />
@@ -154,14 +163,15 @@
 
       </div>
 
-      <!-- Skip link (grace period only) -->
-      <div v-if="isRequired && !isBlocked && step < 3" class="text-center mt-4">
+      <!-- Skip link: optional flow (owner, DEC-018) or grace-period required-role -->
+      <div v-if="(isOptional || (isRequired && !isBlocked)) && step < 3" class="text-center mt-4">
         <button
           type="button"
           class="text-xs text-gray-400 hover:text-gray-600"
+          :disabled="skipLoading"
           @click="skipEnrollment"
         >
-          Skip for now (you'll be reminded later)
+          {{ skipLoading ? 'Skipping...' : 'Skip for now (you\'ll be reminded later)' }}
         </button>
       </div>
 
@@ -173,7 +183,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
-import { AlertCircle, Loader2, ShieldCheck, ShieldAlert, ChevronRight, Copy, KeyRound } from 'lucide-vue-next'
+import { AlertCircle, Loader2, ShieldCheck, ShieldAlert, ChevronRight, Copy } from 'lucide-vue-next'
 import api from '../../api'
 
 const router = useRouter()
@@ -183,6 +193,8 @@ const auth = useAuthStore()
 const twoFaToken = ref((route.query.token as string) || '')
 const isRequired = computed(() => route.query.required === '1')
 const isBlocked = computed(() => route.query.blocked === '1')
+/** Owner optional-2FA flow (DEC-018): tokens already issued, user can skip. */
+const isOptional = computed(() => route.query.optional === '1')
 
 const step = ref(1)
 const loadingSetup = ref(false)
@@ -195,6 +207,7 @@ const verifyError = ref('')
 
 const recoveryCodes = ref<string[]>([])
 const copied = ref(false)
+const skipLoading = ref(false)
 
 onMounted(async () => {
   await loadSetup()
@@ -238,11 +251,24 @@ async function copyAll() {
 }
 
 function finishEnrollment() {
+  auth.suggestTwoFASetup = false
   router.replace(auth.homeRoute)
 }
 
-function skipEnrollment() {
-  // Only available during grace period — user already has tokens
+async function skipEnrollment() {
+  if (isOptional.value) {
+    // Owner optional flow: call the skip endpoint to stamp skipped_2fa_setup_at (DEC-018)
+    skipLoading.value = true
+    try {
+      await auth.skipTwoFASetup()
+    } catch {
+      // Non-fatal — proceed to dashboard anyway
+      auth.suggestTwoFASetup = false
+    } finally {
+      skipLoading.value = false
+    }
+  }
+  // For grace-period required-role users, tokens are already set — just navigate home
   router.replace(auth.homeRoute)
 }
 </script>

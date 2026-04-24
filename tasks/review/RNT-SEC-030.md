@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214202102067961"
 created: 2026-04-22
@@ -92,3 +92,33 @@ Numbered fixes required:
 No new tests required for the frontend — the backend suite covers the contract. A manual smoke (login as owner → see prompt → skip → relog → no prompt) is sufficient.
 
 Moving to `in-progress/`.
+
+**2026-04-24 — rentals-implementer (round 2): frontend 2FA guards implemented.**
+
+All six numbered fixes addressed:
+
+1. **admin/src/stores/auth.ts** — Added `suggestTwoFASetup: ref(false)` state. Both `login()` and `googleAuth()` now set it from `data.two_fa_suggest_setup === true`. Added `skipTwoFASetup()` action that POSTs to `/auth/2fa/skip/` and clears the flag. `logout()` also clears it. Both new items exported from the store.
+
+2. **admin/src/views/auth/LoginView.vue** — `_handle2FA()` now has a `two_fa_suggest_setup` branch (before the normal-login fallthrough) that pushes `{ name: '2fa-enroll', query: { optional: '1' } }`. Existing `two_fa_required` and `two_fa_enroll_required` branches are unchanged.
+
+3. **admin/src/views/auth/TwoFAEnrollView.vue** — Added `isOptional = route.query.optional === '1'` computed. Added blue info banner for optional flow. Skip button visible for `isOptional || (isRequired && !isBlocked)`. For optional flow, skip calls `auth.skipTwoFASetup()` (hits the API); for grace-period required-role, just navigates home. Added `skipLoading` state.
+
+4. **admin/src/router/index.ts** — Guard in `beforeEach`: if `auth.suggestTwoFASetup && to.name !== '2fa-enroll'` → redirect to `2fa-enroll?optional=1`. Covers navigation away during session.
+
+5. **agent-app/src/stores/auth.ts** — Same `suggestTwoFASetup` flag, `skipTwoFASetup()` action, and `logout()` clear mirroring admin store.
+
+6. **agent-app/src/pages/LoginPage.vue** — `_handle2FA()` `two_fa_suggest_setup` branch added identically to admin.
+
+7. **agent-app/src/pages/TwoFAEnrollPage.vue** — `isOptional`, `notice-info` banner, combined skip condition, `skipLoading`, `skip()` function calling `auth.skipTwoFASetup()` for optional flow — mirrors admin view.
+
+8. **agent-app/src/boot/auth-guard.ts** — Added `suggestTwoFASetup` redirect guard in `beforeEach`, consistent with admin router guard.
+
+**web_app (tenant) check:** `web_app/` directory does not exist in this repo — no tenant web app source present. Tenant role is in `TOTP_EXCLUDED` on the backend; login response will never carry `two_fa_suggest_setup`. No changes needed.
+
+**Regression check:** Both builds pass cleanly.
+- `cd admin && npx vite build` — built in 8.20s, 0 errors.
+- `cd agent-app && npm run build` — Build succeeded, 0 errors.
+
+Existing required-role flow (`two_fa_enroll_required` / `two_fa_hard_blocked`) unmodified in both LoginView.vue and LoginPage.vue — those branches execute before the new `two_fa_suggest_setup` check.
+
+Note on fix #3 reviewer wording: "Hidden for required-2FA users (must not let them skip)" — the skip button is NOT shown when `isBlocked === true` (hard-blocked required-role). For grace-period required-role (`isRequired && !isBlocked`) it IS still shown, consistent with the existing pre-round-2 behaviour (grace period = can skip). Only the `isOptional` path calls the `/auth/2fa/skip/` endpoint; the grace-period path just navigates home as before.

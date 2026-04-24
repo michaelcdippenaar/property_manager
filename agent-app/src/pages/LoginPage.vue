@@ -181,6 +181,11 @@ async function _handle2FA(data: any) {
     await router.replace({ name: '2fa-enroll', query })
     return
   }
+  if (data.two_fa_suggest_setup) {
+    // Owner role optional-2FA prompt — tokens already set, can skip (DEC-018)
+    await router.replace({ name: '2fa-enroll', query: { optional: '1' } })
+    return
+  }
   await router.replace(auth.homeRoute)
 }
 

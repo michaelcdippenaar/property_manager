@@ -254,6 +254,11 @@ router.beforeEach(async (to) => {
     return { path: auth.homeRoute }
   }
 
+  // Optional 2FA setup pending (owner role, DEC-018): redirect to enroll view unless already there
+  if (auth.suggestTwoFASetup && to.name !== '2fa-enroll') {
+    return { name: '2fa-enroll', query: { optional: '1' } }
+  }
+
   // Redirect `/` to role-specific dashboard
   if (to.path === '/' && to.name === 'dashboard' && auth.homeRoute !== '/') {
     return { path: auth.homeRoute, replace: true }

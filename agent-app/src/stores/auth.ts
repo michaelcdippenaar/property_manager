@@ -29,6 +29,13 @@ export const useAuthStore = defineStore('auth', () => {
   // Last registered push token — needed so we can revoke it on logout
   const _pushToken   = ref<string | null>(localStorage.getItem('push_token'))
 
+  /**
+   * Set to true after a login response carries `two_fa_suggest_setup: true`.
+   * The router guard and TwoFAEnrollPage read this to show the optional-setup
+   * banner with a "Skip for now" button (owner role, DEC-018).
+   */
+  const suggestTwoFASetup = ref(false)
+
   // ── Computed ──────────────────────────────────────────────────────────────
 
   const isAuthenticated = computed(() => !!accessToken.value)
@@ -55,12 +62,14 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Authenticate with email + password.
    * Returns raw response data so the caller can handle 2FA fields.
+   * Also sets `suggestTwoFASetup` when the server flags optional 2FA setup (owner role, DEC-018).
    */
   async function login(email: string, password: string): Promise<any> {
     const { data } = await api.post('/auth/login/', { email, password })
     if (data.access && data.refresh) {
       _setTokens(data.access, data.refresh)
       await fetchMe()
+      suggestTwoFASetup.value = data.two_fa_suggest_setup === true
     }
     return data
   }
@@ -74,6 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (data.access && data.refresh) {
       _setTokens(data.access, data.refresh)
       user.value = data.user
+      suggestTwoFASetup.value = data.two_fa_suggest_setup === true
     }
     return data
   }
@@ -90,6 +100,16 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await api.get('/auth/me/')
     user.value   = data.user ?? data
     agency.value = data.agency ?? null
+  }
+
+  /**
+   * POST /auth/2fa/skip/ — owner role optional-2FA prompt: user chose not to enroll now.
+   * Stamps `skipped_2fa_setup_at` on the backend so the prompt won't reappear until
+   * the next first-login after the skip window expires (DEC-018).
+   */
+  async function skipTwoFASetup(): Promise<void> {
+    await api.post('/auth/2fa/skip/')
+    suggestTwoFASetup.value = false
   }
 
   async function logout() {
@@ -114,6 +134,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value         = null
       agency.value       = null
       _pushToken.value   = null
+      suggestTwoFASetup.value = false
       localStorage.removeItem('access_token')
       localStorage.removeItem('refresh_token')
       localStorage.removeItem('push_token')
@@ -149,11 +170,13 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     canAccessAgentApp,
     homeRoute,
+    suggestTwoFASetup,
     login,
     loginWithGoogle,
     setTokensFromTwoFA,
     logout,
     fetchMe,
+    skipTwoFASetup,
     registerPushToken,
     deregisterPushToken,
     startPush,

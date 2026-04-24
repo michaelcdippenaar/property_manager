@@ -18,6 +18,11 @@
         2FA is required for your account. You must enroll before accessing Klikk.
       </div>
 
+      <!-- Optional 2FA prompt (owner role, DEC-018) -->
+      <div v-else-if="isOptional" class="notice notice-info">
+        Two-factor authentication is optional for your role but strongly recommended. You can skip this for now and set it up later from your profile.
+      </div>
+
       <!-- Step 1: QR code -->
       <div v-if="step === 1">
         <p class="step-hint">Open your authenticator app and scan this QR code.</p>
@@ -93,9 +98,14 @@
         <button class="btn-primary" @click="finish">I've saved my codes</button>
       </div>
 
-      <!-- Skip (grace period only) -->
-      <button v-if="isRequired && !isBlocked && step < 3" class="btn-link" @click="skip">
-        Skip for now
+      <!-- Skip: optional flow (owner, DEC-018) or grace-period required-role -->
+      <button
+        v-if="(isOptional || (isRequired && !isBlocked)) && step < 3"
+        class="btn-link"
+        :disabled="skipLoading"
+        @click="skip"
+      >
+        {{ skipLoading ? 'Skipping...' : 'Skip for now' }}
       </button>
 
     </div>
@@ -115,6 +125,8 @@ const auth = useAuthStore()
 const twoFaToken = ref((route.query.token as string) || '')
 const isRequired = computed(() => route.query.required === '1')
 const isBlocked = computed(() => route.query.blocked === '1')
+/** Owner optional-2FA flow (DEC-018): tokens already issued, user can skip. */
+const isOptional = computed(() => route.query.optional === '1')
 
 const step = ref(1)
 const loadingSetup = ref(false)
@@ -127,6 +139,7 @@ const verifyError = ref('')
 
 const recoveryCodes = ref<string[]>([])
 const copied = ref(false)
+const skipLoading = ref(false)
 
 onMounted(async () => {
   await loadSetup()
@@ -170,10 +183,24 @@ async function copyAll() {
 }
 
 function finish() {
+  auth.suggestTwoFASetup = false
   router.replace(auth.homeRoute)
 }
 
-function skip() {
+async function skip() {
+  if (isOptional.value) {
+    // Owner optional flow: call the skip endpoint to stamp skipped_2fa_setup_at (DEC-018)
+    skipLoading.value = true
+    try {
+      await auth.skipTwoFASetup()
+    } catch {
+      // Non-fatal — proceed to dashboard anyway
+      auth.suggestTwoFASetup = false
+    } finally {
+      skipLoading.value = false
+    }
+  }
+  // For grace-period required-role users, tokens are already set — just navigate home
   router.replace(auth.homeRoute)
 }
 </script>
@@ -222,6 +249,7 @@ $navy: $primary;
 .notice {
   padding: 12px 16px; border-radius: 12px; font-size: 13px; margin-bottom: 16px;
   &.notice-danger { background: #FFF1F2; border: 1px solid #FECDD3; color: #BE123C; }
+  &.notice-info   { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
 }
 
 .step-hint { font-size: 14px; color: var(--klikk-text-secondary); margin: 0 0 16px; }
@@ -257,5 +285,6 @@ $navy: $primary;
 .btn-link {
   display: block; width: 100%; margin-top: 8px; text-align: center; font-size: 14px;
   color: var(--klikk-text-secondary); font-weight: 500; background: none; border: none; cursor: pointer; padding: 4px 0;
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 </style>

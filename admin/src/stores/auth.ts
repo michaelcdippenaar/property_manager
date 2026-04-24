@@ -22,6 +22,13 @@ export const useAuthStore = defineStore('auth', () => {
   const user = ref<User | null>(null)
   const agency = ref<AgencyInfo | null>(null)
 
+  /**
+   * Set to true after a login response carries `two_fa_suggest_setup: true`.
+   * The router guard and TwoFAEnrollView read this to show the optional-setup
+   * banner with a "Skip for now" button (owner role, DEC-018).
+   */
+  const suggestTwoFASetup = ref(false)
+
   const isAuthenticated = computed(() => !!accessToken.value)
   const STAFF_ROLES = ['agent', 'admin', 'agency_admin', 'estate_agent', 'managing_agent', 'accountant', 'viewer']
   const isAgent = computed(() => STAFF_ROLES.includes(user.value?.role ?? ''))
@@ -44,6 +51,7 @@ export const useAuthStore = defineStore('auth', () => {
    * Authenticate with email + password.
    * Returns the raw response data so the caller can inspect 2FA fields.
    * If the response contains full tokens (access + refresh), they are stored.
+   * Also sets `suggestTwoFASetup` when the server flags optional 2FA setup (owner role, DEC-018).
    */
   async function login(email: string, password: string): Promise<any> {
     const { data } = await api.post('/auth/login/', { email, password })
@@ -51,6 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
     // If two_fa_required or two_fa_hard_blocked, no tokens are present.
     if (data.access && data.refresh) {
       _setTokens(data)
+      suggestTwoFASetup.value = data.two_fa_suggest_setup === true
     }
     return data
   }
@@ -78,6 +87,7 @@ export const useAuthStore = defineStore('auth', () => {
     const { data } = await api.post('/auth/google/', { credential })
     if (data.access && data.refresh) {
       _setTokens(data)
+      suggestTwoFASetup.value = data.two_fa_suggest_setup === true
     }
     return data
   }
@@ -90,6 +100,16 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('refresh_token', data.refresh)
   }
 
+  /**
+   * POST /auth/2fa/skip/ — owner role optional-2FA prompt: user chose not to enroll now.
+   * Stamps `skipped_2fa_setup_at` on the backend so the prompt won't reappear until
+   * the next first-login after the skip window expires (DEC-018).
+   */
+  async function skipTwoFASetup(): Promise<void> {
+    await api.post('/auth/2fa/skip/')
+    suggestTwoFASetup.value = false
+  }
+
   async function logout() {
     // Blacklist refresh token on the server (best-effort)
     if (refreshToken.value) {
@@ -100,6 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
+    suggestTwoFASetup.value = false
     localStorage.removeItem('access_token')
     localStorage.removeItem('refresh_token')
   }
@@ -123,6 +144,8 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     accessToken, user, agency, isAuthenticated,
     isAgent, isSupplier, isOwner, isTenant, isAgency, homeRoute,
+    suggestTwoFASetup,
     login, register, googleAuth, logout, fetchMe, fetchAgency, _setTokens,
+    skipTwoFASetup,
   }
 })
