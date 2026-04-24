@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: blocked
+assigned_to: null
 depends_on: []
 asana_gid: null
 created: 2026-04-24
@@ -47,3 +47,9 @@ Implement the notification preferences settings screen in both agent-app and ten
 
 2026-04-25 — Implemented. Task says `views/settings/` path but agent-app uses `pages/` convention; created `agent-app/src/pages/NotificationPreferencesPage.vue` to match. Tenant app correctly uses `tenant/src/views/settings/NotificationPreferencesView.vue`. Both screens load prefs on mount via GET `/auth/push-preferences/`, save immediately on toggle via POST, and show success/error feedback. Agent-app: added "Notifications" nav row to SettingsPage + route at `/settings/notifications`. Tenant app: added "Notifications" row to SettingsView (above My Data) + depth-2 route at `/settings/notifications`. Both: POPIA s18 purpose-notification disclosure included. vue-tsc clean on tenant; agent-app only shows a pre-existing TS6.0 deprecation warning unrelated to this change.
 2026-04-24 — Review passed. Verified: (1) new NotificationPreferencesPage.vue (agent-app) + NotificationPreferencesView.vue (tenant) both call GET/POST /auth/push-preferences/ matching backend PushPreferenceView at backend/apps/accounts/urls.py:29; (2) router wiring correct in both apps (agent-app nested under main layout with showBackBtn, tenant depth-2 requiresAuth); (3) settings nav entries added in SettingsPage.vue and SettingsView.vue; (4) no backend changes; (5) optimistic toggle with revert on failure, loading/saving states, POPIA s18 disclosure present; (6) no PII logging, auth-only endpoint (IsAuthenticated on PushPreferenceView).
+
+2026-04-24 — Test run (rentals-tester):
+- PASS: agent-app router — route `notification-preferences` at `settings/notifications` wired to `NotificationPreferencesPage.vue` (agent-app/src/router/index.ts:138-141)
+- PASS: tenant router — route `notification-preferences` at `/settings/notifications` wired to `NotificationPreferencesView.vue` (tenant/src/router/index.ts:121-123)
+- PASS: POPIA disclosure — both view files contain POPIA s18 purpose-notification text
+- FAIL: automated pytest `apps/accounts/tests/ -k push_pref` — exit code 5, 0 tests collected. No push_pref test file exists in `backend/apps/accounts/tests/`. Test plan step cannot be confirmed; a developer must add `test_push_preferences.py` before this task can pass.
