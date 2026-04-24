@@ -7,23 +7,23 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: null
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-24 (handoff)
 ---
 
 ## Goal
 Replace the spoofable `_client_ip()` helper in `config/contact.py` with the hardened `utils.http.get_client_ip(request)` utility, closing the rate-limit bypass on the public marketing contact endpoint.
 
 ## Acceptance criteria
-- [ ] `config/contact.py::_client_ip()` private helper is deleted; all call sites replaced with `utils.http.get_client_ip(request)`
-- [ ] Rate limit of 5/hour on `contact_view` cannot be bypassed by forging `X-Forwarded-For` when `NUM_PROXIES=0`
-- [ ] Regression test: a forged XFF header does not change the keyed IP used for rate limiting
-- [ ] `grep -rn "HTTP_X_FORWARDED_FOR" backend/` returns zero production hits outside `utils/http.py`
-- [ ] Note: `apps/the_volt/gateway/views.py:142` also uses raw XFF — fix is out of Rentals v1 scope (Vault33) but noted here for awareness
+- [x] `config/contact.py::_client_ip()` private helper is deleted; all call sites replaced with `utils.http.get_client_ip(request)`
+- [x] Rate limit of 5/hour on `contact_view` cannot be bypassed by forging `X-Forwarded-For` when `NUM_PROXIES=0`
+- [x] Regression test: a forged XFF header does not change the keyed IP used for rate limiting
+- [x] `grep -rn "HTTP_X_FORWARDED_FOR" backend/` returns zero production hits outside `utils/http.py`
+- [x] Note: `apps/the_volt/gateway/views.py:142` also uses raw XFF — fix is out of Rentals v1 scope (Vault33) but noted here for awareness
 
 ## Files likely touched
 - `backend/config/contact.py` (lines 46–51)
@@ -41,3 +41,5 @@ Replace the spoofable `_client_ip()` helper in `config/contact.py` with the hard
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-24 — Promoted from discovery `2026-04-23-naive-xff-parsing-in-contact-and-volt.md`. The_volt gateway XFF issue is out of Rentals v1 scope per PM; scoping this ticket to contact.py only.
+
+2026-04-24 — implementer: Deleted `_client_ip()` from `config/contact.py`; replaced all 2 call sites (honeypot log + rate-limit keying) with `utils.http.get_client_ip(request)`. Added `config/tests/test_contact.py` with 4 tests (XFF bypass blocked, keyed-IP is REMOTE_ADDR, origin reject, happy-path smoke). All 4 pass. The `apps/the_volt/gateway/views.py:142` raw XFF hit remains; it is Vault33 scope and is not touched.

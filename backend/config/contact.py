@@ -25,6 +25,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.contact.models import ContactEnquiry
+from utils.http import get_client_ip
 
 logger = logging.getLogger(__name__)
 
@@ -43,13 +44,6 @@ def _origin_allowed(request) -> bool:
     return origin in ALLOWED_ORIGINS
 
 
-def _client_ip(request) -> str | None:
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if xff:
-        # First hop is the original client; rest are proxies.
-        return xff.split(",")[0].strip() or None
-    return request.META.get("REMOTE_ADDR") or None
-
 
 @csrf_exempt
 @require_POST
@@ -64,7 +58,7 @@ def contact_view(request):
 
     # Honeypot: bots fill hidden fields. Humans don't see it, so any value = bot.
     if str(data.get("website", "")).strip():
-        logger.info("Contact form honeypot triggered from %s", _client_ip(request))
+        logger.info("Contact form honeypot triggered from %s", get_client_ip(request))
         # Pretend success so bots don't learn the trap exists.
         return JsonResponse({"ok": True})
 
@@ -84,7 +78,7 @@ def contact_view(request):
             status=400,
         )
 
-    ip_address = _client_ip(request)
+    ip_address = get_client_ip(request)
     user_agent = request.META.get("HTTP_USER_AGENT", "")[:512]
 
     # IP-based rate limit — best-effort, don't fail closed on DB errors.
