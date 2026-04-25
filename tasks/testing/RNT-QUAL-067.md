@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214273917226197"
 created: 2026-04-24
@@ -44,3 +44,6 @@ Promoted from discovery `2026-04-24-news-scraper-silent-exception.md` (2026-04-2
 
 **2026-04-24 — implementer**
 `news.py` lines 119-120: replaced `except Exception: pass` with a `logger.warning(...)` that logs the entry link and exception with `exc_info=True`. Logger was already present at module level. Created `backend/apps/market_data/tests/__init__.py` and `test_news_scraper.py` with three tests: healthy entries produce results, bad date tuple triggers a WARNING and does not drop remaining entries (caplog assertion), clean run emits no spurious warnings. Both files pass `py_compile`. Behaviour for healthy runs unchanged.
+
+**2026-04-24 — reviewer**
+Review passed. Checked: `except Exception as exc` → `logger.warning(... exc_info=True)` at news.py:119-120; logger uses `logging.getLogger(__name__)` at line 18; swallow retained (iteration continues); 3/3 tests green. Security: no new endpoints, no PII logged, no raw SQL. Discovery filed: `tasks/discoveries/2026-04-24-stray-backup-test-directories.md` — two `*_tests_backup/` dirs committed alongside this task will cause duplicate pytest collection; PM to schedule removal.
