@@ -27,12 +27,19 @@ Patch the AI guide's action list, system prompt, and data-guide attributes so th
 - [ ] Update the system prompt so the AI knows owners/landlords are a first-class entity, with a 1-line explanation: the human/entity who owns the property — called "owner" in casual SA usage but "landlord" in the data model.
 - [ ] Add a unit test in `backend/apps/ai/tests/test_guide.py` asserting that "how do I create an owner", "create a landlord", and "add owner" all resolve to the landlord navigation action, not a clarification question.
 - [ ] While auditing, file any other missing major SPA sections as a discovery in `tasks/discoveries/` — do not expand this task's scope.
+- [ ] AI must understand "add tenant" / "create tenant" / "new tenant" → respond by suggesting the "Create lease" flow, explaining that tenants are created as counterparties on a lease, not via a standalone Add Tenant action. The AI must NOT navigate to a Tenants list view.
+- [ ] Add a unit test asserting that the three phrasings "add tenant", "create tenant", and "new tenant" all resolve to the create-lease action with a domain explanation, not to opening the tenants list.
 
 ## Repro
 
 MC repro (2026-04-25):
 > User: "how do I create an owner"
 > AI: "I don't see a tool available to create an owner in this property management portal. The available functions are limited to managing properties, leases, tenants, maintenance, and payments. Could you clarify what you mean by 'owner'? ..."
+
+MC repro (2026-04-25):
+> User: "add tenant"
+> AI: "Opening the Tenants list."
+> User feedback: "You add a tenant by creating a contract, I can I train the ai better"
 
 ## Files likely touched
 
