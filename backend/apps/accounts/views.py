@@ -20,7 +20,7 @@ from .models import (
 )
 from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, OTPSendSerializer, OTPVerifySerializer, PersonSerializer, PersonDocumentSerializer, TenantListSerializer
 from .audit import log_auth_event
-from .throttles import AuthAnonThrottle, InviteAcceptThrottle, LoginHourlyThrottle, OTPSendThrottle, OTPVerifyThrottle
+from .throttles import AuthAnonThrottle, InviteAcceptThrottle, LoginHourlyThrottle, OTPSendThrottle, OTPVerifyThrottle, PasswordChangeThrottle
 from utils.http import get_client_ip
 
 
@@ -360,6 +360,7 @@ class MarkWelcomeSeenView(APIView):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [PasswordChangeThrottle]
 
     def post(self, request):
         current = request.data.get("current_password", "")

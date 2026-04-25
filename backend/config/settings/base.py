@@ -204,6 +204,8 @@ REST_FRAMEWORK = {
         "login_hourly_user": "20/hour",
         # Tenant-invite acceptance
         "invite_accept": "5/min",
+        # Password change (brute-force current_password via stolen token)
+        "password_change": "5/min",
         # Public e-signing endpoints (no auth, UUID token in URL)
         "public_sign_minute": "10/min",
         "public_sign_hourly": "60/hour",
