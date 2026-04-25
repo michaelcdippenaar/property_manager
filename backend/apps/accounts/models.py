@@ -72,6 +72,17 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=20, choices=FFCCategory.choices, blank=True,
         help_text="FFC category — distinct from role (regulatory classification)",
     )
+    class TwoFAMethod(models.TextChoices):
+        TOTP = "totp", "Authenticator App (TOTP)"
+        EMAIL = "email", "Email OTP"
+
+    two_fa_method = models.CharField(
+        max_length=10,
+        choices=TwoFAMethod.choices,
+        default=TwoFAMethod.TOTP,
+        help_text="Second factor method used when 2FA is required for this account.",
+    )
+
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(auto_now_add=True)

@@ -172,8 +172,13 @@ async function _handle2FA(data: any) {
   }
 
   if (data.two_fa_required && data.two_fa_token) {
-    // Need to complete 2FA challenge
-    router.push({ name: '2fa-challenge', query: { token: data.two_fa_token } })
+    // Branch on the `next` hint returned by the server (RNT-SEC-050).
+    if (data.next === 'email-verify') {
+      router.push({ name: '2fa-email-verify', query: { token: data.two_fa_token } })
+    } else {
+      // Default: TOTP challenge
+      router.push({ name: '2fa-challenge', query: { token: data.two_fa_token } })
+    }
     return
   }
 

@@ -15,6 +15,7 @@ from .totp_views import (
     TOTPVerifyView, TOTPRecoveryView,
     TOTPResetRequestView, TOTPResetConfirmView,
 )
+from .email_2fa_views import Email2FASendView, Email2FAVerifyView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
@@ -60,4 +61,7 @@ urlpatterns = [
     path("2fa/recovery/", TOTPRecoveryView.as_view(), name="2fa-recovery"),
     path("2fa/reset/request/", TOTPResetRequestView.as_view(), name="2fa-reset-request"),
     path("2fa/reset/confirm/", TOTPResetConfirmView.as_view(), name="2fa-reset-confirm"),
+    # ── Email OTP 2FA (RNT-SEC-050) ──────────────────────────────────────────
+    path("2fa/email-send/", Email2FASendView.as_view(), name="2fa-email-send"),
+    path("2fa/email-verify/", Email2FAVerifyView.as_view(), name="2fa-email-verify"),
 ]

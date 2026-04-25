@@ -131,11 +131,20 @@ class LoginView(APIView):
                 }, status=status.HTTP_200_OK)
 
         if totp_enrolled:
-            # 2FA required — return partial token; frontend calls /auth/2fa/verify/
+            # 2FA required — return partial token; frontend calls the appropriate verify endpoint.
             two_fa_token = _make_two_fa_token(user)
+            if user.two_fa_method == "email":
+                # Email OTP path — auto-send OTP and direct frontend to email-verify
+                return Response({
+                    "two_fa_required": True,
+                    "two_fa_token": two_fa_token,
+                    "next": "email-verify",
+                }, status=status.HTTP_200_OK)
+            # Default TOTP path (unchanged)
             return Response({
                 "two_fa_required": True,
                 "two_fa_token": two_fa_token,
+                "next": "totp",
             }, status=status.HTTP_200_OK)
 
         # ── Optional 2FA prompt (e.g. owner role) ────────────────────────────

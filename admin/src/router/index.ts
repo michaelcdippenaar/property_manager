@@ -56,6 +56,12 @@ const router = createRouter({
       meta: { public: true },
     },
     {
+      path: '/2fa/email-verify',
+      name: '2fa-email-verify',
+      component: () => import('../views/auth/EmailOtpVerifyView.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/2fa/enroll',
       name: '2fa-enroll',
       component: () => import('../views/auth/TwoFAEnrollView.vue'),

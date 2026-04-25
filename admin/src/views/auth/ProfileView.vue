@@ -42,6 +42,9 @@
       </button>
     </div>
 
+    <!-- 2FA Method Preference -->
+    <SecurityTab />
+
     <!-- Change Password -->
     <div class="card p-5 space-y-4 max-w-lg">
       <h3 class="font-semibold text-gray-900">Change Password</h3>
@@ -74,6 +77,7 @@ import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 import { Loader2 } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
+import SecurityTab from '../settings/SecurityTab.vue'
 
 const auth = useAuthStore()
 

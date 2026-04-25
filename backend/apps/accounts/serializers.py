@@ -136,7 +136,7 @@ class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ["id", "email", "first_name", "last_name", "full_name", "phone", "role", "date_joined",
-                  "twofa_enrolled", "twofa_required", "seen_welcome_at"]
+                  "twofa_enrolled", "twofa_required", "seen_welcome_at", "two_fa_method"]
         read_only_fields = ["id", "email", "role", "date_joined", "twofa_enrolled", "twofa_required"]
 
     def get_twofa_enrolled(self, obj) -> bool:
