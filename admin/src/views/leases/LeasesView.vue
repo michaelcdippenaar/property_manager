@@ -1014,4 +1014,8 @@ function leasePeriodMonths(start: string, end: string): string {
   const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
   return months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : '—'
 }
+
+// Exposed for testing — allows test harness to call initView() directly
+// instead of relying on onActivated (which only fires inside KeepAlive).
+defineExpose({ initView })
 </script>
