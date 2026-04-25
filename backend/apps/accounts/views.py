@@ -134,7 +134,7 @@ class LoginView(APIView):
             # 2FA required — return partial token; frontend calls the appropriate verify endpoint.
             two_fa_token = _make_two_fa_token(user)
             if user.two_fa_method == "email":
-                # Email OTP path — auto-send OTP and direct frontend to email-verify
+                # Email OTP path — return partial token; frontend auto-sends OTP on mount (EmailOtpVerifyView.vue)
                 return Response({
                     "two_fa_required": True,
                     "two_fa_token": two_fa_token,
