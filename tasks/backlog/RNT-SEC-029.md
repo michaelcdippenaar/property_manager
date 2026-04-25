@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: blocked
+status: backlog
 assigned_to: null
 depends_on: [RNT-016]
 asana_gid: "1214200629255776"
 created: 2026-04-22
-updated: 2026-04-23
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -57,3 +57,7 @@ Device-runtime checks (blocked — device access prohibited in tester environmen
 - SKIP: `adb backup -apk com.tremly.klikk` — requires USB-connected debug device; device access not permitted
 
 The test plan's only stated item is the `adb backup` device test. Both remaining acceptance criteria require a connected device or full Android build environment. Blocking until a human tester with device access can validate the two runtime criteria.
+
+### 2026-04-24 — rentals-pm: recycled to backlog (dep RNT-016 landed)
+
+RNT-016 is in `done/` (Android platform scaffolded). The `depends_on: [RNT-016]` blocker has cleared. Code change implemented and review passed. Two open ACs (`./gradlew assembleDebug` and `adb backup` empty) require a human tester with a connected Android device — this is a device-access constraint, not a code blocker. Task returned to backlog for device testing by MC or a human QA tester.

@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P0
 effort: M
 v1_phase: "1.0"
-status: blocked
+status: backlog
 asana_gid: "1214177379577862"
 assigned_to: null
 depends_on: [RNT-SEC-011]
 created: 2026-04-22
-updated: 2026-04-22
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -216,3 +216,7 @@ When MC performs the manual rotation steps in `docs/ops/secret-rotation-2026-04.
 This applies to: Django `SECRET_KEY`, `SIMPLE_JWT` signing key, Google Maps API key, Volt MCP owner key, and any other rotated credential.
 
 The runbook at `docs/ops/secret-rotation-2026-04.md` should be updated to reflect this two-phase rotation order before MC executes the steps.
+
+### 2026-04-24 — rentals-pm: recycled to backlog (dep RNT-SEC-011 landed)
+
+RNT-SEC-011 is in `done/` (gitleaks allowlist expanded, all path anchors correct). The `depends_on: [RNT-SEC-011]` blocker has cleared. All remaining open ACs are MC-only manual steps (rotate Google Maps/Volt keys in production consoles, run `git filter-repo` + force-push, rotate SIMPLE_JWT signing key on server, enable GitHub Secret Scanning). Task returned to backlog to await MC execution of the rotation runbook.

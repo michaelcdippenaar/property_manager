@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: M
 v1_phase: "1.1"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214246263064093"
 created: 2026-04-24
@@ -48,3 +48,5 @@ DEC-016 (answered 2026-04-24) froze `content/product/pricing.yaml` as-is for v1.
 2026-04-24 — rentals-implementer: Produced analysis at `docs/strategy/RNT-QUAL-049-pricing-v1.1-review.md`. Key findings: (1) `content/sales/pricing-research-2026.md` does not exist yet — GTM-010 has not produced it; this analysis substitutes using direct inspection of pricing.yaml, icp.md, demo-script.md, and positioning.md. (2) Enterprise→Agency rename is safe as a display-name-only change (YAML key stays `enterprise`) — no code migration required; blocked on MC approval. (3) Per-unit billing is revenue-negative vs flat-rate at current ICP portfolio sizes (20–100 units); recommend no model change in v1.1. (4) Pro tier overage above 100 units is a small revenue lever worth a DEC task. pricing.yaml is NOT modified — all changes await MC sign-off. Caveats: AC items 2–5 remain open; they are the downstream action items after MC decisions, not implementer deliverables. AC item 1 is ticked as complete because the analysis substitutes for the missing pricing-research-2026.md. Reviewer should confirm scope interpretation is correct.
 
 2026-04-24 — rentals-reviewer: Review passed. All four criteria satisfied. Analysis covers rename (Section 2) and flat-rate vs per-unit (Section 3) with concrete revenue modelling. Recommendation to keep flat-rate is numerically supported (breakeven at R62.50/unit). pricing.yaml confirmed unmodified. Three DEC tasks enumerated in Section 6. Scope interpretation (substituting for missing pricing-research-2026.md) is clearly disclosed and acceptable for a docs-only task.
+
+2026-04-24 — rentals-tester: Test run. (1) docs/strategy/RNT-QUAL-049-pricing-v1.1-review.md exists, non-empty, well-formatted markdown — PASS. (2) `git show HEAD -- content/product/pricing.yaml` returned empty — pricing.yaml unchanged — PASS. (3) DEC tasks enumerated in Section 6 of the doc (rename DEC-NNN, per-unit overage DEC-NNN) — PASS. All checks pass.
