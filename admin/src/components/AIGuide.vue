@@ -265,14 +265,24 @@ const quickPrompts = computed(() =>
 // ── Highlight tracking ──────────────────────────────────────────────────────
 
 let _highlightRaf = 0
+let _isUnmounted = false
 
 function updateHighlightRect() {
+  if (_isUnmounted) return
   const sel = guide.highlightedSelector
   if (!sel) {
     highlightRect.value = null
     return
   }
-  const el = document.querySelector(sel)
+  let el: Element | null = null
+  try {
+    el = document.querySelector(sel)
+  } catch {
+    // Defensive: a malformed selector would otherwise throw on every frame
+    // and propagate up into Vue's render — surface it once and bail.
+    guide.clearHighlight()
+    return
+  }
   if (el) {
     const r = el.getBoundingClientRect()
     // Only update if position changed meaningfully (avoid thrash)
@@ -322,8 +332,10 @@ function handleKey(e: KeyboardEvent) {
 
 onMounted(() => document.addEventListener('keydown', handleKey))
 onUnmounted(() => {
+  _isUnmounted = true
   document.removeEventListener('keydown', handleKey)
   cancelAnimationFrame(_highlightRaf)
+  _highlightRaf = 0
   if (_highlightTimer) {
     clearTimeout(_highlightTimer)
     _highlightTimer = null

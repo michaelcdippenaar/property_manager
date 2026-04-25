@@ -54,6 +54,12 @@ export const useAIGuideStore = defineStore('aiGuide', () => {
 
   function close() {
     isOpen.value = false
+    // Closing the panel must drop any in-flight UI side-effects so the
+    // page the user navigates to next isn't haunted by a stale pulse,
+    // a stale "Confirm action" card, or a leftover error toast.
+    highlightedSelector.value = null
+    pendingAction.value = null
+    error.value = null
   }
 
   function setMode(m: GuideMode) {
