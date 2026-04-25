@@ -63,7 +63,7 @@
           </div>
           <div>
             <label class="label">Phone</label>
-            <input v-model="form.owner_phone" class="input" />
+            <MaskedInput v-model="form.owner_phone" class="input" />
           </div>
         </div>
       </div>
@@ -109,7 +109,7 @@
           </div>
           <div>
             <label class="label">Phone</label>
-            <input v-model="form.representative_phone" class="input" />
+            <MaskedInput v-model="form.representative_phone" class="input" />
           </div>
           <div class="col-span-2">
             <label class="label">Email</label>
