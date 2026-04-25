@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214273972208295"
 created: 2026-04-24
@@ -49,3 +49,10 @@ Added `PasswordChangeThrottle(SimpleRateThrottle)` to `backend/apps/accounts/thr
 ### 2026-04-24 -- reviewer
 
 Review passed. Checked: (1) throttle keyed on user.pk not IP; (2) 5/min rate consistent with sibling scopes; (3) both pytest tests green (2 passed); (4) OAuth branch 200 confirmed by test. No PII logged, no raw SQL, unauthenticated requests return None key (safe). Pattern matches LoginHourlyThrottle exactly. Approved.
+### 2026-04-24 -- tester
+
+Test run: `pytest apps/accounts/tests/test_change_password.py -v --no-cov`
+- test_429_after_threshold_exceeded: PASS
+- test_google_oauth_user_not_blocked_within_limit: PASS
+
+2/2 passed. Moving to done.

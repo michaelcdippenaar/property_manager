@@ -494,7 +494,7 @@ def _email_signed_copy_to_signers(submission: ESigningSubmission, data: dict):
     # Ensure relative URLs become absolute
     if signed_url and signed_url.startswith('/'):
         from django.conf import settings
-        base = getattr(settings, 'SITE_URL', '') or 'http://localhost:8000'
+        base = getattr(settings, 'SITE_URL', '')
         signed_url = f"{base.rstrip('/')}{signed_url}"
 
     if not signed_url:

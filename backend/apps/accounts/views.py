@@ -417,7 +417,7 @@ class PasswordResetRequestView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
 
-        base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
+        base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "")
         reset_url = f"{base_url}/reset-password?uid={uid}&token={token}"
 
         log_auth_event("password_reset_request", request=request, user=user, metadata={"email": email})

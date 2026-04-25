@@ -217,10 +217,10 @@ class BuildInviteUrlTests(APITestCase):
         self.assertEqual(url, f"https://app.klikk.co.za/invite/{invite.token}")
 
     @override_settings(TENANT_APP_BASE_URL="")
-    def test_tenant_invite_falls_back_to_localhost_5174(self):
+    def test_tenant_invite_with_empty_setting_uses_path_param(self):
         invite = _make_invite(self.inviter, role="tenant")
         url = _build_invite_url(invite, admin_base_url="https://admin.klikk.co.za")
-        self.assertEqual(url, f"http://localhost:5174/invite/{invite.token}")
+        self.assertEqual(url, f"/invite/{invite.token}")
 
     def test_agent_invite_uses_admin_accept_invite_query_param(self):
         invite = _make_invite(self.inviter, role="agent")

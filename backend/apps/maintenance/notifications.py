@@ -15,7 +15,7 @@ def notify_supplier(quote_request):
     Send job notification to supplier via SMS and WhatsApp (Twilio when configured).
     Returns True if at least one channel succeeded.
     """
-    base_url = getattr(settings, "BASE_URL", "") or "http://localhost:5175"
+    base_url = getattr(settings, "BASE_URL", "")
     token = quote_request.token
     supplier = quote_request.supplier
     job = quote_request.dispatch.maintenance_request

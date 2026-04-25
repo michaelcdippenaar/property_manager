@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214274142704302"
 created: 2026-04-24
@@ -52,3 +52,11 @@ Work done: replaced the soft-pass TODO test `test_me_patch_role_field_is_writabl
 
 **2026-04-24 — reviewer (approved):**
 Checked: (1) `UserSerializer.read_only_fields` includes `role` — confirmed line 140 of serializers.py. (2) `is_staff`, `is_superuser`, `email_verified_at` absent from `UserSerializer.fields` entirely — exclusion is stronger than read_only. (3) `AdminUserUpdateSerializer` is gated behind `permission_classes = [IsAdmin]` on `UserDetailView` — no escalation surface. (4) `pytest MeViewTests` 4/4 green. `test_me_patch_role_ignored` asserts DB role unchanged. All acceptance criteria met.
+
+**2026-04-24 — tester:**
+Ran `pytest apps/test_hub/accounts/integration/test_auth.py::MeViewTests -v --no-cov`.
+- test_me_authenticated PASSED
+- test_me_patch_role_ignored PASSED (DB role confirmed unchanged after PATCH)
+- test_me_patch_update_name PASSED
+- test_me_unauthenticated PASSED
+4/4 pass. No failures. Moving to done.
