@@ -142,7 +142,7 @@
   top: 50%;
   transform: translateY(-50%);
   font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   background: #fff;
   padding: 2px 6px;
@@ -185,7 +185,7 @@
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -197,7 +197,7 @@
   overflow-y: auto;
 }
 .agent-shell .nav-group-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted-2);
@@ -228,7 +228,7 @@
 .agent-shell .nav-item.active svg { color: #fff; }
 .agent-shell .nav-item .count {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   background: var(--line);
   color: var(--muted);
   padding: 2px 7px;
@@ -245,12 +245,12 @@
   border-bottom: 1px solid var(--line);
   background: #fff;
 }
-.agent-shell .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.agent-shell .breadcrumb { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
 .agent-shell .breadcrumb a { color: var(--muted); cursor: pointer; }
 .agent-shell .breadcrumb a:hover { color: var(--navy); }
 .agent-shell .breadcrumb span { color: var(--ink); }
 .agent-shell .page-header-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.agent-shell .page-header p.sub { color: var(--muted); margin: 4px 0 0; font-size: 13px; }
+.agent-shell .page-header p.sub { color: var(--muted); margin: 4px 0 0; font-size: 14px; }
 .agent-shell .page-actions { display: flex; gap: 8px; align-items: center; }
 .agent-shell .btn {
   padding: 8px 14px;
@@ -324,7 +324,7 @@
   gap: 10px;
 }
 .agent-shell .events-head-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--navy);
   text-transform: uppercase;
@@ -332,7 +332,7 @@
 }
 .agent-shell .events-head-sub {
   margin-left: auto;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
 }
@@ -347,7 +347,7 @@
   padding: 8px 0 16px;
 }
 .agent-shell .ev-menu h4 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--muted-2);
   text-transform: uppercase;
@@ -392,7 +392,7 @@
 }
 .agent-shell .ev-count {
   margin-left: auto;
-  font-size: 11px;
+  font-size: 12px;
   background: var(--line);
   color: var(--muted);
   padding: 2px 7px;
@@ -416,7 +416,7 @@
 .agent-shell .ev-row:hover { background: var(--paper); }
 .agent-shell .ev-row:last-child { border-bottom: none; }
 .agent-shell .ev-when {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
   display: inline-flex;
@@ -429,10 +429,10 @@
 .agent-shell .ev-when.future  { color: var(--muted); }
 .agent-shell .ev-when .bullet { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .agent-shell .ev-ctx-addr { font-weight: 600; font-size: 14px; color: var(--ink); margin-bottom: 2px; }
-.agent-shell .ev-ctx-sub { font-size: 12px; color: var(--muted); }
+.agent-shell .ev-ctx-sub { font-size: 13px; color: var(--muted); }
 .agent-shell .ev-act {
   padding: 6px 12px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--line);
   background: #fff;
@@ -462,7 +462,7 @@
 .agent-shell .up-day { padding: 12px 18px; border-bottom: 1px solid var(--line); }
 .agent-shell .up-day:last-child { border-bottom: none; }
 .agent-shell .up-day-label {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--ink);
   margin-bottom: 6px;
@@ -470,8 +470,8 @@
   align-items: center;
   justify-content: space-between;
 }
-.agent-shell .up-day-label .count { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
-.agent-shell .up-day-items { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.agent-shell .up-day-label .count { color: var(--muted); font-size: 12px; font-family: 'JetBrains Mono', monospace; }
+.agent-shell .up-day-items { font-size: 13px; color: var(--muted); line-height: 1.7; }
 .agent-shell .up-day-items .ev-dot {
   display: inline-block;
   width: 8px;
@@ -511,7 +511,7 @@
   gap: 7px;
 }
 .agent-shell .col-title .bullet { width: 8px; height: 8px; border-radius: 50%; }
-.agent-shell .col-count { font-size: 11px; color: var(--muted); font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+.agent-shell .col-count { font-size: 12px; color: var(--muted); font-weight: 500; font-family: 'JetBrains Mono', monospace; }
 
 .agent-shell .state-bullet-vacant     { background: #9EA0B4; }
 .agent-shell .state-bullet-marketing  { background: var(--info); }
@@ -538,7 +538,7 @@
 }
 .agent-shell .card-addr { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 4px; }
 .agent-shell .card-meta {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin-bottom: 8px;
   display: flex;
@@ -548,7 +548,7 @@
 .agent-shell .card-meta .tag { display: inline-flex; align-items: center; gap: 3px; }
 .agent-shell .card-meta .tag.muted { color: var(--muted-2); }
 .agent-shell .card-action {
-  font-size: 12px;
+  font-size: 13px;
   padding: 6px 8px;
   background: var(--accent-soft);
   color: var(--accent);
@@ -575,7 +575,7 @@
 }
 .agent-shell table.data thead th {
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
@@ -602,7 +602,7 @@
   gap: 5px;
   padding: 3px 9px;
   border-radius: 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
 }
 .agent-shell .badge .bullet { width: 6px; height: 6px; border-radius: 50%; }
@@ -632,7 +632,7 @@
   padding: 16px 18px;
 }
 .agent-shell .stat .label {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   margin-bottom: 4px;
   text-transform: uppercase;
@@ -645,13 +645,13 @@
   color: var(--navy);
   font-weight: 600;
 }
-.agent-shell .stat .delta { font-size: 12px; color: var(--ok); margin-top: 2px; }
+.agent-shell .stat .delta { font-size: 13px; color: var(--ok); margin-top: 2px; }
 .agent-shell .stat .delta.down { color: var(--danger); }
 
 /* ========== TIMELINE (property god view) ========== */
 .agent-shell .timeline { padding: 20px 32px; background: #fff; border-bottom: 1px solid var(--line); }
 .agent-shell .timeline-label {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   color: var(--muted);
   letter-spacing: 0.06em;
@@ -673,7 +673,7 @@
   align-items: flex-end;
   justify-content: center;
   padding: 4px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   font-family: 'JetBrains Mono', monospace;
 }
@@ -688,7 +688,7 @@
   border-radius: 50%;
   background: var(--accent);
 }
-.agent-shell .tl-legend { display: flex; gap: 14px; margin-top: 8px; font-size: 11px; color: var(--muted); }
+.agent-shell .tl-legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .agent-shell .tl-legend i {
   width: 8px;
   height: 8px;
@@ -723,7 +723,7 @@
 }
 .agent-shell .tab.active { color: var(--navy); border-bottom-color: var(--accent); }
 .agent-shell .tab .count {
-  font-size: 11px;
+  font-size: 12px;
   background: var(--line);
   color: var(--muted);
   padding: 2px 7px;
@@ -759,7 +759,7 @@
   gap: 6px 12px;
   font-size: 13px;
 }
-.agent-shell .kv dt { color: var(--muted); font-size: 12px; }
+.agent-shell .kv dt { color: var(--muted); font-size: 13px; }
 .agent-shell .kv dd { margin: 0; font-weight: 500; color: var(--ink); }
 
 .agent-shell .action-card {
@@ -770,7 +770,7 @@
   margin-bottom: 14px;
 }
 .agent-shell .action-card h3 { color: #fff; font-size: 15px; margin-bottom: 4px; }
-.agent-shell .action-card p { color: rgba(255, 255, 255, 0.75); font-size: 13px; margin: 0 0 14px; }
+.agent-shell .action-card p { color: rgba(255, 255, 255, 0.75); font-size: 14px; margin: 0 0 14px; }
 .agent-shell .action-card .btn { background: var(--accent); color: #fff; border-color: var(--accent); }
 .agent-shell .action-card .btn:hover { background: #E0366F; }
 
@@ -824,14 +824,14 @@
   gap: 12px;
   align-items: center;
 }
-.agent-shell .gate-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
-.agent-shell .gate .sla { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--warn); font-weight: 500; }
+.agent-shell .gate-meta { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.agent-shell .gate .sla { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--warn); font-weight: 500; }
 
 /* ========== LEDGER ========== */
 .agent-shell .ledger { width: 100%; border-collapse: collapse; }
 .agent-shell .ledger th {
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   color: var(--muted);
   padding: 8px 14px;
@@ -840,7 +840,7 @@
 .agent-shell .ledger td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink);
 }
 .agent-shell .ledger td.amt { text-align: right; font-family: 'JetBrains Mono', monospace; }

@@ -16,7 +16,11 @@ export default {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        micro: ['11px', { lineHeight: '16px', fontWeight: '500' }],
+        // Bumped 1 step from defaults (RNT-025):
+        //   micro: 11→12px  |  xs: 12→13px  |  sm: 14→15px
+        micro: ['12px', { lineHeight: '17px', fontWeight: '500' }],
+        xs:    ['13px', { lineHeight: '18px' }],
+        sm:    ['15px', { lineHeight: '22px' }],
       },
       // Keep pink-brand as alias for backwards compat in logo
       textColor: {
