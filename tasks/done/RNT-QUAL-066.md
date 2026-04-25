@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214274171423379"
 created: 2026-04-24
@@ -44,3 +44,12 @@ Replace bare `except Exception: pass` blocks in the lease document delete paths 
 Promoted from discovery `2026-04-24-lease-document-delete-silent-failure.md` (2026-04-24). P2 — silent POPIA/erasure leak and orphaned storage risk; 2-line fix.
 
 2026-04-24 (implementer): Added `import logging` and `logger = logging.getLogger(__name__)` to `backend/apps/leases/views.py`. Replaced both bare `except Exception: pass` blocks (perform_destroy and delete_document) with `logger.exception(...)` calls — swallow behaviour retained so DB deletion always proceeds. Added 4 unit tests in `backend/apps/test_hub/leases/unit/test_document_delete_logging.py` using caplog to assert log emission and DB deletion; all 4 pass.
+
+### Test run 2026-04-24
+
+- test_perform_destroy_logs_storage_error — PASS
+- test_perform_destroy_no_log_when_storage_succeeds — PASS
+- test_delete_document_logs_storage_error_and_returns_204 — PASS
+- test_delete_document_no_log_when_storage_succeeds — PASS
+
+4/4 passed. No failures.
