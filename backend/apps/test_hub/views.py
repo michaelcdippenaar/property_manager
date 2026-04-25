@@ -5,6 +5,7 @@ All endpoints require IsAdmin or IsAgentOrAdmin permission.
 No public access — these are internal developer tools.
 """
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -30,6 +31,7 @@ from apps.test_hub.serializers import (
     TestHealthSnapshotSerializer, TestModuleSelfHealthSerializer,
 )
 
+logger = logging.getLogger(__name__)
 
 MODULES = [
     "accounts", "properties", "leases", "maintenance",
@@ -90,17 +92,17 @@ class TestRunRecordViewSet(viewsets.ReadOnlyModelViewSet):
                             try:
                                 passed = int(part.split()[0])
                             except Exception:
-                                pass
+                                logger.warning("test_hub: could not parse 'passed' count from %r", part, exc_info=True)
                         elif "failed" in part:
                             try:
                                 failed = int(part.split()[0])
                             except Exception:
-                                pass
+                                logger.warning("test_hub: could not parse 'failed' count from %r", part, exc_info=True)
                         elif "xfailed" in part:
                             try:
                                 xfailed = int(part.split()[0])
                             except Exception:
-                                pass
+                                logger.warning("test_hub: could not parse 'xfailed' count from %r", part, exc_info=True)
 
             record = TestRunRecord.objects.create(
                 module=module or "all",
@@ -509,7 +511,8 @@ class HealthDashboardView(APIView):
             from core.contract_rag import get_test_context_collection
             rag_count = get_test_context_collection().count()
         except Exception:
-            pass
+            # RAG collection is optional; log so devs know when it is unavailable
+            logger.warning("test_hub: could not load RAG test-context collection", exc_info=True)
 
         # Per-module breakdown from latest run records
         module_stats = []
