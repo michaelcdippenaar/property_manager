@@ -46,8 +46,6 @@ const EVENT_CLASSES: { id: EventClass | null; label: string; icon: any }[] = [
 const gatePending = computed(() => dashboard.kpis.find(k => k.key === 'gate_pending'))
 
 function handleEventAction(e: { id: string; action?: string }) {
-  // eslint-disable-next-line no-console
-  console.log('[dashboard] event action:', e.id, e.action)
   // TODO: route to the relevant detail view when those are built.
 }
 </script>

@@ -1509,9 +1509,6 @@ async function loadPreview() {
   try {
     // If store already has content_html (from loadTemplate), use it directly
     if (store.document.html) {
-      const sec38 = store.document.html.match(/38\.\d[^<]{0,60}/g)
-      console.log('[LOAD] store.document fields:', store.document.fields.length, 'html length:', store.document.html.length)
-      console.log('[LOAD] section 38 snippets:', sec38)
       editorHtml.value = decodeDocument(store.document)
       return
     }
@@ -1905,10 +1902,6 @@ async function saveContent() {
   if (!editorEl.value) return
   // Update store with current editor state, then persist
   const doc = encodeDocument()
-  // DEBUG: log what's being saved
-  const sec38 = doc.html.match(/38\.\d[^<]{0,60}/g)
-  console.log('[SAVE] encodeDocument fields:', doc.fields.length, 'html length:', doc.html.length)
-  console.log('[SAVE] section 38 snippets:', sec38)
   store.updateDocument(doc)
   const result = await store.save()
   if (result) {

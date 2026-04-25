@@ -122,13 +122,11 @@ export const useTemplateStore = defineStore('template', () => {
     saving.value = true
     try {
       const json = JSON.stringify(document.value)
-      console.log('[STORE SAVE] json length:', json.length, 'fields:', document.value.fields.length)
       const { data } = await api.patch(`/leases/templates/${template.value.id}/`, {
         content_html: json,
         header_html: headerHtml.value,
         footer_html: footerHtml.value,
       })
-      console.log('[STORE SAVE] response content_html length:', data?.content_html?.length)
       savedDocument.value = { ...document.value, fields: [...document.value.fields] }
       // Use the response content_html (may differ from sent if backend processed it)
       if (template.value) {
