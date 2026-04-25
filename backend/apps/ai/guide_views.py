@@ -11,12 +11,14 @@ Persists each interaction to GuideInteraction for analytics.
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Any
 
 import anthropic
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
@@ -154,11 +156,37 @@ class AIGuideView(APIView):
 
     permission_classes = [IsAuthenticated]
     throttle_classes = [AIGuideThrottle]
+    # Force JSON-only responses — the SPA never wants the browsable API HTML
+    # (also avoids content-negotiation flakiness if Accept header is missing).
+    renderer_classes = [JSONRenderer]
 
     def post(self, request):
+        # request_id lets the SPA / Sentry correlate a 500 with backend logs.
+        request_id = uuid.uuid4().hex[:12]
+
+        try:
+            return self._handle(request, request_id=request_id)
+        except Exception as exc:  # noqa: BLE001 — last-resort safety net
+            # Anything that escapes _handle is a bug — log structured + 500 cleanly.
+            logger.exception(
+                "AI Guide unhandled exception (request_id=%s, user_id=%s): %s",
+                request_id,
+                getattr(request.user, "id", None),
+                exc,
+            )
+            return Response(
+                {
+                    "reply": "Something went wrong. Please try again.",
+                    "action": None,
+                    "request_id": request_id,
+                },
+                status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    def _handle(self, request, *, request_id: str):
         if not getattr(settings, "ENABLE_AI_GUIDE", True):
             return Response(
-                {"detail": "AI Guide is disabled."},
+                {"detail": "AI Guide is disabled.", "request_id": request_id},
                 status=drf_status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
@@ -166,13 +194,16 @@ class AIGuideView(APIView):
 
         if not message:
             return Response(
-                {"detail": "message is required."},
+                {"detail": "message is required.", "request_id": request_id},
                 status=drf_status.HTTP_400_BAD_REQUEST,
             )
 
         if len(message) > MESSAGE_MAX_LENGTH:
             return Response(
-                {"detail": f"message must be {MESSAGE_MAX_LENGTH} characters or fewer."},
+                {
+                    "detail": f"message must be {MESSAGE_MAX_LENGTH} characters or fewer.",
+                    "request_id": request_id,
+                },
                 status=drf_status.HTTP_400_BAD_REQUEST,
             )
 
@@ -181,7 +212,10 @@ class AIGuideView(APIView):
         portal = _portal_for_user(request.user)
         if portal is None:
             return Response(
-                {"detail": "Your account role is not permitted to use the AI Guide."},
+                {
+                    "detail": "Your account role is not permitted to use the AI Guide.",
+                    "request_id": request_id,
+                },
                 status=drf_status.HTTP_403_FORBIDDEN,
             )
 
@@ -191,25 +225,40 @@ class AIGuideView(APIView):
         try:
             result = _call_guide(clean_message, portal)
         except anthropic.APIError as exc:
-            logger.exception("Anthropic API error in AI Guide: %s", exc)
+            logger.exception(
+                "AI Guide anthropic.APIError (request_id=%s, user_id=%s, portal=%s): %s",
+                request_id,
+                request.user.id,
+                portal,
+                exc,
+            )
             return Response(
                 {
                     "reply": "Sorry, I'm having trouble connecting to the AI service. Please try again.",
                     "action": None,
+                    "request_id": request_id,
                 },
                 status=drf_status.HTTP_200_OK,
             )
-        except Exception as exc:
-            logger.exception("Unexpected error in AI Guide: %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.exception(
+                "AI Guide unexpected _call_guide failure (request_id=%s, user_id=%s, portal=%s): %s",
+                request_id,
+                request.user.id,
+                portal,
+                exc,
+            )
             return Response(
                 {
                     "reply": "Something went wrong. Please try again.",
                     "action": None,
+                    "request_id": request_id,
                 },
                 status=drf_status.HTTP_200_OK,
             )
 
         # Persist interaction — store the scrubbed message, not the raw input.
+        # Persistence failures must NEVER take down the user-visible reply.
         try:
             GuideInteraction.objects.create(
                 user=request.user,
@@ -219,8 +268,12 @@ class AIGuideView(APIView):
                 action_taken=result.get("action") or {},
                 completed=result.get("action") is not None,
             )
-        except Exception:
-            logger.exception("Failed to persist GuideInteraction")
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "AI Guide GuideInteraction persist failed (request_id=%s, user_id=%s)",
+                request_id,
+                request.user.id,
+            )
 
         return Response(
             {
