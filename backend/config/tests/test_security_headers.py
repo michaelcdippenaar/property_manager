@@ -543,3 +543,58 @@ class TestProductionHSTSSettings:
     def test_csp_enforced_not_report_only_in_production(self):
         mod = self._load_production()
         assert getattr(mod, "SECURITY_HEADERS_CSP_REPORT_ONLY", True) is False
+
+
+# ---------------------------------------------------------------------------
+# RNT-QUAL-064: localhost must never appear in production CORS / CSRF
+# ---------------------------------------------------------------------------
+
+_LOCALHOST_MARKERS = ("localhost", "127.0.0.1")
+
+
+class TestProductionNoLocalhostOrigins:
+    """Regression guard: production settings must contain no localhost entries
+    in CORS_ALLOWED_ORIGINS or CSRF_TRUSTED_ORIGINS.
+
+    This is an external-audit finding — localhost origins in base.py settings
+    would be present in every environment including production.
+    """
+
+    def _load_production(self):
+        mod = importlib.import_module("config.settings.production")
+        importlib.reload(mod)
+        return mod
+
+    def test_cors_allowed_origins_no_localhost(self):
+        mod = self._load_production()
+        origins = getattr(mod, "CORS_ALLOWED_ORIGINS", [])
+        bad = [o for o in origins if any(m in o for m in _LOCALHOST_MARKERS)]
+        assert not bad, (
+            f"Production CORS_ALLOWED_ORIGINS must not contain localhost entries: {bad}"
+        )
+
+    def test_csrf_trusted_origins_no_localhost(self):
+        mod = self._load_production()
+        origins = getattr(mod, "CSRF_TRUSTED_ORIGINS", [])
+        bad = [o for o in origins if any(m in o for m in _LOCALHOST_MARKERS)]
+        assert not bad, (
+            f"Production CSRF_TRUSTED_ORIGINS must not contain localhost entries: {bad}"
+        )
+
+    def test_base_cors_no_localhost(self):
+        from config.settings import base as base_mod
+        importlib.reload(base_mod)
+        origins = getattr(base_mod, "CORS_ALLOWED_ORIGINS", [])
+        bad = [o for o in origins if any(m in o for m in _LOCALHOST_MARKERS)]
+        assert not bad, (
+            f"base.py CORS_ALLOWED_ORIGINS must not contain localhost entries: {bad}"
+        )
+
+    def test_base_csrf_no_localhost(self):
+        from config.settings import base as base_mod
+        importlib.reload(base_mod)
+        origins = getattr(base_mod, "CSRF_TRUSTED_ORIGINS", [])
+        bad = [o for o in origins if any(m in o for m in _LOCALHOST_MARKERS)]
+        assert not bad, (
+            f"base.py CSRF_TRUSTED_ORIGINS must not contain localhost entries: {bad}"
+        )

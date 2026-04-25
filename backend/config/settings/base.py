@@ -22,21 +22,12 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 ENABLE_TEST_ENDPOINTS = config("ENABLE_TEST_ENDPOINTS", default=False, cast=bool)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 
-# CSRF_TRUSTED_ORIGINS: dev defaults are listed below.
-# In staging/production the CSRF_TRUSTED_ORIGINS env var is set in .env.staging /
-# .env.production and those values are merged on top of the dev defaults.
+# CSRF_TRUSTED_ORIGINS: base contains no localhost entries.
+# localhost entries live in local.py only.
+# In staging/production the CSRF_TRUSTED_ORIGINS env var overrides/extends this list.
 # See .env.staging and .env.production for the full production origin lists.
-_CSRF_DEV_DEFAULTS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5178",
-    "http://127.0.0.1:5178",
-    "http://192.168.1.176:9501",
-]
 _csrf_extra = config("CSRF_TRUSTED_ORIGINS", default="")
-CSRF_TRUSTED_ORIGINS = _CSRF_DEV_DEFAULTS + [
+CSRF_TRUSTED_ORIGINS = [
     o.strip() for o in _csrf_extra.split(",") if o.strip()
 ]
 
@@ -225,23 +216,11 @@ SIMPLE_JWT = {
     "UPDATE_LAST_LOGIN": True,
 }
 
-# CORS_ALLOWED_ORIGINS: dev defaults are listed below.
+# CORS_ALLOWED_ORIGINS: base contains only production and staging origins.
+# localhost / 127.0.0.1 / capacitor://localhost entries live in local.py only.
 # In staging/production the CORS_EXTRA_ORIGINS env var appends additional origins
 # (see .env.staging / .env.production). No wildcards are used — explicit list only.
-_CORS_DEV_DEFAULTS = [
-    # ── Local development ──────────────────────────────────────────────────────
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
-    "http://localhost:5178",
-    "http://127.0.0.1:5178",
-    # Agent-app Quasar dev server
-    "http://localhost:9000",
-    "http://127.0.0.1:9000",
-    # Capacitor agent-app (iOS WebView origin + Android WebView origin)
-    "capacitor://localhost",
-    "http://localhost",
+_CORS_BASE_ORIGINS = [
     # ── Production canonical origins ───────────────────────────────────────────
     # Marketing website
     "https://klikk.co.za",
@@ -264,7 +243,7 @@ _CORS_DEV_DEFAULTS = [
     # from staging-api — so only the frontend origins are listed here.
 ]
 _cors_extra = config("CORS_EXTRA_ORIGINS", default="")
-CORS_ALLOWED_ORIGINS = _CORS_DEV_DEFAULTS + [
+CORS_ALLOWED_ORIGINS = _CORS_BASE_ORIGINS + [
     o.strip() for o in _cors_extra.split(",") if o.strip()
 ]
 

@@ -4,6 +4,42 @@ from .base import *
 
 DEBUG = True
 CORS_ALLOW_ALL_ORIGINS = True
+
+# ── localhost CORS / CSRF origins (dev only) ──────────────────────────────────
+# These must NOT live in base.py — they are invalid in production and are a
+# recurring audit finding when left in the shared settings module.
+_CORS_LOCAL = [
+    # Vite admin SPA
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    # Vite web_app (tenant)
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    # Vite agent-app alternate port
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
+    # Quasar agent-app dev server
+    "http://localhost:9000",
+    "http://127.0.0.1:9000",
+    # Capacitor agent-app (iOS WebView + Android WebView origin)
+    "capacitor://localhost",
+    "http://localhost",
+    # Local network dev device (e.g. mobile browser on LAN)
+    "http://192.168.1.176:9501",
+]
+CORS_ALLOWED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + _CORS_LOCAL
+
+_CSRF_LOCAL = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5178",
+    "http://127.0.0.1:5178",
+    "http://192.168.1.176:9501",
+]
+CSRF_TRUSTED_ORIGINS = list(CSRF_TRUSTED_ORIGINS) + _CSRF_LOCAL
+
 # Include testserver so Django's test client (APIClient) is not rejected by
 # CommonMiddleware with a 400 DisallowedHost during pytest runs.
 ALLOWED_HOSTS = list(ALLOWED_HOSTS) + ["testserver"]
