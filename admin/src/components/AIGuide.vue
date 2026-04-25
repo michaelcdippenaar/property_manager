@@ -263,12 +263,16 @@ const quickPrompts = computed(() =>
 )
 
 // ── Highlight tracking ──────────────────────────────────────────────────────
+// ref()s instead of bare module-level lets: each component instance owns its
+// own state. A module-scoped let survives HMR re-instantiation, so the
+// _isUnmounted flag from a previous instance would block the new one's rAF loop.
 
-let _highlightRaf = 0
-let _isUnmounted = false
+const _highlightRaf = ref(0)
+const _isUnmounted = ref(false)
+const _highlightTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 function updateHighlightRect() {
-  if (_isUnmounted) return
+  if (_isUnmounted.value) return
   const sel = guide.highlightedSelector
   if (!sel) {
     highlightRect.value = null
@@ -297,15 +301,15 @@ function updateHighlightRect() {
   } else {
     highlightRect.value = null
   }
-  _highlightRaf = requestAnimationFrame(updateHighlightRect)
+  _highlightRaf.value = requestAnimationFrame(updateHighlightRect)
 }
 
 watch(
   () => guide.highlightedSelector,
   (sel) => {
-    cancelAnimationFrame(_highlightRaf)
+    cancelAnimationFrame(_highlightRaf.value)
     if (sel) {
-      _highlightRaf = requestAnimationFrame(updateHighlightRect)
+      _highlightRaf.value = requestAnimationFrame(updateHighlightRect)
     } else {
       highlightRect.value = null
     }
@@ -332,13 +336,13 @@ function handleKey(e: KeyboardEvent) {
 
 onMounted(() => document.addEventListener('keydown', handleKey))
 onUnmounted(() => {
-  _isUnmounted = true
+  _isUnmounted.value = true
   document.removeEventListener('keydown', handleKey)
-  cancelAnimationFrame(_highlightRaf)
-  _highlightRaf = 0
-  if (_highlightTimer) {
-    clearTimeout(_highlightTimer)
-    _highlightTimer = null
+  cancelAnimationFrame(_highlightRaf.value)
+  _highlightRaf.value = 0
+  if (_highlightTimer.value) {
+    clearTimeout(_highlightTimer.value)
+    _highlightTimer.value = null
   }
 })
 
@@ -347,7 +351,6 @@ onUnmounted(() => {
 // guide just navigated TO the page that owns the highlight), keep it visible
 // for a few seconds so the user actually sees the pulse. Otherwise clear it
 // immediately — the highlight is no longer on screen.
-let _highlightTimer: ReturnType<typeof setTimeout> | null = null
 watch(
   () => route.path,
   () => {
@@ -358,8 +361,8 @@ watch(
       if (document.querySelector(sel)) {
         // Element exists on the new page — let the pulse run for ~6s
         // then clear. Re-use one timer so back-to-back navs don't stack.
-        if (_highlightTimer) clearTimeout(_highlightTimer)
-        _highlightTimer = setTimeout(() => guide.clearHighlight(), 6000)
+        if (_highlightTimer.value) clearTimeout(_highlightTimer.value)
+        _highlightTimer.value = setTimeout(() => guide.clearHighlight(), 6000)
       } else {
         guide.clearHighlight()
       }
