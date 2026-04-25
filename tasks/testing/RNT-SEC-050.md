@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214278001275994"
 created: 2026-04-25
@@ -62,3 +62,22 @@ Extend the login 2FA flow to support email OTP as a user-selectable second facto
 ## Handoff notes
 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
+
+### 2026-04-25 — rentals-reviewer → tester (approved)
+
+Reviewed implementer commit `e72d38cd`. All 8 acceptance criteria satisfied:
+
+1. `User.two_fa_method` field with TOTP/email choices and migration `0022_add_two_fa_method.py` — verified applied.
+2. `Email2FASendView` at `/auth/2fa/email-send/` with `OTPSendThrottle`, decodes partial JWT, calls `OTPService.send(user, purpose="login_2fa")`. Returns 200 on success, 401 on bad token, 429 on rate-limit.
+3. `Email2FAVerifyView` at `/auth/2fa/email-verify/` reuses `_issue_full_tokens` from `totp_views.py` (returns `access + refresh + user`).
+4. `LoginView` branches on `user.two_fa_method`: email path returns `next: "email-verify"`, TOTP path adds `next: "totp"` (additive, non-breaking).
+5. `EmailOtpVerifyView.vue` mirrors TOTP view; auto-sends OTP on mount; router branches in `LoginView.vue` on `data.next === 'email-verify'`.
+6. `SecurityTab.vue` exposes radio toggle, mounted in `ProfileView.vue`. `UserSerializer` adds `two_fa_method` as writable (not in `read_only_fields`).
+7. `test_email_2fa.py` — 14 tests pass locally (happy paths, bad/expired code, missing fields, throttle 429, max-attempts, login branch hints for both methods). Vue unit test omitted, but consistent with `TwoFAChallengeView`/`TotpVerifyView` precedent (no equivalent unit test exists).
+8. Audit events `2fa_email_sent`, `2fa_email_verified`, `2fa_email_failed` (rate_limited / invalid_code / max_attempts_exceeded) all emitted via `log_auth_event` and asserted in tests.
+
+Security & POPIA: AllowAny is correct (partial JWT is the credential); throttles applied to both endpoints; no IDOR (user identity comes from signed JWT); ORM-only queries; no secrets logged. Email logged in audit metadata is acceptable — it's the user's own account context for an action they initiated.
+
+Minor cosmetic note (not a blocker): comment in `views.py` LoginView email branch says "auto-send OTP" — actual auto-send happens client-side in `EmailOtpVerifyView.vue` `onMounted`. Behaviour is correct, comment is misleading. Tester to flag if it causes confusion.
+
+Tester: please run the manual test plan (toggle method, wrong/expired code, throttle hit, both login paths) plus `cd backend && pytest apps/accounts/tests/test_email_2fa.py -v`.
