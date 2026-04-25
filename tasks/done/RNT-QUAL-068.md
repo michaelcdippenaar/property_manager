@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214274243223426"
 created: 2026-04-24
-updated: 2026-04-25
+updated: 2026-04-24
 ---
 
 ## Goal
@@ -68,3 +68,7 @@ The production code (views.py) and the RAG test are correct. Only the four parse
 ### 2026-04-25 — implementer (fix-forward)
 
 `initialize_request` requires `action_map` (set by router dispatch) so option (b) wasn't viable without a full URL stack. Applied option (a) instead: set `request.data = {"module": None}` directly on the WSGIRequest before passing it to `trigger_run`. All 5 tests now pass (`pytest apps/test_hub/tests/test_views_logging.py -v --no-cov`). Production code unchanged.
+
+### 2026-04-24 — reviewer (round 2 — approved)
+
+5/5 tests green. Full suite: 1581 passed (net +4 from this task's new tests), 5 pre-existing failures in `test_permissions.py` (predating this task, unrelated). Production `views.py` unchanged from round 1. `request.data = {"module": None}` patch is the correct minimal fix — `initialize_request` legitimately requires router-set `action_map`. All acceptance criteria met.
