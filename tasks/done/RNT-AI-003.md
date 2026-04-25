@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214277801373363"
 created: 2026-04-25
@@ -85,3 +85,13 @@ All 14 `test_guide.py` tests pass (was 12, +2 new).
 - `test_guide.py` adds `test_guide_500_handled_call_guide_raises` (inner 200) and `test_guide_500_handled_outer_safety_net` (outer 500 + capture_exception assertion) (AC #5 ✓).
 - `pytest apps/ai/tests/test_guide.py` → 14 passed.
 - Security pass: IsAuthenticated + throttle + JSONRenderer preserved; no PII/secrets logged; mock-based tests safe.
+
+2026-04-25 — rentals-tester: Test run PASS.
+
+**Automated (pytest apps/ai/tests/test_guide.py -k "test_guide_500_handled"):**
+- PASS: test_guide_500_handled_call_guide_raises — inner handler returns 200 with reply + request_id when _call_guide raises RuntimeError.
+- PASS: test_guide_500_handled_outer_safety_net — outer safety-net returns 500 with error: True, message, request_id, and sentry_sdk.capture_exception called once when _portal_for_user raises.
+- Result: 2 selected, 2 passed.
+
+**Full apps/ai/ suite:**
+- PASS: 63 passed, 0 failed (includes all 14 test_guide.py tests).

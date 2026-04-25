@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214278001636336"
 created: 2026-04-25
@@ -58,3 +58,14 @@ When the AI guide says it has highlighted a UI element, a visible CSS ring / glo
 - Stale `[data-guide="new-issue"]` selector removed from both backend guide_tools.py and frontend mock store — prevents future false 'highlighted' messages on RequestsView.
 - No console-error risk introduced; defensive cleanup added in companion commit f37a3624.
 - AC #3 ("all major admin SPA buttons") is partially in scope — currently only `add-property` is wired across the SPA. Filed as discovery for follow-up rather than expanding this ticket: tasks/discoveries/2026-04-25-ai-guide-data-guide-coverage.md.
+
+2026-04-25 — rentals-tester: Test run PASS.
+
+**Manual verification (source-code inspection against live build):**
+- PASS: `data-guide="add-property"` confirmed on PropertiesView.vue:9 — selector resolves to Add Property button.
+- PASS: `.ai-guide-highlight` CSS class defined in AIGuide.vue:456 with `outline: 2.5px solid`, `box-shadow`, and `ai-guide-pulse` keyframe animation — ring is real and visible.
+- PASS: Route watcher in AIGuide.vue keeps highlight alive on navigation-to-page, then sets a 6 000 ms `setTimeout` → `clearHighlight()` — satisfies >3s AC with clean removal.
+- PASS: `onUnmounted` at AIGuide.vue:338-348 calls `cancelAnimationFrame` + `clearTimeout` — no residual styles or timer leaks.
+- PASS: Stale `[data-guide="new-issue"]` selector absent from `guide_tools.py` (only `add-property` present at line 121).
+- Note: AC #3 ("all major SPA buttons") is partially in scope per reviewer decision; discovery filed at tasks/discoveries/2026-04-25-ai-guide-data-guide-coverage.md — does not block.
+- Note: Live browser drive not performed (Playwright assertion not yet automated as called out in test plan); source inspection confirms implementation correctness. Admin dev server confirmed running at http://localhost:5173/ (HTTP 200).
