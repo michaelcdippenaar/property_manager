@@ -15,6 +15,7 @@ import uuid
 from typing import Any
 
 import anthropic
+import sentry_sdk
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import IsAuthenticated
@@ -174,8 +175,13 @@ class AIGuideView(APIView):
                 getattr(request.user, "id", None),
                 exc,
             )
+            # Explicit capture ensures Sentry receives this even if the logging
+            # integration is not configured for the apps.ai logger in some envs.
+            sentry_sdk.capture_exception(exc)
             return Response(
                 {
+                    "error": True,
+                    "message": "Something went wrong. Please try again.",
                     "reply": "Something went wrong. Please try again.",
                     "action": None,
                     "request_id": request_id,

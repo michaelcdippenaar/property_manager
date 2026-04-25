@@ -344,3 +344,59 @@ def test_rate_limit_triggers_429(agent_user, settings):
     # First request passes (or hits Anthropic), second triggers throttle
     assert r1.status_code in (200, 503)  # 503 if no API key leaks through mock
     assert r2.status_code == 429
+
+
+# ---------------------------------------------------------------------------
+# Tests — AC #5: failure-path / exception safety-net (reviewer bounce)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_guide_500_handled_call_guide_raises(agent_client, settings):
+    """
+    AC #5: when _call_guide raises an unexpected exception the inner except-Exception
+    block in _handle catches it, returns HTTP 200 (graceful degradation), and the body
+    includes 'reply' and 'request_id'.
+    """
+    settings.ANTHROPIC_API_KEY = "test-key"
+
+    with patch("apps.ai.guide_views._call_guide", side_effect=RuntimeError("boom")):
+        resp = agent_client.post(
+            GUIDE_URL, {"message": "trigger failure"}, format="json"
+        )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "reply" in data
+    assert data["reply"]  # non-empty user-friendly message
+    assert "request_id" in data
+
+
+@pytest.mark.django_db
+def test_guide_500_handled_outer_safety_net(agent_client, settings):
+    """
+    AC #5 + AC #3: when an exception escapes _handle entirely (e.g. _portal_for_user
+    raises), the outer try/except in post() catches it and returns HTTP 500 with
+    'error': True, 'message', and 'request_id' fields.
+
+    Also confirms sentry_sdk.capture_exception is called exactly once (AC #3).
+    """
+    settings.ANTHROPIC_API_KEY = "test-key"
+
+    with patch(
+        "apps.ai.guide_views._portal_for_user",
+        side_effect=RuntimeError("db gone"),
+    ):
+        with patch(
+            "apps.ai.guide_views.sentry_sdk.capture_exception"
+        ) as mock_capture:
+            resp = agent_client.post(
+                GUIDE_URL, {"message": "trigger outer failure"}, format="json"
+            )
+
+    assert resp.status_code == 500
+    data = resp.json()
+    assert data.get("error") is True
+    assert data.get("message")  # user-friendly message present
+    assert "request_id" in data
+    # AC #3: Sentry must receive the exception via explicit capture_exception
+    mock_capture.assert_called_once()
