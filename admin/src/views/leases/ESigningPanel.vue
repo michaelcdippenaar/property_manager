@@ -468,7 +468,6 @@ const props = defineProps<{
   leaseId: number
   leaseTenants?: any[]
   leaseData?: any
-  autoOpen?: boolean
 }>()
 
 const emit = defineEmits<{ signed: [] }>()
@@ -584,11 +583,16 @@ const landlordCanSign = computed(() => {
 const landlordLinkLoading = ref(false)
 
 // ── Lifecycle ────────────────────────────────────────────────────────── //
+// Tracks whether this panel instance is still in the DOM — guards against
+// async callbacks that complete after the component has been torn down.
+let _mounted = true
+
 onMounted(async () => {
+  _mounted = true
   await Promise.all([loadSubmissions(), loadRhaFlags()])
-  if (props.autoOpen && !submissions.value.length) {
-    openModal()
-  }
+  // autoOpen is handled by LeasesView.initView() calling openModal() via ref.
+  // No autoOpen logic here — parent is responsible for triggering the modal
+  // after verifying the component is still mounted and data is loaded.
 })
 
 // Poll for updates when WS is disconnected and submission is active
@@ -601,7 +605,10 @@ watch(() => latestSub.value?.status, (status) => {
     }, 10_000)
   }
 }, { immediate: true })
-onUnmounted(() => { if (pollTimer) clearInterval(pollTimer) })
+onUnmounted(() => {
+  if (pollTimer) clearInterval(pollTimer)
+  _mounted = false
+})
 
 // ── Signer status helpers ───────────────────────────────────────────── //
 function isSignerDone(s: any): boolean {
@@ -903,6 +910,23 @@ function formatDate(d: string) {
   return `${date} at ${time}`
 }
 
-// Expose openModal so parent can trigger it via ref
-defineExpose({ openModal })
+// Expose openModal so parent can trigger it via ref.
+// openModalWhenReady: waits for the initial submissions + RHA load to finish,
+// then opens the modal only if there is no existing active submission. This is
+// the safe entry-point for URL-driven deep-links (?sign=1).
+async function openModalWhenReady() {
+  // If still loading, wait for the in-flight onMounted promise to settle.
+  // We do this by polling the loading flag (it's fast — typically one API call).
+  // A simple nextTick isn't enough; use a small wait loop bounded by a timeout.
+  const deadline = Date.now() + 5000
+  while (loading.value && _mounted && Date.now() < deadline) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  if (!_mounted) return
+  // Only open if there's no existing submission — don't interrupt an in-progress signing.
+  if (!submissions.value.length) {
+    openModal()
+  }
+}
+defineExpose({ openModal, openModalWhenReady })
 </script>

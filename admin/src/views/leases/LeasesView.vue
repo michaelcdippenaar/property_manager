@@ -40,22 +40,23 @@
 
     <!-- ── Tab: All / Active / Expired — Lease table ── -->
     <div v-if="activeTab !== 'draft'" class="card overflow-hidden">
-      <LoadingState v-if="loading" variant="table" :rows="4" double-row />
+      <!-- Initial load skeleton: only shown when there is no data yet -->
+      <LoadingState v-if="initialLoad && loading" variant="table" :rows="4" double-row />
 
       <ErrorState
-        v-else-if="loadError"
+        v-else-if="loadError && !leases.length"
         :on-retry="loadLeases"
         :offline="isOffline"
       />
 
       <EmptyState
-        v-else-if="!filteredLeases.length"
+        v-else-if="!loading && !filteredLeases.length"
         :title="activeTab === 'all' ? 'No leases yet' : `No ${activeTab} leases`"
         :description="activeTab === 'all' ? 'Import one from a PDF or create manually to get started.' : ''"
         :icon="FileText"
       />
 
-      <div v-else class="divide-y divide-gray-200">
+      <div v-else-if="filteredLeases.length" class="divide-y divide-gray-200">
         <template v-for="([propName, propLeases]) in filteredGroupedLeases" :key="propName">
 
           <!-- Property group header -->
@@ -241,7 +242,6 @@
                     :lease-id="lease.id"
                     :lease-tenants="leaseTenants(lease)"
                     :lease-data="lease"
-                    :auto-open="Number(route.query.expand) === lease.id && route.query.sign === '1'"
                   />
                 </div>
               </div>
@@ -534,6 +534,10 @@ const personsStore = usePersonsStore()
 const { list: leases, loading } = storeToRefs(leasesStore)
 const loadError = ref(false)
 const isOffline = ref(false)
+// True only until the first successful load completes. Used to gate the full
+// loading skeleton — background refreshes (WebSocket-triggered re-fetches or
+// onActivated re-fetches when data already exists) should not destroy the DOM.
+const initialLoad = ref(leases.value.length === 0)
 const saving = ref(false)
 const showImport = ref(false)
 const showEdit = ref(false)
@@ -596,11 +600,37 @@ const newLease = ref({
 })
 
 async function initView() {
+  // Capture deep-link params before any async work (route.query is reactive and
+  // could change if a watcher elsewhere calls router.replace).
+  const expandId = Number(route.query.expand) || 0
+  const shouldSign = route.query.sign === '1'
+
   await Promise.all([loadLeases(), loadUnits(), loadDrafts()])
+
   // Deep-link: auto-expand a lease from query params
-  const expandId = Number(route.query.expand)
   if (expandId && leases.value.some((l: any) => l.id === expandId)) {
     if (!expanded.value.includes(expandId)) expanded.value.push(expandId)
+
+    if (shouldSign) {
+      // Wait for the expanded panel to mount, then open the signing modal
+      // directly via its exposed ref — this is immune to route.query changes.
+      // We also clean up the URL so re-activating the view doesn't re-trigger.
+      await nextTick()
+      // The ESigningPanel may still be loading its submissions; wait for it to
+      // settle before calling openModal so the panel's internal state is ready.
+      await nextTick()
+      const panel = signingPanelRefs.value[expandId]
+      if (panel) {
+        // openModalWhenReady waits for the panel's async submission load to
+        // complete, then opens the modal only if there is no existing submission.
+        panel.openModalWhenReady()
+      }
+      // Strip the sign param from the URL without triggering a navigation so
+      // back-button / re-activation won't re-open the modal.
+      const { sign: _sign, ...restQuery } = route.query as Record<string, string>
+      void _sign
+      router.replace({ query: restQuery })
+    }
   }
 }
 
@@ -701,6 +731,9 @@ async function loadLeases() {
   isOffline.value = false
   try {
     await leasesStore.fetchAll({ force: true })
+    // Clear the initial-load flag as soon as we have data — from here on,
+    // background re-fetches will not show the full skeleton.
+    initialLoad.value = false
   } catch (err: any) {
     isOffline.value = !navigator.onLine
     loadError.value = true

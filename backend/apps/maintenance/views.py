@@ -111,13 +111,57 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="badges")
     def badges(self, request):
-        """Lightweight counts for sidebar badge indicators."""
-        open_issues = MaintenanceRequest.objects.exclude(
-            status__in=["closed", "resolved"]
+        """
+        Lightweight counts for sidebar badge indicators.
+
+        Badge counting rules
+        -------------------
+        open_issues
+            Counts MaintenanceRequest rows with status ``open`` or
+            ``in_progress`` — tickets that actively need attention.
+            Resolved and closed tickets are intentionally excluded because
+            they no longer require agent action.
+
+            The queryset is scoped using ``get_queryset()`` so the count
+            always reflects exactly the same set of records the user can
+            see in the list view:
+              - Tenants see only their own requests.
+              - Non-admin agents see only requests for properties in their
+                accessible portfolio (``get_accessible_property_ids``).
+              - Admin users see all requests.
+
+        pending_questions
+            Counts AgentQuestion rows with status ``pending`` scoped to the
+            same accessible property set (non-admin users) so agents only
+            see questions raised against their own portfolio.
+        """
+        # Reuse get_queryset() to get the fully-scoped queryset (role-based
+        # property access, tenant isolation, admin sees all).  Then narrow to
+        # the "active" statuses that represent tickets needing attention.
+        scoped_qs = self.get_queryset()
+        open_issues = scoped_qs.filter(
+            status__in=[
+                MaintenanceRequest.Status.OPEN,
+                MaintenanceRequest.Status.IN_PROGRESS,
+            ]
         ).count()
-        pending_questions = AgentQuestion.objects.filter(
-            status=AgentQuestion.Status.PENDING
-        ).count()
+
+        # Scope AgentQuestion to the same accessible property set.
+        user = request.user
+        q_qs = AgentQuestion.objects.filter(status=AgentQuestion.Status.PENDING)
+        if hasattr(user, "role") and user.role != "admin":
+            if user.role == "tenant":
+                # Tenants never see agent questions — return 0.
+                q_qs = AgentQuestion.objects.none()
+            else:
+                from apps.properties.access import get_accessible_property_ids
+                prop_ids = get_accessible_property_ids(user)
+                # Questions without a linked property are visible to agents.
+                q_qs = q_qs.filter(
+                    Q(property_id__in=prop_ids) | Q(property__isnull=True)
+                )
+        pending_questions = q_qs.count()
+
         return Response({
             "open_issues": open_issues,
             "pending_questions": pending_questions,

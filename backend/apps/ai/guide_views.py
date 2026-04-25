@@ -26,6 +26,7 @@ from rest_framework.views import APIView
 from rest_framework import status as drf_status
 
 from apps.ai.guide_tools import TOOL_ACTION_MAP, get_tools_for_portal, is_tool_allowed
+from apps.ai.knowledge import get_knowledge
 from apps.ai.models import GuideInteraction
 from apps.ai.scrubber import scrub as scrub_pii
 
@@ -86,10 +87,16 @@ def _call_guide(message: str, portal: str) -> dict[str, Any]:
     tools = get_tools_for_portal(portal)
     client = anthropic.Anthropic(api_key=api_key, timeout=30.0)
 
+    # Inject admin-editable domain knowledge under a clearly delimited section.
+    knowledge = get_knowledge()
+    system = SYSTEM_PROMPT.format(portal=portal)
+    if knowledge:
+        system = f"{system}\n\n## Klikk Domain Rules\n{knowledge}"
+
     response = client.messages.create(
         model=GUIDE_MODEL,
         max_tokens=256,
-        system=SYSTEM_PROMPT.format(portal=portal),
+        system=system,
         tools=tools,
         messages=[{"role": "user", "content": message}],
     )
