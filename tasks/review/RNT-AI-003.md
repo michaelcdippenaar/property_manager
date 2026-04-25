@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: backlog
+status: review
 assigned_to: null
 depends_on: []
 asana_gid: "1214277801373363"
@@ -52,3 +52,5 @@ Backend context: `POST /api/v1/ai/guide/` returned 200 twice in a row, then 500 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-25 — rentals-pm: Filed from MC's direct repro. P1 because 500 is user-visible and reproducible in dev. Need to capture the actual exception first before patching.
+
+2026-04-25 — rentals-pm: Already implemented by Opus AI-chat audit on 2026-04-25, ready for review. Fixed in commit `0e50782c` — fix(ai-guide): JSON renderer + request_id in error logs. Backend 61/61 ai/ tests pass.

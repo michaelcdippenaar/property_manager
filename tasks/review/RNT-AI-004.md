@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: backlog
+status: review
 assigned_to: null
 depends_on: []
 asana_gid: "1214278059913632"
@@ -52,3 +52,5 @@ Identify and fix the JS crash / Vue error that occurs when a user closes the AI 
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-25 — rentals-pm: Task created from MC repro report. Exact error stack not yet captured; implementer must reproduce first. Note: the Opus agent currently auditing AI chat may already fix this — if so, mark as "already implemented" and move directly to review.
+
+2026-04-25 — rentals-pm: Already implemented by Opus AI-chat audit on 2026-04-25, ready for review. Fixed in commit `f37a3624` — fix(ai-guide): close()→nav crash bulletproofing. Backend 61/61 ai/ tests pass.

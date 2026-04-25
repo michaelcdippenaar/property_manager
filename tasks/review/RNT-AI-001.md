@@ -7,7 +7,7 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
+status: review
 assigned_to: null
 depends_on: []
 asana_gid: "1214278001636336"
@@ -49,3 +49,5 @@ When the AI guide says it has highlighted a UI element, a visible CSS ring / glo
 (Each agent appends a dated entry here on handoff. Do not edit prior entries.)
 
 2026-04-25 — rentals-pm: Filed from MC's direct repro. Highlight CSS / DOM marker is missing or not being applied when the AI guide instructs a UI element highlight.
+
+2026-04-25 — rentals-pm: Already implemented by Opus AI-chat audit on 2026-04-25, ready for review. Fixed in commit `5157729d` — fix(ai-guide): highlight actually visible.
