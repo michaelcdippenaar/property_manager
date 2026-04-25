@@ -49,3 +49,6 @@ Promoted from discovery `2026-04-24-user-serializer-role-readonly.md` (2026-04-2
 Work done: replaced the soft-pass TODO test `test_me_patch_role_field_is_writable` with a hard regression guard `test_me_patch_role_ignored` that captures `original_role` before the PATCH and asserts `user.role` is unchanged after. All 4 `MeViewTests` pass (smoke-checked locally).
 
 `AdminUserUpdateSerializer` (used by admin-only endpoints) intentionally exposes `role` as a writable field — no change needed there.
+
+**2026-04-24 — reviewer (approved):**
+Checked: (1) `UserSerializer.read_only_fields` includes `role` — confirmed line 140 of serializers.py. (2) `is_staff`, `is_superuser`, `email_verified_at` absent from `UserSerializer.fields` entirely — exclusion is stronger than read_only. (3) `AdminUserUpdateSerializer` is gated behind `permission_classes = [IsAdmin]` on `UserDetailView` — no escalation surface. (4) `pytest MeViewTests` 4/4 green. `test_me_patch_role_ignored` asserts DB role unchanged. All acceptance criteria met.

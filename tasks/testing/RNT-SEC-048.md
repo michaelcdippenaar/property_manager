@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P0
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214273972208295"
 created: 2026-04-24
@@ -46,3 +46,6 @@ Promoted from discovery `2026-04-24-change-password-no-throttle.md` (2026-04-24)
 ### 2026-04-24 -- implementer
 
 Added `PasswordChangeThrottle(SimpleRateThrottle)` to `backend/apps/accounts/throttles.py`, keyed on `request.user.pk` at `password_change` scope (5/min configured in `DEFAULT_THROTTLE_RATES`). Wired to `ChangePasswordView.throttle_classes`. Rate added to `backend/config/settings/base.py`. Two pytest tests in `backend/apps/accounts/tests/test_change_password.py` pass: (1) 429 on the 4th call at 3/min; (2) OAuth branch returns 200. Tests patch `SimpleRateThrottle.THROTTLE_RATES` directly to avoid import-order issues (same pattern as `test_rate_limits.py`).
+### 2026-04-24 -- reviewer
+
+Review passed. Checked: (1) throttle keyed on user.pk not IP; (2) 5/min rate consistent with sibling scopes; (3) both pytest tests green (2 passed); (4) OAuth branch 200 confirmed by test. No PII logged, no raw SQL, unauthenticated requests return None key (safe). Pattern matches LoginHourlyThrottle exactly. Approved.
