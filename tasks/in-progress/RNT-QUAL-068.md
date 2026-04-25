@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: in-progress
+assigned_to: implementer
 depends_on: []
 asana_gid: "1214274243223426"
 created: 2026-04-24
@@ -50,3 +50,17 @@ Added `import logging` and `logger = logging.getLogger(__name__)` at module leve
 Added `backend/apps/test_hub/tests/` package with `test_views_logging.py`: four tests covering the three parse-count warning paths and the RAG import warning path.
 
 Note: views.py logging changes were committed as part of RNT-QUAL-067 (commit 026d5767) since both tasks touched the same file. caplog tests in commit 9553947b. This commit is the task file handoff only.
+
+### 2026-04-24 — reviewer (changes requested)
+
+`pytest apps/test_hub/tests/test_views_logging.py -v --no-cov` → 4 FAILED, 1 passed.
+
+The four `TestParseCountLogging` tests all crash at `views.py:59` with `AttributeError: 'WSGIRequest' object has no attribute 'data'`.
+
+Root cause: `_invoke` builds the request with `APIRequestFactory().post(...)` and passes it straight to `viewset.trigger_run(request)`. `APIRequestFactory.post` returns a raw `WSGIRequest`; `request.data` is a DRF attribute that only exists after `initialize_request` wraps it. Fix required (pick one):
+
+1. Replace direct `trigger_run` call with `viewset.initialize_request(request)` before calling the action, **or**
+2. Use `APIClient` + a real URL dispatch so DRF wraps the request automatically, **or**
+3. Patch `request.data` on the mock request before passing it in (simplest for a unit test — `request.data = {"module": None}`).
+
+The production code (views.py) and the RAG test are correct. Only the four parse-count tests need fixing. Re-submit once all 5 tests are green.
