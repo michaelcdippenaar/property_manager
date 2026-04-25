@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 from django.db import transaction
 from django.db.models import Q
@@ -16,6 +17,8 @@ from .serializers import (
     InventoryItemSerializer, InventoryTemplateSerializer, MoveInChecklistItemSerializer,
 )
 from .events import generate_lease_events, generate_onboarding_steps
+
+logger = logging.getLogger(__name__)
 
 
 class LeaseViewSet(viewsets.ModelViewSet):
@@ -37,7 +40,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
             try:
                 doc.file.delete(save=False)
             except Exception:
-                pass
+                logger.exception("Failed to delete lease document file %s", doc.pk)
         instance.delete()
 
     def get_queryset(self):
@@ -94,7 +97,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
         try:
             doc.file.delete(save=False)
         except Exception:
-            pass
+            logger.exception("Failed to delete lease document file %s", doc.pk)
         doc.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
