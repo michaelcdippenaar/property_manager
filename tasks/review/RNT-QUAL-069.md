@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214274243223437"
 created: 2026-04-24
@@ -21,11 +21,11 @@ Eliminate dead clicks on the agent dashboard event feed: either route each event
 
 ## Acceptance criteria
 
-- [ ] `admin/src/views/dashboard/AgencyShellView.vue:48-52` (`handleEventAction`): the `// TODO: route to the relevant detail view` stub is resolved.
-- [ ] Option A (preferred): each known event type (`lease`, `maintenance`, `inspection`, `signing`, `viewing`) is routed to its existing detail view using Vue Router.
+- [x] `admin/src/views/dashboard/AgencyShellView.vue:48-52` (`handleEventAction`): the `// TODO: route to the relevant detail view` stub is resolved.
+- [x] Option A (preferred): each known event type (`lease`, `maintenance`, `inspection`, `signing`, `viewing`) is routed to its existing detail view using Vue Router.
 - [ ] Option B (fallback): the click affordance (e.g. cursor pointer, hover highlight) is removed from event row chips and `handleEventAction` is either a no-op with a comment or deleted until routing exists.
-- [ ] No `console.log` remains in `handleEventAction` (covered by RNT-QUAL-065 but confirm here too).
-- [ ] No unhandled navigation errors — unknown event types are handled gracefully.
+- [x] No `console.log` remains in `handleEventAction` (covered by RNT-QUAL-065 but confirm here too).
+- [x] No unhandled navigation errors — unknown event types are handled gracefully.
 
 ## Files likely touched
 
@@ -43,3 +43,6 @@ Eliminate dead clicks on the agent dashboard event feed: either route each event
 ## Handoff notes
 
 Promoted from discovery `2026-04-24-agency-shell-event-action-todo.md` (2026-04-24). P2 — dead clicks on the highest-traffic surface at v1 launch are a credibility hit for agents.
+
+**2026-04-24 -- implementer**
+Chose Option A. Wired handleEventAction in AgencyShellView.vue with a switch on eventClass. maintenance/gate->maintenance-detail (deep-link via propertyId) or maintenance-issues fallback. lease/renewal/signing->leases. rent/refund->payments. inspection/compliance/viewing->properties. Unknown->silent no-op. Added useRouter + EventItem imports.

@@ -10,19 +10,20 @@
 -->
 <script setup lang="ts">
 import { onMounted, computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import {
   Zap, AlertCircle, Receipt, Wrench, CalendarDays, FileSignature,
   ClipboardList, ClipboardCheck, ShieldAlert, PenTool, Users,
   Bell, Inbox, TrendingUp,
 } from 'lucide-vue-next'
 
-import { useDashboardStore, type EventClass } from '../../stores/dashboard'
+import { useDashboardStore, type EventClass, type EventItem } from '../../stores/dashboard'
 import StatTile from '../../components/shared/StatTile.vue'
 import Badge from '../../components/shared/Badge.vue'
 import AlertStrip from '../../components/shared/AlertStrip.vue'
 import EventRow from '../../components/shared/EventRow.vue'
 
+const router = useRouter()
 const dashboard = useDashboardStore()
 
 onMounted(() => {
@@ -45,8 +46,39 @@ const EVENT_CLASSES: { id: EventClass | null; label: string; icon: any }[] = [
 
 const gatePending = computed(() => dashboard.kpis.find(k => k.key === 'gate_pending'))
 
-function handleEventAction(e: { id: string; action?: string }) {
-  // TODO: route to the relevant detail view when those are built.
+/**
+ * Navigate to the most relevant detail view for the given event.
+ * Uses the closest existing route per event class; deep-links to a specific
+ * entity when a real propertyId is available on the event item.
+ */
+function handleEventAction(e: EventItem) {
+  switch (e.eventClass) {
+    case 'maintenance':
+    case 'gate':
+      router.push(e.propertyId
+        ? { name: 'maintenance-detail', params: { id: e.propertyId } }
+        : { name: 'maintenance-issues' })
+      break
+    case 'lease':
+    case 'renewal':
+    case 'signing':
+      router.push({ name: 'leases' })
+      break
+    case 'rent':
+    case 'refund':
+      router.push({ name: 'payments' })
+      break
+    case 'inspection':
+    case 'compliance':
+    case 'viewing':
+      // No dedicated route yet -- navigate to properties list.
+      // Replace with a specific route when built.
+      router.push({ name: 'properties' })
+      break
+    default:
+      // Unknown future event class -- fail silently.
+      break
+  }
 }
 </script>
 
