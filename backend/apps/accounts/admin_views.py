@@ -135,7 +135,15 @@ def _resolve_base_url(request):
             from urllib.parse import urlparse
             parsed = urlparse(referer)
             origin = f"{parsed.scheme}://{parsed.netloc}"
-    return origin or getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
+    configured = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "")
+    if origin:
+        return origin
+    if configured:
+        return configured
+    if not getattr(settings, "DEBUG", True):
+        from django.core.exceptions import ImproperlyConfigured
+        raise ImproperlyConfigured("SIGNING_PUBLIC_APP_BASE_URL is required in production")
+    return "http://localhost:5173"
 
 
 def _build_invite_url(invite, admin_base_url):
@@ -149,10 +157,12 @@ def _build_invite_url(invite, admin_base_url):
     from django.conf import settings
 
     if invite.role == "tenant":
-        tenant_base = (
-            getattr(settings, "TENANT_APP_BASE_URL", "").strip().rstrip("/")
-            or "http://localhost:5174"
-        )
+        tenant_base = getattr(settings, "TENANT_APP_BASE_URL", "").strip().rstrip("/")
+        if not tenant_base:
+            if not getattr(settings, "DEBUG", True):
+                from django.core.exceptions import ImproperlyConfigured
+                raise ImproperlyConfigured("TENANT_APP_BASE_URL is required in production")
+            tenant_base = "http://localhost:5174"
         return f"{tenant_base}/invite/{invite.token}"
 
     return f"{admin_base_url}/accept-invite?token={invite.token}"

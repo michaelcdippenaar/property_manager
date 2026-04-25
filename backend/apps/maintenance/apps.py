@@ -6,4 +6,5 @@ class MaintenanceConfig(AppConfig):
     name = "apps.maintenance"
 
     def ready(self):
+        import apps.maintenance.checks  # noqa: F401
         import apps.maintenance.signals  # noqa: F401
