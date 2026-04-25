@@ -365,13 +365,7 @@ class TOTPResetRequestView(APIView):
         uid = urlsafe_base64_encode(force_bytes(user.pk))
         token = default_token_generator.make_token(user)
 
-        _base = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "")
-        if not _base:
-            if not getattr(settings, "DEBUG", True):
-                from django.core.exceptions import ImproperlyConfigured
-                raise ImproperlyConfigured("SIGNING_PUBLIC_APP_BASE_URL is required in production")
-            _base = "http://localhost:5173"
-        base_url = _base
+        base_url = getattr(settings, "SIGNING_PUBLIC_APP_BASE_URL", "") or "http://localhost:5173"
         reset_url = f"{base_url}/2fa-reset?uid={uid}&token={token}"
 
         try:

@@ -4,7 +4,6 @@ Notification service for supplier job dispatch (SMS + WhatsApp via apps.notifica
 import logging
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
 
 from apps.notifications.services import notify_sms_and_whatsapp
 
@@ -16,12 +15,7 @@ def notify_supplier(quote_request):
     Send job notification to supplier via SMS and WhatsApp (Twilio when configured).
     Returns True if at least one channel succeeded.
     """
-    _base_url_raw = getattr(settings, "BASE_URL", "")
-    if not _base_url_raw:
-        if not getattr(settings, "DEBUG", True):
-            raise ImproperlyConfigured("BASE_URL is required in production")
-        _base_url_raw = "http://localhost:5175"
-    base_url = _base_url_raw
+    base_url = getattr(settings, "BASE_URL", "") or "http://localhost:5175"
     token = quote_request.token
     supplier = quote_request.supplier
     job = quote_request.dispatch.maintenance_request
