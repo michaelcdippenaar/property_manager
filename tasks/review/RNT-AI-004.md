@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214278059913632"
 created: 2026-04-25
@@ -67,3 +67,18 @@ Identify and fix the JS crash / Vue error that occurs when a user closes the AI 
    - asserts all four pieces of state (`isOpen`, `highlightedSelector`, `pendingAction`, `error`) are reset.
 
 3. **Minor — `_isUnmounted` is a module-scoped `let`.** At `admin/src/components/AIGuide.vue:268`, `_isUnmounted` and `_highlightRaf` and `_highlightTimer` are declared as bare `let`s inside `<script setup>`. That makes them module-singleton across instances. AIGuide is almost certainly mounted only once, so it's fine in practice, but if it ever gets re-instantiated (HMR, route remount) the unmounted flag from the previous instance will block the new one. Consider scoping them inside `onMounted` via refs, or document why module-singleton is OK.
+
+2026-04-25 -- rentals-implementer: Addressed all three reviewer items.
+
+AC 1/2: Confirmed root cause. Original close() only set isOpen=false,
+leaving highlightedSelector non-null and the RAF loop running. Uncaught
+document.querySelector(invalidSelector) in route-change watcher =>
+DOMException => Vue scheduler error on navigate to /owners. Fix in
+f37a3624 is correct and sufficient.
+
+AC 4: admin/src/stores/__tests__/aiGuide.node.test.ts -- 5 Vitest tests
+asserting store.close() resets all four state pieces. 5/5 pass.
+Committed in a9d25d71 (AIGuide ref() refactor) and abe103c0 (test file).
+
+Reviewer item 3: _highlightRaf, _isUnmounted, _highlightTimer refactored to
+const ref() in AIGuide.vue (commit a9d25d71). vue-tsc passes, no AIGuide errors.
