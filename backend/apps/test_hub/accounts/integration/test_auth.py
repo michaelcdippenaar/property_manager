@@ -120,20 +120,22 @@ class MeViewTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["first_name"], "Updated")
 
-    def test_me_patch_role_field_is_writable(self):
+    def test_me_patch_role_ignored(self):
         """
-        SECURITY AUDIT: role field is NOT in read_only_fields on UserSerializer.
-        This means users can change their own role. Documents vulnerability.
+        SECURITY: role is in read_only_fields on UserSerializer, so a PATCH
+        /me/ with {"role": "admin"} must return 200 but leave the role unchanged.
+        Regression guard for privilege-escalation via self-update (RNT-SEC-049).
         """
+        original_role = self.user.role
         self.authenticate(self.user)
         resp = self.client.patch(self.url, {"role": "admin"})
         self.assertEqual(resp.status_code, 200)
         self.user.refresh_from_db()
-        # Documents the vulnerability: role IS writable via PATCH /me/
-        # TODO: Fix by adding 'role' to read_only_fields in UserSerializer
-        # If role changed, the vuln exists. If not, it's been fixed.
-        # We just assert the endpoint succeeds — the vuln is documented above.
-        self.assertIn(self.user.role, ["admin", "agent"])
+        self.assertEqual(
+            self.user.role,
+            original_role,
+            "PATCH /me/ must not allow a user to escalate their own role",
+        )
 
 
 class TokenRefreshTests(TremlyAPITestCase):
