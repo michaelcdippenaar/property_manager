@@ -32,6 +32,13 @@ class TestParseCountLogging:
         request.user = MagicMock()
         request.user.__bool__ = lambda self: True
 
+        # Patch .data onto the raw WSGIRequest so trigger_run's
+        # request.data.get("module") call doesn't AttributeError.
+        # APIRequestFactory returns a WSGIRequest, not a DRF Request;
+        # attaching .data here avoids a full URL dispatch while still
+        # exercising the logging paths under test.
+        request.data = {"module": None}
+
         fake_result = _make_fake_subprocess_result(output_line + "\n")
 
         with patch("subprocess.run", return_value=fake_result), \

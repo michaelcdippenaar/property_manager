@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214273917226197"
 created: 2026-04-24
@@ -47,3 +47,6 @@ Promoted from discovery `2026-04-24-news-scraper-silent-exception.md` (2026-04-2
 
 **2026-04-24 — reviewer**
 Review passed. Checked: `except Exception as exc` → `logger.warning(... exc_info=True)` at news.py:119-120; logger uses `logging.getLogger(__name__)` at line 18; swallow retained (iteration continues); 3/3 tests green. Security: no new endpoints, no PII logged, no raw SQL. Discovery filed: `tasks/discoveries/2026-04-24-stray-backup-test-directories.md` — two `*_tests_backup/` dirs committed alongside this task will cause duplicate pytest collection; PM to schedule removal.
+
+**2026-04-24 — tester**
+`pytest apps/market_data/tests/test_news_scraper.py -v --no-cov`: 3/3 PASSED (healthy_entries_return_results, bad_date_entry_logs_warning_and_continues, no_log_noise_on_clean_run). All pass.

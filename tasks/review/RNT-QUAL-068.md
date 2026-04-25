@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: in-progress
-assigned_to: implementer
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214274243223426"
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 ---
 
 ## Goal
@@ -25,7 +25,7 @@ Replace the four silent `except Exception: pass` blocks in `test_hub/views.py` w
 - [x] `backend/apps/test_hub/views.py:511-512`: same replacement; added one-line comment explaining RAG is optional.
 - [x] Where a swallow is genuinely intentional, a one-line comment is added explaining why.
 - [x] A module-level `logger` is present (`logger = logging.getLogger(__name__)` at line 34).
-- [ ] No E2E test regressions — existing test scenarios still pass.
+- [x] No E2E test regressions — existing test scenarios still pass.
 
 ## Files likely touched
 
@@ -64,3 +64,7 @@ Root cause: `_invoke` builds the request with `APIRequestFactory().post(...)` an
 3. Patch `request.data` on the mock request before passing it in (simplest for a unit test — `request.data = {"module": None}`).
 
 The production code (views.py) and the RAG test are correct. Only the four parse-count tests need fixing. Re-submit once all 5 tests are green.
+
+### 2026-04-25 — implementer (fix-forward)
+
+`initialize_request` requires `action_map` (set by router dispatch) so option (b) wasn't viable without a full URL stack. Applied option (a) instead: set `request.data = {"module": None}` directly on the WSGIRequest before passing it to `trigger_run`. All 5 tests now pass (`pytest apps/test_hub/tests/test_views_logging.py -v --no-cov`). Production code unchanged.

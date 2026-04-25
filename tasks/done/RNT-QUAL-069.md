@@ -49,3 +49,6 @@ Chose Option A. Wired handleEventAction in AgencyShellView.vue with a switch on 
 
 **2026-04-24 -- reviewer**
 Review passed. Checked: useRouter + router.push wired correctly; switch covers all AC event classes plus gate/renewal/refund/compliance extras; maintenance-detail, maintenance-issues, leases, payments, and properties all exist in router/index.ts; no console.log present; default no-op handles unknown classes gracefully. One pre-existing vue-tsc error (focus-trap-keyboard.browser.test.ts) is unrelated.
+
+**2026-04-24 -- tester**
+Test run: code check pass — handleEventAction has switch on eventClass with router.push for all AC classes (maintenance/gate, lease/renewal/signing, rent/refund, inspection/compliance/viewing) plus silent no-op default; no console.log present. vue-tsc: one pre-existing error in focus-trap-keyboard.browser.test.ts (unrelated). All checks pass.
