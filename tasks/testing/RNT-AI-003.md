@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214277801373363"
 created: 2026-04-25
@@ -78,3 +78,10 @@ Backend AI tests still 61/61 passing after the listed changes is the bar.
 - `test_guide_500_handled_outer_safety_net` — patches `_portal_for_user` to raise (escapes `_handle`), asserts outer safety-net returns 500 with `error: True`, `message`, `request_id`, and that `sentry_sdk.capture_exception` was called once.
 
 All 14 `test_guide.py` tests pass (was 12, +2 new).
+
+2026-04-25 — rentals-reviewer: Review passed (round 2). Verified:
+- `guide_views.py:18` imports `sentry_sdk`; line 180 calls `sentry_sdk.capture_exception(exc)` in outer safety-net (AC #3 ✓).
+- `guide_views.py:181-189` returns 500 with `error: True`, `message`, `reply`, `action`, `request_id` (AC #2 ✓ — keeping 500 status is a reasonable, documented decision).
+- `test_guide.py` adds `test_guide_500_handled_call_guide_raises` (inner 200) and `test_guide_500_handled_outer_safety_net` (outer 500 + capture_exception assertion) (AC #5 ✓).
+- `pytest apps/ai/tests/test_guide.py` → 14 passed.
+- Security pass: IsAuthenticated + throttle + JSONRenderer preserved; no PII/secrets logged; mock-based tests safe.
