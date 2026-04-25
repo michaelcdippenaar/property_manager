@@ -116,8 +116,13 @@ def scrape_news_feeds() -> list[dict[str, Any]]:
                 if hasattr(entry, "published_parsed") and entry.published_parsed:
                     try:
                         published_at = datetime(*entry.published_parsed[:6]).isoformat()
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        logger.warning(
+                            "Skipping news entry date parse [%s]: %s",
+                            link or "<no-link>",
+                            exc,
+                            exc_info=True,
+                        )
 
                 article_id = hashlib.md5(link.encode()).hexdigest()
 
