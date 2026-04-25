@@ -6,7 +6,7 @@
       :crumbs="[{ label: 'Dashboard', to: '/' }, { label: 'Properties' }]"
     >
       <template #actions>
-        <button class="btn-primary" @click="dialog = true">
+        <button class="btn-primary" data-guide="add-property" @click="dialog = true">
           <Plus :size="15" /> Add Property
         </button>
       </template>

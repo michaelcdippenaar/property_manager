@@ -108,7 +108,7 @@ export const useAIGuideStore = defineStore('aiGuide', () => {
       ],
       [
         /maintenance|repair|issue|ticket/,
-        { route: '/maintenance/issues', label: 'Maintenance Issues', elementSelector: '[data-guide="new-issue"]' },
+        { route: '/maintenance/issues', label: 'Maintenance Issues' },
         "I'll take you to Maintenance Issues.",
       ],
       [

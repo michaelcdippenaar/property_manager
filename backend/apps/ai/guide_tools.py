@@ -133,7 +133,6 @@ TOOL_ACTION_MAP: dict[str, dict[str, Any]] = {
     "view_maintenance": {
         "route": "/maintenance/issues",
         "label": "Maintenance Issues",
-        "elementSelector": '[data-guide="new-issue"]',
     },
     "list_tenants": {
         "route": "/tenants",

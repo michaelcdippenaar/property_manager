@@ -324,10 +324,36 @@ onMounted(() => document.addEventListener('keydown', handleKey))
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKey)
   cancelAnimationFrame(_highlightRaf)
+  if (_highlightTimer) {
+    clearTimeout(_highlightTimer)
+    _highlightTimer = null
+  }
 })
 
 // ── Clear highlight on route change ────────────────────────────────────────
-watch(() => route.path, () => guide.clearHighlight())
+// If the highlight selector matches an element on the new page (i.e. the
+// guide just navigated TO the page that owns the highlight), keep it visible
+// for a few seconds so the user actually sees the pulse. Otherwise clear it
+// immediately — the highlight is no longer on screen.
+let _highlightTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => route.path,
+  () => {
+    const sel = guide.highlightedSelector
+    if (!sel) return
+    void nextTick(() => {
+      // Wait one tick so the new view has had a chance to mount.
+      if (document.querySelector(sel)) {
+        // Element exists on the new page — let the pulse run for ~6s
+        // then clear. Re-use one timer so back-to-back navs don't stack.
+        if (_highlightTimer) clearTimeout(_highlightTimer)
+        _highlightTimer = setTimeout(() => guide.clearHighlight(), 6000)
+      } else {
+        guide.clearHighlight()
+      }
+    })
+  },
+)
 
 // ── Focus input when panel opens ────────────────────────────────────────────
 watch(
