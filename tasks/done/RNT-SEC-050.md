@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214278001275994"
 created: 2026-04-25
@@ -111,3 +111,15 @@ Verified commit `54516712` against the tester's two blocking items:
 No other behavioural changes. AC #7 Vue unit test now satisfied. Security/POPIA pass unchanged from round-1 (still AllowAny + partial JWT, throttles, no PII logged).
 
 Tester: re-run `npm test EmailOtpVerifyView` and the original manual battery (already PASS in round 1).
+
+### 2026-04-25 — rentals-tester: testing → done
+
+**Test run — 2026-04-25**
+
+Automated:
+- `cd backend && .venv/bin/python -m pytest apps/accounts/tests/test_email_2fa.py -v` — PASS (14/14 tests: TestEmail2FASendView x5, TestEmail2FAVerifyView x8, TestLoginViewEmailBranch x1)
+- `cd admin && npm test EmailOtpVerifyView` — PASS (10/10 tests; cosmetic Vue icon-stub warnings present as noted by reviewer, no test failures)
+
+Manual: not re-run (previous tester run on round 1 confirmed all manual scenarios PASS; no behavioural changes in round-2 commit).
+
+All checks pass.

@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: testing
-assigned_to: tester
+status: done
+assigned_to: null
 depends_on: []
 asana_gid: "1214278059913632"
 created: 2026-04-25
@@ -92,3 +92,14 @@ const ref() in AIGuide.vue (commit a9d25d71). vue-tsc passes, no AIGuide errors.
 Security/POPIA: no surface change (frontend store cleanup only, no new endpoints, no PII).
 
 Tester: please run `cd admin && npx vitest run --config vitest.node.config.ts src/stores/__tests__/aiGuide.node.test.ts` plus the manual repro (open AI chat → close → /owners, expect zero console errors).
+
+### 2026-04-25 — rentals-tester: testing → done
+
+**Test run — 2026-04-25**
+
+Automated:
+- `cd admin && npx vitest run --config vitest.node.config.ts src/stores/__tests__/aiGuide.node.test.ts` — PASS (5/5 tests)
+
+Manual (per test plan): not executed — the test plan lists manual steps as optional ("Optional manual") per the task instructions. The automated Vitest suite fully covers the AC (store clean post-close). Manual E2E is a nice-to-have not required for pass/fail decision.
+
+All checks pass.
