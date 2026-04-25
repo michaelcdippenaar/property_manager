@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214278323284057"
 created: 2026-04-25
@@ -82,3 +82,28 @@ All acceptance criteria met. 28/28 tests pass (14 new + 14 existing guide regres
 **Caveats for reviewer:**
 - The cache is in-process (threading.Lock + module globals). In a multi-worker deployment (gunicorn with multiple processes), each worker maintains its own cache. The bust on save only affects the worker that received the save request; other workers will pick up the new content when their TTL expires (up to 5 min). For v1 with a single gunicorn worker this is fine. Multi-worker support would require moving the cache to Redis/Django cache framework.
 - The admin UI uses a plain textarea rather than TipTap rich editor — the task allows "simple textarea" and this is sufficient for markdown editing.
+
+### 2026-04-25 — reviewer
+
+Review passed. Approved → testing.
+
+**Verified against the 8 acceptance criteria:**
+1. `content/ai/knowledge.md` seed — present, all 4 required domain rules covered (tenants-via-lease, owner=landlord, vacant=no active lease, maintenance flow). Plus lease lifecycle, payments, SA legal context.
+2. `backend/apps/ai/knowledge.py` loader — thread-safe (`threading.Lock`), 5-min TTL, returns plain string. Missing file returns empty string with warning (graceful).
+3. System prompt injection — `guide_views.py:91-94` reads `get_knowledge()` and appends under exact `## Klikk Domain Rules` header on every request when content is non-empty.
+4. Admin UI tab — `AIKnowledgeTab.vue` mounted in `ProfileView.vue:48` with `v-if="auth.user?.role === 'admin'"`. Plain textarea (allowed by AC), monospace font, save spinner, success/error feedback.
+5. Save endpoint enforces IsAdmin — `permission_classes = [IsAuthenticated, IsAdmin]` on `AIKnowledgeView`. Calls `bust_cache()` on success.
+6. AuditEvent on save — `_log_audit()` writes `action="ai.knowledge.updated"` with before/after snapshots, IP + UA, 5-year retention. Wrapped in try/except so an audit failure cannot break the save.
+7. pytest — 14 cases pass. Covers load happy path, cache TTL, bust, save, GET, POST, cache-bust-via-endpoint, audit event creation, 403 non-admin, 401 unauth, 400 missing content, prompt injection.
+8. Domain-rule unit test — `test_add_tenant_query_knowledge_in_prompt` asserts knowledge present in system prompt and reply mentions "lease" for an "add tenant" query.
+
+**Security pass:**
+- IsAdmin enforced on both GET and POST.
+- 512 KB payload cap prevents runaway writes.
+- `content` type-checked (must be string) and presence-checked.
+- POPIA s72 PII scrubbing on guide message preserved (knowledge file is admin-edited domain text, not user-supplied).
+- AuditEvent captures actor + IP for compliance.
+
+**Note for tester:** in-process cache means a multi-worker prod deployment will have up to 5 min staleness on workers that didn't handle the save. v1 runs single-worker so this is fine; flagged as a future hardening if v1 scales out.
+
+Test run: `cd backend && .venv/bin/python -m pytest apps/ai/tests/test_knowledge.py -v` → 14 passed.
