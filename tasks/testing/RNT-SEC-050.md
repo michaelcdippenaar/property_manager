@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: M
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214278001275994"
 created: 2026-04-25
@@ -100,3 +100,14 @@ Two changes only:
 1. **New test file** `admin/src/views/auth/EmailOtpVerifyView.browser.test.ts` — 10 tests: component mounts cleanly, calls `/api/v1/auth/2fa/email-send/` on mount, renders 6-digit input, auto-submits on 6 digits, resend cooldown timer display, error state on failed verify. Uses `vi.hoisted()` to declare mock functions so they are available when `vi.mock` factory is hoisted by the Playwright browser runner. `npm test EmailOtpVerifyView` — 10/10 PASS.
 
 2. **Comment fix** `backend/apps/accounts/views.py` line 137 — changed from "auto-send OTP" to "return partial token; frontend auto-sends OTP on mount (EmailOtpVerifyView.vue)", correcting the reviewer's cosmetic note.
+
+### 2026-04-25 — rentals-reviewer -> tester (approved, round 2)
+
+Verified commit `54516712` against the tester's two blocking items:
+
+1. New file `admin/src/views/auth/EmailOtpVerifyView.browser.test.ts` — 10 tests (mount, auto-send POST /auth/2fa/email-send/ on mount, 6-digit input render, auto-submit on 6 digits, resend cooldown timer, error on failed verify). Uses `vi.hoisted()` for mock-hoist safety. Ran locally with `npx vitest run src/views/auth/EmailOtpVerifyView.browser.test.ts` — **10/10 PASS** (cosmetic Vue warnings from icon stubs, not failures).
+2. `backend/apps/accounts/views.py:137` comment fix — now reads "return partial token; frontend auto-sends OTP on mount (EmailOtpVerifyView.vue)". Matches actual behaviour.
+
+No other behavioural changes. AC #7 Vue unit test now satisfied. Security/POPIA pass unchanged from round-1 (still AllowAny + partial JWT, throttles, no PII logged).
+
+Tester: re-run `npm test EmailOtpVerifyView` and the original manual battery (already PASS in round 1).

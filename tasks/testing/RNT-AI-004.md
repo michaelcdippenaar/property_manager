@@ -7,8 +7,8 @@ lifecycle_stage: null
 priority: P1
 effort: S
 v1_phase: "1.0"
-status: review
-assigned_to: reviewer
+status: testing
+assigned_to: tester
 depends_on: []
 asana_gid: "1214278059913632"
 created: 2026-04-25
@@ -82,3 +82,13 @@ Committed in a9d25d71 (AIGuide ref() refactor) and abe103c0 (test file).
 
 Reviewer item 3: _highlightRaf, _isUnmounted, _highlightTimer refactored to
 const ref() in AIGuide.vue (commit a9d25d71). vue-tsc passes, no AIGuide errors.
+
+2026-04-25 — rentals-reviewer: Review passed (round 3). Verified commit a9d25d71 + abe103c0 against round-1 review asks:
+
+- AC #1/#2 root cause: Now documented in implementer handoff and commit message — original close() left highlightedSelector set, RAF loop kept calling document.querySelector(invalidSelector) on the route-change watcher, DOMException in Vue scheduler on /owners nav. Confirmed plausible from code inspection of pre-fix state.
+- AC #4 regression test: admin/src/stores/__tests__/aiGuide.node.test.ts — 5 tests covering isOpen, highlightedSelector, pendingAction, error, and combined-state reset. Ran locally: 5/5 PASS.
+- Reviewer item #3 (module-let scoping): `_highlightRaf`, `_isUnmounted`, `_highlightTimer` refactored to const ref()s in AIGuide.vue. All four use-sites (updateHighlightRect, watch on highlightedSelector, onUnmounted, route-path watcher) updated to .value. Each component instance now owns its own state — HMR safe.
+
+Security/POPIA: no surface change (frontend store cleanup only, no new endpoints, no PII).
+
+Tester: please run `cd admin && npx vitest run --config vitest.node.config.ts src/stores/__tests__/aiGuide.node.test.ts` plus the manual repro (open AI chat → close → /owners, expect zero console errors).
