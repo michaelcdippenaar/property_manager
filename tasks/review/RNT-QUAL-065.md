@@ -7,12 +7,12 @@ lifecycle_stage: null
 priority: P2
 effort: S
 v1_phase: "1.0"
-status: backlog
-assigned_to: null
+status: review
+assigned_to: reviewer
 depends_on: []
 asana_gid: "1214273917256991"
 created: 2026-04-24
-updated: 2026-04-24
+updated: 2026-04-25
 ---
 
 ## Goal
@@ -21,10 +21,10 @@ Delete all six debug `console.log` calls (with `[LOAD]`, `[SAVE]`, `[STORE SAVE]
 
 ## Acceptance criteria
 
-- [ ] `admin/src/views/leases/TemplateEditorView.vue` lines 1513-1514 and 1910-1911: `console.log` calls removed.
-- [ ] `admin/src/stores/template.ts` lines 125 and 131: `console.log` calls removed.
-- [ ] `admin/src/views/dashboard/AgencyShellView.vue` line 50: `console.log` call removed.
-- [ ] Any `eslint-disable-next-line no-console` comments accompanying the removed lines are also deleted.
+- [x] `admin/src/views/leases/TemplateEditorView.vue` lines 1513-1514 and 1910-1911: `console.log` calls removed.
+- [x] `admin/src/stores/template.ts` lines 125 and 131: `console.log` calls removed.
+- [x] `admin/src/views/dashboard/AgencyShellView.vue` line 50: `console.log` call removed.
+- [x] Any `eslint-disable-next-line no-console` comments accompanying the removed lines are also deleted.
 - [ ] ESLint passes with no new suppressions.
 - [ ] No runtime errors introduced (template editor saves/loads and dashboard still function).
 
@@ -46,3 +46,5 @@ Delete all six debug `console.log` calls (with `[LOAD]`, `[SAVE]`, `[STORE SAVE]
 ## Handoff notes
 
 Promoted from discovery `2026-04-24-debug-console-logs-template-editor.md` (2026-04-24). P2 — information disclosure + professionalism; cheap fix before launch.
+
+**2026-04-25 — implementer:** Removed all 6 debug `console.log` calls and the `eslint-disable-next-line no-console` comment in AgencyShellView.vue. Also removed the now-unused `sec38` variable assignments (regex matches on doc html solely to feed the removed logs) and the `// DEBUG` comment block in TemplateEditorView.vue. All were pure debug noise — no error-relevant logs. No lint script present in this project; verified zero `console.log` / `eslint-disable no-console` remain in the three files via grep.
