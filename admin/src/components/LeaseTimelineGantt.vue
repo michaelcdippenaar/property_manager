@@ -5,7 +5,7 @@
     </div>
     <div v-else class="relative">
       <!-- x-axis header -->
-      <div class="relative h-5 mb-2 text-xs text-gray-400 border-b border-gray-100">
+      <div class="relative h-5 mb-2 text-xs text-gray-500 border-b border-gray-100">
         <span
           v-for="tick in axisTicks"
           :key="tick.label"

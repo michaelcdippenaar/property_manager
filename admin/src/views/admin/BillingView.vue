@@ -144,7 +144,7 @@
           >
             <span
               v-if="t.slug === billingInfo.tier?.slug"
-              class="absolute top-2 right-2 rounded-full bg-navy px-1.5 py-0.5 text-[10px] font-semibold text-white"
+              class="absolute top-2 right-2 rounded-full bg-navy px-1.5 py-0.5 text-[11px] font-semibold text-white"
             >
               Current
             </span>

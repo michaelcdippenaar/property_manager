@@ -22,7 +22,7 @@
     </div>
 
     <div class="px-5 py-4 space-y-4">
-      <p class="text-xs text-gray-400">
+      <p class="text-xs text-gray-500">
         This is what the maintenance AI agent will know about your property. Add anything a tenant might ask what is the wifi password.
       </p>
 

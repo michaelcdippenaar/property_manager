@@ -4,7 +4,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-sm font-semibold text-gray-900">Move-in prep</h3>
-        <p class="text-xs text-gray-400 mt-0.5">{{ completedCount }}/{{ items.length }} completed</p>
+        <p class="text-xs text-gray-500 mt-0.5">{{ completedCount }}/{{ items.length }} completed</p>
       </div>
       <div v-if="allDone" class="flex items-center gap-1.5 text-xs font-medium text-green-600">
         <CheckCircle2 :size="14" />
@@ -83,7 +83,7 @@
       </div>
       <div>
         <p class="text-sm font-medium text-gray-500">Incoming inspection</p>
-        <p class="text-xs text-gray-400">Coming soon — photo evidence + condition report</p>
+        <p class="text-xs text-gray-500">Coming soon — photo evidence + condition report</p>
       </div>
       <span class="ml-auto text-micro font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Planned</span>
     </div>

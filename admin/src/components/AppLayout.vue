@@ -11,7 +11,7 @@
           </span>
           <span
             v-if="dashboardLabel"
-            class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/15 text-accent text-[10px] font-bold tracking-[0.12em] uppercase leading-none"
+            class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-md bg-accent/15 text-accent text-[11px] font-bold tracking-[0.12em] uppercase leading-none"
           >
             {{ dashboardLabel }}
           </span>
@@ -73,7 +73,7 @@
               >
                 <div class="bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
                   <!-- Subtle intro -->
-                  <div class="px-3.5 pt-2.5 pb-1 text-[11px] text-gray-400 italic">
+                  <div class="px-3.5 pt-2.5 pb-1 text-xs text-gray-500 italic">
                     {{ section.sublabel }}
                   </div>
 
@@ -101,10 +101,10 @@
                           >{{ item.label }}</span>
                           <span
                             v-if="item.badgeKey && badges[item.badgeKey]"
-                            class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center leading-none"
+                            class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center leading-none"
                           >{{ badges[item.badgeKey] }}</span>
                         </div>
-                        <div v-if="item.description" class="text-[11px] text-gray-500 mt-0.5 leading-snug">
+                        <div v-if="item.description" class="text-xs text-gray-500 mt-0.5 leading-snug">
                           {{ item.description }}
                         </div>
                       </div>
@@ -176,7 +176,7 @@
 
               <!-- Admin items (admin + agency_admin) -->
               <template v-if="canSeeAdmin">
-                <p class="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Admin</p>
+                <p class="px-3 pt-1.5 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Admin</p>
                 <RouterLink
                   v-for="item in adminItems"
                   :key="item.to"
@@ -208,7 +208,7 @@
               </template>
 
               <!-- Knowledge Base -->
-              <p class="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Knowledge Base</p>
+              <p class="px-3 pt-1.5 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wider">Knowledge Base</p>
               <RouterLink
                 v-for="item in propertyInfoSubItems"
                 :key="item.to"
@@ -287,7 +287,7 @@
                   <span class="flex-1">{{ item.label }}</span>
                   <span
                     v-if="item.badgeKey && badges[item.badgeKey]"
-                    class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-bold flex items-center justify-center"
+                    class="min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[11px] font-bold flex items-center justify-center"
                   >{{ badges[item.badgeKey] }}</span>
                 </RouterLink>
               </div>

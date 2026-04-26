@@ -32,7 +32,7 @@
             <p class="text-sm font-medium text-gray-900 truncate group-hover:text-navy transition-colors">
               {{ ticket.title }}
             </p>
-            <p class="text-xs text-gray-400 truncate">
+            <p class="text-xs text-gray-500 truncate">
               {{ ticket.unit_label ?? `Unit #${ticket.unit}` }}
               <span v-if="ticket.tenant_name"> · {{ ticket.tenant_name }}</span>
             </p>

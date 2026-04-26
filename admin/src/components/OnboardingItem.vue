@@ -20,7 +20,7 @@
         {{ label }}
         <span v-if="deferred" class="ml-1 text-xs font-normal text-gray-400 no-underline">(v2)</span>
       </p>
-      <p class="text-xs text-gray-400 mt-0.5">{{ description }}</p>
+      <p class="text-xs text-gray-500 mt-0.5">{{ description }}</p>
       <p v-if="done && doneAt" class="text-micro text-gray-400 mt-0.5">
         Completed {{ formatDateTime(doneAt) }}
       </p>

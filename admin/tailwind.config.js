@@ -16,11 +16,18 @@ export default {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
       },
       fontSize: {
-        // Bumped 1 step from defaults (RNT-025):
+        // RNT-025 bumped small tier; RNT-028 closed half-bump leaks and
+        // restored H1/stat hierarchy by lifting xl (20→22) and 2xl (24→28):
         //   micro: 11→12px  |  xs: 12→13px  |  sm: 14→15px
+        //   xl: 20→22px (H1 anchor)  |  2xl: 24→28px (stat values)
         micro: ['12px', { lineHeight: '17px', fontWeight: '500' }],
         xs:    ['13px', { lineHeight: '18px' }],
         sm:    ['15px', { lineHeight: '22px' }],
+        base:  ['16px', { lineHeight: '25px' }],
+        lg:    ['18px', { lineHeight: '28px' }],
+        xl:    ['22px', { lineHeight: '30px' }],
+        '2xl': ['28px', { lineHeight: '34px' }],
+        '3xl': ['34px', { lineHeight: '40px' }],
       },
       // Keep pink-brand as alias for backwards compat in logo
       textColor: {

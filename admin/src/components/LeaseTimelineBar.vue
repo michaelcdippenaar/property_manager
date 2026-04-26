@@ -32,7 +32,7 @@
       />
     </div>
     <!-- Compact: single line with key numbers -->
-    <div v-if="compact" class="flex items-center justify-between mt-1 text-[10px] tabular-nums text-gray-400">
+    <div v-if="compact" class="flex items-center justify-between mt-1 text-[11px] tabular-nums text-gray-500">
       <span>{{ fmtDate(start) }}</span>
       <span v-if="successorLeaseId" class="text-success-600 font-medium">Renewal drafted</span>
       <span v-else-if="daysElapsed !== null" class="font-medium" :class="daysRemaining < 30 ? 'text-danger-500' : daysRemaining < 60 ? 'text-warning-600' : 'text-gray-500'">

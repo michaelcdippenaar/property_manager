@@ -124,7 +124,7 @@
   border-radius: 8px;
   background: var(--paper);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   color: var(--ink);
 }
@@ -260,7 +260,7 @@
   cursor: pointer;
   font-family: inherit;
   font-weight: 500;
-  font-size: 13px;
+  font-size: 14px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -416,7 +416,7 @@
 .agent-shell .ev-row:hover { background: var(--paper); }
 .agent-shell .ev-row:last-child { border-bottom: none; }
 .agent-shell .ev-when {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   font-family: 'JetBrains Mono', monospace;
   display: inline-flex;
@@ -602,7 +602,7 @@
   gap: 5px;
   padding: 3px 9px;
   border-radius: 10px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
 }
 .agent-shell .badge .bullet { width: 6px; height: 6px; border-radius: 50%; }
@@ -711,7 +711,7 @@
 }
 .agent-shell .tab {
   padding: 14px 2px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   font-weight: 500;
   cursor: pointer;
@@ -840,7 +840,7 @@
 .agent-shell .ledger td {
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--ink);
 }
 .agent-shell .ledger td.amt { text-align: right; font-family: 'JetBrains Mono', monospace; }
