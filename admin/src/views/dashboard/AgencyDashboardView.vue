@@ -335,7 +335,7 @@ async function loadData() {
     const [s, signing, landlords, templates, signingAll] = await Promise.allSettled([
       api.get('/stats/'),
       api.get('/esigning/submissions/?status=pending&page_size=3'),
-      api.get('/landlords/?page_size=1'),
+      api.get('/properties/landlords/?page_size=1'),
       api.get('/leases/templates/?page_size=1'),
       api.get('/esigning/submissions/?page_size=1'),
     ])
