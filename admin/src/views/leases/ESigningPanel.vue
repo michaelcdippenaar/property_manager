@@ -262,7 +262,11 @@
     </div>
 
     <!-- ── Empty state: no submissions yet ── -->
-    <div v-else-if="leaseData?.status !== 'active'" class="text-center py-6">
+    <!-- NOTE: this must be a standalone v-if, NOT v-else-if chained to the
+         rhaOverride banner above. When rhaOverride is set the banner renders
+         (v-if="rhaOverride") and a v-else-if would be skipped, keeping the
+         Send button hidden even after a successful override (RNT-026). -->
+    <div v-if="!latestSub && leaseData?.status !== 'active'" class="text-center py-6">
       <div class="w-12 h-12 rounded-full bg-navy/5 flex items-center justify-center mx-auto mb-3">
         <Send :size="20" class="text-navy" />
       </div>
