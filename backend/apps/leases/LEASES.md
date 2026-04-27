@@ -21,7 +21,7 @@ The leases app is the most feature-rich module. It manages the full lease lifecy
 | `end_date` | DateField | Lease end |
 | `monthly_rent` | DecimalField(10,2) | Monthly rental |
 | `deposit` | DecimalField(10,2) | Security deposit |
-| `status` | CharField | `active`, `expired`, `terminated`, `pending` |
+| `status` | CharField | `active`, `expired`, `terminated`, `pending`. Auto-flipped active → expired by the daily `expire_leases` cron when `end_date < today` (see [Lease expiry job](#lease-expiry-job)). |
 | `max_occupants` | PositiveSmallIntegerField | Default: 1 |
 | `water_included` | BooleanField | Default: true |
 | `water_limit_litres` | PositiveIntegerField | Default: 4000 |
@@ -388,3 +388,22 @@ Converts session to a Lease record (atomic transaction). Returns `{"lease_id": 7
 ## Known Bugs
 
 - `builder_views.py:152` — Uses `prefetch_related("tenants__person")` but the correct related name is `"co_tenants"`. Causes `AttributeError` when creating a session with `existing_lease_id`.
+
+## Lease expiry job
+
+A daily cron job flips active leases whose `end_date` has passed to `expired`,
+which in turn re-syncs the linked Unit from `occupied` back to `available`
+via the `post_save` signal on Lease.
+
+**Module:** `apps/leases/expiry.py::expire_overdue_leases(today=None) -> int`
+**Command:** `python manage.py expire_leases [--dry-run]`
+
+**Cron** (run daily, just after midnight SAST):
+
+```
+5 0 * * * /path/to/venv/bin/python /path/to/manage.py expire_leases >> /var/log/klikk/lease_expiry.log 2>&1
+```
+
+The signal handler `_resync_unit_status` also defends against the cron being
+down — it filters by `end_date >= today`, so even a stale active row never
+falsely marks a unit as occupied on subsequent saves.

@@ -23,14 +23,25 @@ logger = logging.getLogger(__name__)
 
 def _resync_unit_status(unit: Unit | None) -> None:
     """
-    Recompute Unit.status based on remaining ACTIVE leases only.
+    Recompute Unit.status based on remaining ACTIVE, in-term leases only.
 
-    Only 'active' (signed and in-progress) leases mark a unit as occupied.
-    'pending' (future, not yet started) and 'expired' / 'terminated' do not.
+    A unit is considered occupied iff there is a lease with ``status='active'``
+    AND ``end_date >= today``.  This is defence-in-depth against the
+    ``expire_leases`` cron not having run yet: even if a lease row is still
+    flagged active past its end_date, this signal will not falsely mark the
+    unit as occupied.
+
+    'pending' (future, not yet started) and 'expired' / 'terminated' leases
+    never count toward occupancy.
     """
     if unit is None:
         return
-    has_lease = Lease.objects.filter(unit=unit, status="active").exists()
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    has_lease = Lease.objects.filter(
+        unit=unit, status="active", end_date__gte=today
+    ).exists()
     new_status = "occupied" if has_lease else "available"
     if unit.status != new_status:
         unit.status = new_status
