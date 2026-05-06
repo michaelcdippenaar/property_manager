@@ -17,6 +17,8 @@ Material-change flow:
 from django.conf import settings
 from django.db import models
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class LegalDocument(models.Model):
     """A versioned legal document (Terms of Service, Privacy Policy, etc.)."""
@@ -100,6 +102,34 @@ class UserConsent(models.Model):
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.TextField(blank=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) ─────────────────────────────────
+    # Per agency for full isolation (consent records belong to the
+    # tenant's own data, not the operator). LegalDocument itself stays
+    # global (Klikk publishes ToS/Privacy across all agencies).
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="user_consents",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Consent record itself is a legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Append-only; anonymise references after subject lifecycle.",
+    )
+    revoked_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text="POPIA s11(2) consent withdrawal timestamp.",
+    )
+    basis_evidence = models.TextField(
+        blank=True,
+        help_text="Form text / checkbox HTML at consent time (audit trail).",
+    )
+
     class Meta:
         ordering = ["-accepted_at"]
         constraints = [
@@ -110,6 +140,10 @@ class UserConsent(models.Model):
         ]
         indexes = [
             models.Index(fields=["user", "document"]),
+            models.Index(
+                fields=["agency", "document", "accepted_at"],
+                name="uconsent_agency_doc_acc_idx",
+            ),
         ]
 
     def __str__(self):

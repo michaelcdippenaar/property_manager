@@ -13,6 +13,7 @@ from django.utils import timezone
 # the "accounts" app label.  See apps/accounts/otp/ for the full implementation.
 from apps.accounts.otp.models import OTPCodeV1, OTPAuditLog  # noqa: F401
 from apps.accounts.tier_service import SubscriptionTier  # noqa: F401  re-export
+from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
 
 
 class UserManager(BaseUserManager):
@@ -96,6 +97,32 @@ class User(AbstractBaseUser, PermissionsMixin):
                   "Null means they have not been prompted yet or never skipped.",
     )
 
+    # ── POPIA / multi-tenant (Phase 1.8) ─────────────────────────────────
+    # User.agency already exists above; we only add the POPIA fields here.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Auth users normally CONTRACT (employment / portal access).",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors lease lifecycle for tenant users.",
+    )
+    vault_entity_id = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Vault33 VaultEntity PK once user identity is mirrored.",
+    )
+    is_anonymised = models.BooleanField(
+        default=False,
+        help_text="True after PII fields have been scrubbed per a DSAR or retention policy.",
+    )
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+    anonymisation_reason = models.CharField(
+        max_length=32, choices=AnonymisationReason.choices, blank=True, default="",
+        help_text="Why this record was anonymised (POPIA s23/s24 audit trail).",
+    )
+
     objects = UserManager()
 
     USERNAME_FIELD = "email"
@@ -154,6 +181,38 @@ class Person(models.Model):
         INDIVIDUAL = "individual", "Individual"
         COMPANY = "company", "Company"
 
+    # ── Multi-tenant + POPIA (Phase 1.8) ─────────────────────────────────
+    # Per the locked decision in popia-klikk-rentals-brief.md: Person is
+    # per-agency. Backfilled via linked_user.agency or landlord_profile.agency.
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="persons",
+        help_text="Owning agency / tenant. Person is per-agency (full isolation).",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Person captured under lease = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors the parent relationship lifecycle.",
+    )
+    vault_entity_id = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Vault33 VaultEntity PK once person identity is mirrored.",
+    )
+    is_anonymised = models.BooleanField(
+        default=False,
+        help_text="True after PII fields have been scrubbed per a DSAR or retention policy.",
+    )
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+    anonymisation_reason = models.CharField(
+        max_length=32, choices=AnonymisationReason.choices, blank=True, default="",
+        help_text="Why this record was anonymised (POPIA s23/s24 audit trail).",
+    )
+
     linked_user = models.OneToOneField(
         User, on_delete=models.SET_NULL, null=True, blank=True,
         related_name="person_profile",
@@ -187,6 +246,9 @@ class Person(models.Model):
                 name="unique_person_phone_when_set",
             ),
         ]
+        indexes = [
+            models.Index(fields=["agency", "full_name"], name="person_agency_name_idx"),
+        ]
 
     def __str__(self):
         return self.full_name
@@ -209,8 +271,28 @@ class PersonDocument(models.Model):
     description   = models.CharField(max_length=200, blank=True)
     uploaded_at   = models.DateTimeField(auto_now_add=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from person.agency ──
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="person_documents",
+        help_text="Owning agency / tenant. Inherited from person.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. FICA/ID documents = legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention. Default 5 years (FICA s42/s43).",
+    )
+
     class Meta:
         ordering = ['-uploaded_at']
+        indexes = [
+            models.Index(fields=["agency", "document_type"], name="persondoc_agency_type_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.person.full_name}"
@@ -227,6 +309,23 @@ class OTPCode(models.Model):
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="otp_codes",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. OTP = security operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors user lifecycle.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -247,6 +346,23 @@ class PushToken(models.Model):
     token = models.TextField()
     platform = models.CharField(max_length=10, choices=Platform.choices)
     updated_at = models.DateTimeField(auto_now=True)
+
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="push_tokens",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Push tokens are operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors user lifecycle.",
+    )
 
     class Meta:
         unique_together = ("user", "token")
@@ -269,6 +385,18 @@ class UserInvite(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
+
+    # ── POPIA (Phase 1.8) — UserInvite already has agency FK above ───────
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Invitations are transient operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Transient — no automated retention.",
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -305,11 +433,29 @@ class AuthAuditLog(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="auth_audit_logs",
+        help_text="Owning agency / tenant. Inherited from user.agency when present.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Auth audit = legal obligation (security records).",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Append-only audit; anonymise references when subject expires.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "event_type"]),
             models.Index(fields=["created_at"]),
+            models.Index(fields=["agency", "event_type"], name="auth_agency_event_idx"),
         ]
 
     def __str__(self):
@@ -450,10 +596,30 @@ class LoginAttempt(models.Model):
     succeeded = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) ─────────────────────────────────
+    # LoginAttempt is keyed by email and may be created before any user
+    # exists; cannot always resolve to an agency. Stay null when unknown.
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="login_attempts",
+        help_text="Owning agency / tenant. Resolved from matching user.agency when known.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Brute-force protection = legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Security log; anonymise references when subject expires.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["email", "created_at"]),
+            models.Index(fields=["agency", "succeeded"], name="loginatt_agency_ok_idx"),
         ]
 
     def __str__(self):
@@ -499,6 +665,23 @@ class UserTOTP(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="user_totps",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. TOTP secrets = security operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors user lifecycle.",
+    )
+
     class Meta:
         verbose_name = "User TOTP"
 
@@ -530,6 +713,23 @@ class TOTPRecoveryCode(models.Model):
     code_hash = models.CharField(max_length=64)
     used_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="totp_recovery_codes",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Recovery codes = security operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Mirrors user lifecycle.",
+    )
 
     class Meta:
         ordering = ["-created_at"]

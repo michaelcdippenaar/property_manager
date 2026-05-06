@@ -7,6 +7,8 @@ OTPAuditLog — POPIA-required immutable audit trail for every OTP event.
 from django.db import models
 from django.conf import settings
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class OTPCodeV1(models.Model):
     """
@@ -43,6 +45,23 @@ class OTPCodeV1(models.Model):
     attempt_count = models.PositiveSmallIntegerField(
         default=0,
         help_text="Number of failed verify attempts against this code.",
+    )
+
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="otp_v1_codes",
+        help_text="Owning agency / tenant. Inherited from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. OTP = security operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Short-lived; expiry-driven cleanup.",
     )
 
     class Meta:
@@ -99,11 +118,29 @@ class OTPAuditLog(models.Model):
     metadata = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ── Multi-tenant + POPIA (Phase 1.8) — inherited from user.agency ────
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT,
+        null=True, blank=True, related_name="otp_audit_logs",
+        help_text="Owning agency / tenant. Inherited from user.agency when present.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. OTP audit = legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Append-only audit; anonymise references when subject expires.",
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "event_type"]),
             models.Index(fields=["created_at"]),
+            models.Index(fields=["agency", "event_type"], name="otpaudit_agency_event_idx"),
         ]
         verbose_name = "OTP Audit Log"
         verbose_name_plural = "OTP Audit Logs"
