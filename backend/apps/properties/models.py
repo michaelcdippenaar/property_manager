@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 from apps.accounts.models import User, Person
+from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
 
 
 class Property(models.Model):
@@ -10,6 +11,31 @@ class Property(models.Model):
         HOUSE = "house", "House"
         TOWNHOUSE = "townhouse", "Townhouse"
         COMMERCIAL = "commercial", "Commercial"
+
+    # Multi-tenant scoping (Phase 1). Nullable now; backfilled from
+    # ``agent.agency_id`` in a data migration; will be made non-null in
+    # a follow-up commit once all rows are populated.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="properties",
+        help_text="Owning agency / tenant. Properties never cross agencies.",
+    )
+    # POPIA s11 — declared lawful processing basis for any PI handled
+    # via this property (tenants captured on lease, owner KYC, etc.).
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Default 'contract' — most rental flows.",
+    )
+    # POPIA s14 — retention obligation. Informational at field level;
+    # consumed by the (later) retention/anonymisation cron.
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation for this property's records.",
+    )
 
     owner = models.ForeignKey(
         Person, on_delete=models.SET_NULL, null=True, blank=True,
@@ -35,6 +61,10 @@ class Property(models.Model):
     class Meta:
         verbose_name_plural = "properties"
         ordering = ["-created_at"]
+        indexes = [
+            # Hot path: list properties per agency (every dashboard query).
+            models.Index(fields=["agency", "-created_at"], name="property_agency_created_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -140,6 +170,9 @@ class Landlord(models.Model):
     """
     A landlord entity (individual, company, or trust) that can own multiple properties.
     Linked to Person for system identity.
+
+    Multi-tenant + POPIA fields are at the top of the field list; legacy
+    fields below for clarity. See docs/compliance/popia-klikk-rentals-brief.md.
     """
     class LandlordType(models.TextChoices):
         INDIVIDUAL = "individual", "Individual"
@@ -147,6 +180,50 @@ class Landlord(models.Model):
         TRUST = "trust", "Trust"
         CC = "cc", "Close Corporation"
         PARTNERSHIP = "partnership", "Partnership"
+
+    # Multi-tenant scoping (Phase 1). Nullable now; backfilled in a data
+    # migration from the first matching PropertyOwnership → Property →
+    # agent → agency chain. Made non-null in a follow-up commit.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="landlords",
+        help_text="Owning agency / tenant. A landlord belongs to exactly one agency.",
+    )
+    # POPIA s11 — landlord PII (ID number, banking, FICA documents) is
+    # collected under contract performance + legal obligation (FICA).
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis for the landlord's PI.",
+    )
+    # POPIA s14 — landlords default to FICA's 5-year-from-end-of-relationship
+    # retention; trust/company records may need 7yr (set per row).
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention. Default 5 years (FICA s42/s43).",
+    )
+    # Vault33 cross-agency identity FK. Nullable now; populated when the
+    # landlord opts in to Vault33 sharing in Phase 2. Adding now is free
+    # and avoids a future data migration.
+    vault_entity_id = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Vault33 VaultEntity PK once landlord identity is mirrored.",
+    )
+    # POPIA s24/s25 DSAR support — landlord PI may need to be anonymised
+    # (signed leases can't be hard-deleted under RHA / FICA retention).
+    is_anonymised = models.BooleanField(
+        default=False,
+        help_text="True after PII fields have been scrubbed per a DSAR or retention policy.",
+    )
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+    anonymisation_reason = models.CharField(
+        max_length=32, choices=AnonymisationReason.choices,
+        blank=True, default="",
+        help_text="Why this record was anonymised (POPIA s23/s24 audit trail).",
+    )
 
     person = models.OneToOneField(
         Person, on_delete=models.SET_NULL, null=True, blank=True,
@@ -196,6 +273,12 @@ class Landlord(models.Model):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            # Hot path: list landlords per agency.
+            models.Index(fields=["agency", "name"], name="landlord_agency_name_idx"),
+            # Vault33 reverse-lookup (Phase 2 onwards).
+            models.Index(fields=["vault_entity_id"], name="landlord_vault_entity_idx"),
+        ]
 
     def __str__(self):
         return self.name
