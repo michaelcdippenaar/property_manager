@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class NotificationChannel(models.TextChoices):
     EMAIL = "email", "Email"
@@ -15,6 +17,27 @@ class NotificationStatus(models.TextChoices):
 
 
 class NotificationLog(models.Model):
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="notification_logs",
+        help_text="Owning agency / tenant. Backfilled null where recipient cannot be resolved.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Klikk dispatches on agency instruction (s21).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Operational dispatch log; review at audit time.",
+    )
+
     channel = models.CharField(max_length=16, choices=NotificationChannel.choices)
     to_address = models.CharField(max_length=320)
     subject = models.CharField(max_length=255, blank=True)
@@ -33,6 +56,7 @@ class NotificationLog(models.Model):
         indexes = [
             models.Index(fields=["-created_at"]),
             models.Index(fields=["channel", "status"]),
+            models.Index(fields=["agency", "created_at"], name="notif_log_agency_ts_idx"),
         ]
 
     def __str__(self):
@@ -60,6 +84,27 @@ class PushPreference(models.Model):
         MAINTENANCE = "maintenance", "Maintenance updates"
         CHAT = "chat", "Chat messages"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="push_preferences",
+        help_text="Owning agency / tenant. Denormalised from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.CONSENT,
+        help_text="POPIA s11 basis. Push opt-in is consent (s11(1)(a)).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Preference rows live with the user account.",
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -72,6 +117,9 @@ class PushPreference(models.Model):
     class Meta:
         unique_together = ("user", "category")
         ordering = ["user", "category"]
+        indexes = [
+            models.Index(fields=["agency", "category"], name="push_pref_agency_cat_idx"),
+        ]
 
     def __str__(self):
         flag = "on" if self.enabled else "off"

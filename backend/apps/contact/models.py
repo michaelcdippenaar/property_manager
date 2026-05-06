@@ -15,6 +15,8 @@ POPIA notes
 from django.db import models
 from django.utils import timezone
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class ContactEnquiry(models.Model):
     """A public contact-form submission from klikk.co.za/contact."""
@@ -27,6 +29,28 @@ class ContactEnquiry(models.Model):
         ("supplier", "Supplier / contractor"),
         ("other", "Other"),
     ]
+
+    # Multi-tenant + POPIA scaffolding
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="contact_enquiries",
+        help_text="Owning agency / tenant. Marketing leads usually have no agency yet.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.CONSENT,
+        help_text="POPIA s11 basis. Public form opt-in = consent (s11(1)(a)).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.MARKETING_CONSENT_LIFETIME,
+        help_text="POPIA s14 retention. Marketing consent record (DM Guidance 2024).",
+    )
 
     # Submission metadata
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
@@ -64,6 +88,9 @@ class ContactEnquiry(models.Model):
         verbose_name = "contact enquiry"
         verbose_name_plural = "contact enquiries"
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "created_at"], name="contact_enq_agency_ts_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.name} <{self.email}> · {self.created_at:%Y-%m-%d %H:%M}"

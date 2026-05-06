@@ -23,6 +23,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class DSARRequest(models.Model):
     """
@@ -49,6 +51,28 @@ class DSARRequest(models.Model):
         APPROVED = "approved", "Approved"
         DENIED = "denied", "Denied"
         COMPLETED = "completed", "Completed"
+
+    # ── Multi-tenant + POPIA scaffolding ─────────────────────────────────────
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="dsar_requests",
+        help_text="Owning agency / tenant. Denormalised from requester.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. DSAR handling = legal obligation (s23/s24).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. DSAR records preserved for compliance audit.",
+    )
 
     # ── Requester ────────────────────────────────────────────────────────────
     requester = models.ForeignKey(
@@ -112,6 +136,7 @@ class DSARRequest(models.Model):
         indexes = [
             models.Index(fields=["status", "sla_deadline"]),
             models.Index(fields=["requester", "request_type"]),
+            models.Index(fields=["agency", "created_at"], name="dsar_req_agency_ts_idx"),
         ]
         verbose_name = "DSAR Request"
         verbose_name_plural = "DSAR Requests"
@@ -156,6 +181,28 @@ class ExportJob(models.Model):
         FAILED = "failed", "Failed"
         CONSUMED = "consumed", "Consumed (downloaded)"
 
+    # ── Multi-tenant + POPIA scaffolding ─────────────────────────────────────
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="export_jobs",
+        help_text="Owning agency / tenant. Denormalised from dsar_request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Klikk-as-operator compiles the export under s21.",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AI_CHAT_90D,
+        help_text="POPIA s14 retention. Export archives purge after delivery (90d ceiling).",
+    )
+
     dsar_request = models.OneToOneField(
         DSARRequest,
         on_delete=models.CASCADE,
@@ -194,6 +241,9 @@ class ExportJob(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Export Job"
         verbose_name_plural = "Export Jobs"
+        indexes = [
+            models.Index(fields=["agency", "created_at"], name="export_job_agency_ts_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"ExportJob #{self.pk} for {self.dsar_request.requester_email} ({self.status})"

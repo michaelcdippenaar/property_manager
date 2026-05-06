@@ -3,6 +3,8 @@ from __future__ import annotations
 from django.conf import settings
 from django.db import models
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class TenantChatSession(models.Model):
     """
@@ -15,6 +17,27 @@ class TenantChatSession(models.Model):
         User messages stored in ``messages`` contain only PII-scrubbed content
         (raw input is never persisted — see apps.ai.scrubber).
     """
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tenant_chat_sessions",
+        help_text="Owning agency / tenant. Denormalised from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. AI processing on agency instruction (s21).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AI_CHAT_90D,
+        help_text="POPIA s14 retention. AI chat — 90 days unless retained.",
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -51,6 +74,9 @@ class TenantChatSession(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["agency", "updated_at"], name="tenant_chat_agency_ts_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.title} ({self.user_id})"
@@ -61,6 +87,27 @@ class TenantIntelligence(models.Model):
     Accumulated profile built from chat interactions.  Updated after every
     AI response so external agents (via MCP) have cross-chat context.
     """
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="tenant_intel_profiles",
+        help_text="Owning agency / tenant. Denormalised from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Profile derived under operator instruction (s21).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AI_CHAT_90D,
+        help_text="POPIA s14 retention. Tracks chat-derived facts; aligns with chat ttl.",
+    )
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -103,6 +150,9 @@ class TenantIntelligence(models.Model):
 
     class Meta:
         verbose_name_plural = "Tenant intelligence profiles"
+        indexes = [
+            models.Index(fields=["agency", "updated_at"], name="tenant_intel_agency_ts_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"TenantIntel({self.user_id})"
@@ -127,6 +177,27 @@ class GuideInteraction(models.Model):
         (PORTAL_OWNER, "Owner"),
         (PORTAL_SUPPLIER, "Supplier"),
     ]
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="guide_interactions",
+        help_text="Owning agency / tenant. Denormalised from user.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32,
+        choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Klikk processes guide messages on agency instruction (s21).",
+    )
+    retention_policy = models.CharField(
+        max_length=32,
+        choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AI_CHAT_90D,
+        help_text="POPIA s14 retention. Guide interactions purge after 90 days.",
+    )
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -153,6 +224,9 @@ class GuideInteraction(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "created_at"], name="guide_int_agency_ts_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"GuideInteraction({self.user_id}, {self.portal}, {self.intent or 'no-action'})"
