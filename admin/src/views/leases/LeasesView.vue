@@ -539,7 +539,24 @@ const isOffline = ref(false)
 // onActivated re-fetches when data already exists) should not destroy the DOM.
 const initialLoad = ref(leases.value.length === 0)
 const saving = ref(false)
-const showImport = ref(false)
+// Import wizard open state is tied to ?import=1 in the URL so the browser
+// back button closes the wizard instead of leaving the leases page.
+// - Open: push (adds history entry; pressing Back pops it → wizard closes
+//   reactively via the computed get).
+// - Close (X / done): replace (cleans URL without adding another entry).
+const showImport = computed({
+  get: () => route.query.import === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.import = '1'
+      router.push({ query: q })
+    } else {
+      delete q.import
+      router.replace({ query: q })
+    }
+  },
+})
 const showEdit = ref(false)
 const editingLease = ref<any>(null)
 const units = ref<any[]>([])
