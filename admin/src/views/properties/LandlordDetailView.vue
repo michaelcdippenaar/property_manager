@@ -782,7 +782,21 @@ const targetedFileInput = ref<HTMLInputElement | null>(null)
 const allProperties = ref<any[]>([])
 const propertySearch = ref('')
 const linkingProperty = ref(false)
-const showLinkModal = ref(false)
+// Link entity modal open state is tied to ?link=1 in the URL so the browser
+// back button closes the modal instead of leaving the owner detail page.
+const showLinkModal = computed({
+  get: () => route.query.link === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.link = '1'
+      router.push({ query: q })
+    } else {
+      delete q.link
+      router.replace({ query: q })
+    }
+  },
+})
 const selectedPropertyId = ref<number | null>(null)
 
 // Confirm-dialog state

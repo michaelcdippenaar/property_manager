@@ -1748,7 +1748,24 @@ const loadingSuppliers  = ref(false)
 // ── Agent assignments state ──
 const agentAssignments = ref<any[]>([])
 const loadingAgentAssignments = ref(false)
-const showImportWizard = ref(false)
+// Import wizard open state is tied to ?import=1 in the URL so the browser
+// back button closes the wizard instead of leaving the property page.
+// - Open: push (adds history entry; pressing Back pops it → wizard closes
+//   reactively via the computed get).
+// - Close (X / done): replace (cleans URL without adding another entry).
+const showImportWizard = computed({
+  get: () => route.query.import === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.import = '1'
+      router.push({ query: q })
+    } else {
+      delete q.import
+      router.replace({ query: q })
+    }
+  },
+})
 const expandedLeaseIds = ref<number[]>([])
 
 function toggleExpand(id: number) {
@@ -1770,7 +1787,21 @@ function leasePeriodMonths(start: string, end: string): string {
   const months = (e.getFullYear() - s.getFullYear()) * 12 + (e.getMonth() - s.getMonth())
   return months > 0 ? `${months} month${months !== 1 ? 's' : ''}` : '—'
 }
-const showAssignAgent = ref(false)
+// Assign agent modal open state is tied to ?assign=1 in the URL so the browser
+// back button closes the modal instead of leaving the property page.
+const showAssignAgent = computed({
+  get: () => route.query.assign === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.assign = '1'
+      router.push({ query: q })
+    } else {
+      delete q.assign
+      router.replace({ query: q })
+    }
+  },
+})
 const assignAgentForm = ref({ agent: '', assignment_type: 'managing' })
 const assigningAgent = ref(false)
 const assignAgentError = ref('')

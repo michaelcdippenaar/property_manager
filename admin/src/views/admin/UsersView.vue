@@ -364,6 +364,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 import { useAuthStore } from '../../stores/auth'
 import { useToast } from '../../composables/useToast'
@@ -371,6 +372,8 @@ import { Search, UserPlus, Pencil, Trash2, Loader2, Building2, Plus, X, Send } f
 import PageHeader from '../../components/PageHeader.vue'
 import BaseModal from '../../components/BaseModal.vue'
 
+const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 
 const toast = useToast()
@@ -477,7 +480,21 @@ const roleFilter = ref('')
 
 const invites = ref<InviteRecord[]>([])
 
-const showInvite = ref(false)
+// Invite modal open state is tied to ?invite=1 in the URL so the browser
+// back button closes the modal instead of leaving the users page.
+const showInvite = computed({
+  get: () => route.query.invite === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.invite = '1'
+      router.push({ query: q })
+    } else {
+      delete q.invite
+      router.replace({ query: q })
+    }
+  },
+})
 const inviteForm = ref({ email: '', role: 'estate_agent', first_name: '', module_access: [] as string[] })
 const inviting = ref(false)
 const inviteError = ref('')

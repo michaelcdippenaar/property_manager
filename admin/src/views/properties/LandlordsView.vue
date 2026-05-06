@@ -168,7 +168,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ArrowDownUp, ArrowUpAZ, ArrowDownAZ, Briefcase, Building2, ChevronRight, Loader2, Plus, Shield, User, UserCheck, Users } from 'lucide-vue-next'
 import BaseModal from '../../components/BaseModal.vue'
 import PageHeader from '../../components/PageHeader.vue'
@@ -192,6 +192,7 @@ const LANDLORD_TYPE_LABELS: Record<string, string> = {
 }
 
 const toast = useToast()
+const route = useRoute()
 const router = useRouter()
 
 const landlordsStore = useLandlordsStore()
@@ -205,7 +206,21 @@ const typeFilter = ref('all')
 type LLSortField = 'name' | 'profile' | 'properties'
 const sortBy = ref<LLSortField>('name')
 const sortDir = ref<'asc' | 'desc'>('asc')
-const showCreate = ref(false)
+// Create owner modal open state is tied to ?create=1 in the URL so the
+// browser back button closes the modal instead of leaving the owners page.
+const showCreate = computed({
+  get: () => route.query.create === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.create = '1'
+      router.push({ query: q })
+    } else {
+      delete q.create
+      router.replace({ query: q })
+    }
+  },
+})
 
 const createForm = ref({
   name: '',

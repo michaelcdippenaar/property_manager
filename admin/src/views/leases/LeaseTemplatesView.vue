@@ -213,8 +213,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { FileSignature, FileText, FilePlus, Plus, Upload, Copy, Loader2, MoreVertical, Pencil, Archive } from 'lucide-vue-next'
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
@@ -224,13 +224,28 @@ import ErrorState from '../../components/states/ErrorState.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import { useToast } from '../../composables/useToast'
 
+const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 const loading   = ref(true)
 const loadError = ref(false)
 const isOffline = ref(false)
 const templates = ref<any[]>([])
-const showCreate = ref(false)
+// Create template modal open state is tied to ?create=1 in the URL so the
+// browser back button closes the modal instead of leaving the templates page.
+const showCreate = computed({
+  get: () => route.query.create === '1',
+  set: (v: boolean) => {
+    const q: any = { ...route.query }
+    if (v) {
+      q.create = '1'
+      router.push({ query: q })
+    } else {
+      delete q.create
+      router.replace({ query: q })
+    }
+  },
+})
 const creating  = ref(false)
 const createStep = ref<'choose' | 'pick' | 'details'>('choose')
 const createSource = ref<'blank' | 'upload' | 'duplicate'>('blank')
