@@ -119,7 +119,9 @@ def _tombstone_maintenance(user) -> None:
     """Anonymise maintenance requests submitted by the user."""
     try:
         from apps.maintenance.models import MaintenanceRequest
-        MaintenanceRequest.objects.filter(submitted_by=user).update(submitted_by=None)
+        # Field was renamed `submitted_by` -> `tenant` during the maintenance
+        # model refactor; the deletion service was missed in that pass.
+        MaintenanceRequest.objects.filter(tenant=user).update(tenant=None)
     except Exception as exc:
         logger.warning("deletion_service: maintenance anonymise failed: %s", exc)
 

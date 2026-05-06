@@ -162,7 +162,7 @@ def _compile_maintenance(user) -> list[dict]:
             "priority", "created_at", "resolved_at", "property__address",
         ]
         qs = MaintenanceRequest.objects.filter(
-            submitted_by=user
+            tenant=user
         ).values(*fields)
         return list(qs)
     except Exception as exc:
