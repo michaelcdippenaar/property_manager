@@ -2263,6 +2263,12 @@ async function initProperty(id: number) {
 onMounted(() => {
   initProperty(Number(route.params.id))
   document.addEventListener('mousedown', onOutsideClick)
+  // Deep-link: if the URL puts us straight onto the Agency tab, fire its
+  // loaders too (the activeSection watcher only runs on change).
+  if (activeSection.value === 'agency') {
+    loadAgentAssignments()
+    loadAvailableAgents()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -2299,6 +2305,13 @@ watch(activeSection, (sec) => {
   }
   if (sec === 'tenants' && !loadingTenants.value) {
     loadTenantAssignments()
+  }
+  if (sec === 'agency') {
+    // Load both lists when entering the Agency tab (assigned agents
+    // table + dropdown of users to pick from). Both functions guard
+    // against duplicate loads internally.
+    loadAgentAssignments()
+    loadAvailableAgents()
   }
 })
 
