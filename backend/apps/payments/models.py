@@ -28,6 +28,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class RentInvoice(models.Model):
     """One monthly rent invoice per lease period."""
@@ -39,6 +41,26 @@ class RentInvoice(models.Model):
         OVERPAID = "overpaid", "Overpaid"
         REVERSED = "reversed", "Reversed"
 
+    # Owning agency / tenant. Inherited from lease.agency.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="rent_invoices",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    # POPIA s11 — financial record under SARS / FICA legal obligation.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Rent invoice = SARS/FICA legal obligation.",
+    )
+    # POPIA s14 — 7 years per SARS Tax Administration Act + FICA history.
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention. SARS/FICA 7-year floor for financial records.",
+    )
     lease = models.ForeignKey(
         "leases.Lease",
         on_delete=models.CASCADE,
@@ -73,6 +95,7 @@ class RentInvoice(models.Model):
         indexes = [
             models.Index(fields=["lease", "status"]),
             models.Index(fields=["due_date"]),
+            models.Index(fields=["agency", "status"], name="rentinv_agency_status_idx"),
         ]
 
     def __str__(self) -> str:
@@ -112,6 +135,24 @@ class RentPayment(models.Model):
         CLEARED = "cleared", "Cleared"
         REVERSED = "reversed", "Reversed (Bounced EFT)"
 
+    # Owning agency / tenant. Inherited from invoice.agency.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="rent_payments",
+        help_text="Owning agency / tenant. Inherited from invoice.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Rent payment = SARS/FICA legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention. SARS/FICA 7-year floor.",
+    )
     invoice = models.ForeignKey(
         RentInvoice,
         on_delete=models.CASCADE,
@@ -161,6 +202,9 @@ class RentPayment(models.Model):
 
     class Meta:
         ordering = ["-payment_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="rentpay_agency_status_idx"),
+        ]
 
     def __str__(self) -> str:
         return (
@@ -183,6 +227,26 @@ class UnmatchedPayment(models.Model):
         RESOLVED = "resolved", "Resolved"
         REJECTED = "rejected", "Rejected / Returned"
 
+    # Owning agency / tenant. Resolved via assigned_to_invoice.lease.agency
+    # once the unmatched payment is reconciled. Top-level deposits without an
+    # assignment remain null until an operator triages them.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="unmatched_payments",
+        help_text="Owning agency / tenant. Inherited from assigned invoice on reconcile.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Bank deposit record = SARS/FICA legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention. SARS/FICA 7-year floor.",
+    )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     payment_date = models.DateField()
     reference = models.CharField(max_length=150, blank=True)
@@ -227,6 +291,7 @@ class UnmatchedPayment(models.Model):
         ordering = ["-payment_date"]
         indexes = [
             models.Index(fields=["status"]),
+            models.Index(fields=["agency", "status"], name="unmatchpay_agency_stat_idx"),
         ]
 
     def __str__(self) -> str:
@@ -249,6 +314,27 @@ class PaymentAuditLog(models.Model):
         PAYMENT = "payment", "Payment"
         UNMATCHED = "unmatched", "Unmatched Payment"
 
+    # Owning agency / tenant. Resolved via the actor's agency_id at write
+    # time, or via a lookup against the related entity for system events.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="payment_audit_logs",
+        help_text="Owning agency / tenant. Resolved from actor.agency or entity chain.",
+    )
+    # POPIA s11 — append-only audit trail kept for legal-obligation reasons.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Audit trail = legal obligation.",
+    )
+    # POPIA s14 — append-only; never deleted, anonymised after parent's window.
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Permanent (anonymise PI references).",
+    )
     entity_type = models.CharField(max_length=15, choices=EntityType.choices)
     entity_id = models.PositiveIntegerField(help_text="PK of the related entity")
     # Denormalised for fast display without joins
@@ -278,6 +364,7 @@ class PaymentAuditLog(models.Model):
         indexes = [
             models.Index(fields=["entity_type", "entity_id"]),
             models.Index(fields=["lease_id", "-created_at"]),
+            models.Index(fields=["agency", "-created_at"], name="payaudit_agency_created_idx"),
         ]
 
     def __str__(self) -> str:

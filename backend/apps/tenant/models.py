@@ -5,6 +5,7 @@ from django.db import models
 
 from apps.accounts.models import Person
 from apps.leases.models import Lease
+from apps.popia.choices import LawfulBasis, RetentionPolicy
 from apps.properties.models import Property, Unit
 
 
@@ -23,6 +24,25 @@ class TenantOnboarding(models.Model):
     but not included in the completion calculation.
     """
 
+    # Owning agency / tenant. Inherited from lease.agency.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="tenant_onboardings",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    # POPIA s11 — onboarding checklist captured under performance of contract.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Tenant onboarding = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Onboarding artefacts kept for lease lifetime.",
+    )
     lease = models.OneToOneField(
         Lease,
         on_delete=models.CASCADE,
@@ -90,6 +110,9 @@ class TenantOnboarding(models.Model):
     class Meta:
         verbose_name = "Tenant Onboarding"
         verbose_name_plural = "Tenant Onboardings"
+        indexes = [
+            models.Index(fields=["agency", "completed_at"], name="tenonb_agency_done_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"Onboarding for {self.lease}"
@@ -125,6 +148,24 @@ class Tenant(models.Model):
     it from an existing Lease via assign_from_lease().
     """
 
+    # Owning agency / tenant. Inherited from person.agency.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="tenants",
+        help_text="Owning agency / tenant. Inherited from person.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Tenant record = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Tenant kept for lease lifetime + obligations.",
+    )
     person = models.OneToOneField(
         Person,
         on_delete=models.CASCADE,
@@ -154,6 +195,9 @@ class Tenant(models.Model):
         ordering = ["person__full_name"]
         verbose_name = "Tenant"
         verbose_name_plural = "Tenants"
+        indexes = [
+            models.Index(fields=["agency", "is_active"], name="tenant_agency_active_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"Tenant: {self.person.full_name}"
@@ -357,6 +401,24 @@ class TenantUnitAssignment(models.Model):
         MANUAL = "manual", "Manual"
         LEASE = "lease", "From Lease"
 
+    # Owning agency / tenant. Inherited from property.agency at assign time.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="tenant_unit_assignments",
+        help_text="Owning agency / tenant. Inherited from property.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Occupancy record = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Kept for lease lifetime + obligations.",
+    )
     tenant = models.ForeignKey(
         Tenant,
         on_delete=models.CASCADE,
@@ -418,6 +480,7 @@ class TenantUnitAssignment(models.Model):
         indexes = [
             models.Index(fields=["tenant", "start_date"], name="tenant_assign_tenant_date_idx"),
             models.Index(fields=["unit", "start_date"], name="tenant_assign_unit_date_idx"),
+            models.Index(fields=["agency", "start_date"], name="tenant_assign_agency_date_idx"),
         ]
 
     def __str__(self) -> str:
