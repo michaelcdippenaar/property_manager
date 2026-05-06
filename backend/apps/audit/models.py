@@ -34,6 +34,8 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.utils import timezone
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -66,6 +68,36 @@ class AuditEvent(models.Model):
     Never UPDATE or DELETE rows — this is an append-only log.
     The hash chain will detect any tampering.
     """
+
+    # ── Tenancy / POPIA ──────────────────────────────────────────────────── #
+    # Owning agency / tenant. Denormalised directly on the audit row — this is
+    # the most security-critical scoping in the codebase: an agency must
+    # never see another agency's audit trail. Resolved at write time from
+    # actor.agency_id (system events stay null; cleaned up at Phase 4 cutover).
+    # Deliberately NOT included in canonical_payload() — adding a tenancy
+    # marker after the fact must not invalidate existing hash-chain rows.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="audit_events",
+        help_text="Owning agency / tenant. Denormalised from actor.agency.",
+    )
+    # POPIA s11(1)(c) — keeping a tamper-evident audit trail is a legal
+    # obligation under FICA s42/43 and the EAAB Code of Conduct.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. Audit trails = legal obligation (FICA / EAAB).",
+    )
+    # POPIA s14 read with s19 — audit rows are append-only and survive
+    # subject anonymisation. Subject references inside snapshots get
+    # anonymised at the parent's retention window; the row itself stays.
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AUDIT_PERMANENT,
+        help_text="POPIA s14 retention. Audit trail permanent — references anonymised.",
+    )
 
     # ── Actor ────────────────────────────────────────────────────────────── #
     actor = models.ForeignKey(
@@ -166,6 +198,7 @@ class AuditEvent(models.Model):
         indexes = [
             models.Index(fields=["content_type", "object_id", "timestamp"]),
             models.Index(fields=["action", "timestamp"]),
+            models.Index(fields=["agency", "timestamp"], name="audit_event_agency_ts_idx"),
         ]
         verbose_name = "Audit Event"
         verbose_name_plural = "Audit Events"
