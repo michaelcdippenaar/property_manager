@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from apps.accounts.models import Person
+from apps.popia.choices import LawfulBasis, RetentionPolicy
 from apps.properties.models import Unit
 
 
@@ -10,6 +11,25 @@ class Lease(models.Model):
         EXPIRED = "expired", "Expired"
         TERMINATED = "terminated", "Terminated"
         PENDING = "pending", "Pending"
+
+    # Owning agency / tenant — denormalised from unit.property.agency for query speed.
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="leases",
+        help_text="Owning agency / tenant. Lease records never cross agencies.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Lease = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
 
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="leases")
 
@@ -98,6 +118,10 @@ class Lease(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="lease_agency_status_idx"),
+            models.Index(fields=["agency", "end_date"], name="lease_agency_end_date_idx"),
+        ]
 
     def __str__(self):
         name = self.primary_tenant.full_name if self.primary_tenant else "Unknown"
@@ -212,6 +236,24 @@ class MoveInChecklistItem(models.Model):
         TENANT_APP_INVITE = "tenant_app_invite", "Tenant app invite sent"
         WELCOME_PACK = "welcome_pack", "Welcome pack delivered"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="move_in_checklist_items",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(
         Lease, on_delete=models.CASCADE, related_name="move_in_checklist"
     )
@@ -230,6 +272,9 @@ class MoveInChecklistItem(models.Model):
     class Meta:
         unique_together = [("lease", "key")]
         ordering = ["key"]
+        indexes = [
+            models.Index(fields=["agency", "is_completed"], name="movein_agency_done_idx"),
+        ]
 
     def __str__(self):
         status = "Done" if self.is_completed else "Pending"
@@ -247,6 +292,23 @@ MOVE_IN_CHECKLIST_DEFAULTS = [
 
 class LeaseTemplate(models.Model):
     """Reusable DOCX template for generating lease agreements."""
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_templates",
+        help_text="Owning agency / tenant. Templates never cross agencies.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
     name = models.CharField(max_length=200)
     version = models.CharField(max_length=20, default="1.0")
     province = models.CharField(max_length=100, blank=True, help_text="Leave blank for national template")
@@ -261,6 +323,9 @@ class LeaseTemplate(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["agency", "name"], name="leasetmpl_agency_name_idx"),
+        ]
 
     def __str__(self):
         return f"{self.name} v{self.version}"
@@ -273,6 +338,24 @@ class LeaseBuilderSession(models.Model):
         DRAFTING = "drafting", "Drafting"
         REVIEW = "review", "Review"
         FINALIZED = "finalized", "Finalized"
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_builder_sessions",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="lease_builder_sessions"
@@ -292,6 +375,9 @@ class LeaseBuilderSession(models.Model):
 
     class Meta:
         ordering = ["-updated_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="builder_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"BuilderSession #{self.id} by {self.created_by} ({self.status})"
@@ -304,11 +390,32 @@ class LeaseTenant(models.Model):
     Up to 3 additional co-tenants (4 total per unit).
     A Person can appear on multiple leases over time (renewals, different units).
     """
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_co_tenants",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="co_tenants")
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="co_tenancies")
 
     class Meta:
         unique_together = [("lease", "person")]
+        indexes = [
+            models.Index(fields=["agency", "lease"], name="cotenant_agency_lease_idx"),
+        ]
 
     def __str__(self):
         return f"Co-tenant: {self.person.full_name} on Lease {self.lease_id}"
@@ -320,6 +427,24 @@ class LeaseOccupant(models.Model):
     May differ from the tenants (e.g. student whose parent signs, or employee
     whose company signs). A person can be an occupant across multiple lease periods.
     """
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_occupants",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="occupants")
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="occupancies")
     relationship_to_tenant = models.CharField(
@@ -329,6 +454,9 @@ class LeaseOccupant(models.Model):
 
     class Meta:
         unique_together = [("lease", "person")]
+        indexes = [
+            models.Index(fields=["agency", "lease"], name="occupant_agency_lease_idx"),
+        ]
 
     def __str__(self):
         return f"Occupant: {self.person.full_name} on Lease {self.lease_id}"
@@ -338,6 +466,24 @@ class LeaseGuarantor(models.Model):
     """
     Surety / guarantor covering a specific signatory's obligations on a lease.
     """
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_guarantors",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="guarantors")
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="guarantees")
     covers_tenant = models.ForeignKey(
@@ -345,6 +491,11 @@ class LeaseGuarantor(models.Model):
         related_name="covered_by_guarantors",
         help_text="Which tenant's obligations this guarantor covers"
     )
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["agency", "lease"], name="guarantor_agency_lease_idx"),
+        ]
 
     def __str__(self):
         return f"Guarantor: {self.person.full_name} for Lease {self.lease_id}"
@@ -363,6 +514,24 @@ class ReusableClause(models.Model):
         ("general",    "General"),
     ]
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="reusable_clauses",
+        help_text="Owning agency / tenant. Clauses never cross agencies.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     title = models.CharField(max_length=200)
     category = models.CharField(max_length=30, choices=CATEGORIES, default="general")
     html = models.TextField(help_text="HTML content using allowed Tiptap tags")
@@ -379,6 +548,9 @@ class ReusableClause(models.Model):
 
     class Meta:
         ordering = ["-use_count", "-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "category"], name="clause_agency_category_idx"),
+        ]
 
     def __str__(self):
         return self.title
@@ -407,6 +579,24 @@ class LeaseEvent(models.Model):
         OVERDUE = "overdue", "Overdue"
         CANCELLED = "cancelled", "Cancelled"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_events",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="events")
     event_type = models.CharField(max_length=25, choices=EventType.choices)
     title = models.CharField(max_length=200)
@@ -425,6 +615,9 @@ class LeaseEvent(models.Model):
 
     class Meta:
         ordering = ["date"]
+        indexes = [
+            models.Index(fields=["agency", "date"], name="leaseevent_agency_date_idx"),
+        ]
 
     def __str__(self):
         return f"{self.title} — {self.date}"
@@ -443,6 +636,24 @@ class OnboardingStep(models.Model):
         TENANT_APP_SETUP = "tenant_app_setup", "Tenant App Setup"
         WELCOME_SENT = "welcome_sent", "Welcome Message Sent"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="onboarding_steps",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="onboarding_steps")
     step_type = models.CharField(max_length=25, choices=StepType.choices)
     title = models.CharField(max_length=200)
@@ -457,6 +668,9 @@ class OnboardingStep(models.Model):
 
     class Meta:
         ordering = ["order"]
+        indexes = [
+            models.Index(fields=["agency", "is_completed"], name="onboard_agency_done_idx"),
+        ]
 
     def __str__(self):
         status = "Done" if self.is_completed else "Pending"
@@ -465,6 +679,24 @@ class OnboardingStep(models.Model):
 
 class InventoryTemplate(models.Model):
     """Reusable preset list of items to copy into a new lease inventory."""
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="inventory_templates",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     name = models.CharField(max_length=200, help_text="e.g. 'Furnished flat', 'Unfurnished house'")
     items = models.JSONField(
         default=list,
@@ -478,6 +710,9 @@ class InventoryTemplate(models.Model):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["agency", "name"], name="invtmpl_agency_name_idx"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({len(self.items)} items)"
@@ -504,6 +739,24 @@ class InventoryItem(models.Model):
         DAMAGED   = "damaged",   "Damaged"
         MISSING   = "missing",   "Missing"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="inventory_items",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease       = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="inventory_items")
     name        = models.CharField(max_length=200)
     category    = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
@@ -518,6 +771,9 @@ class InventoryItem(models.Model):
 
     class Meta:
         ordering = ["category", "name"]
+        indexes = [
+            models.Index(fields=["agency", "lease"], name="invitem_agency_lease_idx"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.get_condition_in_display()})"
@@ -540,6 +796,24 @@ class PdfRenderJob(models.Model):
         FAILED   = "failed",    "Failed"
 
     MAX_ATTEMPTS = 3
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="pdf_render_jobs",
+        help_text="Owning agency / tenant. Inherited from template.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s21 — Klikk processes on agency operator instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="System-internal render job — no automated retention.",
+    )
 
     # Which template was being exported (nullable — future-proof for other callers)
     template = models.ForeignKey(
@@ -572,6 +846,9 @@ class PdfRenderJob(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="pdfjob_agency_status_idx"),
+        ]
 
     def __str__(self):
         tmpl = self.template.name if self.template else "unknown"
@@ -584,6 +861,24 @@ class LeaseDocument(models.Model):
         ID_COPY = "id_copy", "ID Copy"
         OTHER = "other", "Other"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="lease_documents",
+        help_text="Owning agency / tenant. Inherited from lease.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="documents")
     document_type = models.CharField(max_length=20, choices=DocumentType.choices)
     file = models.FileField(upload_to="lease_documents/")
@@ -593,6 +888,9 @@ class LeaseDocument(models.Model):
 
     class Meta:
         ordering = ["-uploaded_at"]
+        indexes = [
+            models.Index(fields=["agency", "document_type"], name="leasedoc_agency_type_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_document_type_display()} — Lease {self.lease_id}"
