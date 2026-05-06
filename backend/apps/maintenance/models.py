@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.db import models
 from django.utils import timezone
 from apps.accounts.models import User
+from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
 from apps.properties.models import Property, Unit
 
 
@@ -37,6 +38,18 @@ class AgencySLAConfig(models.Model):
     ack_hours = models.PositiveIntegerField(help_text="Hours to first acknowledgement")
     resolve_hours = models.PositiveIntegerField(help_text="Hours to full resolution")
 
+    # POPIA — agency-internal config; no PI. Operator-instruction processing.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. SLA config is operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Config rows: no automated retention.",
+    )
+
     class Meta:
         unique_together = [("agency", "priority")]
         ordering = ["agency", "priority"]
@@ -70,6 +83,45 @@ class Supplier(models.Model):
         SECURITY = "security", "Security"
         CLEANING = "cleaning", "Cleaning"
         OTHER = "other", "Other"
+
+    # Owning agency / tenant. Suppliers are agency-owned (top-level).
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="suppliers",
+        help_text="Owning agency / tenant. Suppliers never cross agencies.",
+    )
+    # POPIA s11 — supplier is a legal-entity counterparty under contract.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Supplier = performance of contract.",
+    )
+    # POPIA s14 — FICA s42/s43 5-year retention from end of business
+    # relationship (banking + identity records).
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention. Default 5 years (FICA s42/s43).",
+    )
+    # Vault33 cross-agency identity FK. Nullable now; populated when the
+    # supplier opts in to Vault33 sharing in Phase 2.
+    vault_entity_id = models.PositiveIntegerField(
+        null=True, blank=True, db_index=True,
+        help_text="Vault33 VaultEntity PK once supplier identity is mirrored.",
+    )
+    # POPIA s24/s25 DSAR support — supplier PI may need to be anonymised.
+    is_anonymised = models.BooleanField(
+        default=False,
+        help_text="True after PII fields have been scrubbed per a DSAR or retention policy.",
+    )
+    anonymised_at = models.DateTimeField(null=True, blank=True)
+    anonymisation_reason = models.CharField(
+        max_length=32, choices=AnonymisationReason.choices,
+        blank=True, default="",
+        help_text="Why this record was anonymised (POPIA s23/s24 audit trail).",
+    )
 
     # Login link
     linked_user = models.OneToOneField(
@@ -129,6 +181,10 @@ class Supplier(models.Model):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["agency", "name"], name="supplier_agency_name_idx"),
+            models.Index(fields=["vault_entity_id"], name="supplier_vault_entity_idx"),
+        ]
 
     def __str__(self):
         if self.company_name:
@@ -145,12 +201,33 @@ class Supplier(models.Model):
 
 
 class SupplierTrade(models.Model):
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="supplier_trades",
+        help_text="Owning agency / tenant. Inherited from supplier.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="trades")
     trade = models.CharField(max_length=30, choices=Supplier.Trade.choices)
 
     class Meta:
         unique_together = [("supplier", "trade")]
         ordering = ["trade"]
+        indexes = [
+            models.Index(fields=["agency", "trade"], name="suptrade_agency_trade_idx"),
+        ]
 
     def __str__(self):
         return f"{self.supplier} — {self.get_trade_display()}"
@@ -166,6 +243,24 @@ class SupplierDocument(models.Model):
         TAX_CLEARANCE = "tax_clearance", "Tax Clearance"
         OTHER = "other", "Other"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="supplier_documents",
+        help_text="Owning agency / tenant. Inherited from supplier.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. FICA documents = legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention obligation. FICA s42/s43 5-year minimum.",
+    )
+
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="documents")
     document_type = models.CharField(max_length=20, choices=DocumentType.choices)
     file = models.FileField(upload_to="supplier_documents/")
@@ -174,12 +269,33 @@ class SupplierDocument(models.Model):
 
     class Meta:
         ordering = ["-uploaded_at"]
+        indexes = [
+            models.Index(fields=["agency", "document_type"], name="supdoc_agency_type_idx"),
+        ]
 
     def __str__(self):
         return f"{self.supplier} — {self.get_document_type_display()}"
 
 
 class SupplierProperty(models.Model):
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="supplier_property_links",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention obligation.",
+    )
+
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="property_links")
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="supplier_links")
     is_preferred = models.BooleanField(default=False)
@@ -189,6 +305,9 @@ class SupplierProperty(models.Model):
     class Meta:
         unique_together = [("supplier", "property")]
         ordering = ["property__name"]
+        indexes = [
+            models.Index(fields=["agency", "is_preferred"], name="supprop_agency_pref_idx"),
+        ]
 
     def __str__(self):
         return f"{self.supplier} → {self.property}"
@@ -202,6 +321,24 @@ class JobDispatch(models.Model):
         AWARDED = "awarded", "Awarded"
         CANCELLED = "cancelled", "Cancelled"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="job_dispatches",
+        help_text="Owning agency / tenant. Inherited from maintenance_request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
+
     maintenance_request = models.OneToOneField(
         "MaintenanceRequest", on_delete=models.CASCADE, related_name="dispatch",
     )
@@ -214,6 +351,9 @@ class JobDispatch(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="dispatch_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"Dispatch for {self.maintenance_request}"
@@ -228,6 +368,24 @@ class JobQuoteRequest(models.Model):
         AWARDED = "awarded", "Awarded"
         EXPIRED = "expired", "Expired"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="job_quote_requests",
+        help_text="Owning agency / tenant. Inherited from dispatch.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
+
     dispatch = models.ForeignKey(JobDispatch, on_delete=models.CASCADE, related_name="quote_requests")
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name="quote_requests")
     status = models.CharField(max_length=15, choices=Status.choices, default=Status.PENDING)
@@ -241,6 +399,9 @@ class JobQuoteRequest(models.Model):
     class Meta:
         unique_together = [("dispatch", "supplier")]
         ordering = ["-match_score"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="qreq_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"Quote request → {self.supplier} ({self.status})"
@@ -253,6 +414,24 @@ class JobQuoteRequest(models.Model):
 
 
 class JobQuote(models.Model):
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="job_quotes",
+        help_text="Owning agency / tenant. Inherited from quote_request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
+
     quote_request = models.OneToOneField(JobQuoteRequest, on_delete=models.CASCADE, related_name="quote")
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     description = models.TextField(blank=True, help_text="Scope of work / notes")
@@ -262,6 +441,9 @@ class JobQuote(models.Model):
 
     class Meta:
         ordering = ["amount"]
+        indexes = [
+            models.Index(fields=["agency", "amount"], name="quote_agency_amount_idx"),
+        ]
 
     def __str__(self):
         return f"R{self.amount} — {self.quote_request.supplier}"
@@ -289,6 +471,24 @@ class MaintenanceRequest(models.Model):
         PEST = "pest", "Pest Control"
         GARDEN = "garden", "Garden / Exterior"
         OTHER = "other", "Other"
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="maintenance_requests",
+        help_text="Owning agency / tenant. Denormalised from unit.property.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Maintenance under lease = performance of contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
 
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="maintenance_requests")
     tenant = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="maintenance_requests")
@@ -331,6 +531,10 @@ class MaintenanceRequest(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="mreq_agency_status_idx"),
+            models.Index(fields=["agency", "-created_at"], name="mreq_agency_created_idx"),
+        ]
 
     def __str__(self):
         return f"{self.title} — {self.unit}"
@@ -405,6 +609,24 @@ class MaintenanceSkill(models.Model):
         MEDIUM = "medium", "Medium"
         HARD = "hard", "Hard"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="maintenance_skills",
+        help_text="Owning agency. Null = platform-global skill library entry.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Skills library is operator-instruction; no PI.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Library entries: no automated retention.",
+    )
+
     name = models.CharField(max_length=200)
     trade = models.CharField(max_length=20, choices=Trade.choices, default=Trade.GENERAL)
     difficulty = models.CharField(max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM)
@@ -417,6 +639,9 @@ class MaintenanceSkill(models.Model):
 
     class Meta:
         ordering = ["trade", "name"]
+        indexes = [
+            models.Index(fields=["agency", "trade"], name="mskill_agency_trade_idx"),
+        ]
 
     def __str__(self):
         return f"{self.name} ({self.get_trade_display()})"
@@ -437,6 +662,24 @@ class AgentQuestion(models.Model):
         POLICY = "policy", "Policy / Rules"
         OTHER = "other", "Other"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="agent_questions",
+        help_text="Owning agency / tenant. Inherited from property.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
+
     question = models.TextField(help_text="The question the AI agent needs answered")
     answer = models.TextField(blank=True, help_text="Human-provided answer")
     category = models.CharField(max_length=20, choices=Category.choices, default=Category.OTHER)
@@ -451,6 +694,9 @@ class AgentQuestion(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="aq_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"[{self.get_status_display()}] {self.question[:80]}"
@@ -465,6 +711,24 @@ class MaintenanceActivity(models.Model):
         QUOTE_RECEIVED = "quote_received", "Quote Received"
         JOB_AWARDED = "job_awarded", "Job Awarded"
         SYSTEM = "system", "System"
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="maintenance_activities",
+        help_text="Owning agency / tenant. Inherited from request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
 
     request = models.ForeignKey(
         MaintenanceRequest, on_delete=models.CASCADE, related_name="activities",
@@ -481,6 +745,9 @@ class MaintenanceActivity(models.Model):
     class Meta:
         ordering = ["created_at"]
         db_table = "maintenance_maintenanceactivity"
+        indexes = [
+            models.Index(fields=["agency", "activity_type"], name="mact_agency_type_idx"),
+        ]
 
     def __str__(self):
         return f"[{self.activity_type}] {self.message[:60]}"
@@ -493,6 +760,24 @@ class AgentTokenLog(models.Model):
     Tracks input/output tokens, latency, endpoint, model, and optional
     metadata (e.g. maintenance_request_id, session_id).
     """
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="agent_token_logs",
+        help_text="Owning agency / tenant. Inherited from user.agency when present.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Token usage logging = operator-instruction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.AI_CHAT_90D,
+        help_text="POPIA s14 retention. AI chat logs: 90 days.",
+    )
+
     endpoint = models.CharField(max_length=100, db_index=True)
     model = models.CharField(max_length=80, default="claude-sonnet-4-6")
     input_tokens = models.IntegerField(default=0)
@@ -509,6 +794,7 @@ class AgentTokenLog(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["endpoint", "created_at"]),
+            models.Index(fields=["agency", "endpoint"], name="tlog_agency_endpoint_idx"),
         ]
 
     def __str__(self):
@@ -565,6 +851,24 @@ class SupplierJobAssignment(models.Model):
         IN_PROGRESS = "in_progress", "In Progress"
         COMPLETED = "completed", "Completed"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="supplier_job_assignments",
+        help_text="Owning agency / tenant. Inherited from maintenance_request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention. RHA dispute-records 3-year floor.",
+    )
+
     supplier = models.ForeignKey(
         "accounts.User", on_delete=models.CASCADE, related_name="job_assignments",
     )
@@ -590,6 +894,7 @@ class SupplierJobAssignment(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["supplier", "status"]),
+            models.Index(fields=["agency", "status"], name="sja_agency_status_idx"),
         ]
 
     def __str__(self):
@@ -608,6 +913,24 @@ class SupplierInvoice(models.Model):
         APPROVED = "approved", "Approved"
         REJECTED = "rejected", "Rejected"
         PAID = "paid", "Paid"
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="supplier_invoices",
+        help_text="Owning agency / tenant. Inherited from quote_request.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention. Financial records: FICA s42/s43 5-year floor.",
+    )
 
     quote_request = models.OneToOneField(
         JobQuoteRequest,
@@ -648,6 +971,9 @@ class SupplierInvoice(models.Model):
 
     class Meta:
         ordering = ["-submitted_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="sinv_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"Invoice #{self.pk} — {self.quote_request.supplier} — R{self.total_amount} [{self.status}]"
