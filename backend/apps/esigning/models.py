@@ -6,6 +6,8 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
+from apps.popia.choices import LawfulBasis, RetentionPolicy
+
 
 class ESigningSubmission(models.Model):
     class Status(models.TextChoices):
@@ -21,6 +23,31 @@ class ESigningSubmission(models.Model):
 
     class SigningBackend(models.TextChoices):
         NATIVE = "native", "Native"
+
+    # Owning agency / tenant. Denormalised — outlives the originating
+    # lease, and the audit trail needs direct scoping (4-hop chain via
+    # submission → lease → unit → property → agency is too brittle for
+    # POPIA-required audit queries).
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="esigning_submissions",
+        help_text="Owning agency / tenant. Denormalised from lease/mandate chain.",
+    )
+    # POPIA s11 — signing a lease is performance of contract.
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Lease signing = performance of contract.",
+    )
+    # POPIA s14 — keep submission for the lease lifetime; the signed PDF
+    # itself is then governed by the lease's RHA_3YR / FICA_5YR retention.
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Signed PDF inherits lease retention.",
+    )
 
     lease = models.ForeignKey(
         "leases.Lease", on_delete=models.CASCADE, related_name="signing_submissions",
@@ -75,6 +102,9 @@ class ESigningSubmission(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="esign_sub_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"Submission {self.pk} ({self.status})"
@@ -94,6 +124,24 @@ class ESigningAuditEvent(models.Model):
         SUPPORTING_DOC_UPLOADED = "supporting_doc_uploaded", "Supporting Document Uploaded"
         SUPPORTING_DOC_DELETED = "supporting_doc_deleted", "Supporting Document Deleted"
 
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="esigning_audit_events",
+        help_text="Owning agency / tenant. Inherited from submission.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Contractual signing audit trail.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. ECTA s13 evidence — keep with lease.",
+    )
+
     submission = models.ForeignKey(ESigningSubmission, on_delete=models.CASCADE, related_name="audit_events")
     signer_role = models.CharField(max_length=100, blank=True)
     event_type = models.CharField(max_length=30, choices=EventType.choices)
@@ -107,6 +155,7 @@ class ESigningAuditEvent(models.Model):
         ordering = ["created_at"]
         indexes = [
             models.Index(fields=["submission", "event_type"]),
+            models.Index(fields=["agency", "event_type"], name="esign_evt_agency_type_idx"),
         ]
 
     def __str__(self):
@@ -117,6 +166,24 @@ class ESigningPublicLink(models.Model):
     """Unguessable link (UUID) for passwordless signing in the admin SPA."""
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="esigning_public_links",
+        help_text="Owning agency / tenant. Inherited from submission.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.OPERATOR_INSTRUCTION,
+        help_text="POPIA s11 basis. Short-lived signing token (operator instruction).",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.NONE,
+        help_text="POPIA s14 retention. Tokens auto-expire on submission/timeout.",
+    )
+
     submission = models.ForeignKey(
         ESigningSubmission, on_delete=models.CASCADE, related_name="public_links"
     )
@@ -132,6 +199,7 @@ class ESigningPublicLink(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["expires_at"]),
+            models.Index(fields=["agency", "expires_at"], name="esign_link_agency_exp_idx"),
         ]
 
     def is_expired(self):
@@ -144,6 +212,24 @@ class SigningDraft(models.Model):
     Created/overwritten whenever the tenant clicks "Save & Continue Later".
     Keyed 1-to-1 on the ESigningPublicLink so each signer has their own draft.
     """
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="esigning_drafts",
+        help_text="Owning agency / tenant. Inherited from public_link.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Partial-signing state for contract performance.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention. Discarded once submission completes.",
+    )
 
     public_link = models.OneToOneField(
         ESigningPublicLink,
@@ -164,6 +250,9 @@ class SigningDraft(models.Model):
 
     class Meta:
         verbose_name = "Signing Draft"
+        indexes = [
+            models.Index(fields=["agency", "saved_at"], name="esign_draft_agency_saved_idx"),
+        ]
 
     def __str__(self):
         return f"Draft for link {self.public_link_id} (saved {self.saved_at:%Y-%m-%d %H:%M})"
@@ -181,6 +270,24 @@ class SupportingDocument(models.Model):
         ID_COPY = "id_copy", "Copy of ID"
         PROOF_OF_ADDRESS = "proof_of_address", "Proof of Address"
         OTHER = "other", "Other"
+
+    agency = models.ForeignKey(
+        "accounts.Agency",
+        on_delete=models.PROTECT,
+        null=True, blank=True,
+        related_name="esigning_supporting_documents",
+        help_text="Owning agency / tenant. Inherited from submission.agency.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices,
+        default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 basis. FICA/KYC docs = legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices,
+        default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention. FICA s42/s43 5-year minimum.",
+    )
 
     public_link = models.ForeignKey(
         ESigningPublicLink,
@@ -214,6 +321,9 @@ class SupportingDocument(models.Model):
     class Meta:
         ordering = ["document_type", "uploaded_at"]
         verbose_name = "Supporting Document"
+        indexes = [
+            models.Index(fields=["agency", "document_type"], name="esign_supdoc_agency_typ_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.original_filename}"
