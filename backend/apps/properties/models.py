@@ -76,6 +76,21 @@ class Unit(models.Model):
         OCCUPIED = "occupied", "Occupied"
         MAINTENANCE = "maintenance", "Under Maintenance"
 
+    # Multi-tenant scoping (Phase 1.2). Backfilled from property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="units",
+        help_text="Owning agency / tenant. Inherited from parent property.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis. Default 'contract' — leasing flow.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="units")
     unit_number = models.CharField(max_length=20)
     bedrooms = models.PositiveSmallIntegerField(default=1)
@@ -91,6 +106,11 @@ class Unit(models.Model):
     )
     ad_description = models.TextField(blank=True, help_text="Advertising copy used in rental listings")
     amenities = models.JSONField(default=list, blank=True, help_text="List of amenity strings, e.g. ['Pool', 'Garden', 'Braai area']")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["agency", "status"], name="unit_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"{self.property.name} — Unit {self.unit_number}"
@@ -111,6 +131,21 @@ class Room(models.Model):
         PATIO = "patio", "Patio"
         OTHER = "other", "Other"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via unit.property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="rooms",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="rooms")
     room_type = models.CharField(max_length=20, choices=RoomType.choices)
     name = models.CharField(max_length=100, blank=True, help_text="e.g. Main bedroom, En-suite")
@@ -120,6 +155,9 @@ class Room(models.Model):
 
     class Meta:
         ordering = ["sort_order", "room_type"]
+        indexes = [
+            models.Index(fields=["agency", "unit"], name="room_agency_unit_idx"),
+        ]
 
     def __str__(self):
         label = self.name or self.get_room_type_display()
@@ -139,6 +177,21 @@ class UnitInfo(models.Model):
         LAUNDRY = "laundry", "Laundry"
         OTHER = "other", "Other"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="unit_info_items",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="info_items")
     unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name="info_items", null=True, blank=True)
     icon_type = models.CharField(max_length=20, choices=IconType.choices, default=IconType.OTHER)
@@ -150,17 +203,40 @@ class UnitInfo(models.Model):
 
     class Meta:
         ordering = ["sort_order", "label"]
+        indexes = [
+            models.Index(fields=["agency", "property"], name="unitinfo_agency_property_idx"),
+        ]
 
     def __str__(self):
         return f"{self.label}: {self.value[:50]}"
 
 
 class PropertyAgentConfig(models.Model):
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_agent_configs",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     property = models.OneToOneField(Property, on_delete=models.CASCADE, related_name="agent_config")
     maintenance_playbook = models.TextField(blank=True, help_text="Instructions for how the AI agent should handle maintenance requests for this property")
     ai_notes = models.TextField(blank=True, help_text="Additional context the AI agent should know about this property")
     is_active = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["agency", "is_active"], name="propagentcfg_agency_active_idx"),
+        ]
 
     def __str__(self):
         return f"Agent config for {self.property.name}"
@@ -286,6 +362,21 @@ class Landlord(models.Model):
 
 class LandlordDocument(models.Model):
     """A supporting document uploaded for owner FICA/CIPC compliance (multiple per landlord)."""
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="landlord_documents",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — FICA/CIPC docs are processed under legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention — FICA s42/s43 (5 years).",
+    )
+
     landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='documents')
     file = models.FileField(upload_to='landlords/documents/')
     filename = models.CharField(max_length=255)
@@ -293,6 +384,9 @@ class LandlordDocument(models.Model):
 
     class Meta:
         ordering = ['uploaded_at']
+        indexes = [
+            models.Index(fields=["agency", "landlord"], name="lldoc_agency_landlord_idx"),
+        ]
 
     def __str__(self):
         return f"{self.landlord.name} — {self.filename}"
@@ -300,6 +394,21 @@ class LandlordDocument(models.Model):
 
 class BankAccount(models.Model):
     """Bank account linked to a landlord. One landlord can have multiple accounts."""
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="bank_accounts",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — banking detail under FICA legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention — FICA s42/s43 (5 years).",
+    )
+
     landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='bank_accounts')
     label = models.CharField(max_length=100, blank=True, help_text="e.g. 'Main rental account'")
     bank_name = models.CharField(max_length=100)
@@ -317,6 +426,9 @@ class BankAccount(models.Model):
 
     class Meta:
         ordering = ["-is_default", "label"]
+        indexes = [
+            models.Index(fields=["agency", "landlord"], name="bankacct_agency_landlord_idx"),
+        ]
 
     def __str__(self):
         return f"{self.bank_name} — {self.account_number[-4:]}" if self.account_number else self.bank_name
@@ -333,6 +445,21 @@ class LandlordChatMessage(models.Model):
         ASSISTANT = "assistant", "Assistant"
         SYSTEM = "system", "System"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="landlord_chat_messages",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention — onboarding chat lives with relationship.",
+    )
+
     landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name="chat_messages")
     role = models.CharField(max_length=16, choices=Role.choices)
     content = models.TextField(blank=True, help_text="Plain-text content of the message.")
@@ -345,7 +472,10 @@ class LandlordChatMessage(models.Model):
 
     class Meta:
         ordering = ["created_at"]
-        indexes = [models.Index(fields=["landlord", "created_at"])]
+        indexes = [
+            models.Index(fields=["landlord", "created_at"]),
+            models.Index(fields=["agency", "created_at"], name="llchat_agency_created_idx"),
+        ]
 
     def __str__(self):
         return f"[{self.role}] {self.landlord.name}: {self.content[:40]}"
@@ -357,6 +487,21 @@ class PropertyOwnership(models.Model):
     A property can change owners (e.g. sold), and existing leases
     remain linked to the ownership record that was active when signed.
     """
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_ownerships",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — owner identity processed under FICA legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention — FICA s42/s43.",
+    )
+
     property = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="ownerships")
     landlord = models.ForeignKey(Landlord, on_delete=models.SET_NULL, null=True, blank=True, related_name='ownerships')
 
@@ -393,6 +538,9 @@ class PropertyOwnership(models.Model):
 
     class Meta:
         ordering = ["-is_current", "-start_date"]
+        indexes = [
+            models.Index(fields=["agency", "is_current"], name="ownership_agency_current_idx"),
+        ]
 
     def __str__(self):
         return f"{self.owner_name} → {self.property.name} ({'current' if self.is_current else 'ended'})"
@@ -427,6 +575,21 @@ class RentalMandate(models.Model):
         EXPIRED          = "expired",          "Expired"
         CANCELLED        = "cancelled",        "Cancelled"
         TERMINATED       = "terminated",       "Terminated"
+
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="rental_mandates",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 — mandate is the agency-owner contract.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_5YR,
+        help_text="POPIA s14 retention — FICA s42/s43.",
+    )
 
     property  = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="mandates")
     landlord  = models.ForeignKey(
@@ -493,12 +656,31 @@ class RentalMandate(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="mandate_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_mandate_type_display()} — {self.property.name} ({self.status})"
 
 
 class PropertyGroup(models.Model):
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled from first member property's
+    # agency_id; orphans (empty groups) left null.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_groups",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     properties = models.ManyToManyField(Property, related_name="groups", blank=True)
@@ -506,6 +688,9 @@ class PropertyGroup(models.Model):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["agency", "name"], name="propgroup_agency_name_idx"),
+        ]
 
     def __str__(self):
         return self.name
@@ -534,6 +719,21 @@ class PropertyDetail(models.Model):
         THATCH       = "thatch",       "Thatch"
         FLAT         = "flat",         "Flat Roof"
         OTHER        = "other",        "Other"
+
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_details",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
 
     property = models.OneToOneField(
         Property, on_delete=models.CASCADE, related_name="detail"
@@ -581,6 +781,11 @@ class PropertyDetail(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["agency", "suburb"], name="propdetail_agency_suburb_idx"),
+        ]
+
     def __str__(self):
         return f"Detail: {self.property.name} — ERF {self.erf_number}"
 
@@ -596,6 +801,21 @@ class PropertyPhoto(models.Model):
         PLANS     = "plans",     "Floor Plans"
         OTHER     = "other",     "Other"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_photos",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     property    = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="photos")
     unit        = models.ForeignKey("Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="photos", help_text="Leave blank for property-level photos")
     photo       = models.ImageField(upload_to="properties/photos/")
@@ -609,6 +829,9 @@ class PropertyPhoto(models.Model):
 
     class Meta:
         ordering = ["position", "-uploaded_at"]
+        indexes = [
+            models.Index(fields=["agency", "property"], name="photo_agency_property_idx"),
+        ]
 
     def __str__(self):
         return f"{self.property.name} — {self.category} #{self.position}"
@@ -661,6 +884,21 @@ class PropertyDocument(models.Model):
         HOUSE_RULES       = "house_rules",       "House Rules"
         OTHER             = "other",             "Other"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_documents",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
+
     property    = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="documents")
     unit        = models.ForeignKey("Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="documents", help_text="Leave blank for property-level documents")
     document    = models.FileField(upload_to="properties/documents/")
@@ -671,6 +909,9 @@ class PropertyDocument(models.Model):
 
     class Meta:
         ordering = ["doc_type", "-uploaded_at"]
+        indexes = [
+            models.Index(fields=["agency", "doc_type"], name="propdoc_agency_doctype_idx"),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.name and self.document:
@@ -698,6 +939,21 @@ class ComplianceCertificate(models.Model):
         EXPIRED = "expired", "Expired"
         PENDING = "pending", "Pending Renewal"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="compliance_certificates",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — compliance certs held under legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention — RHA 3-year dispute window.",
+    )
+
     property         = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="compliance_certs")
     cert_type        = models.CharField(max_length=20, choices=CertType.choices)
     certificate_number = models.CharField(max_length=50, blank=True)
@@ -718,6 +974,9 @@ class ComplianceCertificate(models.Model):
 
     class Meta:
         ordering = ["-issued_date"]
+        indexes = [
+            models.Index(fields=["agency", "expiry_date"], name="cert_agency_expiry_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_cert_type_display()} — {self.property.name} ({self.issued_date})"
@@ -734,6 +993,21 @@ class MunicipalAccount(models.Model):
         SEWERAGE   = "sewerage",   "Sewerage"
         COMBINED   = "combined",   "Combined Municipal Account"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="municipal_accounts",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — municipal data held under legal obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention — SARS 7-year audit window.",
+    )
+
     property       = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="municipal_accounts")
     account_type   = models.CharField(max_length=20, choices=AccountType.choices)
     account_number = models.CharField(max_length=50)
@@ -748,6 +1022,9 @@ class MunicipalAccount(models.Model):
 
     class Meta:
         ordering = ["account_type"]
+        indexes = [
+            models.Index(fields=["agency", "account_type"], name="muniacct_agency_type_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_account_type_display()} — {self.account_number} ({self.property.name})"
@@ -763,6 +1040,21 @@ class PropertyValuation(models.Model):
         AGENT     = "agent",     "Agent Estimate"
         FORMAL    = "formal",    "Formal Appraisal"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_valuations",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention — SARS 7-year audit window.",
+    )
+
     property         = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="valuations")
     valuation_type   = models.CharField(max_length=20, choices=ValuationType.choices)
     amount           = models.DecimalField(max_digits=14, decimal_places=2)
@@ -773,6 +1065,9 @@ class PropertyValuation(models.Model):
 
     class Meta:
         ordering = ["-valuation_date"]
+        indexes = [
+            models.Index(fields=["agency", "valuation_date"], name="valuation_agency_date_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_valuation_type_display()} R{self.amount:,.0f} — {self.property.name} ({self.valuation_date})"
@@ -788,6 +1083,21 @@ class InsurancePolicy(models.Model):
         LIABILITY  = "liability",  "Public Liability"
         LANDLORD   = "landlord",   "Landlord Insurance"
         OTHER      = "other",      "Other"
+
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="insurance_policies",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention — SARS 7-year audit window.",
+    )
 
     property       = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="insurance_policies")
     policy_type    = models.CharField(max_length=20, choices=PolicyType.choices)
@@ -809,6 +1119,9 @@ class InsurancePolicy(models.Model):
 
     class Meta:
         ordering = ["-is_active", "-start_date"]
+        indexes = [
+            models.Index(fields=["agency", "is_active"], name="inspolicy_agency_active_idx"),
+        ]
 
     def __str__(self):
         return f"{self.insurer} — {self.get_policy_type_display()} ({self.policy_number})"
@@ -834,6 +1147,21 @@ class InsuranceClaim(models.Model):
         SETTLED    = "settled",    "Settled / Paid Out"
         WITHDRAWN  = "withdrawn",  "Withdrawn"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via policy.property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="insurance_claims",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention — SARS 7-year audit window.",
+    )
+
     policy         = models.ForeignKey(InsurancePolicy, on_delete=models.SET_NULL, null=True, blank=True, related_name="claims")
     property       = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="insurance_claims")
     unit           = models.ForeignKey("Unit", on_delete=models.SET_NULL, null=True, blank=True, related_name="insurance_claims")
@@ -854,6 +1182,9 @@ class InsuranceClaim(models.Model):
 
     class Meta:
         ordering = ["-incident_date"]
+        indexes = [
+            models.Index(fields=["agency", "status"], name="insclaim_agency_status_idx"),
+        ]
 
     def __str__(self):
         return f"{self.get_claim_type_display()} claim — {self.property.name} ({self.incident_date}) [{self.status}]"
@@ -868,6 +1199,21 @@ class MunicipalBill(models.Model):
         OVERDUE = "overdue", "Overdue"
         PARTIAL = "partial", "Partially Paid"
         DISPUTE = "dispute", "In Dispute"
+
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="municipal_bills",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.LEGAL_OBLIGATION,
+        help_text="POPIA s11 — utility bills retained under legal/SARS obligation.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.FICA_7YR,
+        help_text="POPIA s14 retention — SARS 7-year audit window.",
+    )
 
     property        = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="municipal_bills")
     municipal_account = models.ForeignKey(MunicipalAccount, on_delete=models.SET_NULL, null=True, blank=True, related_name="bills")
@@ -901,6 +1247,9 @@ class MunicipalBill(models.Model):
     class Meta:
         ordering = ["-billing_year", "-billing_month"]
         unique_together = [("property", "municipal_account", "billing_year", "billing_month")]
+        indexes = [
+            models.Index(fields=["agency", "due_date"], name="munibill_agency_due_idx"),
+        ]
 
     def __str__(self):
         return f"Municipal bill {self.billing_year}-{self.billing_month:02d} — {self.property.name} (R{self.total_amount})"
@@ -921,6 +1270,21 @@ class PropertyViewing(models.Model):
         CANCELLED = "cancelled", "Cancelled"
         CONVERTED = "converted", "Converted to Lease"
 
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_viewings",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis — pre-contractual interaction.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.RHA_3YR,
+        help_text="POPIA s14 retention — RHA 3-year window for prospect interactions.",
+    )
+
     property           = models.ForeignKey(Property, on_delete=models.CASCADE, related_name="viewings")
     unit               = models.ForeignKey(Unit, on_delete=models.SET_NULL, null=True, blank=True, related_name="viewings")
     prospect           = models.ForeignKey("accounts.Person", on_delete=models.PROTECT, related_name="viewings_as_prospect")
@@ -939,6 +1303,9 @@ class PropertyViewing(models.Model):
 
     class Meta:
         ordering = ["scheduled_at"]
+        indexes = [
+            models.Index(fields=["agency", "scheduled_at"], name="viewing_agency_sched_idx"),
+        ]
 
     def __str__(self):
         return f"Viewing: {self.prospect} @ {self.property.name} on {self.scheduled_at:%Y-%m-%d %H:%M}"
@@ -960,6 +1327,21 @@ class PropertyAgentAssignment(models.Model):
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
         INACTIVE = "inactive", "Inactive"
+
+    # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
+    agency = models.ForeignKey(
+        "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
+        related_name="property_agent_assignments",
+        help_text="Owning agency / tenant.",
+    )
+    lawful_basis = models.CharField(
+        max_length=32, choices=LawfulBasis.choices, default=LawfulBasis.CONTRACT,
+        help_text="POPIA s11 basis.",
+    )
+    retention_policy = models.CharField(
+        max_length=32, choices=RetentionPolicy.choices, default=RetentionPolicy.LEASE_LIFETIME,
+        help_text="POPIA s14 retention.",
+    )
 
     property = models.ForeignKey(
         Property, on_delete=models.CASCADE, related_name="agent_assignments",
@@ -987,6 +1369,7 @@ class PropertyAgentAssignment(models.Model):
         indexes = [
             models.Index(fields=["agent", "status"]),
             models.Index(fields=["property", "status"]),
+            models.Index(fields=["agency", "status"], name="paassign_agency_status_idx"),
         ]
 
     def __str__(self):
