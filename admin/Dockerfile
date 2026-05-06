@@ -2,7 +2,7 @@ FROM node:22.17.1-alpine AS build
 
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --legacy-peer-deps && npm install @rollup/rollup-linux-x64-musl@4.60.3 --no-save
+RUN npm ci --legacy-peer-deps --include=optional
 COPY . .
 ARG BUILD_MODE=production
 RUN npx vite build --mode $BUILD_MODE
