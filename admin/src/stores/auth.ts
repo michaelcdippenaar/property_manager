@@ -132,6 +132,11 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = data.user
     localStorage.setItem('access_token', data.access)
     localStorage.setItem('refresh_token', data.refresh)
+    // Fire-and-forget agency hydration so isAgency / Agency-tab gating
+    // works on every auth path (password login, 2FA verify, invite accept,
+    // Google SSO). Don't await — callers that need it can call fetchAgency
+    // directly; keeping _setTokens synchronous preserves its existing API.
+    fetchAgency().catch(() => { /* swallow — agency stays null */ })
   }
 
   /**
