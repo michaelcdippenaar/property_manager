@@ -378,6 +378,14 @@ SIGNING_PUBLIC_APP_BASE_URL = config("SIGNING_PUBLIC_APP_BASE_URL", default="").
 # tenant web-app URL in staging/production (e.g. https://app.klikk.co.za).
 TENANT_APP_BASE_URL = config("TENANT_APP_BASE_URL", default="").strip().rstrip("/")
 
+# Public site URL — used by esigning to build signed-PDF download links in
+# completion emails. Required in production (esigning.E001 system check).
+SITE_URL = config("SITE_URL", default="").strip().rstrip("/")
+
+# Public base URL — used by maintenance to build supplier job-notification
+# links in SMS / WhatsApp. Required in production (maintenance.E001 check).
+BASE_URL = config("BASE_URL", default="").strip().rstrip("/")
+
 # Gotenberg — Chromium-based HTML→PDF service (docker-compose: gotenberg on port 3000)
 GOTENBERG_URL = config("GOTENBERG_URL", default="http://localhost:3000")
 
