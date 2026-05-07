@@ -220,6 +220,51 @@ class OrphanSystemCheckTests(TestCase):
         self.assertEqual(len(errors), 1)
         self.assertEqual(errors[0].id, "accounts.E003")
 
+    def test_orphan_repaired_by_phase4_backfill_logic(self):
+        """
+        Simulate the Phase 4 backfill: an orphan agency-staff user gets
+        reassigned to Klikk #1, after which the system check passes.
+
+        Mirrors the logic in
+        apps/accounts/migrations/0026_backfill_orphan_users_to_agency_1.py.
+        """
+        klikk, _ = Agency.objects.get_or_create(
+            pk=1,
+            defaults={"account_type": "agency", "name": "Klikk Property Management"},
+        )
+        # Orphan agency-staff user (Tanja-style bug).
+        User.objects.create_user(
+            email="orphan3@a.co", password="x",
+            role=User.Role.AGENCY_ADMIN, agency=None,
+        )
+        # Tenant + supplier orphans must NOT be touched.
+        tenant = User.objects.create_user(
+            email="t3@a.co", password="x", role="tenant", agency=None,
+        )
+        supplier = User.objects.create_user(
+            email="s3@a.co", password="x", role="supplier", agency=None,
+        )
+
+        self.assertEqual(len(check_no_orphan_users(None)), 1)
+
+        # Run the same backfill the data migration runs.
+        AGENCYLESS = ("tenant", "supplier")
+        (
+            User.objects
+            .filter(agency__isnull=True)
+            .exclude(role__in=AGENCYLESS)
+            .update(agency=klikk)
+        )
+
+        # System check is now clean.
+        self.assertEqual(check_no_orphan_users(None), [])
+
+        # Tenant/supplier kept their None agency (legitimate).
+        tenant.refresh_from_db()
+        supplier.refresh_from_db()
+        self.assertIsNone(tenant.agency_id)
+        self.assertIsNone(supplier.agency_id)
+
 
 # ─────────────────────────────────────────────────────────────────
 # Starter content seed
