@@ -1,11 +1,15 @@
+import logging
 import uuid
 
 from django.contrib.auth import authenticate
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from utils.http import get_client_ip
 from .models import User, Person, Agency, PersonDocument
+
+logger = logging.getLogger(__name__)
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -59,31 +63,59 @@ class RegisterSerializer(serializers.ModelSerializer):
         tos_document_id = validated_data.pop("tos_document_id", None)
         privacy_document_id = validated_data.pop("privacy_document_id", None)
 
-        # Free the unique-email constraint on any soft-deleted user so the new
-        # registration can claim the address. Audit-log rows, leases, and other
-        # historical records remain attached to the original row.
+        # Phase 3.1 — Agency MUST be created before the User so the user is
+        # never persisted without an agency_id (Tanja-bug class). The whole
+        # block runs in a single atomic transaction.
         email = validated_data["email"]
-        User.objects.filter(email=email, is_active=False).update(
-            email=f"deleted_{uuid.uuid4().hex[:8]}_{email}"
-        )
 
-        # Assign role based on account type
-        role = User.Role.AGENCY_ADMIN if account_type == Agency.AccountType.AGENCY else User.Role.OWNER
-
-        user = User.objects.create_user(**validated_data, role=role)
-
-        # Create an Agency and link it to the user
         if account_type == Agency.AccountType.AGENCY:
-            name = agency_name.strip()
+            agency_display_name = agency_name.strip()
         else:
-            name = f"{validated_data.get('first_name', '')} {validated_data.get('last_name', '')}".strip() or user.email
-        agency = Agency.objects.create(account_type=account_type, name=name)
-        user.agency = agency
-        user.save(update_fields=["agency"])
+            # Individual landlord — auto-create a personal "<First Last>'s Properties"
+            # agency so they too own a tenant namespace from day 1. They can rename it.
+            first = (validated_data.get("first_name") or "").strip()
+            last = (validated_data.get("last_name") or "").strip()
+            full = f"{first} {last}".strip()
+            if full:
+                agency_display_name = f"{full}'s Properties"
+            else:
+                agency_display_name = f"{email}'s Properties"
+
+        # Both account types create an Agency + AGENCY_ADMIN-or-OWNER user atomically.
+        # AGENCY → AGENCY_ADMIN; INDIVIDUAL landlord → AGENCY_ADMIN of their personal
+        # workspace (they ARE the agency for their own properties; OWNER role was the
+        # legacy semantics that produced orphans).
+        role = User.Role.AGENCY_ADMIN
+
+        with transaction.atomic():
+            # Free the unique-email constraint on any soft-deleted user so the new
+            # registration can claim the address. Audit-log rows, leases, and other
+            # historical records remain attached to the original row.
+            User.objects.filter(email=email, is_active=False).update(
+                email=f"deleted_{uuid.uuid4().hex[:8]}_{email}"
+            )
+
+            agency = Agency.objects.create(
+                account_type=account_type,
+                name=agency_display_name,
+            )
+            user = User.objects.create_user(
+                **validated_data,
+                role=role,
+                agency=agency,
+            )
+
+        # Seed starter content OUTSIDE the registration transaction — failure
+        # to seed is logged but must NOT roll back account creation.
+        try:
+            from .starter_content import seed_starter_content
+            seed_starter_content(agency)
+        except Exception:  # pragma: no cover — defensive; seed_starter_content already swallows
+            logger.exception(
+                "starter_content seeding failed for agency %s; account creation kept", agency.pk
+            )
 
         # POPIA s11 — persist UserConsent rows for any document IDs supplied.
-        # Done server-side so IP + user-agent are recorded at the exact moment
-        # of registration rather than via a subsequent client-initiated API call.
         request = self.context.get("request")
         self._record_consent(user, tos_document_id, request)
         self._record_consent(user, privacy_document_id, request)

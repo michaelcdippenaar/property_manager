@@ -321,6 +321,15 @@ class InviteUserView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
+        # Phase 3.1 — orphan inviters cannot create invites. Without an
+        # agency_id, every user they invite would itself become an orphan
+        # (the Tanja bug). Force them to complete agency setup first.
+        if not request.user.agency_id and not _is_admin(request.user):
+            return Response(
+                {"detail": "Inviting users requires an agency. Complete agency setup first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Only block if an active user holds this email. Soft-deleted users are
         # renamed when the invite is accepted, so they should not block new invites.
         if User.objects.filter(email=email, is_active=True).exists():
@@ -329,12 +338,32 @@ class InviteUserView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # For agent/viewer roles, attach the inviter's agency (or explicit agency_id)
-        agency = None
-        agency_id = serializer.validated_data.get("agency_id") or serializer.validated_data.get("agency")
-        if agency_id:
-            agency = Agency.objects.filter(pk=agency_id).first()
-        elif request.user.agency_id:
+        # Phase 3.1 — invite agency stamping policy:
+        #   * Non-admin inviters: ALWAYS use their own agency_id; reject any
+        #     attempt to set a different agency in the request body.
+        #   * ADMIN inviters: may choose an explicit agency_id (cross-agency
+        #     invites are an admin-only feature). Default to the admin's own.
+        requested_agency_id = (
+            serializer.validated_data.get("agency_id")
+            or serializer.validated_data.get("agency")
+        )
+        if _is_admin(request.user):
+            if requested_agency_id:
+                agency = Agency.objects.filter(pk=requested_agency_id).first()
+                if agency is None:
+                    return Response(
+                        {"detail": "Unknown agency_id."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                agency = request.user.agency  # may be None for ADMIN with no agency
+        else:
+            # Non-admin: cannot override agency. Stamp inviter's agency.
+            if requested_agency_id and int(requested_agency_id) != int(request.user.agency_id):
+                return Response(
+                    {"detail": "You may only invite users to your own agency."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             agency = request.user.agency
 
         invite = UserInvite.objects.create(

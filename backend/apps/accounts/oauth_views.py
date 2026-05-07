@@ -1,6 +1,8 @@
 import logging
 
 from django.conf import settings
+from django.db import transaction
+from django.utils import timezone as tz
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import status
@@ -10,7 +12,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .audit import log_auth_event
-from .models import Agency, User, UserTOTP, TOTP_REQUIRED_ROLES
+from .models import Agency, User, UserInvite, UserTOTP, TOTP_REQUIRED_ROLES
 from .serializers import UserSerializer
 from .throttles import AuthAnonThrottle
 
@@ -70,36 +72,56 @@ class GoogleAuthView(APIView):
                     status=status.HTTP_403_FORBIDDEN,
                 )
         except User.DoesNotExist:
-            # Once the Agency singleton is configured, Google sign-in can
-            # only authenticate EXISTING users. New user creation must go
-            # through the invitation flow so the admin controls the role.
-            if Agency.objects.exists():
+            # Phase 3.1 — bootstrap-singleton path REMOVED.
+            #
+            # If a pending invite matches this email, consume it and create a
+            # User attached to the invite's agency.
+            invite = (
+                UserInvite.objects
+                .filter(email=email, accepted_at__isnull=True, cancelled_at__isnull=True)
+                .order_by("-created_at")
+                .first()
+            )
+            if invite is not None:
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        email=email,
+                        password=None,
+                        first_name=idinfo.get("given_name", ""),
+                        last_name=idinfo.get("family_name", ""),
+                        role=invite.role,
+                        agency=invite.agency,
+                    )
+                    user.set_unusable_password()
+                    user.save(update_fields=["password"])
+                    invite.accepted_at = tz.now()
+                    invite.save(update_fields=["accepted_at"])
+                created = True
+            else:
+                # No matching User and no pending invite — frontend must
+                # collect agency-creation details and call complete-signup.
+                # IMPORTANTLY no User row is created here.
                 log_auth_event(
-                    "google_auth_blocked",
+                    "google_auth_needs_signup",
                     request=request,
-                    metadata={"reason": "agency_already_exists", "email": email},
+                    metadata={"email": email},
                 )
                 return Response(
-                    {"error": "No account found for this Google email. Please ask your administrator for an invitation."},
-                    status=status.HTTP_403_FORBIDDEN,
+                    {
+                        "needs_signup": True,
+                        "email": email,
+                        "given_name": idinfo.get("given_name", ""),
+                        "family_name": idinfo.get("family_name", ""),
+                        "google_credential": credential,
+                    },
+                    status=status.HTTP_200_OK,
                 )
-            user = User.objects.create_user(
-                email=email,
-                password=None,
-                first_name=idinfo.get("given_name", ""),
-                last_name=idinfo.get("family_name", ""),
-                role=User.Role.ADMIN,
-            )
-            user.set_unusable_password()
-            user.save(update_fields=["password"])
-            created = True
 
         log_auth_event("google_auth", request=request, user=user, metadata={"created": created, "email": email})
 
         # ── 2FA gate ──────────────────────────────────────────────────────────
         from .totp_views import _make_two_fa_token
         from datetime import timedelta
-        from django.utils import timezone as tz
 
         totp_required = user.role in TOTP_REQUIRED_ROLES
         totp_enrolled = False
@@ -150,4 +172,118 @@ class GoogleAuthView(APIView):
                 "created": created,
             },
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class GoogleCompleteSignupView(APIView):
+    """Phase 3.1 — finish a Google signup by creating an Agency + User.
+
+    POST /api/v1/auth/google/complete-signup/
+    Body: {
+      "google_credential": "<id_token>",
+      "account_type": "agency" | "individual",
+      "agency_name": "Acme Estates"  (required if account_type == agency)
+    }
+
+    Verifies the ID token afresh, then runs the same atomic Agency-then-User
+    flow as RegisterSerializer. Returns JWT tokens on success.
+    """
+
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthAnonThrottle]
+
+    def post(self, request):
+        credential = (request.data.get("google_credential") or "").strip()
+        account_type = (request.data.get("account_type") or "").strip()
+        agency_name = (request.data.get("agency_name") or "").strip()
+
+        if not credential:
+            return Response({"error": "google_credential is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if account_type not in dict(Agency.AccountType.choices):
+            return Response(
+                {"error": "account_type must be 'agency' or 'individual'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if account_type == Agency.AccountType.AGENCY and not agency_name:
+            return Response(
+                {"agency_name": "Agency name is required for estate agency accounts."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        client_id = getattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+        if not client_id:
+            return Response(
+                {"error": "Google sign-in is not configured."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                credential, google_requests.Request(), client_id
+            )
+        except ValueError:
+            return Response({"error": "Invalid Google token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = (idinfo.get("email") or "").lower().strip()
+        if not email or not idinfo.get("email_verified", False):
+            return Response(
+                {"error": "Google account email is not verified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Refuse if a user already exists for this email — they must use the
+        # standard Google login path (which would have logged them in directly).
+        if User.objects.filter(email=email, is_active=True).exists():
+            return Response(
+                {"error": "A user with this email already exists. Sign in instead."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        first_name = idinfo.get("given_name", "")
+        last_name = idinfo.get("family_name", "")
+
+        if account_type == Agency.AccountType.AGENCY:
+            display_name = agency_name
+        else:
+            full = f"{first_name} {last_name}".strip()
+            display_name = f"{full}'s Properties" if full else f"{email}'s Properties"
+
+        with transaction.atomic():
+            agency = Agency.objects.create(account_type=account_type, name=display_name)
+            user = User.objects.create_user(
+                email=email,
+                password=None,
+                first_name=first_name,
+                last_name=last_name,
+                role=User.Role.AGENCY_ADMIN,
+                agency=agency,
+            )
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+
+        # Seed starter content outside the txn — best-effort.
+        try:
+            from .starter_content import seed_starter_content
+            seed_starter_content(agency)
+        except Exception:  # pragma: no cover
+            logger.exception(
+                "starter_content seeding failed for agency %s (google complete-signup)", agency.pk
+            )
+
+        log_auth_event(
+            "google_complete_signup",
+            request=request,
+            user=user,
+            metadata={"email": email, "account_type": account_type, "agency_id": agency.pk},
+        )
+
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "user": UserSerializer(user).data,
+                "created": True,
+            },
+            status=status.HTTP_201_CREATED,
         )

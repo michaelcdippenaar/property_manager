@@ -1,0 +1,42 @@
+{
+  "_comment": "Starter pack seeded into every new agency on signup. Phase 3.1.",
+  "lease_templates": [
+    {
+      "name": "Residential Standard (RHA-compliant) — Starter",
+      "version": "1.0",
+      "province": "",
+      "content_html": "<h1>Residential Lease Agreement</h1><p>This starter template is a placeholder. Edit it to match your agency's standard lease. It complies with the Rental Housing Act (RHA 50/1999) when properly populated.</p><p>Tenant: {{tenant_full_name}}<br/>Landlord: {{landlord_full_name}}<br/>Property: {{property_address}}<br/>Monthly rent: R{{monthly_rent}}<br/>Start: {{lease_start_date}}<br/>End: {{lease_end_date}}</p>",
+      "header_html": "",
+      "footer_html": "<p style=\"text-align:center;font-size:10px;color:#888;\">Page {{page}} of {{total_pages}}</p>",
+      "fields_schema": ["tenant_full_name", "landlord_full_name", "property_address", "monthly_rent", "lease_start_date", "lease_end_date"]
+    },
+    {
+      "name": "Commercial Lease — Starter",
+      "version": "1.0",
+      "province": "",
+      "content_html": "<h1>Commercial Lease Agreement</h1><p>Placeholder commercial lease. Edit before use.</p>",
+      "header_html": "",
+      "footer_html": "",
+      "fields_schema": ["tenant_full_name", "landlord_full_name", "property_address", "monthly_rent", "lease_start_date", "lease_end_date"]
+    },
+    {
+      "name": "Sectional Title Residential — Starter",
+      "version": "1.0",
+      "province": "",
+      "content_html": "<h1>Sectional Title Residential Lease</h1><p>Placeholder sectional-title residential lease. Edit before use.</p>",
+      "header_html": "",
+      "footer_html": "",
+      "fields_schema": ["tenant_full_name", "landlord_full_name", "property_address", "monthly_rent", "lease_start_date", "lease_end_date", "body_corporate_name"]
+    }
+  ],
+  "suppliers": [
+    {"name": "Sample Electrician", "trade": "electrical", "phone": "+27 21 000 0001", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry — replace with your preferred electrician."},
+    {"name": "Sample Plumber", "trade": "plumbing", "phone": "+27 21 000 0002", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry — replace with your preferred plumber."},
+    {"name": "Sample Pest Control", "trade": "pest_control", "phone": "+27 21 000 0003", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."},
+    {"name": "Sample Locksmith", "trade": "locksmith", "phone": "+27 21 000 0004", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."},
+    {"name": "Sample Garden Service", "trade": "landscaping", "phone": "+27 21 000 0005", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."},
+    {"name": "Sample Painter", "trade": "painting", "phone": "+27 21 000 0006", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."},
+    {"name": "Sample Cleaner", "trade": "cleaning", "phone": "+27 21 000 0007", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."},
+    {"name": "Sample Handyman", "trade": "general", "phone": "+27 21 000 0008", "email": "", "city": "Stellenbosch", "province": "Western Cape", "notes": "Starter directory entry."}
+  ]
+}

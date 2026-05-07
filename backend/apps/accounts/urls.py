@@ -8,7 +8,7 @@ from .views import (
     AcceptInviteView, Skip2FASetupView,
 )
 from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView, AgencyBillingView
-from .oauth_views import GoogleAuthView
+from .oauth_views import GoogleAuthView, GoogleCompleteSignupView
 from .lookup_views import EntityLookupView
 from .totp_views import (
     TOTPStatusView, TOTPSetupView, TOTPSetupConfirmView,
@@ -21,6 +21,7 @@ urlpatterns = [
     path("register/", RegisterView.as_view(), name="auth-register"),
     path("login/", LoginView.as_view(), name="auth-login"),
     path("google/", GoogleAuthView.as_view(), name="auth-google"),
+    path("google/complete-signup/", GoogleCompleteSignupView.as_view(), name="auth-google-complete-signup"),
     path("me/", MeView.as_view(), name="auth-me"),
     path("welcome/", MarkWelcomeSeenView.as_view(), name="auth-welcome"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token-refresh"),
