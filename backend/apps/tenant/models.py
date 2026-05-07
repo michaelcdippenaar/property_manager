@@ -2,6 +2,7 @@ from datetime import date
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 
 from apps.accounts.models import Person
 from apps.leases.models import Lease
@@ -136,6 +137,11 @@ class TenantOnboarding(models.Model):
     def is_complete(self) -> bool:
         """True when all v1 checklist items are ticked."""
         return all(getattr(self, field) for field in self.V1_ITEMS)
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class Tenant(models.Model):
@@ -381,6 +387,11 @@ class Tenant(models.Model):
         tenant, _ = cls.objects.get_or_create(person=lease.primary_tenant)
         return tenant
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class TenantUnitAssignment(models.Model):
     """
@@ -486,3 +497,8 @@ class TenantUnitAssignment(models.Model):
     def __str__(self) -> str:
         end = str(self.end_date) if self.end_date else "present"
         return f"{self.tenant} @ {self.unit} ({self.start_date} → {end})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

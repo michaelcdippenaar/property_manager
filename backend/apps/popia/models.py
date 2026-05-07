@@ -21,6 +21,7 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
@@ -161,6 +162,11 @@ class DSARRequest(models.Model):
             self.Status.PENDING, self.Status.IN_REVIEW
         )
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class ExportJob(models.Model):
     """
@@ -270,3 +276,8 @@ class ExportJob(models.Model):
     def is_consumed(self) -> bool:
         """True once the file has been downloaded (single-use enforcement)."""
         return self.status == self.JobStatus.CONSUMED
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

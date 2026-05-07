@@ -5,6 +5,7 @@ OTPCode  — active/pending OTP codes (hashed at rest).
 OTPAuditLog — POPIA-required immutable audit trail for every OTP event.
 """
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.conf import settings
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
@@ -90,6 +91,11 @@ class OTPCodeV1(models.Model):
         max_attempts = getattr(_s, "OTP_MAX_ATTEMPTS", 3)
         return self.attempt_count >= max_attempts
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class OTPAuditLog(models.Model):
     """
@@ -147,3 +153,8 @@ class OTPAuditLog(models.Model):
 
     def __str__(self) -> str:
         return f"OTPAuditLog({self.event_type}, user={self.user_id}, {self.created_at})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

@@ -26,6 +26,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
@@ -122,6 +123,11 @@ class RentInvoice(models.Model):
         """True when the tenant has paid more than was due."""
         return self.balance_remaining < Decimal("0.00")
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class RentPayment(models.Model):
     """
@@ -212,6 +218,11 @@ class RentPayment(models.Model):
             f"[{self.status}]"
         )
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class UnmatchedPayment(models.Model):
     """
@@ -300,6 +311,11 @@ class UnmatchedPayment(models.Model):
             f"ref='{self.reference}' [{self.status}]"
         )
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class PaymentAuditLog(models.Model):
     """
@@ -372,3 +388,8 @@ class PaymentAuditLog(models.Model):
             f"AuditLog [{self.entity_type}#{self.entity_id}] "
             f"{self.from_status} → {self.to_status} @ {self.created_at:%Y-%m-%d %H:%M}"
         )
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

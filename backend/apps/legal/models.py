@@ -16,6 +16,7 @@ Material-change flow:
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
 
@@ -169,3 +170,8 @@ class UserConsent(models.Model):
             is_current=True,
             requires_re_ack=True,
         ).exclude(pk__in=accepted_ids)
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

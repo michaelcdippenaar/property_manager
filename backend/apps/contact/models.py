@@ -13,6 +13,7 @@ POPIA notes
   POPIA data-subject request — see ``apps.accounts`` for the handler.
 """
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
@@ -115,3 +116,8 @@ class ContactEnquiry(models.Model):
                 "ip_address", "user_agent",
             ]
         )
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

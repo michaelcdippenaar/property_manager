@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
@@ -109,6 +110,11 @@ class ESigningSubmission(models.Model):
     def __str__(self):
         return f"Submission {self.pk} ({self.status})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class ESigningAuditEvent(models.Model):
     """Immutable audit trail for e-signing events (ECTA Section 13 compliance)."""
@@ -161,6 +167,11 @@ class ESigningAuditEvent(models.Model):
     def __str__(self):
         return f"{self.event_type} — {self.submission_id} at {self.created_at}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class ESigningPublicLink(models.Model):
     """Unguessable link (UUID) for passwordless signing in the admin SPA."""
@@ -204,6 +215,11 @@ class ESigningPublicLink(models.Model):
 
     def is_expired(self):
         return timezone.now() >= self.expires_at
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class SigningDraft(models.Model):
@@ -256,6 +272,11 @@ class SigningDraft(models.Model):
 
     def __str__(self):
         return f"Draft for link {self.public_link_id} (saved {self.saved_at:%Y-%m-%d %H:%M})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class SupportingDocument(models.Model):
@@ -327,6 +348,11 @@ class SupportingDocument(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.original_filename}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 # ---------------------------------------------------------------------------

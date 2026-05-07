@@ -32,6 +32,7 @@ from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
@@ -237,3 +238,8 @@ class AuditEvent(models.Model):
     def is_hash_valid(self) -> bool:
         """True when self_hash matches recomputed value."""
         return self.self_hash == self.compute_hash()
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

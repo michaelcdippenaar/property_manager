@@ -4,6 +4,7 @@ import uuid
 
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 
 # SubscriptionTier is defined in tier_service to keep pricing logic co-located.
@@ -170,6 +171,9 @@ class User(AbstractBaseUser, PermissionsMixin):
             return module in (self.module_access or [])
         return False
 
+    # Multi-tenant manager (Phase 2.1) — auto-scopes to current_agency_id().
+    tenant_objects = TenantManager()
+
 
 class Person(models.Model):
     """
@@ -253,6 +257,11 @@ class Person(models.Model):
     def __str__(self):
         return self.full_name
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class PersonDocument(models.Model):
     """Supporting documents attached to a Person (ID, proof of address, income, etc).
@@ -297,6 +306,11 @@ class PersonDocument(models.Model):
     def __str__(self):
         return f"{self.get_document_type_display()} — {self.person.full_name}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class OTPCode(models.Model):
     """
@@ -332,6 +346,11 @@ class OTPCode(models.Model):
 
     def __str__(self):
         return f"OTP for {self.user.email}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class PushToken(models.Model):
@@ -371,6 +390,11 @@ class PushToken(models.Model):
     def __str__(self):
         return f"{self.platform} token for {self.user.email}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class UserInvite(models.Model):
     email = models.EmailField()
@@ -407,6 +431,11 @@ class UserInvite(models.Model):
 
     def __str__(self):
         return f"Invite for {self.email} ({self.role})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class AuthAuditLog(models.Model):
@@ -460,6 +489,11 @@ class AuthAuditLog(models.Model):
 
     def __str__(self):
         return f"{self.event_type} — {self.user_id} at {self.created_at}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class Agency(models.Model):
@@ -625,6 +659,11 @@ class LoginAttempt(models.Model):
     def __str__(self):
         return f"{'OK' if self.succeeded else 'FAIL'} login for {self.email}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── 2FA / TOTP ────────────────────────────────────────────────────────────────
 
@@ -703,6 +742,11 @@ class UserTOTP(models.Model):
         totp = pyotp.TOTP(self.secret)
         return totp.verify(code, valid_window=valid_window)
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class TOTPRecoveryCode(models.Model):
     """
@@ -779,3 +823,8 @@ class TOTPRecoveryCode(models.Model):
         rec.used_at = timezone.now()
         rec.save(update_fields=["used_at"])
         return rec
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

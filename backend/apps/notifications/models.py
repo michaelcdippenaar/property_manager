@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
 
@@ -61,6 +62,11 @@ class NotificationLog(models.Model):
 
     def __str__(self):
         return f"{self.channel} → {self.to_address} ({self.status})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class PushPreference(models.Model):
@@ -132,3 +138,8 @@ class PushPreference(models.Model):
             return cls.objects.get(user=user, category=category).enabled
         except cls.DoesNotExist:
             return True
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

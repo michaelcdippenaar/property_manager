@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 from apps.accounts.models import User, Person
 from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
@@ -69,6 +70,11 @@ class Property(models.Model):
     def __str__(self):
         return self.name
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class Unit(models.Model):
     class Status(models.TextChoices):
@@ -114,6 +120,11 @@ class Unit(models.Model):
 
     def __str__(self):
         return f"{self.property.name} — Unit {self.unit_number}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class Room(models.Model):
@@ -163,6 +174,11 @@ class Room(models.Model):
         label = self.name or self.get_room_type_display()
         return f"{label} ({self.size_m2} m\u00b2)" if self.size_m2 else label
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class UnitInfo(models.Model):
     class IconType(models.TextChoices):
@@ -210,6 +226,11 @@ class UnitInfo(models.Model):
     def __str__(self):
         return f"{self.label}: {self.value[:50]}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class PropertyAgentConfig(models.Model):
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
@@ -240,6 +261,11 @@ class PropertyAgentConfig(models.Model):
 
     def __str__(self):
         return f"Agent config for {self.property.name}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class Landlord(models.Model):
@@ -359,6 +385,11 @@ class Landlord(models.Model):
     def __str__(self):
         return self.name
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class LandlordDocument(models.Model):
     """A supporting document uploaded for owner FICA/CIPC compliance (multiple per landlord)."""
@@ -390,6 +421,11 @@ class LandlordDocument(models.Model):
 
     def __str__(self):
         return f"{self.landlord.name} — {self.filename}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class BankAccount(models.Model):
@@ -432,6 +468,11 @@ class BankAccount(models.Model):
 
     def __str__(self):
         return f"{self.bank_name} — {self.account_number[-4:]}" if self.account_number else self.bank_name
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class LandlordChatMessage(models.Model):
@@ -479,6 +520,11 @@ class LandlordChatMessage(models.Model):
 
     def __str__(self):
         return f"[{self.role}] {self.landlord.name}: {self.content[:40]}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class PropertyOwnership(models.Model):
@@ -544,6 +590,11 @@ class PropertyOwnership(models.Model):
 
     def __str__(self):
         return f"{self.owner_name} → {self.property.name} ({'current' if self.is_current else 'ended'})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class RentalMandate(models.Model):
@@ -663,6 +714,11 @@ class RentalMandate(models.Model):
     def __str__(self):
         return f"{self.get_mandate_type_display()} — {self.property.name} ({self.status})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class PropertyGroup(models.Model):
     # Multi-tenant + POPIA (Phase 1.2). Backfilled from first member property's
@@ -694,6 +750,11 @@ class PropertyGroup(models.Model):
 
     def __str__(self):
         return self.name
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 # ── Physical property detail ──────────────────────────────────────────────────
@@ -789,6 +850,11 @@ class PropertyDetail(models.Model):
     def __str__(self):
         return f"Detail: {self.property.name} — ERF {self.erf_number}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── Photo gallery ─────────────────────────────────────────────────────────────
 
@@ -835,6 +901,11 @@ class PropertyPhoto(models.Model):
 
     def __str__(self):
         return f"{self.property.name} — {self.category} #{self.position}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 # ── Property documents ────────────────────────────────────────────────────────
@@ -921,6 +992,11 @@ class PropertyDocument(models.Model):
     def __str__(self):
         return f"{self.get_doc_type_display()} — {self.name or self.property.name}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── Compliance certificates ───────────────────────────────────────────────────
 
@@ -981,6 +1057,11 @@ class ComplianceCertificate(models.Model):
     def __str__(self):
         return f"{self.get_cert_type_display()} — {self.property.name} ({self.issued_date})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── Municipal / utility accounts ──────────────────────────────────────────────
 
@@ -1029,6 +1110,11 @@ class MunicipalAccount(models.Model):
     def __str__(self):
         return f"{self.get_account_type_display()} — {self.account_number} ({self.property.name})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── Property valuation history ────────────────────────────────────────────────
 
@@ -1071,6 +1157,11 @@ class PropertyValuation(models.Model):
 
     def __str__(self):
         return f"{self.get_valuation_type_display()} R{self.amount:,.0f} — {self.property.name} ({self.valuation_date})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 # ── Insurance ─────────────────────────────────────────────────────────────────
@@ -1125,6 +1216,11 @@ class InsurancePolicy(models.Model):
 
     def __str__(self):
         return f"{self.insurer} — {self.get_policy_type_display()} ({self.policy_number})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class InsuranceClaim(models.Model):
@@ -1188,6 +1284,11 @@ class InsuranceClaim(models.Model):
 
     def __str__(self):
         return f"{self.get_claim_type_display()} claim — {self.property.name} ({self.incident_date}) [{self.status}]"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 # ── Municipal bills ───────────────────────────────────────────────────────────
@@ -1254,6 +1355,11 @@ class MunicipalBill(models.Model):
     def __str__(self):
         return f"Municipal bill {self.billing_year}-{self.billing_month:02d} — {self.property.name} (R{self.total_amount})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # ── Property Viewings ─────────────────────────────────────────────────────────
 
@@ -1309,6 +1415,11 @@ class PropertyViewing(models.Model):
 
     def __str__(self):
         return f"Viewing: {self.prospect} @ {self.property.name} on {self.scheduled_at:%Y-%m-%d %H:%M}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class PropertyAgentAssignment(models.Model):
@@ -1374,3 +1485,8 @@ class PropertyAgentAssignment(models.Model):
 
     def __str__(self):
         return f"{self.agent} → {self.property.name} ({self.assignment_type}/{self.status})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

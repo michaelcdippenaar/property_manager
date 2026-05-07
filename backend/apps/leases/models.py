@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from apps.accounts.models import Person
 from apps.popia.choices import LawfulBasis, RetentionPolicy
 from apps.properties.models import Unit
@@ -223,6 +224,11 @@ class Lease(models.Model):
         }
         self.save(update_fields=["rha_override"])
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class MoveInChecklistItem(models.Model):
     """
@@ -280,6 +286,11 @@ class MoveInChecklistItem(models.Model):
         status = "Done" if self.is_completed else "Pending"
         return f"{self.get_key_display()} [{status}] — Lease {self.lease_id}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 # Default ordered list of move-in checklist items to seed on activation.
 MOVE_IN_CHECKLIST_DEFAULTS = [
@@ -329,6 +340,11 @@ class LeaseTemplate(models.Model):
 
     def __str__(self):
         return f"{self.name} v{self.version}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class LeaseBuilderSession(models.Model):
@@ -382,6 +398,11 @@ class LeaseBuilderSession(models.Model):
     def __str__(self):
         return f"BuilderSession #{self.id} by {self.created_by} ({self.status})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class LeaseTenant(models.Model):
     """
@@ -419,6 +440,11 @@ class LeaseTenant(models.Model):
 
     def __str__(self):
         return f"Co-tenant: {self.person.full_name} on Lease {self.lease_id}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class LeaseOccupant(models.Model):
@@ -461,6 +487,11 @@ class LeaseOccupant(models.Model):
     def __str__(self):
         return f"Occupant: {self.person.full_name} on Lease {self.lease_id}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class LeaseGuarantor(models.Model):
     """
@@ -499,6 +530,11 @@ class LeaseGuarantor(models.Model):
 
     def __str__(self):
         return f"Guarantor: {self.person.full_name} for Lease {self.lease_id}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class ReusableClause(models.Model):
@@ -554,6 +590,11 @@ class ReusableClause(models.Model):
 
     def __str__(self):
         return self.title
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class LeaseEvent(models.Model):
@@ -622,6 +663,11 @@ class LeaseEvent(models.Model):
     def __str__(self):
         return f"{self.title} — {self.date}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class OnboardingStep(models.Model):
     """Checklist steps auto-generated when a lease is created."""
@@ -676,6 +722,11 @@ class OnboardingStep(models.Model):
         status = "Done" if self.is_completed else "Pending"
         return f"{self.title} [{status}]"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class InventoryTemplate(models.Model):
     """Reusable preset list of items to copy into a new lease inventory."""
@@ -716,6 +767,11 @@ class InventoryTemplate(models.Model):
 
     def __str__(self):
         return f"{self.name} ({len(self.items)} items)"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class InventoryItem(models.Model):
@@ -777,6 +833,11 @@ class InventoryItem(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_condition_in_display()})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class PdfRenderJob(models.Model):
@@ -854,6 +915,11 @@ class PdfRenderJob(models.Model):
         tmpl = self.template.name if self.template else "unknown"
         return f"PdfRenderJob #{self.id} [{self.status}] — {tmpl}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class LeaseDocument(models.Model):
     class DocumentType(models.TextChoices):
@@ -894,3 +960,8 @@ class LeaseDocument(models.Model):
 
     def __str__(self):
         return f"{self.get_document_type_display()} — Lease {self.lease_id}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

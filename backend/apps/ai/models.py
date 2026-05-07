@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 
 from apps.popia.choices import LawfulBasis, RetentionPolicy
 
@@ -81,6 +82,11 @@ class TenantChatSession(models.Model):
     def __str__(self) -> str:
         return f"{self.title} ({self.user_id})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class TenantIntelligence(models.Model):
     """
@@ -157,6 +163,11 @@ class TenantIntelligence(models.Model):
     def __str__(self) -> str:
         return f"TenantIntel({self.user_id})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class GuideInteraction(models.Model):
     """
@@ -230,3 +241,8 @@ class GuideInteraction(models.Model):
 
     def __str__(self) -> str:
         return f"GuideInteraction({self.user_id}, {self.portal}, {self.intent or 'no-action'})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()

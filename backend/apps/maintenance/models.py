@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.db import models
+from apps.accounts.tenancy import TenantManager
 from django.utils import timezone
 from apps.accounts.models import User
 from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
@@ -65,6 +66,11 @@ class AgencySLAConfig(models.Model):
             if record:
                 return record.ack_hours, record.resolve_hours
         return DEFAULT_SLA_HOURS.get(priority, (72, 336))
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class Supplier(models.Model):
@@ -199,6 +205,11 @@ class Supplier(models.Model):
     def trade_list(self):
         return list(self.trades.values_list("trade", flat=True))
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class SupplierTrade(models.Model):
     agency = models.ForeignKey(
@@ -231,6 +242,11 @@ class SupplierTrade(models.Model):
 
     def __str__(self):
         return f"{self.supplier} — {self.get_trade_display()}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class SupplierDocument(models.Model):
@@ -276,6 +292,11 @@ class SupplierDocument(models.Model):
     def __str__(self):
         return f"{self.supplier} — {self.get_document_type_display()}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class SupplierProperty(models.Model):
     agency = models.ForeignKey(
@@ -311,6 +332,11 @@ class SupplierProperty(models.Model):
 
     def __str__(self):
         return f"{self.supplier} → {self.property}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class JobDispatch(models.Model):
@@ -357,6 +383,11 @@ class JobDispatch(models.Model):
 
     def __str__(self):
         return f"Dispatch for {self.maintenance_request}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class JobQuoteRequest(models.Model):
@@ -412,6 +443,11 @@ class JobQuoteRequest(models.Model):
             self.token = uuid.uuid4()
         super().save(*args, **kwargs)
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class JobQuote(models.Model):
     agency = models.ForeignKey(
@@ -447,6 +483,11 @@ class JobQuote(models.Model):
 
     def __str__(self):
         return f"R{self.amount} — {self.quote_request.supplier}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class MaintenanceRequest(models.Model):
@@ -590,6 +631,11 @@ class MaintenanceRequest(models.Model):
             return True
         return False
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class MaintenanceSkill(models.Model):
     class Trade(models.TextChoices):
@@ -646,6 +692,11 @@ class MaintenanceSkill(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_trade_display()})"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class AgentQuestion(models.Model):
     class Status(models.TextChoices):
@@ -701,6 +752,11 @@ class AgentQuestion(models.Model):
     def __str__(self):
         return f"[{self.get_status_display()}] {self.question[:80]}"
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class MaintenanceActivity(models.Model):
     class ActivityType(models.TextChoices):
@@ -751,6 +807,11 @@ class MaintenanceActivity(models.Model):
 
     def __str__(self):
         return f"[{self.activity_type}] {self.message[:60]}"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class AgentTokenLog(models.Model):
@@ -838,6 +899,11 @@ class AgentTokenLog(models.Model):
             import logging
             logging.getLogger(__name__).warning("Failed to log token usage: %s", e)
 
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
+
 
 class SupplierJobAssignment(models.Model):
     """
@@ -899,6 +965,11 @@ class SupplierJobAssignment(models.Model):
 
     def __str__(self):
         return f"Job #{self.maintenance_request_id} → {self.supplier} ({self.status})"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
 
 
 class SupplierInvoice(models.Model):
@@ -977,3 +1048,8 @@ class SupplierInvoice(models.Model):
 
     def __str__(self):
         return f"Invoice #{self.pk} — {self.quote_request.supplier} — R{self.total_amount} [{self.status}]"
+
+    # Multi-tenant managers (Phase 2.1) — `objects` stays default,
+    # `tenant_objects` auto-scopes to current_agency_id().
+    objects = models.Manager()
+    tenant_objects = TenantManager()
