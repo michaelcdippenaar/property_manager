@@ -20,6 +20,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
 from apps.properties.access import get_accessible_property_ids
 
 from .models import PropertyViewing
@@ -28,18 +29,20 @@ from .serializers import PropertyViewingSerializer
 logger = logging.getLogger(__name__)
 
 
-class PropertyViewingViewSet(viewsets.ModelViewSet):
+class PropertyViewingViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     """
     CRUD for property viewings, scoped to properties accessible by the requesting user.
     """
 
+    queryset           = PropertyViewing.objects.all()
     serializer_class   = PropertyViewingSerializer
     permission_classes = [IsAuthenticated, IsAgentOrAdmin]
     http_method_names  = ["get", "post", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
+        base = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = PropertyViewing.objects.filter(
+        qs = base.filter(
             property_id__in=prop_ids
         ).select_related("property", "unit", "prospect", "agent")
 
@@ -65,9 +68,9 @@ class PropertyViewingViewSet(viewsets.ModelViewSet):
                 raise PermissionDenied("You do not have access to the selected property.")
         # Auto-assign agent to requesting user if not provided
         if not serializer.validated_data.get("agent"):
-            serializer.save(agent=self.request.user)
-        else:
-            serializer.save()
+            serializer.validated_data["agent"] = self.request.user
+        # Stamp agency via mixin.
+        super().perform_create(serializer)
 
     @action(detail=False, methods=["get"], url_path="calendar")
     def calendar(self, request):

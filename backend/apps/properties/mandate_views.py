@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
 from apps.esigning.models import ESigningSubmission
 from apps.esigning.views import _auto_send_signing_links
 from apps.properties.access import get_accessible_property_ids
@@ -27,7 +28,7 @@ from .models import RentalMandate
 logger = logging.getLogger(__name__)
 
 
-class RentalMandateViewSet(viewsets.ModelViewSet):
+class RentalMandateViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     """
     CRUD for rental mandates, scoped to properties accessible by the requesting user.
 
@@ -40,12 +41,14 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
       POST   /api/v1/properties/mandates/{id}/send-for-signing/
     """
 
+    queryset           = RentalMandate.objects.all()
     serializer_class   = RentalMandateSerializer
     permission_classes = [IsAuthenticated, IsAgentOrAdmin]
 
     def get_queryset(self):
+        base = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = RentalMandate.objects.filter(
+        qs = base.filter(
             property_id__in=prop_ids
         ).select_related("property", "landlord", "esigning_submission")
 
@@ -56,9 +59,15 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        mandate = serializer.save(created_by=self.request.user)
+        # Stamp agency via mixin first.
+        super().perform_create(serializer)
+        mandate = serializer.instance
+        # Patch in created_by.
+        if mandate and mandate.created_by_id != self.request.user.id:
+            mandate.created_by = self.request.user
+            mandate.save(update_fields=["created_by"])
         # Auto-link landlord from current PropertyOwnership if not supplied
-        if not mandate.landlord_id:
+        if mandate and not mandate.landlord_id:
             ownership = mandate.property.ownerships.filter(is_current=True).select_related("landlord").first()
             if ownership and ownership.landlord_id:
                 mandate.landlord = ownership.landlord
@@ -252,6 +261,7 @@ class RentalMandateViewSet(viewsets.ModelViewSet):
         overrides = renew_ser.validated_data
 
         new_mandate = RentalMandate.objects.create(
+            agency                = mandate.agency,
             property              = mandate.property,
             landlord              = mandate.landlord,
             mandate_type          = mandate.mandate_type,

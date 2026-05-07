@@ -6,6 +6,7 @@ or the retrieve endpoint fails to surface them on the detail page.
 """
 import pytest
 
+from apps.accounts.models import Agency
 from apps.test_hub.base.test_case import TremlyAPITestCase
 
 pytestmark = [pytest.mark.integration]
@@ -13,7 +14,13 @@ pytestmark = [pytest.mark.integration]
 
 class LandlordCreateRetrieveRoundtripTest(TremlyAPITestCase):
     def setUp(self):
+        self.agency = Agency.objects.create(name="Klikk Properties")
         self.admin = self.create_admin()
+        # Admin needs an agency to create via the AgencyStampedCreateMixin
+        # (the mixin requires admins to have either an own agency_id or pass
+        # `agency` in the payload — see apps/accounts/scoping.py).
+        self.admin.agency = self.agency
+        self.admin.save(update_fields=["agency"])
         self.authenticate(self.admin)
 
     def test_create_company_then_retrieve_returns_all_fields(self):

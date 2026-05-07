@@ -71,11 +71,13 @@ class MandateCreateAllTypesTest(TremlyAPITestCase):
     """All 4 mandate types can be created via POST /api/v1/properties/mandates/."""
 
     def setUp(self):
-        Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
+        self.agency = Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
         self.agent = self.create_agent(email="agent@klikk.co.za", first_name="Mary", last_name="Manager")
-        self.landlord = self.create_landlord()
-        self.prop = self.create_property(agent=self.agent)
-        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord)
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+        self.landlord = self.create_landlord(agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord, agency=self.agency)
         self.authenticate(self.agent)
 
     def _create_mandate_payload(self, mandate_type, commission_period, commission_rate):
@@ -124,15 +126,18 @@ class MandateSendForSigningTest(TremlyAPITestCase):
     """send-for-signing creates ESigningSubmission and transitions mandate to 'sent'."""
 
     def setUp(self):
-        Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
+        self.agency = Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
         self.agent = self.create_agent(email="agent@klikk.co.za", first_name="Mary", last_name="Manager")
-        self.landlord = self.create_landlord()
-        self.prop = self.create_property(agent=self.agent)
-        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord)
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+        self.landlord = self.create_landlord(agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord, agency=self.agency)
         self.authenticate(self.agent)
 
     def _create_mandate(self, mandate_type="full_management"):
         return RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type=mandate_type,
@@ -213,12 +218,15 @@ class MandateDownloadSignedRegressionTest(TremlyAPITestCase):
     """
 
     def setUp(self):
-        Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
+        self.agency = Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
         self.agent = self.create_agent(email="agent@klikk.co.za", first_name="Mary", last_name="Manager")
-        self.landlord = self.create_landlord()
-        self.prop = self.create_property(agent=self.agent)
-        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord)
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+        self.landlord = self.create_landlord(agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord, agency=self.agency)
         self.mandate = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",
@@ -265,12 +273,15 @@ class MandateSerializerFieldsTest(TremlyAPITestCase):
     """Serializer exposes submission_id, owner_email, owner_name from landlord."""
 
     def setUp(self):
-        Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
+        self.agency = Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
         self.agent = self.create_agent(email="agent@klikk.co.za")
-        self.landlord = self.create_landlord()
-        self.prop = self.create_property(agent=self.agent)
-        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord)
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+        self.landlord = self.create_landlord(agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord, agency=self.agency)
         self.mandate = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",

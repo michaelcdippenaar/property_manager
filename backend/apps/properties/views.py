@@ -13,6 +13,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
@@ -43,13 +44,15 @@ def _make_thumbnail(original_file, size=(400, 400)):
     return ContentFile(buf.read())
 
 
-class PropertyViewSet(viewsets.ModelViewSet):
+class PropertyViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = Property.objects.all()
     serializer_class = PropertySerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
+        qs = super().get_queryset()  # mixin applies agency_id filter
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = Property.objects.filter(pk__in=prop_ids)
+        qs = qs.filter(pk__in=prop_ids)
         if self.request.query_params.get("unlinked") in ("1", "true", "yes"):
             qs = qs.exclude(ownerships__is_current=True)
         return qs
@@ -157,44 +160,52 @@ class PropertyViewSet(viewsets.ModelViewSet):
         )
 
 
-class UnitViewSet(viewsets.ModelViewSet):
+class UnitViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = Unit.objects.all()
     serializer_class = UnitSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "status"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return Unit.objects.filter(property_id__in=prop_ids).select_related("property")
+        return qs.filter(property_id__in=prop_ids).select_related("property")
 
 
-class RoomViewSet(viewsets.ModelViewSet):
+class RoomViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = Room.objects.all()
     serializer_class = RoomSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["unit"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return Room.objects.filter(unit__property_id__in=prop_ids).select_related("unit")
+        return qs.filter(unit__property_id__in=prop_ids).select_related("unit")
 
 
-class UnitInfoViewSet(viewsets.ModelViewSet):
+class UnitInfoViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = UnitInfo.objects.all()
     serializer_class = UnitInfoSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "unit"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return UnitInfo.objects.filter(property_id__in=prop_ids).select_related("property", "unit")
+        return qs.filter(property_id__in=prop_ids).select_related("property", "unit")
 
 
-class PropertyAgentConfigViewSet(viewsets.ModelViewSet):
+class PropertyAgentConfigViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = PropertyAgentConfig.objects.all()
     serializer_class = PropertyAgentConfigSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return PropertyAgentConfig.objects.filter(property_id__in=prop_ids).select_related("property")
+        return qs.filter(property_id__in=prop_ids).select_related("property")
 
     @action(detail=False, methods=["get", "put", "patch"], url_path="by-property/(?P<property_id>[0-9]+)")
     def by_property(self, request, property_id=None):
@@ -207,13 +218,15 @@ class PropertyAgentConfigViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
-class PropertyOwnershipViewSet(viewsets.ModelViewSet):
+class PropertyOwnershipViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = PropertyOwnership.objects.all()
     serializer_class = PropertyOwnershipSerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = PropertyOwnership.objects.filter(property_id__in=prop_ids).select_related("property")
+        qs = qs.filter(property_id__in=prop_ids).select_related("property")
         property_id = self.request.query_params.get("property")
         if property_id:
             qs = qs.filter(property_id=property_id)
@@ -225,20 +238,22 @@ class PropertyOwnershipViewSet(viewsets.ModelViewSet):
         return Response(PropertyOwnershipSerializer(ownership).data)
 
 
-class LandlordViewSet(viewsets.ModelViewSet):
+class LandlordViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = Landlord.objects.all()
     serializer_class = LandlordSerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
+        base = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
         # Admin sees all landlords (including orphans with no ownerships).
         # Non-admin users only see landlords linked to their accessible properties.
         if self.request.user.role == 'admin':
-            qs = Landlord.objects.filter(
+            qs = base.filter(
                 Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
             ).distinct()
         else:
-            qs = Landlord.objects.filter(
+            qs = base.filter(
                 ownerships__property_id__in=prop_ids
             ).distinct()
         qs = qs.prefetch_related('bank_accounts', 'ownerships__property')
@@ -307,14 +322,16 @@ class LandlordViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class BankAccountViewSet(viewsets.ModelViewSet):
+class BankAccountViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = BankAccount.objects.all()
     serializer_class = BankAccountSerializer
     permission_classes = [IsAgentOrAdmin]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
+        base = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = BankAccount.objects.filter(
+        qs = base.filter(
             landlord__ownerships__property_id__in=prop_ids
         ).distinct().select_related('landlord')
         landlord_id = self.request.query_params.get('landlord')
@@ -348,64 +365,74 @@ class BankAccountViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-class PropertyGroupViewSet(viewsets.ModelViewSet):
+class PropertyGroupViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = PropertyGroup.objects.all()
     serializer_class = PropertyGroupSerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return PropertyGroup.objects.filter(
+        return qs.filter(
             properties__id__in=prop_ids
         ).distinct().prefetch_related("properties")
 
 
-class ComplianceCertificateViewSet(viewsets.ModelViewSet):
+class ComplianceCertificateViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = ComplianceCertificate.objects.all()
     serializer_class = ComplianceCertificateSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "cert_type"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return ComplianceCertificate.objects.filter(
+        return qs.filter(
             property_id__in=prop_ids
         ).select_related("property").order_by("-issued_date")
 
 
-class InsurancePolicyViewSet(viewsets.ModelViewSet):
+class InsurancePolicyViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = InsurancePolicy.objects.all()
     serializer_class = InsurancePolicySerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "is_active"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return InsurancePolicy.objects.filter(
+        return qs.filter(
             property_id__in=prop_ids
         ).select_related("property").order_by("-start_date")
 
 
-class PropertyValuationViewSet(viewsets.ModelViewSet):
+class PropertyValuationViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = PropertyValuation.objects.all()
     serializer_class = PropertyValuationSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["property", "valuation_type"]
 
     def get_queryset(self):
+        qs = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        return PropertyValuation.objects.filter(
+        return qs.filter(
             property_id__in=prop_ids
         ).select_related("property").order_by("-valuation_date")
 
 
-class PropertyAgentAssignmentViewSet(viewsets.ModelViewSet):
+class PropertyAgentAssignmentViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     """
     CRUD for property-agent assignments.
     Filterable by ?property=ID or ?agent=ID.
     """
+    queryset = PropertyAgentAssignment.objects.all()
     serializer_class = PropertyAgentAssignmentSerializer
     permission_classes = [IsAgentOrAdmin]
 
     def get_queryset(self):
+        base = super().get_queryset()
         prop_ids = get_accessible_property_ids(self.request.user)
-        qs = PropertyAgentAssignment.objects.filter(
+        qs = base.filter(
             property_id__in=prop_ids,
         ).select_related("property", "agent", "assigned_by").order_by("-created_at")
 
@@ -421,4 +448,10 @@ class PropertyAgentAssignmentViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(assigned_by=self.request.user)
+        # Stamp agency via the mixin (which calls serializer.save(agency_id=...))
+        # then patch in `assigned_by` on the resulting instance.
+        super().perform_create(serializer)
+        instance = serializer.instance
+        if instance and instance.assigned_by_id != self.request.user.id:
+            instance.assigned_by = self.request.user
+            instance.save(update_fields=["assigned_by"])

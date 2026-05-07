@@ -40,6 +40,7 @@ def _active_mandate(test_case, mandate_type="full_management", exclusivity="sole
                     end_date=None) -> RentalMandate:
     """Create and return an active RentalMandate for the test's property."""
     return RentalMandate.objects.create(
+        agency=test_case.agency,
         property=test_case.prop,
         landlord=test_case.landlord,
         mandate_type=mandate_type,
@@ -59,11 +60,13 @@ class MandateLifecycleBase(TremlyAPITestCase):
     """Base setUp shared by all lifecycle test classes."""
 
     def setUp(self):
-        Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
+        self.agency = Agency.objects.create(name="Klikk Properties", eaab_ffc_number="FFC-001")
         self.agent = self.create_agent(email="agent@klikk.co.za", first_name="Mary", last_name="Manager")
-        self.landlord = self.create_landlord()
-        self.prop = self.create_property(agent=self.agent)
-        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord)
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+        self.landlord = self.create_landlord(agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.create_property_ownership(property_obj=self.prop, landlord=self.landlord, agency=self.agency)
         self.authenticate(self.agent)
 
 
@@ -168,6 +171,7 @@ class MandateMultiOwnerSigningTest(MandateLifecycleBase):
         self.landlord.representative_email = ""
         self.landlord.save()
         m = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",
@@ -188,6 +192,7 @@ class MandateMultiOwnerSigningTest(MandateLifecycleBase):
     def test_send_for_signing_creates_owner_signer_record(self, mock_html, mock_send):
         mock_html.return_value = "<html>Mandate</html>"
         m = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",
@@ -239,6 +244,7 @@ class MandateTerminationTest(MandateLifecycleBase):
 
     def test_terminate_blocked_on_non_active_mandate(self):
         m = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",
@@ -354,6 +360,7 @@ class MandateRenewalTest(MandateLifecycleBase):
 
     def test_renew_blocked_for_draft(self):
         m = RentalMandate.objects.create(
+            agency=self.agency,
             property=self.prop,
             landlord=self.landlord,
             mandate_type="full_management",
