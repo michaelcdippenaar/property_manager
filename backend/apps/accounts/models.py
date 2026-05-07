@@ -593,6 +593,15 @@ class Agency(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # ── Onboarding ──
+    onboarding_completed_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text=(
+            "When the AGENCY_ADMIN finished the agency setup wizard. "
+            "Used by the router guard to redirect first-time users to /onboarding."
+        ),
+    )
+
     class Meta:
         verbose_name_plural = "agencies"
 

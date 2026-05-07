@@ -24,8 +24,8 @@
               @click="form.account_type = 'agency'"
             >
               <Building2 :size="24" />
-              <span class="text-sm font-semibold">Estate Agency</span>
-              <span class="text-micro text-gray-400 leading-tight">I manage properties for clients</span>
+              <span class="text-sm font-semibold">I'm an estate agency</span>
+              <span class="text-micro text-gray-400 leading-tight">We manage properties on behalf of owners</span>
             </button>
 
             <button
@@ -37,8 +37,8 @@
               @click="form.account_type = 'individual'"
             >
               <Home :size="24" />
-              <span class="text-sm font-semibold">Property Owner</span>
-              <span class="text-micro text-gray-400 leading-tight">I manage my own rental properties</span>
+              <span class="text-sm font-semibold">I manage my own properties</span>
+              <span class="text-micro text-gray-400 leading-tight">I'm an individual landlord, not a registered agency</span>
             </button>
           </div>
 
@@ -240,7 +240,13 @@ onMounted(async () => {
     google.waitForCredential().then(async (credential) => {
       error.value = ''
       try {
-        await auth.googleAuth(credential)
+        const data = await auth.googleAuth(credential)
+        if (data && data.needs_signup) {
+          sessionStorage.setItem('google_pending_credential', data.google_credential || credential)
+          sessionStorage.setItem('google_pending_email', data.email || '')
+          router.push({ name: 'google-complete-signup' })
+          return
+        }
         router.push(auth.homeRoute)
       } catch (e: any) {
         error.value = e.response?.data?.error || e.message || 'Google sign-in failed.'

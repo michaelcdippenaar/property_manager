@@ -13,6 +13,7 @@ interface AgencyInfo {
   id: number
   account_type: 'agency' | 'individual'
   name: string
+  onboarding_completed_at?: string | null
   [key: string]: any
 }
 

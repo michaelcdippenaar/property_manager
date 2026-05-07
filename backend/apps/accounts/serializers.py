@@ -295,9 +295,11 @@ class AgencySerializer(serializers.ModelSerializer):
             "statement_date", "disbursement_date", "information_officer_email",
             # Branding
             "logo",
+            # Onboarding
+            "onboarding_completed_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "updated_at"]
+        read_only_fields = ["id", "updated_at", "onboarding_completed_at"]
 
 
 class OTPSendSerializer(serializers.Serializer):

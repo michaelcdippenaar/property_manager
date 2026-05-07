@@ -7,7 +7,7 @@ from .views import (
     ChangePasswordView, LogoutView, PasswordResetRequestView, PasswordResetConfirmView,
     AcceptInviteView, Skip2FASetupView,
 )
-from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView, AgencyBillingView
+from .admin_views import UserListView, UserDetailView, InviteUserView, PendingInvitesView, CancelInviteView, ResendInviteView, AgencySettingsView, AgencyBillingView, AgencyOnboardingCompleteView
 from .oauth_views import GoogleAuthView, GoogleCompleteSignupView
 from .lookup_views import EntityLookupView
 from .totp_views import (
@@ -53,6 +53,8 @@ urlpatterns = [
     path("agency/", AgencySettingsView.as_view(), name="agency-settings"),
     # Agency billing / tier enforcement
     path("agency/billing/", AgencyBillingView.as_view(), name="agency-billing"),
+    # Onboarding wizard completion (Phase 3.2)
+    path("agency/onboarding/complete/", AgencyOnboardingCompleteView.as_view(), name="agency-onboarding-complete"),
     # ── TOTP 2FA ──────────────────────────────────────────────────────────────
     path("2fa/skip/", Skip2FASetupView.as_view(), name="2fa-skip"),
     path("2fa/status/", TOTPStatusView.as_view(), name="2fa-status"),

@@ -73,6 +73,18 @@ const router = createRouter({
       component: () => import('../views/auth/TwoFAResetView.vue'),
       meta: { public: true },
     },
+    {
+      path: '/google/complete-signup',
+      name: 'google-complete-signup',
+      component: () => import('../views/auth/GoogleCompleteSignupView.vue'),
+      meta: { public: true, allowWhenAuthenticated: true },
+    },
+    {
+      path: '/onboarding',
+      name: 'onboarding',
+      component: () => import('../views/onboarding/AgencySetupView.vue'),
+      meta: { requiresAuth: true, title: 'Set up your agency' },
+    },
 
     // ── Agent / Admin layout ──
     {
@@ -271,6 +283,20 @@ router.beforeEach(async (to) => {
   // Optional 2FA setup pending (owner role, DEC-018): redirect to enroll view unless already there
   if (auth.suggestTwoFASetup && to.name !== '2fa-enroll') {
     return { name: '2fa-enroll', query: { optional: '1' } }
+  }
+
+  // Onboarding guard (Phase 3.2) — first-time agency_admin users land on /onboarding.
+  // Skips auth pages (login etc handled above by `meta.public`) and tenant/owner roles
+  // that don't manage an agency.
+  if (
+    auth.user &&
+    auth.agency &&
+    !auth.agency.onboarding_completed_at &&
+    ['agency_admin', 'admin'].includes(auth.user.role) &&
+    to.name !== 'onboarding' &&
+    to.name !== 'legal-re-accept'
+  ) {
+    return { name: 'onboarding' }
   }
 
   // Legal re-acceptance gate (OPS-004): redirect if any docs need re-ack

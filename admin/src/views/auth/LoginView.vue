@@ -117,6 +117,14 @@ onMounted(async () => {
       error.value = ''
       try {
         const data = await auth.googleAuth(credential)
+        // Phase 3.1 — backend signals brand-new Google account that needs
+        // an Agency creation step before any User row is persisted.
+        if (data && data.needs_signup) {
+          sessionStorage.setItem('google_pending_credential', data.google_credential || credential)
+          sessionStorage.setItem('google_pending_email', data.email || '')
+          router.push({ name: 'google-complete-signup' })
+          return
+        }
         await _handle2FA(data)
       } catch (e: any) {
         if (e?.code === 'ERR_NETWORK' || e?.message === 'Network Error' || !e?.response) {

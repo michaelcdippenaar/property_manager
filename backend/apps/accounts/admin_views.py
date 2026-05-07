@@ -399,7 +399,10 @@ class AgencySettingsView(APIView):
     def get_permissions(self):
         if self.request.method == 'GET':
             return [IsAgentOrAdmin()]
-        return [IsAdmin()]
+        # Phase 3.2 — agency_admin must be able to update their own agency
+        # during the onboarding wizard. Tenancy scoping in `_get_agency`
+        # guarantees they can only ever touch their own row.
+        return [IsAdminOrAgencyAdmin()]
 
     def _get_agency(self, request):
         """Return ONLY the caller's own agency. Cross-tenant agency reads are
@@ -428,6 +431,33 @@ class AgencySettingsView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class AgencyOnboardingCompleteView(APIView):
+    """
+    POST /api/v1/auth/agency/onboarding/complete/
+
+    Marks the caller's Agency as having finished the first-run setup wizard.
+    Idempotent — re-calling does not move the timestamp.
+    """
+    permission_classes = [IsAdminOrAgencyAdmin]
+
+    def post(self, request):
+        from django.utils import timezone as _tz
+
+        user = request.user
+        if not user.agency_id:
+            return Response(
+                {"detail": "User has no agency to onboard."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        agency = user.agency
+        if agency.onboarding_completed_at is None:
+            agency.onboarding_completed_at = _tz.now()
+            agency.save(update_fields=["onboarding_completed_at", "updated_at"])
+
+        return Response(AgencySerializer(agency).data, status=status.HTTP_200_OK)
 
 
 class AgencyBillingView(APIView):
