@@ -203,7 +203,10 @@ class ImportLeaseView(APIView):
             if person:
                 LeaseTenant.objects.get_or_create(
                     lease=lease, person=person,
-                    defaults={"agency_id": lease.agency_id},
+                    defaults={
+                        "agency_id": lease.agency_id,
+                        "payment_reference": (ct_data.get("payment_reference") or "") if isinstance(ct_data, dict) else "",
+                    },
                 )
 
         # ── Occupants ────────────────────────────────────────────────────────

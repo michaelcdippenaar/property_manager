@@ -151,7 +151,10 @@ class TestBuilderSessionLifecycle:
     def test_parse_co_tenants_list_of_strings(self):
         from apps.leases.builder_views import _parse_co_tenants
         result = _parse_co_tenants(["Alice", "Bob"])
-        assert result == [{"full_name": "Alice"}, {"full_name": "Bob"}]
+        assert result == [
+            {"full_name": "Alice", "payment_reference": ""},
+            {"full_name": "Bob", "payment_reference": ""},
+        ]
 
     def test_parse_co_tenants_comma_string(self):
         from apps.leases.builder_views import _parse_co_tenants
@@ -163,7 +166,17 @@ class TestBuilderSessionLifecycle:
     def test_parse_co_tenants_list_of_dicts_passes_through(self):
         from apps.leases.builder_views import _parse_co_tenants
         dicts = [{"full_name": "Alice", "email": "a@test.com"}]
-        assert _parse_co_tenants(dicts) == dicts
+        result = _parse_co_tenants(dicts)
+        # Original keys retained, payment_reference defaulted in.
+        assert result[0]["full_name"] == "Alice"
+        assert result[0]["email"] == "a@test.com"
+        assert result[0]["payment_reference"] == ""
+
+    def test_parse_co_tenants_dict_preserves_payment_reference(self):
+        from apps.leases.builder_views import _parse_co_tenants
+        dicts = [{"full_name": "Alice", "payment_reference": "REF-A"}]
+        result = _parse_co_tenants(dicts)
+        assert result[0]["payment_reference"] == "REF-A"
 
     # ── 1d. _build_import_payload ────────────────────────────────────────── #
 
@@ -215,6 +228,11 @@ class TestBuilderSessionLifecycle:
         names = [c["full_name"] for c in payload["co_tenants"]]
         assert "Co Tenant One" in names
         assert "Co Tenant Two" in names
+        # Each co-tenant entry must carry a payment_reference key (default "")
+        # so the import view can persist per-lessee payment refs.
+        for ct in payload["co_tenants"]:
+            assert "payment_reference" in ct
+            assert ct["payment_reference"] == ""
 
     def test_build_import_payload_status_is_pending(self):
         """Finalized sessions should always create leases in 'pending' status."""
@@ -225,6 +243,45 @@ class TestBuilderSessionLifecycle:
         ]}
         payload = _build_import_payload(state, MagicMock())
         assert payload["status"] == "pending"
+
+    # ── 1e. _lease_to_state — co-tenant payment_reference round-trip ─────── #
+
+    def test_lease_to_state_emits_per_cotenant_payment_reference(self):
+        """
+        Loading a Lease with co-tenants into builder state must include each
+        co-tenant's payment_reference, so the AI can update it via chat.
+        """
+        from apps.leases.builder_views import _lease_to_state
+
+        prop = MagicMock(); prop.address = "5 Main"; prop.name = "Main"; prop.city = ""; prop.province = ""
+        unit = MagicMock(); unit.property = prop; unit.unit_number = "1"
+        primary = MagicMock(); primary.full_name = "Primary"; primary.id_number = ""; primary.phone = ""; primary.email = ""
+
+        ct1 = MagicMock(); ct1.payment_reference = "REF-A"; ct1.person = MagicMock(full_name="Alice")
+        ct2 = MagicMock(); ct2.payment_reference = "";       ct2.person = MagicMock(full_name="Bob")
+
+        co_qs = MagicMock()
+        co_qs.select_related.return_value.order_by.return_value = [ct1, ct2]
+
+        lease = MagicMock()
+        lease.unit = unit
+        lease.primary_tenant = primary
+        lease.co_tenants = co_qs
+        lease.start_date = date(2026, 1, 1)
+        lease.end_date = date(2027, 1, 1)
+        lease.monthly_rent = Decimal("8000")
+        lease.deposit = Decimal("16000")
+        lease.notice_period_days = 30
+        lease.payment_reference = "PRIMARY-REF"
+        lease.water_included = True
+        lease.electricity_prepaid = True
+        lease.max_occupants = 2
+
+        state = _lease_to_state(lease)
+        assert state["co_tenants"] == [
+            {"full_name": "Alice", "payment_reference": "REF-A"},
+            {"full_name": "Bob", "payment_reference": ""},
+        ]
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

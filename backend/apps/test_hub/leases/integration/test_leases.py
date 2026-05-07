@@ -222,6 +222,20 @@ class LeaseTenantTests(TremlyAPITestCase):
         )
         self.assertEqual(LeaseTenant.objects.filter(lease=self.lease).count(), 1)
 
+    def test_add_co_tenant_persists_payment_reference(self):
+        """add_tenant accepts payment_reference and persists it on the LeaseTenant row."""
+        self.lease.primary_tenant = self.person
+        self.lease.save()
+        co_person = self.create_person(full_name="Co Pay Ref")
+        self.authenticate(self.agent)
+        resp = self.client.post(
+            reverse("lease-add-tenant", args=[self.lease.pk]),
+            {"person_id": co_person.pk, "payment_reference": "REF-123"},
+        )
+        self.assertEqual(resp.status_code, 201)
+        ct = LeaseTenant.objects.get(lease=self.lease, person=co_person)
+        self.assertEqual(ct.payment_reference, "REF-123")
+
     def test_remove_primary_promotes_co_tenant(self):
         self.lease.primary_tenant = self.person
         self.lease.save()

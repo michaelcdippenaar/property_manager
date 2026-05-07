@@ -577,6 +577,18 @@ const LeaseFormFields = defineComponent({
                 modelValue: ct,
                 'onUpdate:modelValue': (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c)),
               }),
+              h('div', { class: 'mt-2' }, [
+                h('label', { class: 'label' }, 'Payment reference'),
+                h('input', {
+                  class: inputCls,
+                  value: ct.payment_reference || '',
+                  placeholder: 'e.g. 18 Irene - Smith',
+                  onInput: (e: any) => updForm(
+                    'co_tenants',
+                    f.co_tenants.map((c: any, j: number) => j === i ? { ...c, payment_reference: e.target.value } : c),
+                  ),
+                }),
+              ]),
               docCheckboxes(ct, (v: any) => updForm('co_tenants', f.co_tenants.map((c: any, j: number) => j === i ? v : c))),
             ])
           ),
@@ -797,6 +809,7 @@ function emptyPerson() {
     id_number: '',
     phone: '',
     email: '',
+    payment_reference: '',
     required_documents: ['bank_statement', 'id_copy', 'proof_of_address'] as string[],
   }
 }

@@ -131,14 +131,26 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
             s.is_valid(raise_exception=True)
             person = s.save()
 
+        payment_reference = (request.data.get("payment_reference") or "").strip()
+
         if not lease.primary_tenant:
             lease.primary_tenant = person
-            lease.save(update_fields=["primary_tenant"])
+            update_fields = ["primary_tenant"]
+            if payment_reference:
+                lease.payment_reference = payment_reference
+                update_fields.append("payment_reference")
+            lease.save(update_fields=update_fields)
         else:
-            LeaseTenant.objects.get_or_create(
+            ct, created = LeaseTenant.objects.get_or_create(
                 lease=lease, person=person,
-                defaults={"agency_id": lease.agency_id},
+                defaults={
+                    "agency_id": lease.agency_id,
+                    "payment_reference": payment_reference,
+                },
             )
+            if not created and payment_reference and ct.payment_reference != payment_reference:
+                ct.payment_reference = payment_reference
+                ct.save(update_fields=["payment_reference"])
 
         return Response(PersonSerializer(person).data, status=status.HTTP_201_CREATED)
 

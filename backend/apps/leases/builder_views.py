@@ -108,7 +108,8 @@ Required fields still missing:
    - cancellation penalty must be reasonable, not full remaining rent (CPA s48)
 3. Flag any violations in `rha_flags` as {{"field": "...", "severity": "error|warning", "message": "plain English explanation citing the relevant section"}}.
 4. If nothing is missing and no errors exist, set `ready_to_finalize: true` and `next_question: null`.
-5. Keep your reply conversational and brief (1-2 sentences max). Never repeat information the user already provided.
+5. For each tenant (primary and co-tenants), ask for their **payment reference** — the unique string the tenant should use when paying rent (e.g. "18 Irene - Smith"). The primary tenant's ref is `payment_reference` on the lease state; co-tenants each have a `payment_reference` field on their object in `co_tenants[]`. Don't volunteer a default — ask the user.
+6. Keep your reply conversational and brief (1-2 sentences max). Never repeat information the user already provided.
 
 Respond with ONLY valid JSON — no markdown, no preamble:
 {{
@@ -574,12 +575,30 @@ def _build_import_payload(state: dict, request) -> dict:
 
 
 def _parse_co_tenants(value) -> list:
+    """
+    Normalise builder-state co_tenants into a list of dicts each carrying at
+    minimum ``full_name`` and ``payment_reference``. Per-lessee payment refs
+    flow through to the import view's LeaseTenant get_or_create call.
+    """
     if not value:
         return []
     if isinstance(value, list):
-        return [{"full_name": v} if isinstance(v, str) else v for v in value]
+        out: list = []
+        for v in value:
+            if isinstance(v, str):
+                out.append({"full_name": v, "payment_reference": ""})
+            elif isinstance(v, dict):
+                merged = dict(v)
+                merged.setdefault("payment_reference", "")
+                out.append(merged)
+            else:
+                out.append({"full_name": str(v), "payment_reference": ""})
+        return out
     if isinstance(value, str) and value.strip():
-        return [{"full_name": name.strip()} for name in value.split(",") if name.strip()]
+        return [
+            {"full_name": name.strip(), "payment_reference": ""}
+            for name in value.split(",") if name.strip()
+        ]
     return []
 
 
@@ -616,9 +635,13 @@ def _lease_to_state(lease) -> dict:
     prop = unit.property if unit else None
     primary = lease.primary_tenant  # ForeignKey(Person)
 
-    co_tenants = list(
-        lease.co_tenants.select_related("person").values_list("person__full_name", flat=True)
-    )
+    co_tenants = [
+        {
+            "full_name": ct.person.full_name if ct.person else "",
+            "payment_reference": ct.payment_reference or "",
+        }
+        for ct in lease.co_tenants.select_related("person").order_by("id")
+    ]
 
     state = {
         "property_address": prop.address if prop else "",
