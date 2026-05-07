@@ -447,6 +447,7 @@ class LeaseTenant(models.Model):
 
     class Meta:
         unique_together = [("lease", "person")]
+        ordering = ["id"]
         indexes = [
             models.Index(fields=["agency", "lease"], name="cotenant_agency_lease_idx"),
         ]

@@ -48,6 +48,52 @@ _WATCHED_MODELS: dict[str, str] = {
 
 
 # ---------------------------------------------------------------------------
+# Agency resolution helpers
+# ---------------------------------------------------------------------------
+
+def _derive_agency_id(instance) -> int | None:
+    """
+    Best-effort resolver for the owning agency_id of an instance the audit
+    signal observes.
+
+    Tries common attribute paths used by the watched models:
+      - ``instance.agency_id`` directly
+      - ``instance.lease.agency_id``
+      - ``instance.unit.property.agency_id``
+      - ``instance.property.agency_id``
+
+    Returns None if no chain resolves; the caller can then fall back to
+    actor.agency_id or write the event with agency_id=NULL (operator-level
+    events).
+    """
+    direct = getattr(instance, "agency_id", None)
+    if direct:
+        return direct
+
+    lease = getattr(instance, "lease", None)
+    if lease is not None:
+        aid = getattr(lease, "agency_id", None)
+        if aid:
+            return aid
+
+    unit = getattr(instance, "unit", None)
+    if unit is not None:
+        prop = getattr(unit, "property", None)
+        if prop is not None:
+            aid = getattr(prop, "agency_id", None)
+            if aid:
+                return aid
+
+    prop = getattr(instance, "property", None)
+    if prop is not None:
+        aid = getattr(prop, "agency_id", None)
+        if aid:
+            return aid
+
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Snapshot helpers
 # ---------------------------------------------------------------------------
 
@@ -195,8 +241,22 @@ def _write_event(
             elif hasattr(instance, "actor") and instance.actor is not None:
                 actor_email = getattr(instance.actor, "email", "") or ""
 
+            # Resolve owning agency for the audit row. Without this, every
+            # signal-driven event would land with agency_id=NULL and the
+            # AuditEventViewSet (which filters by agency_id) would hide the
+            # event from the very agency_admin whose action created it.
+            agency_id = _derive_agency_id(instance)
+            if agency_id is None and actor is not None:
+                agency_id = getattr(actor, "agency_id", None)
+            if agency_id is None:
+                logger.warning(
+                    "AuditEvent missing agency_id for action=%s target=%s pk=%s",
+                    action, type(instance).__name__, getattr(instance, "pk", None),
+                )
+
             # Build the event (without self_hash first so we can compute canonical_payload)
             event = AuditEvent(
+                agency_id=agency_id,
                 actor=actor,
                 actor_email=actor_email,
                 action=action,

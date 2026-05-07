@@ -5,10 +5,10 @@ These fire during ``manage.py check`` (and at startup) to catch misconfigured
 production deployments before they send customers localhost URLs.
 """
 from django.conf import settings
-from django.core.checks import Critical, Warning as CheckWarning, register
+from django.core.checks import Critical, Tags, Warning as CheckWarning, register
 
 
-@register()
+@register(Tags.security)
 def check_no_orphan_users(app_configs, **kwargs):
     """
     Phase 3.1 — every authenticated staff/owner user MUST have an agency_id.

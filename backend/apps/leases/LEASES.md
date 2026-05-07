@@ -407,3 +407,17 @@ via the `post_save` signal on Lease.
 The signal handler `_resync_unit_status` also defends against the cron being
 down — it filters by `end_date >= today`, so even a stale active row never
 falsely marks a unit as occupied on subsequent saves.
+
+## Deploy notes — orphan-user check (`accounts.E003`)
+
+The `check_no_orphan_users` system check enforces the Phase 3.1 invariant
+that every staff/owner user must have an `agency_id`. It is registered with
+the `security` tag, which means:
+
+- `python manage.py migrate` does **not** run it (migrate runs `tags=["models"]` only).
+- `python manage.py check` and `python manage.py check --deploy` run it.
+
+If a fresh deploy hits orphans (legacy data), run the Phase 4 backfill
+migration first (`leases`/`accounts` apps), then re-run `check --deploy`.
+The check intentionally fails CI/deploy gates until orphans are repaired —
+this is the security floor for multi-tenant scoping.

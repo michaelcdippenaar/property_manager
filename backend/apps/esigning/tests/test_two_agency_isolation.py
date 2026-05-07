@@ -147,3 +147,77 @@ class ESigningSubmissionListIsolationTest(ESigningTwoAgencyIsolationBase):
             resp.status_code,
             (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND),
         )
+
+
+# ---------------------------------------------------------------------------
+# Post-review regression tests
+# ---------------------------------------------------------------------------
+
+from apps.accounts.models import Person
+from apps.leases.models import LeaseOccupant, LeaseTemplate
+
+
+class GenerateLeaseHtmlTemplateScopingTest(ESigningTwoAgencyIsolationBase):
+    """Regression for Bug 1 — generate_lease_html template fallback must be
+    scoped to the lease's agency."""
+
+    def test_unscoped_fallback_does_not_pick_other_agency_template(self):
+        from apps.esigning.services import generate_lease_html
+
+        # Agency B has the most recent active template — without scoping,
+        # generate_lease_html(lease_a) would pick THIS one.
+        LeaseTemplate.objects.create(
+            agency=self.agency_b,
+            name="LB Marker Template",
+            content_html="<p>BBBBB-MARKER-CONTENT</p>",
+            is_active=True,
+        )
+        LeaseTemplate.objects.create(
+            agency=self.agency_a,
+            name="LA Template",
+            content_html="<p>AAAAA-MARKER-CONTENT</p>",
+            is_active=True,
+        )
+        html = generate_lease_html(self.lease_a, num_signers=1)
+        self.assertIn("AAAAA-MARKER-CONTENT", html)
+        self.assertNotIn("BBBBB-MARKER-CONTENT", html)
+
+    def test_explicit_cross_agency_template_id_falls_back_to_own(self):
+        from apps.esigning.services import generate_lease_html
+
+        tpl_b = LeaseTemplate.objects.create(
+            agency=self.agency_b,
+            name="LB Other",
+            content_html="<p>BBBBB-MARKER-CONTENT</p>",
+            is_active=True,
+        )
+        LeaseTemplate.objects.create(
+            agency=self.agency_a,
+            name="LA Default",
+            content_html="<p>AAAAA-MARKER-CONTENT</p>",
+            is_active=True,
+        )
+        html = generate_lease_html(self.lease_a, num_signers=1, template_id=tpl_b.id)
+        self.assertNotIn("BBBBB-MARKER-CONTENT", html)
+        self.assertIn("AAAAA-MARKER-CONTENT", html)
+
+
+class FormDataOccupantScopingTest(ESigningTwoAgencyIsolationBase):
+    """Regression for Bug 5 — _process_form_data must scope Person + Occupant
+    creation to the lease's agency."""
+
+    def test_form_data_occupant_creation_uses_lease_agency(self):
+        from apps.esigning.services import sync_captured_data_to_models
+
+        self.sub_a.captured_data = {
+            "occupant_1_name": "Charlie Occupant",
+            "occupant_1_id": "0501015009085",
+            "occupant_1_relationship": "child",
+        }
+        self.sub_a.save(update_fields=["captured_data"])
+        sync_captured_data_to_models(self.sub_a)
+
+        person = Person.objects.get(full_name="Charlie Occupant")
+        self.assertEqual(person.agency_id, self.agency_a.id)
+        occ = LeaseOccupant.objects.get(lease=self.lease_a, person=person)
+        self.assertEqual(occ.agency_id, self.agency_a.id)

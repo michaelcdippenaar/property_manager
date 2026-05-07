@@ -136,3 +136,28 @@ class TestMergeFieldRegistry:
         assert "cotenant_3_payment_reference" in CANONICAL_FIELD_NAMES
         # Legacy alias retained
         assert "payment_reference" in CANONICAL_FIELD_NAMES
+
+
+# ---------------------------------------------------------------------------
+# Post-review regression — Bug 6: tenant_N_name and cotenant_N_payment_reference
+# must use the SAME ordering (id ascending) so the right reference is rendered
+# next to the right tenant.
+# ---------------------------------------------------------------------------
+
+class TestNameAndPaymentReferenceAlignment:
+    def test_tenant_n_name_and_cotenant_n_reference_align_after_reordering(self):
+        from apps.esigning.services import build_lease_context
+
+        # Insert co-tenants in reverse-id order in the iterable returned by
+        # the queryset mock — services must still align name(slot N) with
+        # payment_reference(slot N) by sorting on id.
+        co_low = _make_mock_co("REF-LOW", "Alex Lowid", ct_id=2)
+        co_high = _make_mock_co("REF-HIGH", "Beth Highid", ct_id=200)
+        lease = _make_orm_lease(co_tenants=[co_high, co_low])
+
+        ctx = build_lease_context(lease)
+        # Slot 2 should be the lower-id co-tenant; slot 3 the higher-id.
+        assert ctx["tenant_2_name"] == "Alex Lowid"
+        assert ctx["tenant_3_name"] == "Beth Highid"
+        assert ctx["cotenant_1_payment_reference"] == "REF-LOW"
+        assert ctx["cotenant_2_payment_reference"] == "REF-HIGH"

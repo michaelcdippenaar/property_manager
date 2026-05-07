@@ -123,13 +123,16 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
     def add_tenant(self, request, pk=None):
         lease = self.get_object()
         person_id = request.data.get("person_id")
+        # Persons are agency-scoped (Phase 4). Bind the lease's agency so we
+        # neither leak across tenants on lookup nor stamp NULL on create.
+        agency_id = lease.agency_id
         if person_id:
-            person = get_object_or_404(Person, pk=person_id)
+            person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
             person_data = request.data.get("person", {})
             s = PersonSerializer(data=person_data)
             s.is_valid(raise_exception=True)
-            person = s.save()
+            person = s.save(agency_id=agency_id)
 
         payment_reference = (request.data.get("payment_reference") or "").strip()
 

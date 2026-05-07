@@ -11,8 +11,12 @@ from apps.properties.models import Property, Unit
 from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor
 
 
-def _get_or_create_person(data: dict) -> Person:
-    """Find a matching Person by ID number, phone, or email — or create a new one."""
+def _get_or_create_person(data: dict, agency_id) -> Person:
+    """Find a matching Person by ID number, phone, or email — or create a new one.
+
+    All lookups and the create are scoped to ``agency_id`` so an importer in
+    agency A can never silently re-use a Person belonging to agency B.
+    """
     id_number = (data.get("id_number") or "").strip()
     full_name = (data.get("full_name") or "").strip()
     phone = (data.get("phone") or "").strip()
@@ -21,25 +25,28 @@ def _get_or_create_person(data: dict) -> Person:
     if not full_name:
         return None
 
+    base_qs = Person.objects.filter(agency_id=agency_id)
+
     # Match on SA ID number (most reliable)
     if id_number:
-        person = Person.objects.filter(id_number=id_number).first()
+        person = base_qs.filter(id_number=id_number).first()
         if person:
             return person
 
     # Match on phone (unique when set)
     if phone:
-        person = Person.objects.filter(phone=phone).first()
+        person = base_qs.filter(phone=phone).first()
         if person:
             return person
 
     # Match on email
     if email:
-        person = Person.objects.filter(email=email).first()
+        person = base_qs.filter(email=email).first()
         if person:
             return person
 
     return Person.objects.create(
+        agency_id=agency_id,
         full_name=full_name,
         id_number=id_number or "",
         phone=phone,
@@ -147,8 +154,12 @@ class ImportLeaseView(APIView):
                 )
 
         # ── Primary Tenant ──────────────────────────────────────────────────
+        # Persons are agency-scoped — use the property's agency (which the
+        # caller already passed scoping for) so all parties end up under the
+        # same tenancy as the lease.
+        person_agency_id = prop.agency_id
         primary_data = d.get("primary_tenant") or {}
-        primary_person = _get_or_create_person(primary_data)
+        primary_person = _get_or_create_person(primary_data, agency_id=person_agency_id)
         if not primary_person:
             return Response({"error": "primary_tenant.full_name is required."}, status=400)
 
@@ -199,7 +210,7 @@ class ImportLeaseView(APIView):
 
         # ── Co-tenants ───────────────────────────────────────────────────────
         for ct_data in (d.get("co_tenants") or []):
-            person = _get_or_create_person(ct_data)
+            person = _get_or_create_person(ct_data, agency_id=person_agency_id)
             if person:
                 LeaseTenant.objects.get_or_create(
                     lease=lease, person=person,
@@ -211,7 +222,7 @@ class ImportLeaseView(APIView):
 
         # ── Occupants ────────────────────────────────────────────────────────
         for oc_data in (d.get("occupants") or []):
-            person = _get_or_create_person(oc_data)
+            person = _get_or_create_person(oc_data, agency_id=person_agency_id)
             if person:
                 LeaseOccupant.objects.get_or_create(
                     lease=lease, person=person,
@@ -223,13 +234,17 @@ class ImportLeaseView(APIView):
 
         # ── Guarantors ───────────────────────────────────────────────────────
         for g_data in (d.get("guarantors") or []):
-            person = _get_or_create_person(g_data)
+            person = _get_or_create_person(g_data, agency_id=person_agency_id)
             if person:
-                # Resolve who they cover by name
+                # Resolve who they cover by name — scoped so we don't bind the
+                # guarantor to a same-named Person in another agency.
                 covers_name = (g_data.get("for_tenant") or "").strip()
                 covers = None
                 if covers_name:
-                    covers = Person.objects.filter(full_name__iexact=covers_name).first()
+                    covers = Person.objects.filter(
+                        agency_id=person_agency_id,
+                        full_name__iexact=covers_name,
+                    ).first()
                 LeaseGuarantor.objects.create(
                     agency_id=lease.agency_id, lease=lease,
                     person=person, covers_tenant=covers,

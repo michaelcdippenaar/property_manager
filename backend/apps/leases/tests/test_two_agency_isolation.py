@@ -221,3 +221,70 @@ class ReusableClauseViewIsolationTest(TwoAgencyLeaseIsolationTestBase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
         new_clause = ReusableClause.objects.get(title="Forced clause")
         self.assertEqual(new_clause.agency_id, self.agency_a.id)
+
+
+# ---------------------------------------------------------------------------
+# Post-review regression tests — cross-agency Person leak fixes
+# ---------------------------------------------------------------------------
+
+from apps.accounts.models import Person
+
+
+class ImportLeasePersonScopingTest(TwoAgencyLeaseIsolationTestBase):
+    """Regression for Bug 2 — _get_or_create_person scoping in import."""
+
+    def test_import_does_not_reuse_other_agency_person_by_id_number(self):
+        # Agency B already has a Person with this ID number. Agency A's
+        # import must NOT reuse that Person (it would silently leak the row).
+        from apps.leases.import_view import _get_or_create_person
+
+        Person.objects.create(
+            agency=self.agency_b, full_name="Bob Foreigner",
+            id_number="9001015009087",
+        )
+        person = _get_or_create_person(
+            {
+                "full_name": "Alice Local",
+                "id_number": "9001015009087",  # collides with agency B's row
+            },
+            agency_id=self.agency_a.id,
+        )
+        self.assertEqual(person.agency_id, self.agency_a.id)
+        self.assertEqual(person.full_name, "Alice Local")
+
+    def test_import_creates_person_with_caller_agency_id(self):
+        from apps.leases.import_view import _get_or_create_person
+
+        person = _get_or_create_person(
+            {"full_name": "Fresh Tenant", "id_number": "8501015009088"},
+            agency_id=self.agency_a.id,
+        )
+        self.assertIsNotNone(person.agency_id)
+        self.assertEqual(person.agency_id, self.agency_a.id)
+
+
+class AddTenantCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
+    """Regression for Bug 3 — add_tenant must not attach foreign Persons."""
+
+    def test_add_tenant_rejects_cross_agency_person_pk(self):
+        person_b = Person.objects.create(
+            agency=self.agency_b, full_name="Foreign Tenant",
+        )
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/tenants/",
+            {"person_id": person_b.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_add_tenant_with_new_person_stamps_agency(self):
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/tenants/",
+            {"person": {"full_name": "Brand New Co-tenant", "person_type": "individual"}},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        new_person = Person.objects.get(full_name="Brand New Co-tenant")
+        self.assertEqual(new_person.agency_id, self.agency_a.id)

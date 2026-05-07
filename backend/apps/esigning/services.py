@@ -271,10 +271,24 @@ def build_lease_context(lease) -> dict:
     }
 
     # ── Co-tenants: tenant_2_*, tenant_3_* ───────────────────────
+    # Ordered by id for stability so tenant_N_name and cotenant_N_payment_reference
+    # always reference the same person at index N. LeaseTenant.Meta.ordering is
+    # ["id"] but we re-apply order_by here defensively (and to keep tests that
+    # mock the queryset deterministic).
     co = list(lease.co_tenants.select_related('person').all())
+    # Always sort in Python by id for deterministic slot assignment so
+    # tenant_N_name and cotenant_N_payment_reference reference the same
+    # co-tenant. Real querysets get ordering="id" via LeaseTenant.Meta;
+    # this in-memory sort is a defence in depth (and keeps unit tests
+    # using MagicMock iterables stable).
+    try:
+        co = sorted(co, key=lambda ct: ct.id)
+    except (TypeError, AttributeError):
+        pass
     ctx['co_tenants'] = ', '.join(ct.person.full_name for ct in co if ct.person.full_name) or '—'
 
-    for i, ct in enumerate(co[:3], start=2):       # up to 3 co-tenants
+    co_top3 = co[:3]
+    for i, ct in enumerate(co_top3, start=2):       # up to 3 co-tenants
         p = ct.person
         ctx[f'tenant_{i}_name']  = p.full_name or '—'
         ctx[f'tenant_{i}_id']    = p.id_number or '—'
@@ -287,16 +301,12 @@ def build_lease_context(lease) -> dict:
         ctx[f'tenant_{i}_emergency_contact'] = p.emergency_contact_name or '—'
         ctx[f'tenant_{i}_emergency_phone'] = p.emergency_contact_phone or '—'
 
-    # Per-lessee payment references — co-tenants ordered by id for stability
-    # (fall back to insertion order if id is not a sortable scalar, e.g. in tests).
-    try:
-        co_ordered = sorted(co, key=lambda ct: ct.id)
-    except TypeError:
-        co_ordered = list(co)
+    # Per-lessee payment references — reuse the same id-ordered list so
+    # cotenant_N matches tenant_N name for slot N.
     for n in range(1, 4):
-        if n - 1 < len(co_ordered):
+        if n - 1 < len(co):
             ctx[f'cotenant_{n}_payment_reference'] = (
-                getattr(co_ordered[n - 1], 'payment_reference', '') or '—'
+                getattr(co[n - 1], 'payment_reference', '') or '—'
             )
         else:
             ctx[f'cotenant_{n}_payment_reference'] = '—'
@@ -413,15 +423,28 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
 
     ctx = build_lease_context(lease)
 
+    # Phase 2.x cross-agency leak fix — scope LeaseTemplate lookup to the
+    # lease's owning agency. A null lease.agency_id can only happen for
+    # legacy data; in that case we keep the historical fallback (no scope).
+    caller_agency_id = getattr(lease, "agency_id", None)
+    template_qs = LeaseTemplate.objects.all()
+    if caller_agency_id is not None:
+        template_qs = template_qs.filter(agency_id=caller_agency_id)
+
     # Use specified template or fall back to most recent active one
     tmpl = None
     if template_id:
-        tmpl = LeaseTemplate.objects.filter(pk=template_id).first()
+        tmpl = template_qs.filter(pk=template_id).first()
+        if tmpl is None and caller_agency_id is not None:
+            # Explicit template_id from another agency → refuse silently and
+            # fall through to the agency-scoped default rather than rendering
+            # foreign content.
+            tmpl = None
     if not tmpl:
         tmpl = (
-            LeaseTemplate.objects.filter(is_active=True).exclude(content_html='')
+            template_qs.filter(is_active=True).exclude(content_html='')
             .order_by('-id').first()
-            or LeaseTemplate.objects.filter(is_active=True).order_by('-id').first()
+            or template_qs.filter(is_active=True).order_by('-id').first()
         )
 
     if tmpl and tmpl.content_html:
@@ -914,11 +937,15 @@ def sync_captured_data_to_models(submission):
     for i, ct in enumerate(lease.co_tenants.select_related('person').all()[:3], start=2):
         _update_person(ct.person, f'tenant_{i}')
 
-    # Occupants (create Person + LeaseOccupant if new)
+    # Occupants (create Person + LeaseOccupant if new) — scope to the
+    # lease's agency so a tenant in agency A cannot reuse / leak an
+    # occupant Person belonging to agency B.
+    person_agency_id = getattr(lease, 'agency_id', None)
     for i in range(1, 5):
         occ_name = data.get(f'occupant_{i}_name', '').strip()
         if occ_name and occ_name != '—':
             person, created = Person.objects.get_or_create(
+                agency_id=person_agency_id,
                 full_name=occ_name,
                 defaults={
                     'id_number': data.get(f'occupant_{i}_id', '').strip(),
@@ -929,6 +956,7 @@ def sync_captured_data_to_models(submission):
             LeaseOccupant.objects.get_or_create(
                 lease=lease, person=person,
                 defaults={
+                    'agency_id': person_agency_id,
                     'relationship_to_tenant': data.get(f'occupant_{i}_relationship', '').strip(),
                 }
             )
