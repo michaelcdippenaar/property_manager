@@ -158,7 +158,7 @@ class SupplierJobQuoteView(SupplierMixin, APIView):
 
         serializer = SupplierJobQuoteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(quote_request=qr)
+        serializer.save(quote_request=qr, agency_id=qr.agency_id)
 
         qr.status = "quoted"
         qr.save()
@@ -230,6 +230,7 @@ class SupplierJobAcceptView(SupplierMixin, APIView):
             activity_type=MaintenanceActivity.ActivityType.STATUS_CHANGE,
             message=f"Supplier {supplier.display_name} accepted the job and will start work.",
             metadata={"supplier_id": supplier.id, "action": "accepted"},
+            agency_id=mr.agency_id,
         )
 
         return Response({"status": "accepted", "mr_status": mr.status})
@@ -307,6 +308,7 @@ class SupplierJobStatusUpdateView(SupplierMixin, APIView):
                 "old_status": old_status,
                 "new_status": new_status,
             },
+            agency_id=mr.agency_id,
         )
 
         return Response({
@@ -368,7 +370,7 @@ class SupplierInvoiceView(SupplierMixin, APIView):
 
         serializer = SupplierInvoiceSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        invoice = serializer.save(quote_request=qr)
+        invoice = serializer.save(quote_request=qr, agency_id=qr.agency_id)
 
         # Log activity on the maintenance request
         mr = qr.dispatch.maintenance_request
@@ -377,6 +379,7 @@ class SupplierInvoiceView(SupplierMixin, APIView):
             activity_type=MaintenanceActivity.ActivityType.NOTE,
             message=f"Supplier submitted invoice of R{invoice.total_amount} — awaiting approval.",
             metadata={"supplier_id": supplier.id, "invoice_id": invoice.id},
+            agency_id=mr.agency_id,
         )
 
         return Response(SupplierInvoiceSerializer(invoice).data, status=status.HTTP_201_CREATED)
@@ -453,7 +456,7 @@ class SupplierDocumentsView(SupplierMixin, APIView):
             return Response({"detail": "No supplier profile linked"}, status=status.HTTP_403_FORBIDDEN)
         serializer = SupplierDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(supplier=supplier)
+        serializer.save(supplier=supplier, agency_id=supplier.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 

@@ -23,7 +23,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from rest_framework.test import APIClient
 
-from apps.accounts.models import User
+from apps.accounts.models import Agency, User
 from apps.maintenance.models import (
     JobDispatch,
     JobQuoteRequest,
@@ -48,30 +48,40 @@ class InvoiceTestBase(TremlyAPITestCase):
     """Sets up: agent, supplier user+profile, property, unit, MR, dispatch, awarded QR, invoice."""
 
     def setUp(self):
+        # Phase 2.5: every actor + record is anchored to a single agency
+        # so AgencyScopedQuerysetMixin doesn't fail closed.
+        self.agency = Agency.objects.create(name="Invoice Agency")
         self.agent = self.create_agent(email="inv-agent@test.com")
+        self.agent.agency = self.agency
+        self.agent.save(update_fields=["agency"])
+
         self.supplier_user = self.create_supplier_user(email="inv-supplier@test.com")
         self.supplier = self.create_supplier(
             name="Invoice Supplier",
             phone="0820002222",
             linked_user=self.supplier_user,
+            agency=self.agency,
         )
-        self.prop = self.create_property(agent=self.agent)
-        self.unit = self.create_unit(property_obj=self.prop)
-        self.mr = self.create_maintenance_request(unit=self.unit, status="in_progress")
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.unit = self.create_unit(property_obj=self.prop, agency=self.agency)
+        self.mr = self.create_maintenance_request(unit=self.unit, status="in_progress", agency=self.agency)
         self.dispatch = JobDispatch.objects.create(
             maintenance_request=self.mr,
             dispatched_by=self.agent,
             status="awarded",
+            agency=self.agency,
         )
         self.qr = JobQuoteRequest.objects.create(
             dispatch=self.dispatch,
             supplier=self.supplier,
             status="awarded",
+            agency=self.agency,
         )
         self.invoice = SupplierInvoice.objects.create(
             quote_request=self.qr,
             total_amount=Decimal("2500.00"),
             status=SupplierInvoice.Status.PENDING,
+            agency=self.agency,
         )
 
     def _agent_client(self):

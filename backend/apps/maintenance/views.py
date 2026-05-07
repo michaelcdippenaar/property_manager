@@ -7,6 +7,11 @@ from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin, IsTenantOrAgent
+from apps.accounts.scoping import (
+    AgencyScopedQuerysetMixin,
+    AgencyStampedCreateMixin,
+    _is_admin,
+)
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -34,7 +39,7 @@ from .serializers import (
 )
 
 
-class MaintenanceRequestViewSet(viewsets.ModelViewSet):
+class MaintenanceRequestViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     """
     CRUD endpoint for maintenance requests.
 
@@ -43,8 +48,17 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
       portal; they must never create or inject maintenance requests on behalf of
       tenants.  Only tenants and agent-variant roles (including admin) may POST
       new requests.
+
+    Phase 2.5 tenant scoping
+    ------------------------
+    Tenants legitimately read/create their own maintenance requests and they
+    do NOT belong to an agency, so the AgencyScopedQuerysetMixin would return
+    .none() for them. We bypass the mixin filter for tenant-role users (they
+    are already filtered to ``tenant=request.user``). Agency staff are scoped
+    via the mixin then layered with the existing property-access filter.
     """
 
+    queryset = MaintenanceRequest.objects.all()
     serializer_class = MaintenanceRequestSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status", "priority", "unit", "supplier"]
@@ -72,16 +86,24 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = MaintenanceRequest.objects.select_related("supplier", "tenant").annotate(
+        # Tenants legitimately access maintenance they reported but have no
+        # agency_id; bypass the agency mixin and filter by tenant=user
+        # instead. All other roles flow through super().get_queryset() which
+        # applies the AgencyScopedQuerysetMixin (admin → all; agency users →
+        # their agency only; users with no agency → .none()).
+        if hasattr(user, "role") and user.role == "tenant":
+            qs = MaintenanceRequest.objects.filter(tenant=user)
+        else:
+            qs = super().get_queryset()
+            # Layer the existing property-access filter on top for non-admin
+            # agency staff (defence in depth).
+            if hasattr(user, "role") and user.role != "admin" and not getattr(user, "is_superuser", False):
+                from apps.properties.access import get_accessible_property_ids
+                prop_ids = get_accessible_property_ids(user)
+                qs = qs.filter(unit__property_id__in=prop_ids)
+        qs = qs.select_related("supplier", "tenant").annotate(
             activity_count=Count("activities"),
         ).order_by("-created_at")
-        if hasattr(user, "role") and user.role == "tenant":
-            qs = qs.filter(tenant=user)
-        elif hasattr(user, "role") and user.role != "admin":
-            from apps.properties.access import get_accessible_property_ids
-            prop_ids = get_accessible_property_ids(user)
-            qs = qs.filter(unit__property_id__in=prop_ids)
-        # admin sees all
         property_id = self.request.query_params.get("property")
         if property_id:
             qs = qs.filter(unit__property_id=property_id)
@@ -89,6 +111,44 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
         if exclude_status:
             qs = qs.exclude(status=exclude_status)
         return qs
+
+    def perform_create(self, serializer):
+        """Stamp agency_id correctly across the tenant + agency-staff paths.
+
+        Tenants have no agency_id of their own — derive it from the unit's
+        property. The serializer's own ``create()`` resolves the unit when
+        the tenant doesn't pass one, so we must not depend on the validated
+        ``unit`` being set here. For non-tenant callers, fall through to
+        AgencyStampedCreateMixin.
+        """
+        user = self.request.user
+        if hasattr(user, "role") and user.role == "tenant":
+            # Pre-resolve the unit (mirrors serializer logic) so we can stamp
+            # agency_id without waiting for serializer.create().
+            unit = serializer.validated_data.get("unit")
+            if unit is None:
+                # Defer to serializer.create — it will resolve and may raise.
+                # We can't compute agency in advance; instead let the
+                # serializer commit and patch the row afterwards.
+                obj = serializer.save()
+                resolved_unit_id = obj.unit_id
+                if obj.agency_id is None and resolved_unit_id is not None:
+                    from apps.properties.models import Unit
+                    agency_id = (
+                        Unit.objects.filter(pk=resolved_unit_id)
+                        .values_list("agency_id", flat=True)
+                        .first()
+                    )
+                    if agency_id is not None:
+                        type(obj).objects.filter(pk=obj.pk).update(agency_id=agency_id)
+                        obj.agency_id = agency_id
+                return
+            agency_id = getattr(unit, "agency_id", None)
+            if agency_id is None:
+                agency_id = getattr(getattr(unit, "property", None), "agency_id", None)
+            serializer.save(agency_id=agency_id)
+            return
+        super().perform_create(serializer)
 
 
     @action(detail=False, methods=["post"], url_path="classify")
@@ -215,10 +275,10 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
             except JobDispatch.DoesNotExist:
                 return Response({"detail": "No dispatch yet"}, status=status.HTTP_404_NOT_FOUND)
 
-        # POST — create dispatch + rank suppliers
+        # POST — create dispatch + rank suppliers (inherit agency from request)
         jd, created = JobDispatch.objects.get_or_create(
             maintenance_request=mreq,
-            defaults={"dispatched_by": request.user},
+            defaults={"dispatched_by": request.user, "agency_id": mreq.agency_id},
         )
         suggestions = rank_suppliers(mreq)
         return Response({
@@ -254,6 +314,7 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
                 continue
             qr, created = JobQuoteRequest.objects.get_or_create(
                 dispatch=jd, supplier=supplier,
+                defaults={"agency_id": jd.agency_id},
             )
             if created or not qr.notified_at:
                 notify_supplier(qr)
@@ -291,7 +352,7 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
 
         serializer = MaintenanceActivitySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(request=mreq, created_by=request.user)
+        serializer.save(request=mreq, created_by=request.user, agency_id=mreq.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"], url_path="dispatch/award")
@@ -353,6 +414,7 @@ class MaintenanceRequestViewSet(viewsets.ModelViewSet):
                     "tenant_contact_phone": tenant_phone,
                     "scope_of_work": mreq.description or mreq.title,
                     "assigned_by": request.user,
+                    "agency_id": mreq.agency_id,
                 },
             )
 
@@ -366,7 +428,16 @@ class JobDispatchListView(APIView):
     def get(self, request):
         from apps.properties.access import get_accessible_property_ids
         prop_ids = get_accessible_property_ids(request.user)
-        dispatches = JobDispatch.objects.filter(
+        qs = JobDispatch.objects.all()
+        # Phase 2.5: agency scoping — admin sees all; agency users only their
+        # own; orphan users see nothing.
+        if not _is_admin(request.user):
+            agency_id = getattr(request.user, "agency_id", None)
+            if agency_id is None:
+                qs = qs.none()
+            else:
+                qs = qs.filter(agency_id=agency_id)
+        dispatches = qs.filter(
             maintenance_request__unit__property_id__in=prop_ids
         ).select_related(
             "maintenance_request__unit__property", "dispatched_by"
@@ -411,7 +482,7 @@ class SupplierQuoteView(APIView):
 
         serializer = JobQuoteSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(quote_request=qr)
+        serializer.save(quote_request=qr, agency_id=qr.agency_id)
 
         qr.status = JobQuoteRequest.Status.QUOTED
         qr.save()
@@ -439,12 +510,13 @@ class SupplierQuoteDeclineView(APIView):
         return Response({"status": "declined"})
 
 
-class SupplierViewSet(viewsets.ModelViewSet):
+class SupplierViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["is_active"]
+    queryset = Supplier.objects.all()
 
     def get_queryset(self):
-        qs = Supplier.objects.prefetch_related("trades", "documents", "property_links__property").annotate(
+        qs = super().get_queryset().prefetch_related("trades", "documents", "property_links__property").annotate(
             active_jobs_count=Count(
                 "assigned_requests",
                 filter=Q(assigned_requests__status__in=["open", "in_progress"]),
@@ -486,7 +558,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
         serializer = SupplierDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(supplier=supplier)
+        serializer.save(supplier=supplier, agency_id=supplier.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="documents/(?P<doc_id>[0-9]+)")
@@ -510,7 +582,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 
         serializer = SupplierPropertySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(supplier=supplier)
+        serializer.save(supplier=supplier, agency_id=supplier.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="properties/(?P<link_id>[0-9]+)")
@@ -539,6 +611,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
         for prop in group.properties.all():
             _, was_created = SupplierProperty.objects.get_or_create(
                 supplier=supplier, property=prop,
+                defaults={"agency_id": supplier.agency_id},
             )
             if was_created:
                 created += 1
@@ -617,13 +690,18 @@ class SupplierViewSet(viewsets.ModelViewSet):
                 data["name"] = data.get("company_name", "")
 
             try:
-                supplier = Supplier.objects.create(**data)
+                # Stamp the caller's agency so imported suppliers stay scoped.
+                agency_id = getattr(request.user, "agency_id", None)
+                supplier = Supplier.objects.create(agency_id=agency_id, **data)
                 if trades_raw:
                     valid_trades = {c[0] for c in Supplier.Trade.choices}
                     for t in trades_raw.split(","):
                         t = t.strip().lower().replace(" ", "_")
                         if t in valid_trades:
-                            SupplierTrade.objects.get_or_create(supplier=supplier, trade=t)
+                            SupplierTrade.objects.get_or_create(
+                                supplier=supplier, trade=t,
+                                defaults={"agency_id": agency_id},
+                            )
                 created += 1
             except Exception as e:
                 errors.append(f"Row {row_idx}: {str(e)[:100]}")
@@ -631,12 +709,13 @@ class SupplierViewSet(viewsets.ModelViewSet):
         return Response({"created": created, "errors": errors})
 
 
-class AgentQuestionViewSet(viewsets.ModelViewSet):
+class AgentQuestionViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
     serializer_class = AgentQuestionSerializer
     permission_classes = [IsAgentOrAdmin]
+    queryset = AgentQuestion.objects.all()
 
     def get_queryset(self):
-        qs = AgentQuestion.objects.all()
+        qs = super().get_queryset()
         status_filter = self.request.query_params.get('status')
         category = self.request.query_params.get('category')
         if status_filter:
@@ -667,14 +746,25 @@ class AgentQuestionViewSet(viewsets.ModelViewSet):
         return Response(AgentQuestionSerializer(question).data)
 
 
-class MaintenanceSkillViewSet(viewsets.ModelViewSet):
+class MaintenanceSkillViewSet(AgencyStampedCreateMixin, viewsets.ModelViewSet):
     serializer_class = MaintenanceSkillSerializer
     permission_classes = [IsAgentOrAdmin]
     filterset_fields = ["trade", "difficulty", "is_active"]
     pagination_class = None  # small catalog — return all rows for admin / agent UI
+    queryset = MaintenanceSkill.objects.all()
 
     def get_queryset(self):
+        # MaintenanceSkill.agency is nullable; null = platform-global library
+        # entry visible to every tenant. Agency users see global + own; admin
+        # sees everything.
+        user = self.request.user
         qs = MaintenanceSkill.objects.all()
+        if not _is_admin(user):
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None:
+                qs = qs.filter(agency__isnull=True)
+            else:
+                qs = qs.filter(Q(agency_id=agency_id) | Q(agency__isnull=True))
         search = self.request.query_params.get('search')
         if search:
             qs = qs.filter(Q(name__icontains=search) | Q(notes__icontains=search))
@@ -696,17 +786,25 @@ class AgentInvoiceApprovalView(APIView):
 
     permission_classes = [IsAgentOrAdmin]
 
-    def _get_invoice(self, request_pk):
+    def _get_invoice(self, request_pk, request=None):
         try:
-            return SupplierInvoice.objects.select_related(
+            qs = SupplierInvoice.objects.select_related(
                 "quote_request__dispatch__maintenance_request",
                 "quote_request__supplier",
-            ).get(quote_request__dispatch__maintenance_request_id=request_pk)
+            )
+            # Phase 2.5: enforce agency scoping — non-admin users can only
+            # access invoices in their own agency.
+            if request is not None and not _is_admin(request.user):
+                agency_id = getattr(request.user, "agency_id", None)
+                if agency_id is None:
+                    return None
+                qs = qs.filter(agency_id=agency_id)
+            return qs.get(quote_request__dispatch__maintenance_request_id=request_pk)
         except SupplierInvoice.DoesNotExist:
             return None
 
     def get(self, request, request_pk):
-        invoice = self._get_invoice(request_pk)
+        invoice = self._get_invoice(request_pk, request=request)
         if not invoice:
             return Response({"detail": "No invoice found for this job"}, status=status.HTTP_404_NOT_FOUND)
         from .supplier_serializers import SupplierInvoiceSerializer
@@ -714,7 +812,7 @@ class AgentInvoiceApprovalView(APIView):
 
     def post(self, request, request_pk):
         action_name = request.data.get("action")
-        invoice = self._get_invoice(request_pk)
+        invoice = self._get_invoice(request_pk, request=request)
         if not invoice:
             return Response({"detail": "No invoice found for this job"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -730,6 +828,7 @@ class AgentInvoiceApprovalView(APIView):
                 message=f"Invoice of R{invoice.total_amount} approved by agent.",
                 created_by=request.user,
                 metadata={"invoice_id": invoice.id},
+                agency_id=invoice.agency_id,
             )
             return Response({"status": "approved"})
 
@@ -749,6 +848,7 @@ class AgentInvoiceApprovalView(APIView):
                 message=f"Invoice rejected: {reason}",
                 created_by=request.user,
                 metadata={"invoice_id": invoice.id},
+                agency_id=invoice.agency_id,
             )
             return Response({"status": "rejected"})
 
@@ -767,6 +867,7 @@ class AgentInvoiceApprovalView(APIView):
                 message=f"Invoice paid (R{invoice.total_amount}). Reference: {reference or 'not provided'}.",
                 created_by=request.user,
                 metadata={"invoice_id": invoice.id},
+                agency_id=invoice.agency_id,
             )
             return Response({"status": "paid"})
 

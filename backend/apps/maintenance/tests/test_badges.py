@@ -18,9 +18,31 @@ from __future__ import annotations
 import pytest
 from rest_framework.test import APIClient
 
+from apps.accounts.models import Agency
 from apps.maintenance.models import AgentQuestion, MaintenanceRequest
 from apps.properties.models import PropertyAgentAssignment
 from apps.test_hub.base.test_case import TremlyAPITestCase
+
+
+def _attach_agency(user, agency):
+    """Phase 2.5 helper: attach the test agent/admin user to an agency so
+    AgencyScopedQuerysetMixin doesn't fail closed and return an empty list.
+    """
+    user.agency = agency
+    user.save(update_fields=["agency"])
+    return user
+
+
+def _stamp_agency_chain(prop, unit=None, agency=None):
+    """Stamp ``agency`` on a property + unit so MaintenanceRequest rows
+    created against them also inherit the same agency_id (they don't have
+    a signal to do this automatically yet)."""
+    if agency is not None:
+        prop.agency = agency
+        prop.save(update_fields=["agency"])
+        if unit is not None:
+            unit.agency = agency
+            unit.save(update_fields=["agency"])
 
 
 # ---------------------------------------------------------------------------
@@ -88,23 +110,27 @@ class TestBadgeCountMatchesListCount:
 
     def test_agent_badge_only_sees_own_properties(self, f):
         """Agent badge must not include requests from another agent's properties."""
-        agent_a = f.create_agent(email="agent-a-badge@test.com")
-        agent_b = f.create_agent(email="agent-b-badge@test.com")
+        agency_a = Agency.objects.create(name="Badge Agency A")
+        agency_b = Agency.objects.create(name="Badge Agency B")
+        agent_a = _attach_agency(f.create_agent(email="agent-a-badge@test.com"), agency_a)
+        agent_b = _attach_agency(f.create_agent(email="agent-b-badge@test.com"), agency_b)
 
         prop_a = f.create_property(agent=agent_a, name="Prop A")
         prop_b = f.create_property(agent=agent_b, name="Prop B")
 
         unit_a = f.create_unit(property_obj=prop_a)
         unit_b = f.create_unit(property_obj=prop_b)
+        _stamp_agency_chain(prop_a, unit_a, agency_a)
+        _stamp_agency_chain(prop_b, unit_b, agency_b)
 
         # 2 open issues on agent_a's property
-        f.create_maintenance_request(unit=unit_a, status="open")
-        f.create_maintenance_request(unit=unit_a, status="in_progress")
+        f.create_maintenance_request(unit=unit_a, status="open", agency=agency_a)
+        f.create_maintenance_request(unit=unit_a, status="in_progress", agency=agency_a)
 
         # 3 open issues on agent_b's property — must NOT show in agent_a's badge
-        f.create_maintenance_request(unit=unit_b, status="open")
-        f.create_maintenance_request(unit=unit_b, status="open")
-        f.create_maintenance_request(unit=unit_b, status="open")
+        f.create_maintenance_request(unit=unit_b, status="open", agency=agency_b)
+        f.create_maintenance_request(unit=unit_b, status="open", agency=agency_b)
+        f.create_maintenance_request(unit=unit_b, status="open", agency=agency_b)
 
         badge_a = self._badge_count(agent_a)
         assert badge_a == 2, (
@@ -117,13 +143,15 @@ class TestBadgeCountMatchesListCount:
         For an agent user: badges.open_issues == count of status=open|in_progress
         in the list endpoint with the same user auth.
         """
-        agent = f.create_agent(email="agent-list-badge@test.com")
+        agency = Agency.objects.create(name="Badge List Agency")
+        agent = _attach_agency(f.create_agent(email="agent-list-badge@test.com"), agency)
         prop = f.create_property(agent=agent, name="Agent List Prop")
         unit = f.create_unit(property_obj=prop)
+        _stamp_agency_chain(prop, unit, agency)
 
-        f.create_maintenance_request(unit=unit, status="open")
-        f.create_maintenance_request(unit=unit, status="in_progress")
-        f.create_maintenance_request(unit=unit, status="resolved")
+        f.create_maintenance_request(unit=unit, status="open", agency=agency)
+        f.create_maintenance_request(unit=unit, status="in_progress", agency=agency)
+        f.create_maintenance_request(unit=unit, status="resolved", agency=agency)
 
         badge = self._badge_count(agent)
 
