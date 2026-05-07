@@ -58,15 +58,18 @@ def expire_overdue_leases(today=None) -> int:
         today = timezone.localdate()
 
     count = 0
-    with transaction.atomic():
-        stale = (
-            Lease.objects
-            .select_related("unit")
-            .filter(status=Lease.Status.ACTIVE, end_date__lt=today)
-        )
-        for lease in stale:
-            lease.status = Lease.Status.EXPIRED
-            lease.save(update_fields=["status"])
+    stale = (
+        Lease.objects
+        .select_related("unit")
+        .filter(status=Lease.Status.ACTIVE, end_date__lt=today)
+    )
+    # Per-row atomicity: one bad lease must not abort the entire run.
+    # Each status flip is independent and trips its own signals.
+    for lease in stale:
+        try:
+            with transaction.atomic():
+                lease.status = Lease.Status.EXPIRED
+                lease.save(update_fields=["status"])
             logger.info(
                 "Lease %s expired (unit=%s, end_date=%s)",
                 lease.pk,
@@ -74,6 +77,11 @@ def expire_overdue_leases(today=None) -> int:
                 lease.end_date,
             )
             count += 1
+        except Exception:
+            logger.exception(
+                "expire_overdue_leases: failed to expire lease %s — continuing",
+                lease.pk,
+            )
 
     if count:
         logger.info("expire_overdue_leases: expired %d lease(s)", count)

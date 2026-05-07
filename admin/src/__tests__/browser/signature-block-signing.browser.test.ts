@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, h, provide } from 'vue'
-import { Editor } from '@tiptap/vue-3'
+import { Editor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import { SignatureBlock } from '../../extensions/SignatureBlockNode'
 import { CSS_CUSTOM_PROPERTIES } from '../../config/tiptapSettings'
@@ -138,6 +138,7 @@ function renderWithEditorContent(opts: {
   // Use a component that creates the editor and renders via EditorContent
   const TestComponent = defineComponent({
     name: 'EditorContentTest',
+    components: { EditorContent },
     setup() {
       provide('signingContext', signingContext)
 
@@ -153,14 +154,9 @@ function renderWithEditorContent(opts: {
       return { editor }
     },
     render() {
-      // Render a div; we'll attach the editor in mounted
-      return h('div', { class: 'editor-mount', ref: 'editorMount' })
-    },
-    mounted() {
-      const el = this.$refs.editorMount as HTMLElement
-      if (el && this.editor) {
-        this.editor.setOptions({ element: el })
-      }
+      return h('div', { class: 'editor-mount' }, [
+        h(EditorContent, { editor: this.editor }),
+      ])
     },
     unmounted() {
       this.editor?.destroy()

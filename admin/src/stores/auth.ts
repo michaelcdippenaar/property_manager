@@ -160,6 +160,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = null
     refreshToken.value = null
     user.value = null
+    agency.value = null
     suggestTwoFASetup.value = false
     pendingLegalDocs.value = []
     localStorage.removeItem('access_token')

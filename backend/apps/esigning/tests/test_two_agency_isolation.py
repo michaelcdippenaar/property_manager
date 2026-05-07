@@ -221,3 +221,60 @@ class FormDataOccupantScopingTest(ESigningTwoAgencyIsolationBase):
         self.assertEqual(person.agency_id, self.agency_a.id)
         occ = LeaseOccupant.objects.get(lease=self.lease_a, person=person)
         self.assertEqual(occ.agency_id, self.agency_a.id)
+
+
+# ---------------------------------------------------------------------------
+# QA Round 1 — public-link supporting-doc DELETE / GET hardening
+# ---------------------------------------------------------------------------
+
+
+class ESigningPublicDocumentLifecycleTest(ESigningTwoAgencyIsolationBase):
+    """Bug 3 / Bug 10 (QA-R1) — public link DELETE/GET respects expiry + completion."""
+
+    def _make_link(self, *, expired: bool = False, completed: bool = False):
+        from django.utils import timezone
+        from apps.esigning.models import ESigningPublicLink, SupportingDocument
+        if completed:
+            self.sub_a.status = ESigningSubmission.Status.COMPLETED
+            self.sub_a.save(update_fields=["status"])
+        link = ESigningPublicLink.objects.create(
+            agency=self.agency_a,
+            submission=self.sub_a,
+            signer_role="tenant_1",
+            expires_at=timezone.now() - timedelta(hours=1)
+            if expired
+            else timezone.now() + timedelta(days=1),
+        )
+        doc = SupportingDocument.objects.create(
+            agency_id=self.agency_a.id,
+            submission=self.sub_a,
+            public_link=link,
+            document_type=SupportingDocument.DocumentType.OTHER,
+            file=None,
+            original_filename="x.pdf",
+            file_size=1,
+            uploaded_by_role="tenant_1",
+        )
+        return link, doc
+
+    def test_get_documents_410_when_link_expired(self):
+        link, _ = self._make_link(expired=True)
+        # Anonymous client — public-link UUID is the only auth.
+        resp = APIClient().get(
+            f"/api/v1/esigning/public-sign/{link.id}/documents/"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_410_GONE)
+
+    def test_delete_returns_409_when_submission_completed(self):
+        link, doc = self._make_link(completed=True)
+        resp = APIClient().delete(
+            f"/api/v1/esigning/public-sign/{link.id}/documents/{doc.id}/"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_409_CONFLICT)
+
+    def test_delete_returns_410_when_link_expired(self):
+        link, doc = self._make_link(expired=True)
+        resp = APIClient().delete(
+            f"/api/v1/esigning/public-sign/{link.id}/documents/{doc.id}/"
+        )
+        self.assertEqual(resp.status_code, status.HTTP_410_GONE)

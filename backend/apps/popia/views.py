@@ -24,8 +24,24 @@ from django.http import FileResponse, Http404
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
-from rest_framework.views import APIView
+from rest_framework.views import APIView as _DRFAPIView
+
+
+class APIView(_DRFAPIView):
+    """
+    POPIA-internal APIView that always renders JSON.
+
+    The platform's DEFAULT_RENDERER_CLASSES lists BrowsableAPIRenderer first
+    in dev so devs can poke at the API in a browser. POPIA endpoints (DSAR,
+    RTBF, export download) are programmatic only — the operator UI calls
+    them via fetch() and tests via APIClient. Forcing JSON here ensures
+    test clients (which don't send an Accept header) get parseable bodies
+    instead of the HTML browsable view.
+    """
+
+    renderer_classes = [JSONRenderer]
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminOrAgencyAdmin

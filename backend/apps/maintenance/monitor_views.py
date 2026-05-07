@@ -24,6 +24,7 @@ from django.conf import settings
 from django.db.models import Avg, Count, Max, Sum
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -380,11 +381,12 @@ class AgentHealthCheckView(APIView):
       - Chat log writable
       - Skills populated
 
-    Restricted to agent-or-admin users — response includes infrastructure
-    paths, model names, and API key presence. Tenants, suppliers, and owners
-    are blocked; any agent variant or system admin may access.
+    Restricted to system admins (RNT-SEC-038) — response leaks infrastructure
+    paths, embedding model names, and API key presence. Estate-agents and
+    agency-admins MUST NOT see this; only platform admins may access.
     """
-    permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
+    renderer_classes = [JSONRenderer]
 
     def get(self, request):
         checks = []

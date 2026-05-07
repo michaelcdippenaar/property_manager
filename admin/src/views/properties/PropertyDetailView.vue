@@ -2294,13 +2294,22 @@ async function initProperty(id: number) {
 onMounted(() => {
   initProperty(Number(route.params.id))
   document.addEventListener('mousedown', onOutsideClick)
-  // Deep-link: if the URL puts us straight onto the Agency tab, fire its
-  // loaders too (the activeSection watcher only runs on change).
-  if (activeSection.value === 'agency') {
-    loadAgentAssignments()
-    loadAvailableAgents()
-  }
 })
+
+// Deep-link: if the URL puts us straight onto the Agency tab, fire its
+// loaders once `property` has been populated by the async initProperty().
+// The previous onMounted() check fired before initProperty resolved, so
+// the loaders short-circuited on `if (!property.value) return`.
+watch(
+  property,
+  (p) => {
+    if (p && activeSection.value === 'agency') {
+      loadAgentAssignments()
+      loadAvailableAgents()
+    }
+  },
+  { immediate: true },
+)
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', onOutsideClick)

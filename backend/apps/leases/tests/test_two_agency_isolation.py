@@ -288,3 +288,86 @@ class AddTenantCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
         new_person = Person.objects.get(full_name="Brand New Co-tenant")
         self.assertEqual(new_person.agency_id, self.agency_a.id)
+
+
+# ── QA Round 1 — sibling actions on LeaseViewSet (occupants / guarantors / inv) ──
+
+
+class AddOccupantCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
+    """Bug 1 (QA-R1) — add_occupant must not attach foreign Persons."""
+
+    def test_add_occupant_rejects_cross_agency_person_pk(self):
+        from apps.accounts.models import Person
+        person_b = Person.objects.create(agency=self.agency_b, full_name="Foreign Occupant")
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/occupants/",
+            {"person_id": person_b.id, "relationship_to_tenant": "child"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_add_occupant_with_new_person_stamps_agency(self):
+        from apps.accounts.models import Person
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/occupants/",
+            {"person": {"full_name": "Newborn Occupant", "person_type": "individual"},
+             "relationship_to_tenant": "child"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        person = Person.objects.get(full_name="Newborn Occupant")
+        self.assertEqual(person.agency_id, self.agency_a.id)
+
+
+class AddGuarantorCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
+    """Bug 1 (QA-R1) — add_guarantor must not attach foreign Persons."""
+
+    def test_add_guarantor_rejects_cross_agency_person_pk(self):
+        from apps.accounts.models import Person
+        person_b = Person.objects.create(agency=self.agency_b, full_name="Foreign Guarantor")
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/guarantors/",
+            {"person_id": person_b.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_add_guarantor_ignores_cross_agency_covers_tenant(self):
+        """Guarantor's covers_tenant_id must resolve only within the lease's agency."""
+        from apps.accounts.models import Person
+        from apps.leases.models import LeaseGuarantor
+        cross_tenant = Person.objects.create(agency=self.agency_b, full_name="Foreign Covered")
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/guarantors/",
+            {
+                "person": {"full_name": "Local Guarantor", "person_type": "individual"},
+                "covers_tenant_id": cross_tenant.id,  # foreign — must NOT be linked
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        gua = LeaseGuarantor.objects.get(lease=self.lease_a)
+        self.assertIsNone(gua.covers_tenant_id)
+
+
+class InventoryFromTemplateCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
+    """Bug 1 (QA-R1) — inventory_from_template must not import a foreign template."""
+
+    def test_inventory_from_template_rejects_cross_agency_template_pk(self):
+        from apps.leases.models import InventoryTemplate
+        foreign_tmpl = InventoryTemplate.objects.create(
+            agency=self.agency_b, name="B Inventory Template",
+            created_by=self.user_b,
+            items=[{"name": "Stove", "category": "kitchen", "qty": 1}],
+        )
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            f"/api/v1/leases/{self.lease_a.id}/inventory/from-template/",
+            {"template_id": foreign_tmpl.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)

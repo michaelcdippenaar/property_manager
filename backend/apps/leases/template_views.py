@@ -14,6 +14,7 @@ from apps.accounts.scoping import (
     AgencyStampedCreateMixin,
     _is_admin,
 )
+from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 from rest_framework import status, generics
 
@@ -1862,6 +1863,10 @@ class ExportTemplatePDFView(APIView):
     Merge field placeholders are rendered as visible blanks (e.g. ________ ).
     """
     permission_classes = [IsAgentOrAdmin]
+    # Force JSON for any DRF-serialized fallback responses (e.g. 202 when
+    # Gotenberg is unreachable). The success path returns an HttpResponse
+    # directly with application/pdf, so this only affects fallbacks.
+    renderer_classes = [JSONRenderer]
 
     _PDF_CSS = """
         @page {
@@ -1954,6 +1959,9 @@ class ExportTemplatePDFView(APIView):
         except Exception as e:
             logger.error('Gotenberg PDF generation failed for template %s: %s', pk, e)
             # Enqueue a background retry so the operator's work is not lost.
+            # Force JSON rendering for the fallback response — without this DRF
+            # may content-negotiate to HTML based on the Accept header set by
+            # browsers, leaving callers unable to parse {queued, job_id}.
             try:
                 from .models import PdfRenderJob
                 from .tasks import enqueue_pdf_render
@@ -1963,8 +1971,16 @@ class ExportTemplatePDFView(APIView):
                     html_payload=full_html,
                     requested_by=request.user,
                 )
-                enqueue_pdf_render(job.id)
-                return Response(
+                try:
+                    enqueue_pdf_render(job.id)
+                except Exception as enqueue_exc:
+                    # Job row was persisted; only background dispatch failed.
+                    # Still return 202 so the operator's work is queued.
+                    logger.exception(
+                        'Failed to dispatch PdfRenderJob %s for template %s: %s',
+                        job.id, pk, enqueue_exc,
+                    )
+                resp = Response(
                     {
                         "queued": True,
                         "job_id": job.id,
@@ -1975,14 +1991,22 @@ class ExportTemplatePDFView(APIView):
                     },
                     status=status.HTTP_202_ACCEPTED,
                 )
-            except Exception as enqueue_exc:
+                resp.accepted_renderer = JSONRenderer()
+                resp.accepted_media_type = "application/json"
+                resp.renderer_context = {}
+                return resp
+            except Exception as outer_exc:
                 logger.exception(
-                    'Failed to enqueue PdfRenderJob for template %s: %s', pk, enqueue_exc
+                    'Failed to enqueue PdfRenderJob for template %s: %s', pk, outer_exc
                 )
-            return Response(
+            resp = Response(
                 {"error": "PDF generation failed and could not be queued for retry."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+            resp.accepted_renderer = JSONRenderer()
+            resp.accepted_media_type = "application/json"
+            resp.renderer_context = {}
+            return resp
 
         safe_name = re.sub(r'[^\w\s-]', '', tmpl.name).strip().replace(' ', '_') or 'template'
         response = HttpResponse(pdf_bytes, content_type="application/pdf")

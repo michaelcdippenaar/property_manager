@@ -60,7 +60,7 @@
                border-navy bg-navy/5 hover:bg-navy/10 text-navy font-medium
                transition-all cursor-pointer animate-pulse-subtle"
         :class="isInitials
-          ? 'gap-0.5 px-1.5 py-0 rounded border text-micro align-baseline leading-tight'
+          ? 'gap-0.5 px-1.5 py-0 rounded border text-[10px] text-micro align-baseline leading-tight'
           : 'gap-1.5 px-3 py-1.5 rounded-lg border-2 text-xs align-middle'"
       >
         <component :is="iconComponent" :size="isInitials ? 10 : 14" />

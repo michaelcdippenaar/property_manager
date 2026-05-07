@@ -4,7 +4,21 @@ from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from datetime import timedelta
+
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import AnonRateThrottle as _AnonRateThrottle
+
+
+class SupplierQuoteAnonThrottle(_AnonRateThrottle):
+    """Per-IP throttle for the public supplier-quote endpoints.
+
+    The platform's DEFAULT_THROTTLE_RATES doesn't define an "anon" scope, so
+    using AnonRateThrottle directly raises ImproperlyConfigured. Reuse the
+    public-sign rate already registered for similarly-shaped endpoints.
+    """
+
+    scope = "public_sign_minute"
 
 from apps.accounts.permissions import IsAgentOrAdmin, IsTenantOrAgent
 from apps.accounts.scoping import (
@@ -450,9 +464,25 @@ class JobDispatchListView(APIView):
 
 # --- Supplier-facing quote views (token-based, no auth) ---
 
+# Tokenised quote requests have no explicit expires_at on the model;
+# enforce a hardcoded 14-day TTL from created_at. (RNT-SEC: token reuse).
+SUPPLIER_QUOTE_TOKEN_TTL_DAYS = 14
+
+# States for which a supplier may still submit/decline a quote.
+_QUOTABLE_STATES = (JobQuoteRequest.Status.PENDING, JobQuoteRequest.Status.VIEWED)
+
+
+def _quote_request_is_expired(qr: JobQuoteRequest) -> bool:
+    if not qr.created_at:
+        return False
+    return (timezone.now() - qr.created_at) > timedelta(days=SUPPLIER_QUOTE_TOKEN_TTL_DAYS)
+
+
 class SupplierQuoteView(APIView):
     """Token-based view for suppliers to view job and submit quotes."""
     permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [SupplierQuoteAnonThrottle]
 
     def get(self, request, token):
         qr = get_object_or_404(
@@ -462,6 +492,13 @@ class SupplierQuoteView(APIView):
             ),
             token=token,
         )
+        if _quote_request_is_expired(qr):
+            if qr.status != JobQuoteRequest.Status.EXPIRED:
+                qr.status = JobQuoteRequest.Status.EXPIRED
+                qr.save(update_fields=["status"])
+            return Response({"detail": "This quote link has expired."}, status=status.HTTP_410_GONE)
+        if not qr.supplier.is_active:
+            return Response({"detail": "Supplier is no longer active."}, status=status.HTTP_403_FORBIDDEN)
         # Mark as viewed
         if not qr.viewed_at:
             qr.viewed_at = timezone.now()
@@ -474,8 +511,18 @@ class SupplierQuoteView(APIView):
     def post(self, request, token):
         qr = get_object_or_404(JobQuoteRequest, token=token)
 
-        if qr.status in (JobQuoteRequest.Status.AWARDED, JobQuoteRequest.Status.EXPIRED):
-            return Response({"detail": "This quote request is closed"}, status=status.HTTP_400_BAD_REQUEST)
+        if _quote_request_is_expired(qr):
+            if qr.status != JobQuoteRequest.Status.EXPIRED:
+                qr.status = JobQuoteRequest.Status.EXPIRED
+                qr.save(update_fields=["status"])
+            return Response({"detail": "This quote link has expired."}, status=status.HTTP_410_GONE)
+        if not qr.supplier.is_active:
+            return Response({"detail": "Supplier is no longer active."}, status=status.HTTP_403_FORBIDDEN)
+        if qr.status not in _QUOTABLE_STATES:
+            return Response(
+                {"detail": "This quote request is no longer accepting quotes."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         if hasattr(qr, "quote"):
             return Response({"detail": "Quote already submitted"}, status=status.HTTP_400_BAD_REQUEST)
@@ -499,11 +546,23 @@ class SupplierQuoteView(APIView):
 class SupplierQuoteDeclineView(APIView):
     """Token-based view for suppliers to decline a job."""
     permission_classes = [AllowAny]
+    authentication_classes = []
+    throttle_classes = [SupplierQuoteAnonThrottle]
 
     def post(self, request, token):
         qr = get_object_or_404(JobQuoteRequest, token=token)
-        if qr.status in (JobQuoteRequest.Status.AWARDED, JobQuoteRequest.Status.EXPIRED):
-            return Response({"detail": "This quote request is closed"}, status=status.HTTP_400_BAD_REQUEST)
+        if _quote_request_is_expired(qr):
+            if qr.status != JobQuoteRequest.Status.EXPIRED:
+                qr.status = JobQuoteRequest.Status.EXPIRED
+                qr.save(update_fields=["status"])
+            return Response({"detail": "This quote link has expired."}, status=status.HTTP_410_GONE)
+        if not qr.supplier.is_active:
+            return Response({"detail": "Supplier is no longer active."}, status=status.HTTP_403_FORBIDDEN)
+        if qr.status not in _QUOTABLE_STATES:
+            return Response(
+                {"detail": "This quote request is no longer accepting quotes."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
         qr.status = JobQuoteRequest.Status.DECLINED
         qr.save()

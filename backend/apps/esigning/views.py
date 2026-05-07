@@ -1020,6 +1020,8 @@ class ESigningPublicDocumentsView(APIView):
 
     def get(self, request, link_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
+        if link.is_expired():
+            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
         docs = link.supporting_documents.select_related().all()
         # Resolve required_documents from the signer's configuration
         _all_doc_types = ["bank_statement", "id_copy", "proof_of_address"]
@@ -1097,10 +1099,18 @@ class ESigningPublicDocumentDeleteView(APIView):
     Agent/admin deletions go through the submission documents endpoint.
     """
     permission_classes = [AllowAny]
+    authentication_classes = []
     throttle_classes = PUBLIC_SIGN_THROTTLES
 
     def delete(self, request, link_id, doc_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
+        if link.is_expired():
+            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+        if link.submission.status == ESigningSubmission.Status.COMPLETED:
+            return Response(
+                {"detail": "Cannot delete supporting documents for a completed submission."},
+                status=status.HTTP_409_CONFLICT,
+            )
         doc = get_object_or_404(SupportingDocument, pk=doc_id, public_link=link)
 
         log_esigning_event(

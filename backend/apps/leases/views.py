@@ -194,12 +194,13 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
     def add_occupant(self, request, pk=None):
         lease = self.get_object()
         person_id = request.data.get("person_id")
+        agency_id = lease.agency_id
         if person_id:
-            person = get_object_or_404(Person, pk=person_id)
+            person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
             s = PersonSerializer(data=request.data.get("person", {}))
             s.is_valid(raise_exception=True)
-            person = s.save()
+            person = s.save(agency_id=agency_id)
         relationship = request.data.get("relationship_to_tenant", "")
         occ, created = LeaseOccupant.objects.get_or_create(
             lease=lease, person=person,
@@ -228,14 +229,19 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
     def add_guarantor(self, request, pk=None):
         lease = self.get_object()
         person_id = request.data.get("person_id")
+        agency_id = lease.agency_id
         if person_id:
-            person = get_object_or_404(Person, pk=person_id)
+            person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
             s = PersonSerializer(data=request.data.get("person", {}))
             s.is_valid(raise_exception=True)
-            person = s.save()
+            person = s.save(agency_id=agency_id)
         covers_tenant_id = request.data.get("covers_tenant_id")
-        covers = Person.objects.filter(pk=covers_tenant_id).first() if covers_tenant_id else None
+        covers = (
+            Person.objects.filter(pk=covers_tenant_id, agency_id=agency_id).first()
+            if covers_tenant_id
+            else None
+        )
         gua = LeaseGuarantor.objects.create(
             agency_id=lease.agency_id, lease=lease,
             person=person, covers_tenant=covers,
@@ -560,7 +566,7 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
         """Copy items from a template into this lease's inventory."""
         lease = self.get_object()
         template_id = request.data.get("template_id")
-        tmpl = get_object_or_404(InventoryTemplate, pk=template_id)
+        tmpl = get_object_or_404(InventoryTemplate, pk=template_id, agency_id=lease.agency_id)
         created = []
         for item_data in tmpl.items:
             created.append(InventoryItem.objects.create(
