@@ -106,6 +106,18 @@ class ESigningSubmission(models.Model):
         indexes = [
             models.Index(fields=["agency", "status"], name="esign_sub_agency_status_idx"),
         ]
+        constraints = [
+            # QA Round 3 (B): prevent concurrent POSTs from creating multiple
+            # pending submissions for the same lease (double-click, mobile
+            # retry, parallel tabs). Mandate-bearing submissions are
+            # unaffected (lease=NULL). Paired with select_for_update(lease)
+            # in CreateNativeSubmissionView.
+            models.UniqueConstraint(
+                fields=["lease"],
+                condition=models.Q(status="pending") & models.Q(lease__isnull=False),
+                name="unique_pending_submission_per_lease",
+            ),
+        ]
 
     def __str__(self):
         return f"Submission {self.pk} ({self.status})"

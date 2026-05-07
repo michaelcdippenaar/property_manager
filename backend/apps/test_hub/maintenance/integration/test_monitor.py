@@ -79,13 +79,19 @@ class AgentMonitorDashboardTests(TremlyAPITestCase):
 
 
 class AgentHealthCheckTests(TremlyAPITestCase):
-    """Test the health check endpoint."""
+    """Test the health check endpoint.
+
+    NOTE (QA Round 3): Round 1 tightened ``agent_health_check`` to ``IsAdmin``
+    (RNT-SEC-038 carry-over) — health-check responses leak Anthropic key
+    presence, MCP topology, and component-level status, so they're now
+    admin-only. Production behaviour is correct; this test now uses an admin.
+    """
 
     def setUp(self):
-        self.agent = self.create_agent()
+        self.admin = self.create_admin()
 
     def test_health_check_returns_checks(self):
-        self.authenticate(self.agent)
+        self.authenticate(self.admin)
         resp = self.client.get(reverse("agent-monitor-health"))
         self.assertEqual(resp.status_code, 200)
         self.assertIn("overall", resp.data)
@@ -94,14 +100,14 @@ class AgentHealthCheckTests(TremlyAPITestCase):
         self.assertGreater(len(resp.data["checks"]), 0)
 
     def test_health_check_includes_key_checks(self):
-        self.authenticate(self.agent)
+        self.authenticate(self.admin)
         resp = self.client.get(reverse("agent-monitor-health"))
         check_names = [c["name"] for c in resp.data["checks"]]
         self.assertIn("Anthropic API Key", check_names)
         self.assertIn("MCP Server", check_names)
 
     def test_overall_status_values(self):
-        self.authenticate(self.agent)
+        self.authenticate(self.admin)
         resp = self.client.get(reverse("agent-monitor-health"))
         self.assertIn(resp.data["overall"], ["healthy", "degraded", "unhealthy"])
 

@@ -3,6 +3,7 @@ import uuid
 from datetime import timedelta
 
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -139,33 +140,72 @@ class ESigningSubmissionListCreateView(ScopedESigningQuerysetMixin, ListCreateAP
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        lease = get_object_or_404(accessible_leases_queryset(request.user), pk=lease_id)
+        # First check the lease is accessible to this user (without locking).
+        # We then re-fetch under select_for_update inside the atomic block so
+        # the row is locked for the entire submission-create transaction.
+        get_object_or_404(accessible_leases_queryset(request.user), pk=lease_id)
 
-        # ── RHA compliance gate ────────────────────────────────────────── #
-        # Refresh flags so we always check against current model state.
-        from apps.leases.rha_check import run_rha_checks
-        lease.rha_flags = run_rha_checks(lease)
-        lease.save(update_fields=["rha_flags"])
-
+        # QA Round 3 (B): wrap lease lookup + native-submission creation in
+        # transaction.atomic() with SELECT … FOR UPDATE on the lease row.
+        # This serialises concurrent POSTs (double-click, mobile retry,
+        # parallel tabs) for the same lease — paired with the partial unique
+        # constraint ``unique_pending_submission_per_lease`` on
+        # ESigningSubmission, only one pending submission can exist per lease.
         try:
-            lease.assert_rha_ready()
-        except ValueError as rha_exc:
-            blocking = lease.blocking_rha_flags()
+            with transaction.atomic():
+                lease = (
+                    Lease.objects.select_for_update()
+                    .select_related("unit__property__agency")
+                    .get(pk=lease_id)
+                )
+
+                # ── RHA compliance gate ──────────────────────────────── #
+                from apps.leases.rha_check import run_rha_checks
+                lease.rha_flags = run_rha_checks(lease)
+                lease.save(update_fields=["rha_flags"])
+
+                try:
+                    lease.assert_rha_ready()
+                except ValueError as rha_exc:
+                    blocking = lease.blocking_rha_flags()
+                    return Response(
+                        {
+                            "error": str(rha_exc),
+                            "rha_flags": blocking,
+                            "rha_override_required": True,
+                        },
+                        status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    )
+                # ── End RHA gate ─────────────────────────────────────── #
+
+                obj = services.create_native_submission(
+                    lease, signers, signing_mode=signing_mode,
+                )
+                obj.created_by = request.user
+                obj.save(update_fields=["created_by"])
+        except Lease.DoesNotExist:
             return Response(
-                {
-                    "error": str(rha_exc),
-                    "rha_flags": blocking,
-                    "rha_override_required": True,
-                },
-                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                {"detail": "Lease not found."}, status=status.HTTP_404_NOT_FOUND,
             )
-        # ── End RHA gate ───────────────────────────────────────────────── #
-
-        # Use native signing by default
-        try:
-            obj = services.create_native_submission(lease, signers, signing_mode=signing_mode)
-            obj.created_by = request.user
-            obj.save(update_fields=['created_by'])
+        except IntegrityError:
+            # Partial unique constraint hit: a pending submission already
+            # exists for this lease (concurrent POST raced ahead).
+            existing = (
+                ESigningSubmission.objects.filter(
+                    lease_id=lease_id, status=ESigningSubmission.Status.PENDING,
+                )
+                .order_by("-created_at")
+                .first()
+            )
+            if existing is not None:
+                return Response(
+                    ESigningSubmissionSerializer(existing).data,
+                    status=status.HTTP_200_OK,
+                )
+            return Response(
+                {"error": "A pending submission already exists for this lease."},
+                status=status.HTTP_409_CONFLICT,
+            )
         except Exception as e:
             logger.exception("Native submission creation failed")
             return Response({"error": str(e)}, status=status.HTTP_502_BAD_GATEWAY)

@@ -57,6 +57,10 @@ class TokenBasedQuoteTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 400)
 
     def test_submit_quote_closed(self):
+        # QA Round 3: Round 1 hardened the view with a state-machine guard
+        # (_QUOTABLE_STATES = {pending, viewed}) which returns 409 Conflict for
+        # awarded/declined/expired/quoted. Previously the view fell through to
+        # the "already submitted" 400 path. 409 is the correct semantic.
         self.qr.status = "awarded"
         self.qr.save()
         resp = self.client.post(
@@ -64,7 +68,7 @@ class TokenBasedQuoteTests(TremlyAPITestCase):
             {"amount": "1000.00"},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 409)
 
     def test_no_auth_required(self):
         """
@@ -83,7 +87,9 @@ class TokenBasedQuoteTests(TremlyAPITestCase):
         self.assertEqual(self.qr.status, "declined")
 
     def test_decline_closed(self):
+        # QA Round 3: see test_submit_quote_closed — Round 1 added a state guard
+        # that now returns 409 Conflict instead of 400 Bad Request.
         self.qr.status = "awarded"
         self.qr.save()
         resp = self.client.post(reverse("supplier-quote-decline", args=[self.qr.token]))
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 409)

@@ -434,6 +434,10 @@ class SupplierNoLoginPortalTests(TremlyAPITestCase):
         self.assertEqual(self.qr.status, "quoted")
 
     def test_second_quote_submission_rejected(self):
+        # QA Round 3: Round 1 added a state-machine guard
+        # (_QUOTABLE_STATES = {pending, viewed}). After the first POST the
+        # status transitions to "quoted" which is not quotable, so the second
+        # POST is rejected with 409 Conflict instead of the legacy 400.
         self.client.post(
             reverse("supplier-quote", args=[self.qr.token]),
             {"amount": "1500.00", "description": "Fix leaking tap"},
@@ -444,7 +448,7 @@ class SupplierNoLoginPortalTests(TremlyAPITestCase):
             {"amount": "2000.00", "description": "Second attempt"},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 409)
 
     def test_supplier_can_decline_job(self):
         resp = self.client.post(reverse("supplier-quote-decline", args=[self.qr.token]))
@@ -453,6 +457,7 @@ class SupplierNoLoginPortalTests(TremlyAPITestCase):
         self.assertEqual(self.qr.status, "declined")
 
     def test_cannot_quote_on_awarded_job(self):
+        # QA Round 3: state-machine guard now returns 409 Conflict.
         self.qr.status = JobQuoteRequest.Status.AWARDED
         self.qr.save()
         resp = self.client.post(
@@ -460,7 +465,7 @@ class SupplierNoLoginPortalTests(TremlyAPITestCase):
             {"amount": "1500.00"},
             format="json",
         )
-        self.assertEqual(resp.status_code, 400)
+        self.assertEqual(resp.status_code, 409)
 
     def test_dispatch_status_updates_to_quoting_on_first_quote(self):
         self.client.post(
