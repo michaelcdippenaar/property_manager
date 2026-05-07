@@ -70,13 +70,25 @@ class ClaudeSkillDetailView(APIView):
 
 
 class MaintenanceSkillDetailView(APIView):
-    """Detail view for a single maintenance skill."""
+    """Detail view for a single maintenance skill.
+
+    Phase 2.7: scope to global skills (agency=None) plus the caller's own
+    agency. ADMIN/superuser bypass and see all rows. Mirrors the
+    MaintenanceSkillViewSet pattern from Phase 2.5.
+    """
     permission_classes = [IsAuthenticated, IsAgentOrAdmin]
 
     def get(self, request, pk):
         from apps.maintenance.models import MaintenanceSkill
+        from django.db.models import Q
+        from apps.accounts.scoping import _is_admin
+
+        qs = MaintenanceSkill.objects.filter(pk=pk, is_active=True)
+        if not _is_admin(request.user):
+            agency_id = getattr(request.user, "agency_id", None)
+            qs = qs.filter(Q(agency__isnull=True) | Q(agency_id=agency_id))
         try:
-            s = MaintenanceSkill.objects.get(pk=pk, is_active=True)
+            s = qs.get()
         except MaintenanceSkill.DoesNotExist:
             return Response({"error": "Skill not found"}, status=404)
 

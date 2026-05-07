@@ -7,20 +7,21 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .models import User, UserInvite, Agency
 from .permissions import IsAdmin, IsAdminOrAgencyAdmin, IsAgentOrAdmin
+from .scoping import AgencyScopedQuerysetMixin, _is_admin
 from .serializers import AdminUserSerializer, AdminUserUpdateSerializer, InviteUserSerializer, AgencySerializer
 
 
-class UserListView(generics.ListAPIView):
+class UserListView(AgencyScopedQuerysetMixin, generics.ListAPIView):
     """List all users. Filterable by role and searchable by email/name.
     Admin sees all users; agency admin sees users in their agency only."""
     permission_classes = [IsAdminOrAgencyAdmin]
     serializer_class = AdminUserSerializer
+    queryset = User.objects.select_related("agency").all()
 
     def get_queryset(self):
-        qs = User.objects.select_related("agency").all()
-        # Agency admin: scope to own agency
-        if self.request.user.role == User.Role.AGENCY_ADMIN and self.request.user.agency_id:
-            qs = qs.filter(agency_id=self.request.user.agency_id)
+        # Mixin returns base.filter(agency_id=user.agency_id) for non-admins,
+        # full table for ADMIN/superuser. Layer the existing filters on top.
+        qs = super().get_queryset()
         # Hide inactive (deleted) users unless explicitly requested
         if self.request.query_params.get("include_inactive") != "true":
             qs = qs.filter(is_active=True)
@@ -79,8 +80,11 @@ class UserDetailView(APIView):
 
 
 class PendingInvitesView(generics.ListAPIView):
-    """List pending (unaccepted, uncancelled) invites."""
-    permission_classes = [IsAdmin]
+    """List pending (unaccepted, uncancelled) invites.
+
+    Agency-admins see only invites scoped to their own agency; ADMIN sees all.
+    """
+    permission_classes = [IsAdminOrAgencyAdmin]
 
     def get(self, request, *args, **kwargs):
         invites = (
@@ -89,6 +93,9 @@ class PendingInvitesView(generics.ListAPIView):
             .select_related("invited_by", "agency")
             .order_by("-created_at")
         )
+        # Phase 2.7: agency scoping for non-admin callers (defence in depth).
+        if not _is_admin(request.user):
+            invites = invites.filter(agency_id=request.user.agency_id)
         data = [
             {
                 "id": inv.id,
@@ -106,17 +113,24 @@ class PendingInvitesView(generics.ListAPIView):
 
 class CancelInviteView(APIView):
     """Cancel (revoke) a pending invite. The token becomes unusable and the
-    recipient will see an 'Invitation Expired' page if they click the link."""
-    permission_classes = [IsAdmin]
+    recipient will see an 'Invitation Expired' page if they click the link.
+
+    Agency-admins can only cancel invites belonging to their own agency.
+    """
+    permission_classes = [IsAdminOrAgencyAdmin]
 
     def delete(self, request, pk):
         from django.utils import timezone
+        qs = UserInvite.objects.filter(
+            pk=pk,
+            accepted_at__isnull=True,
+            cancelled_at__isnull=True,
+        )
+        # Phase 2.7: agency scoping for non-admin callers.
+        if not _is_admin(request.user):
+            qs = qs.filter(agency_id=request.user.agency_id)
         try:
-            invite = UserInvite.objects.get(
-                pk=pk,
-                accepted_at__isnull=True,
-                cancelled_at__isnull=True,
-            )
+            invite = qs.get()
         except UserInvite.DoesNotExist:
             return Response({"detail": "Invite not found or already resolved."}, status=status.HTTP_404_NOT_FOUND)
         invite.cancelled_at = timezone.now()
@@ -265,12 +279,16 @@ class ResendInviteView(APIView):
     permission_classes = [IsAdminOrAgencyAdmin]
 
     def post(self, request, pk):
+        qs = UserInvite.objects.select_related("invited_by").filter(
+            pk=pk,
+            accepted_at__isnull=True,
+            cancelled_at__isnull=True,
+        )
+        # Phase 2.7: agency scoping for non-admin callers.
+        if not _is_admin(request.user):
+            qs = qs.filter(agency_id=request.user.agency_id)
         try:
-            invite = UserInvite.objects.select_related("invited_by").get(
-                pk=pk,
-                accepted_at__isnull=True,
-                cancelled_at__isnull=True,
-            )
+            invite = qs.get()
         except UserInvite.DoesNotExist:
             return Response({"detail": "Invite not found or already resolved."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -355,10 +373,16 @@ class AgencySettingsView(APIView):
         return [IsAdmin()]
 
     def _get_agency(self, request):
-        """Return the user's own agency, falling back to get_solo() for admin."""
+        """Return ONLY the caller's own agency. Cross-tenant agency reads are
+        impossible — no get_solo() fallback. Admin without an agency falls
+        back to get_solo() for backward compatibility (operator support).
+        """
         if request.user.agency_id:
             return request.user.agency
-        return Agency.get_solo()
+        # Phase 2.7: only ADMIN/superuser may dip into get_solo() (no agency_id).
+        if _is_admin(request.user):
+            return Agency.get_solo()
+        return None
 
     def get(self, request):
         agency = self._get_agency(request)
@@ -390,13 +414,20 @@ class AgencyBillingView(APIView):
     permission_classes = [IsAdminOrAgencyAdmin]
 
     def _get_agency(self, request):
+        """Caller's own agency only — cross-tenant billing reads are impossible.
+        Admin without an agency_id falls back to get_solo() (operator support).
+        """
         if request.user.agency_id:
             return request.user.agency
-        return Agency.get_solo()
+        if _is_admin(request.user):
+            return Agency.get_solo()
+        return None
 
     def get(self, request):
         from apps.accounts.tier_service import TierService
         agency = self._get_agency(request)
+        if not agency:
+            return Response({"detail": "No agency found."}, status=status.HTTP_404_NOT_FOUND)
         svc = TierService(agency)
         return Response(svc.tier_info())
 

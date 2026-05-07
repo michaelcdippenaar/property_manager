@@ -28,8 +28,34 @@ pytestmark = pytest.mark.django_db
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _make_property(name="Test Prop", agent=None):
+_DEFAULT_AGENCY = None
+
+
+def _default_agency():
+    """Lazily create / fetch a single shared Agency for these test rows.
+
+    Phase 2.7: payments viewsets now apply AgencyScopedQuerysetMixin, so
+    every property/lease/invoice/agent must share an agency_id for the
+    existing role-based assertions to keep working.
+    """
+    from apps.accounts.models import Agency
+
+    global _DEFAULT_AGENCY
+    if _DEFAULT_AGENCY is None or not Agency.objects.filter(pk=_DEFAULT_AGENCY.pk).exists():
+        _DEFAULT_AGENCY = Agency.objects.create(name="Payments RBAC Default Agency")
+    return _DEFAULT_AGENCY
+
+
+def _reset_default_agency():
+    """Reset the cached agency between TestCase setUp() runs (DB rollback)."""
+    global _DEFAULT_AGENCY
+    _DEFAULT_AGENCY = None
+
+
+def _make_property(name="Test Prop", agent=None, agency=None):
     from apps.properties.models import Property
+    if agency is None:
+        agency = _default_agency()
     return Property.objects.create(
         name=name,
         address="1 Test St",
@@ -38,6 +64,7 @@ def _make_property(name="Test Prop", agent=None):
         postal_code="8001",
         property_type="apartment",
         agent=agent,
+        agency=agency,
     )
 
 
@@ -49,6 +76,7 @@ def _make_unit(prop, number="101"):
         bedrooms=2,
         bathrooms=1,
         rent_amount=Decimal("10000.00"),
+        agency=prop.agency,
     )
 
 
@@ -61,6 +89,7 @@ def _make_lease(unit, primary_tenant=None):
         monthly_rent=Decimal("10000.00"),
         status=Lease.Status.ACTIVE,
         primary_tenant=primary_tenant,
+        agency=unit.agency,
     )
 
 
@@ -73,6 +102,7 @@ def _make_invoice(lease, period_start=date(2026, 4, 1)):
         amount_due=Decimal("10000.00"),
         due_date=period_start,
         status=RentInvoice.Status.UNPAID,
+        agency=lease.agency,
     )
 
 
@@ -81,10 +111,16 @@ def _make_payment(invoice):
     return apply_payment(invoice, Decimal("5000.00"), payment_date=date(2026, 4, 5))
 
 
-def _make_user(role, email_suffix="", **kwargs):
+def _make_user(role, email_suffix="", agency=None, **kwargs):
     from apps.accounts.models import User
     email = f"{role}{email_suffix}@test.com"
-    return User.objects.create_user(email=email, password="testpass", role=role, **kwargs)
+    if role != "tenant" and agency is None:
+        agency = _default_agency()
+    user = User.objects.create_user(email=email, password="testpass", role=role, **kwargs)
+    if agency is not None:
+        user.agency = agency
+        user.save(update_fields=["agency"])
+    return user
 
 
 def _make_person(user=None, full_name="Test User"):
@@ -103,6 +139,7 @@ class TestInvoiceRBACTenant(TestCase):
     """Tenants see only their own invoices — IDOR prevention."""
 
     def setUp(self):
+        _reset_default_agency()
         self.client = APIClient()
         self.tenant_user = _make_user("tenant", "_inv")
         self.tenant_person = _make_person(user=self.tenant_user, full_name="Jane Inv")
@@ -162,6 +199,7 @@ class TestInvoiceRBACAgent(TestCase):
     """Agents see only invoices for properties assigned to them."""
 
     def setUp(self):
+        _reset_default_agency()
         self.client = APIClient()
         self.agent = _make_user("agent", "_inv")
         self.other_agent = _make_user("agent", "_inv_other")
@@ -206,6 +244,7 @@ class TestInvoiceRBACAdmin(TestCase):
     """Admins see all invoices."""
 
     def setUp(self):
+        _reset_default_agency()
         self.client = APIClient()
         self.admin = _make_user("admin", "_inv")
 
@@ -236,6 +275,7 @@ class TestPaymentRBACTenant(TestCase):
     """Tenant cannot see other tenant's payment records."""
 
     def setUp(self):
+        _reset_default_agency()
         self.client = APIClient()
         self.tenant_user = _make_user("tenant", "_pay")
         self.tenant_person = _make_person(user=self.tenant_user, full_name="Pay Tenant")
@@ -282,6 +322,7 @@ class TestUnmatchedPaymentRBAC(TestCase):
     """UnmatchedPaymentViewSet must be restricted to agency_admin / admin only."""
 
     def setUp(self):
+        _reset_default_agency()
         self.client = APIClient()
         self.tenant = _make_user("tenant", "_um")
         self.owner = _make_user("owner", "_um")

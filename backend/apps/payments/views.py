@@ -22,6 +22,7 @@ from rest_framework import mixins
 
 from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminOrAgencyAdmin, IsAgentOrAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, _is_admin
 from rest_framework.permissions import IsAuthenticated
 
 from .models import PaymentAuditLog, RentInvoice, RentPayment, UnmatchedPayment
@@ -38,6 +39,7 @@ from .serializers import (
 
 
 class RentInvoiceViewSet(
+    AgencyScopedQuerysetMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
     GenericViewSet,
@@ -55,30 +57,31 @@ class RentInvoiceViewSet(
 
     permission_classes = [IsAuthenticated]
     serializer_class = RentInvoiceSerializer
+    queryset = RentInvoice.objects.select_related("lease").prefetch_related("payments")
 
     def get_queryset(self):
         user = self.request.user
-        qs = RentInvoice.objects.select_related("lease").prefetch_related("payments")
 
-        # Role-based queryset scoping (mirrors leases/views.py pattern).
-        if user.role == User.Role.ADMIN or user.is_superuser:
-            # System admin: unrestricted access.
-            pass
-        elif user.role == User.Role.TENANT:
-            # Tenants may only see invoices for leases they are party to.
+        # Phase 2.7: tenants have no agency_id; mixin would .none() them.
+        # Bypass the mixin for the tenant role and scope by their leases.
+        if user.is_authenticated and user.role == User.Role.TENANT:
             from apps.tenant_portal.views import get_tenant_leases
             tenant_lease_ids = get_tenant_leases(user).values_list("pk", flat=True)
-            qs = qs.filter(lease_id__in=tenant_lease_ids)
-        elif user.role == User.Role.OWNER:
-            # Owners see invoices only for leases on properties they own.
-            from apps.properties.access import get_accessible_property_ids
-            prop_ids = get_accessible_property_ids(user)
-            qs = qs.filter(lease__unit__property_id__in=prop_ids)
+            qs = RentInvoice.objects.select_related("lease").prefetch_related("payments").filter(
+                lease_id__in=tenant_lease_ids
+            )
         else:
-            # All agent/staff roles: scope to properties accessible to this user.
-            from apps.properties.access import get_accessible_property_ids
-            prop_ids = get_accessible_property_ids(user)
-            qs = qs.filter(lease__unit__property_id__in=prop_ids)
+            # Mixin: filters by user.agency_id for non-admins; full table for ADMIN.
+            qs = super().get_queryset()
+            if user.role == User.Role.OWNER:
+                from apps.properties.access import get_accessible_property_ids
+                prop_ids = get_accessible_property_ids(user)
+                qs = qs.filter(lease__unit__property_id__in=prop_ids)
+            elif not (user.role == User.Role.ADMIN or user.is_superuser):
+                # All agent/staff roles: layer the property-access filter on top.
+                from apps.properties.access import get_accessible_property_ids
+                prop_ids = get_accessible_property_ids(user)
+                qs = qs.filter(lease__unit__property_id__in=prop_ids)
 
         params = self.request.query_params
 
@@ -142,27 +145,29 @@ class RentInvoiceViewSet(
         )
 
 
-class RentPaymentViewSet(mixins.RetrieveModelMixin, GenericViewSet):
+class RentPaymentViewSet(AgencyScopedQuerysetMixin, mixins.RetrieveModelMixin, GenericViewSet):
     """
     Read-only viewset for individual payments, plus the reverse action.
     """
 
     permission_classes = [IsAuthenticated]
     serializer_class = RentPaymentSerializer
+    queryset = RentPayment.objects.select_related("invoice", "created_by")
 
     def get_queryset(self):
         user = self.request.user
-        qs = RentPayment.objects.select_related("invoice", "created_by")
 
-        # Role-based queryset scoping mirrors RentInvoiceViewSet above.
-        if user.role == User.Role.ADMIN or user.is_superuser:
-            pass
-        elif user.role == User.Role.TENANT:
+        # Phase 2.7: tenants have no agency_id; bypass the mixin for tenants.
+        if user.is_authenticated and user.role == User.Role.TENANT:
             from apps.tenant_portal.views import get_tenant_leases
             tenant_lease_ids = get_tenant_leases(user).values_list("pk", flat=True)
-            qs = qs.filter(invoice__lease_id__in=tenant_lease_ids)
-        else:
-            # Owner and all agent/staff roles: scope to accessible properties.
+            return RentPayment.objects.select_related("invoice", "created_by").filter(
+                invoice__lease_id__in=tenant_lease_ids
+            )
+
+        qs = super().get_queryset()
+        if not (user.role == User.Role.ADMIN or user.is_superuser):
+            # Owner and all agent/staff roles: layer on accessible properties.
             from apps.properties.access import get_accessible_property_ids
             prop_ids = get_accessible_property_ids(user)
             qs = qs.filter(invoice__lease__unit__property_id__in=prop_ids)
@@ -197,6 +202,8 @@ class RentPaymentViewSet(mixins.RetrieveModelMixin, GenericViewSet):
 
 
 class UnmatchedPaymentViewSet(
+    AgencyScopedQuerysetMixin,
+    AgencyStampedCreateMixin,
     mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
@@ -215,9 +222,10 @@ class UnmatchedPaymentViewSet(
 
     permission_classes = [IsAdminOrAgencyAdmin]
     serializer_class = UnmatchedPaymentSerializer
+    queryset = UnmatchedPayment.objects.select_related("assigned_to_invoice", "resolved_payment")
 
     def get_queryset(self):
-        qs = UnmatchedPayment.objects.select_related("assigned_to_invoice", "resolved_payment")
+        qs = super().get_queryset()
         status_filter = self.request.query_params.get("status", "pending")
         if status_filter:
             qs = qs.filter(status=status_filter)

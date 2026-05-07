@@ -8,6 +8,7 @@ from rest_framework import status, generics, parsers
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .permissions import IsAgentOrAdmin
+from .scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, _is_admin
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -618,20 +619,24 @@ class AcceptInviteView(APIView):
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 
-class TenantsListView(generics.ListAPIView):
+class TenantsListView(AgencyScopedQuerysetMixin, generics.ListAPIView):
     """
     Returns all Person records who appear on at least one lease
     (as primary tenant or co-tenant), annotated with active-lease counts
     so the list can render Active/Inactive badges.
+
+    Phase 2.7: AgencyScopedQuerysetMixin layered on top of the existing
+    accessible-property scope (defence in depth).
     """
     serializer_class = TenantListSerializer
     permission_classes = [IsAgentOrAdmin]
+    queryset = Person.objects.all()
 
     def get_queryset(self):
         from django.db.models import Q, Count
         from apps.properties.access import get_accessible_property_ids
 
-        qs = Person.objects.filter(
+        qs = super().get_queryset().filter(
             Q(leases_as_primary__isnull=False) | Q(co_tenancies__isnull=False)
         ).distinct()
 
@@ -663,40 +668,61 @@ class TenantsListView(generics.ListAPIView):
         )
 
 
-class PersonViewSet(generics.ListCreateAPIView):
+class PersonViewSet(
+    AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, generics.ListCreateAPIView
+):
     serializer_class = PersonSerializer
     permission_classes = [IsAgentOrAdmin]
+    queryset = Person.objects.all()
 
     def get_queryset(self):
-        qs = Person.objects.all()
+        qs = super().get_queryset()
         q = self.request.query_params.get("q")
         if q:
             qs = qs.filter(full_name__icontains=q)
         return qs
 
 
-class PersonDetailView(generics.RetrieveUpdateAPIView):
+class PersonDetailView(
+    AgencyScopedQuerysetMixin, generics.RetrieveUpdateAPIView
+):
     serializer_class = PersonSerializer
     permission_classes = [IsAgentOrAdmin]
     queryset = Person.objects.all()
 
 
-class PersonDocumentListCreateView(generics.ListCreateAPIView):
+class PersonDocumentListCreateView(
+    AgencyScopedQuerysetMixin, generics.ListCreateAPIView
+):
     serializer_class = PersonDocumentSerializer
     permission_classes = [IsAuthenticated, IsAgentOrAdmin]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
+    queryset = PersonDocument.objects.all()
 
     def get_queryset(self):
-        return PersonDocument.objects.filter(person_id=self.kwargs['person_pk'])
+        # Mixin scopes by agency_id; further restrict to this person.
+        return super().get_queryset().filter(person_id=self.kwargs['person_pk'])
 
     def perform_create(self, serializer):
-        person = get_object_or_404(Person, pk=self.kwargs['person_pk'])
-        serializer.save(person=person)
+        # Ensure the person itself is in-tenant (agency-scoped lookup).
+        person_qs = Person.objects.all()
+        if not _is_admin(self.request.user):
+            agency_id = getattr(self.request.user, "agency_id", None)
+            if agency_id is None:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({"detail": "Your user account is not linked to an agency."})
+            person_qs = person_qs.filter(agency_id=agency_id)
+        person = get_object_or_404(person_qs, pk=self.kwargs['person_pk'])
+        # Stamp agency_id from the person (PersonDocument inherits from person).
+        serializer.save(person=person, agency_id=person.agency_id)
 
 
-class PersonDocumentDetailView(generics.DestroyAPIView):
+class PersonDocumentDetailView(
+    AgencyScopedQuerysetMixin, generics.DestroyAPIView
+):
     serializer_class = PersonDocumentSerializer
     permission_classes = [IsAuthenticated, IsAgentOrAdmin]
+    queryset = PersonDocument.objects.all()
 
     def get_queryset(self):
-        return PersonDocument.objects.filter(person_id=self.kwargs['person_pk'])
+        return super().get_queryset().filter(person_id=self.kwargs['person_pk'])
