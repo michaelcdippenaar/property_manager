@@ -10,6 +10,7 @@ from rest_framework.response import Response
 
 from apps.accounts.models import Person, User
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
 from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant, LeaseGuarantor, OnboardingStep, InventoryItem, InventoryTemplate, MoveInChecklistItem, MOVE_IN_CHECKLIST_DEFAULTS
 from .serializers import (
     LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
@@ -21,7 +22,8 @@ from .events import generate_lease_events, generate_onboarding_steps
 logger = logging.getLogger(__name__)
 
 
-class LeaseViewSet(viewsets.ModelViewSet):
+class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet):
+    queryset = Lease.objects.all()
     serializer_class = LeaseSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["status", "unit", "primary_tenant"]
@@ -45,22 +47,33 @@ class LeaseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        qs = Lease.objects.select_related(
+        # Tenants are cross-tenant by design — they don't have an agency_id but
+        # they DO have access to their own lease records via Person/User links.
+        # Bypass the agency filter for them and use the tenant-portal helper.
+        if getattr(user, "role", None) == User.Role.TENANT:
+            from apps.tenant_portal.views import get_tenant_leases
+            qs = Lease.objects.select_related(
+                "unit__property", "unit__property__agent", "primary_tenant"
+            ).prefetch_related(
+                "co_tenants__person", "occupants__person", "guarantors__person", "documents",
+                "move_in_checklist__completed_by",
+            )
+            return qs.filter(pk__in=get_tenant_leases(user).values_list("pk", flat=True))
+
+        # Staff path — route through AgencyScopedQuerysetMixin first
+        # (admin bypass; .none() for non-admin without agency).
+        base = super().get_queryset().select_related(
             "unit__property", "unit__property__agent", "primary_tenant"
         ).prefetch_related(
             "co_tenants__person", "occupants__person", "guarantors__person", "documents",
             "move_in_checklist__completed_by",
         )
-        if user.role == User.Role.TENANT:
-            from apps.tenant_portal.views import get_tenant_leases
-
-            return qs.filter(pk__in=get_tenant_leases(user).values_list("pk", flat=True))
         if user.role == User.Role.ADMIN:
-            return qs
-        # All staff roles: scope to accessible properties
+            return base
+        # All staff roles: scope to accessible properties (defence in depth on top of agency).
         from apps.properties.access import get_accessible_property_ids
         prop_ids = get_accessible_property_ids(user)
-        return qs.filter(unit__property_id__in=prop_ids)
+        return base.filter(unit__property_id__in=prop_ids)
 
     # ------------------------------------------------------------------ #
     # Documents
@@ -87,7 +100,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
 
         serializer = LeaseDocumentSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        serializer.save(lease=lease)
+        serializer.save(lease=lease, agency_id=lease.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="documents/(?P<doc_id>[^/.]+)")
@@ -121,7 +134,10 @@ class LeaseViewSet(viewsets.ModelViewSet):
             lease.primary_tenant = person
             lease.save(update_fields=["primary_tenant"])
         else:
-            LeaseTenant.objects.get_or_create(lease=lease, person=person)
+            LeaseTenant.objects.get_or_create(
+                lease=lease, person=person,
+                defaults={"agency_id": lease.agency_id},
+            )
 
         return Response(PersonSerializer(person).data, status=status.HTTP_201_CREATED)
 
@@ -157,7 +173,10 @@ class LeaseViewSet(viewsets.ModelViewSet):
         relationship = request.data.get("relationship_to_tenant", "")
         occ, created = LeaseOccupant.objects.get_or_create(
             lease=lease, person=person,
-            defaults={"relationship_to_tenant": relationship},
+            defaults={
+                "agency_id": lease.agency_id,
+                "relationship_to_tenant": relationship,
+            },
         )
         if not created:
             occ.relationship_to_tenant = relationship
@@ -187,7 +206,10 @@ class LeaseViewSet(viewsets.ModelViewSet):
             person = s.save()
         covers_tenant_id = request.data.get("covers_tenant_id")
         covers = Person.objects.filter(pk=covers_tenant_id).first() if covers_tenant_id else None
-        gua = LeaseGuarantor.objects.create(lease=lease, person=person, covers_tenant=covers)
+        gua = LeaseGuarantor.objects.create(
+            agency_id=lease.agency_id, lease=lease,
+            person=person, covers_tenant=covers,
+        )
         return Response(LeaseGuarantorSerializer(gua).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="guarantors/(?P<guarantor_id>[^/.]+)")
@@ -208,7 +230,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
         # POST — create custom event
         serializer = LeaseEventSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(lease=lease, event_type=LeaseEvent.EventType.CUSTOM)
+        serializer.save(lease=lease, agency_id=lease.agency_id, event_type=LeaseEvent.EventType.CUSTOM)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["patch"], url_path="events/(?P<event_id>[^/.]+)")
@@ -259,6 +281,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
 
         with transaction.atomic():
             new_lease = Lease.objects.create(
+                agency=source.agency,
                 unit=source.unit,
                 previous_lease=source,
                 status=Lease.Status.PENDING,
@@ -469,7 +492,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
             lease.move_in_checklist.values_list("key", flat=True)
         )
         to_create = [
-            MoveInChecklistItem(lease=lease, key=key)
+            MoveInChecklistItem(lease=lease, agency_id=lease.agency_id, key=key)
             for key in MOVE_IN_CHECKLIST_DEFAULTS
             if key not in existing_keys
         ]
@@ -487,7 +510,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
             return Response(InventoryItemSerializer(lease.inventory_items.all(), many=True).data)
         serializer = InventoryItemSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(lease=lease)
+        serializer.save(lease=lease, agency_id=lease.agency_id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["patch", "delete"], url_path="inventory/(?P<item_id>[^/.]+)")
@@ -511,6 +534,7 @@ class LeaseViewSet(viewsets.ModelViewSet):
         created = []
         for item_data in tmpl.items:
             created.append(InventoryItem.objects.create(
+                agency_id=lease.agency_id,
                 lease=lease,
                 name=item_data.get("name", ""),
                 category=item_data.get("category", "other"),
@@ -523,13 +547,35 @@ class LeaseViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_201_CREATED)
 
 
-class InventoryTemplateViewSet(viewsets.ModelViewSet):
+class InventoryTemplateViewSet(
+    AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets.ModelViewSet
+):
     serializer_class = InventoryTemplateSerializer
     permission_classes = [IsAuthenticated]
     queryset = InventoryTemplate.objects.all()
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        # Stamp agency via super().perform_create — it consumes serializer.save() with
+        # agency_id; then patch the created_by user on the instance.
+        # Pass created_by through serializer.save() by calling save twice would duplicate;
+        # instead, call the mixin's logic but pass created_by alongside agency.
+        user = getattr(self.request, "user", None)
+        agency_id = getattr(user, "agency_id", None)
+        from apps.accounts.scoping import _is_admin
+        from rest_framework.exceptions import ValidationError
+        if _is_admin(user):
+            agency_id = serializer.validated_data.get("agency_id") or agency_id
+            if agency_id is None:
+                raise ValidationError(
+                    {"agency": "Admin user must specify `agency` when creating without an agency_id of their own."}
+                )
+            serializer.save(agency_id=agency_id, created_by=user)
+            return
+        if agency_id is None:
+            raise ValidationError(
+                {"detail": "Your user account is not linked to an agency. Contact your administrator."}
+            )
+        serializer.save(agency_id=agency_id, created_by=user)
 
 
 class LeaseCalendarView:
@@ -548,6 +594,14 @@ class LeaseCalendarAPIView(APIView):
         from_date = request.query_params.get("from")
         to_date = request.query_params.get("to")
         qs = LeaseEvent.objects.select_related("lease__unit__property", "lease__primary_tenant")
+        # Agency scoping (Phase 2.4) — admin bypasses, everyone else is restricted
+        # to their own agency_id; users without an agency see nothing.
+        if user.role != User.Role.ADMIN:
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None:
+                qs = qs.none()
+            else:
+                qs = qs.filter(agency_id=agency_id)
         if user.role == User.Role.AGENT:
             from apps.properties.access import get_accessible_property_ids
             prop_ids = get_accessible_property_ids(user)

@@ -288,18 +288,22 @@ class TestExportTemplatePDFViewFallback:
     @patch("apps.esigning.gotenberg.requests.post")
     def test_returns_202_when_gotenberg_fails(self, mock_post, mock_enqueue, client, db):
         from django.contrib.auth import get_user_model
+        from apps.accounts.models import Agency
         from apps.leases.models import LeaseTemplate
         from rest_framework.test import APIClient
 
         User = get_user_model()
+        agency = Agency.objects.create(name="PDF Resilience Agency")
         user, _ = User.objects.get_or_create(
             email='agent@test.com',
             defaults={'role': 'agent'},
         )
         user.set_password('pass')
+        user.agency = agency
         user.save()
 
         template = LeaseTemplate.objects.create(
+            agency=agency,
             name='Test Template',
             content_html='<p>Hello {{name}}</p>',
         )
@@ -327,16 +331,21 @@ class TestExportTemplatePDFViewFallback:
     @patch("apps.esigning.gotenberg.requests.post")
     def test_returns_pdf_bytes_when_gotenberg_succeeds(self, mock_post, db):
         from django.contrib.auth import get_user_model
+        from apps.accounts.models import Agency
         from apps.leases.models import LeaseTemplate
         from rest_framework.test import APIClient
 
         User = get_user_model()
+        agency = Agency.objects.create(name="PDF Resilience Agency 2")
         user, _ = User.objects.get_or_create(
             email='agent2@test.com',
             defaults={'role': 'agent'},
         )
+        user.agency = agency
+        user.save()
 
         template = LeaseTemplate.objects.create(
+            agency=agency,
             name='Test Template 2',
             content_html='<p>Hello</p>',
         )

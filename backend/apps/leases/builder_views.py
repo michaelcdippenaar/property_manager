@@ -23,9 +23,34 @@ from apps.properties.access import get_accessible_property_ids
 from rest_framework.response import Response
 from rest_framework import status
 
+from apps.accounts.scoping import _is_admin
 from .models import LeaseBuilderSession, LeaseTemplate, Lease
 from .import_view import ImportLeaseView, _get_or_create_person
-from .template_views import _get_anthropic_api_key
+from .template_views import _get_anthropic_api_key, _scoped_lease_templates
+
+
+def _scoped_builder_sessions(request):
+    """LeaseBuilderSession queryset scoped to the caller's agency."""
+    user = getattr(request, "user", None)
+    qs = LeaseBuilderSession.objects.all()
+    if _is_admin(user):
+        return qs
+    agency_id = getattr(user, "agency_id", None) if user else None
+    if agency_id is None:
+        return qs.none()
+    return qs.filter(agency_id=agency_id)
+
+
+def _scoped_leases(request):
+    """Lease queryset scoped to the caller's agency."""
+    user = getattr(request, "user", None)
+    qs = Lease.objects.all()
+    if _is_admin(user):
+        return qs
+    agency_id = getattr(user, "agency_id", None) if user else None
+    if agency_id is None:
+        return qs.none()
+    return qs.filter(agency_id=agency_id)
 
 
 # Path to the legal reference maintained in .claude/skills/
@@ -131,7 +156,7 @@ class LeaseBuilderDraftListView(APIView):
     permission_classes = [IsAgentOrAdmin]
 
     def get(self, request):
-        drafts = LeaseBuilderSession.objects.filter(
+        drafts = _scoped_builder_sessions(request).filter(
             created_by=request.user,
             status__in=[LeaseBuilderSession.Status.DRAFTING, LeaseBuilderSession.Status.REVIEW],
         ).values("id", "current_state", "status", "updated_at", "template_id")
@@ -174,11 +199,19 @@ class LeaseBuilderDraftSaveView(APIView):
         template = None
         if template_id:
             try:
-                template = LeaseTemplate.objects.get(pk=template_id)
+                template = _scoped_lease_templates(request).get(pk=template_id)
             except LeaseTemplate.DoesNotExist:
                 pass
 
+        agency_id = getattr(request.user, "agency_id", None)
+        if agency_id is None and not _is_admin(request.user):
+            return Response(
+                {"detail": "Your user account is not linked to an agency. Contact your administrator."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         session = LeaseBuilderSession.objects.create(
+            agency_id=agency_id,
             created_by=request.user,
             template=template,
             messages=[],
@@ -191,7 +224,7 @@ class LeaseBuilderDraftSaveView(APIView):
         if not pk:
             return Response({"error": "Draft ID required."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+            session = _scoped_builder_sessions(request).get(pk=pk, created_by=request.user)
         except LeaseBuilderSession.DoesNotExist:
             return Response({"error": "Draft not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -208,7 +241,7 @@ class LeaseBuilderDraftSaveView(APIView):
         if not pk:
             return Response({"error": "Draft ID required."}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+            session = _scoped_builder_sessions(request).get(pk=pk, created_by=request.user)
         except LeaseBuilderSession.DoesNotExist:
             return Response({"error": "Draft not found."}, status=status.HTTP_404_NOT_FOUND)
         if session.status == LeaseBuilderSession.Status.FINALIZED:
@@ -230,20 +263,21 @@ class LeaseBuilderSessionCreateView(APIView):
     def post(self, request):
         # Resolve template — explicit ID takes priority, else fall back to active
         template_id = request.data.get("template_id")
+        scoped_templates = _scoped_lease_templates(request)
         if template_id:
             try:
-                template = LeaseTemplate.objects.get(pk=template_id)
+                template = scoped_templates.get(pk=template_id)
             except LeaseTemplate.DoesNotExist:
                 return Response({"error": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            template = LeaseTemplate.objects.filter(is_active=True).first()
+            template = scoped_templates.filter(is_active=True).first()
 
         # Pre-populate state from an existing lease if requested
         initial_state = {}
         existing_lease_id = request.data.get("existing_lease_id")
         if existing_lease_id:
             try:
-                lease = Lease.objects.select_related(
+                lease = _scoped_leases(request).select_related(
                     "unit__property"
                 ).prefetch_related("co_tenants__person").get(pk=existing_lease_id)
             except Lease.DoesNotExist:
@@ -272,7 +306,14 @@ class LeaseBuilderSessionCreateView(APIView):
 
             initial_state = _lease_to_state(lease)
 
+        agency_id = getattr(request.user, "agency_id", None)
+        if agency_id is None and not _is_admin(request.user):
+            return Response(
+                {"detail": "Your user account is not linked to an agency. Contact your administrator."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         session = LeaseBuilderSession.objects.create(
+            agency_id=agency_id,
             created_by=request.user,
             template=template,
             messages=[],
@@ -341,7 +382,7 @@ class LeaseBuilderChatView(APIView):
     @requires_feature("ai_lease_generation")
     def post(self, request, pk):
         try:
-            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+            session = _scoped_builder_sessions(request).get(pk=pk, created_by=request.user)
         except LeaseBuilderSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -431,7 +472,7 @@ class LeaseBuilderFinalizeView(APIView):
     @requires_feature("ai_lease_generation")
     def post(self, request, pk):
         try:
-            session = LeaseBuilderSession.objects.get(pk=pk, created_by=request.user)
+            session = _scoped_builder_sessions(request).get(pk=pk, created_by=request.user)
         except LeaseBuilderSession.DoesNotExist:
             return Response({"error": "Session not found."}, status=status.HTTP_404_NOT_FOUND)
 

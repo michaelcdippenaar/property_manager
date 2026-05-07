@@ -522,18 +522,19 @@ class TestRhaCheckEndpoints:
             admin.save()
 
         # Create property with the lease's agent assigned
-        prop = tc.create_property(agent=lease_agent)
+        prop = tc.create_property(agent=lease_agent, agency=agency)
 
         # If a test agent is provided, also assign them to the property
         if agent_to_assign:
             PropertyAgentAssignment.objects.create(
+                agency=agency,
                 property=prop,
                 agent=agent_to_assign,
                 status="active",
                 assignment_type="managing",
             )
 
-        unit = tc.create_unit(property_obj=prop)
+        unit = tc.create_unit(property_obj=prop, agency=agency)
 
         # If a tenant was provided, create a Person linked to them and set as primary_tenant
         primary_tenant_person = None
@@ -557,6 +558,7 @@ class TestRhaCheckEndpoints:
         if with_blocking_flag:
             # Introduce a blocking flag: rent = 0
             kwargs["monthly_rent"] = Decimal("0.00")
+        kwargs.setdefault("agency", agency)
         return tc.create_lease(unit=unit, primary_tenant=primary_tenant_person, **kwargs)
 
     def test_rha_check_response_keys(self, tremly, api_client):
@@ -614,6 +616,10 @@ class TestRhaCheckEndpoints:
         """Agent (non-admin) role → POST rha-override must return 403."""
         agent = tremly.create_agent(email="agent-override@test.com")
         lease = self._make_db_lease(tremly, with_blocking_flag=True, agent_to_assign=agent)
+        # Phase 2.4 — assign the agent to the same agency as the lease so
+        # agency scoping doesn't 404 before the role check fires.
+        agent.agency = lease.agency
+        agent.save(update_fields=["agency"])
         api_client.force_authenticate(user=agent)
         resp = api_client.post(
             f"/api/v1/leases/{lease.pk}/rha-override/",

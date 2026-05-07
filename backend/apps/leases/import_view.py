@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from apps.accounts.models import Person, User
+from apps.accounts.scoping import _is_admin
 from apps.properties.models import Property, Unit
 from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor
 
@@ -58,11 +59,26 @@ class ImportLeaseView(APIView):
     def post(self, request):
         d = request.data
 
+        # Phase 2.4 — resolve the caller's agency_id for stamping new
+        # Property / Unit / Lease records. Non-admin users without an
+        # agency cannot create leases.
+        caller_agency_id = getattr(request.user, "agency_id", None)
+        if caller_agency_id is None and not _is_admin(request.user):
+            return Response(
+                {"error": "Your user account is not linked to an agency."},
+                status=400,
+            )
+
+        # Scoped Property lookup so cross-tenant property_id values 404.
+        property_qs = Property.objects.all()
+        if not _is_admin(request.user):
+            property_qs = property_qs.filter(agency_id=caller_agency_id)
+
         # ── Property ───────────────────────────────────────────────────────
         property_id = d.get("property_id")
         if property_id:
             try:
-                prop = Property.objects.get(pk=property_id)
+                prop = property_qs.get(pk=property_id)
             except Property.DoesNotExist:
                 return Response({"error": "Property not found."}, status=400)
         else:
@@ -86,15 +102,19 @@ class ImportLeaseView(APIView):
             erf = (prop_data.get("erf_number") or "").strip()
             if erf:
                 from apps.properties.models import PropertyDetail
-                detail = PropertyDetail.objects.filter(erf_number__iexact=erf).select_related("property").first()
+                detail_qs = PropertyDetail.objects.filter(erf_number__iexact=erf).select_related("property")
+                if not _is_admin(request.user):
+                    detail_qs = detail_qs.filter(property__agency_id=caller_agency_id)
+                detail = detail_qs.first()
                 if detail:
                     prop = detail.property
             if not prop:
                 addr = (prop_data.get("address") or "").strip()
                 if addr:
-                    prop = Property.objects.filter(address__iexact=addr).first()
+                    prop = property_qs.filter(address__iexact=addr).first()
             if not prop:
                 prop = Property.objects.create(
+                    agency_id=caller_agency_id,
                     name=prop_data["name"],
                     property_type=prop_data.get("property_type", "house"),
                     address=prop_data.get("address", ""),
@@ -118,6 +138,7 @@ class ImportLeaseView(APIView):
             unit = Unit.objects.filter(property=prop, unit_number=unit_number).first()
             if not unit:
                 unit = Unit.objects.create(
+                    agency_id=prop.agency_id,
                     property=prop,
                     unit_number=unit_number,
                     bedrooms=unit_data.get("bedrooms", 1),
@@ -151,6 +172,7 @@ class ImportLeaseView(APIView):
 
         # ── Lease ────────────────────────────────────────────────────────────
         lease_fields = {
+            "agency_id": prop.agency_id,
             "unit": unit,
             "primary_tenant": primary_person,
             "start_date": start_date,
@@ -179,7 +201,10 @@ class ImportLeaseView(APIView):
         for ct_data in (d.get("co_tenants") or []):
             person = _get_or_create_person(ct_data)
             if person:
-                LeaseTenant.objects.get_or_create(lease=lease, person=person)
+                LeaseTenant.objects.get_or_create(
+                    lease=lease, person=person,
+                    defaults={"agency_id": lease.agency_id},
+                )
 
         # ── Occupants ────────────────────────────────────────────────────────
         for oc_data in (d.get("occupants") or []):
@@ -187,7 +212,10 @@ class ImportLeaseView(APIView):
             if person:
                 LeaseOccupant.objects.get_or_create(
                     lease=lease, person=person,
-                    defaults={"relationship_to_tenant": oc_data.get("relationship_to_tenant", "")}
+                    defaults={
+                        "agency_id": lease.agency_id,
+                        "relationship_to_tenant": oc_data.get("relationship_to_tenant", ""),
+                    },
                 )
 
         # ── Guarantors ───────────────────────────────────────────────────────
@@ -199,7 +227,10 @@ class ImportLeaseView(APIView):
                 covers = None
                 if covers_name:
                     covers = Person.objects.filter(full_name__iexact=covers_name).first()
-                LeaseGuarantor.objects.create(lease=lease, person=person, covers_tenant=covers)
+                LeaseGuarantor.objects.create(
+                    agency_id=lease.agency_id, lease=lease,
+                    person=person, covers_tenant=covers,
+                )
 
         return Response({
             "id": lease.id,

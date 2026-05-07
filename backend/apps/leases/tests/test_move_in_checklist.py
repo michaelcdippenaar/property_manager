@@ -26,12 +26,17 @@ pytestmark = [pytest.mark.integration, pytest.mark.green]
 class MoveInChecklistTests(TremlyAPITestCase):
 
     def setUp(self):
-        self.agent = self.create_agent(email="agent-ci@test.com", first_name="Agent", last_name="Smith")
-        self.owner = self.create_owner_user(email="owner-ci@test.com")
-        self.tenant_user = self.create_tenant(email="tenant-ci@test.com")
-        self.prop = self.create_property(agent=self.agent)
-        self.unit = self.create_unit(property_obj=self.prop)
-        self.lease = self.create_lease(unit=self.unit, status="active")
+        from apps.accounts.models import Agency
+        self.agency = Agency.objects.create(name="Test Agency MoveIn")
+        self.agent = self.create_agent(
+            email="agent-ci@test.com", first_name="Agent", last_name="Smith",
+            agency=self.agency,
+        )
+        self.owner = self.create_owner_user(email="owner-ci@test.com", agency=self.agency)
+        self.tenant_user = self.create_tenant(email="tenant-ci@test.com", agency=self.agency)
+        self.prop = self.create_property(agent=self.agent, agency=self.agency)
+        self.unit = self.create_unit(property_obj=self.prop, agency=self.agency)
+        self.lease = self.create_lease(unit=self.unit, status="active", agency=self.agency)
 
     # ── GET: seed + return all items ─────────────────────────────────────── #
 

@@ -14,12 +14,17 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
+from apps.accounts.scoping import (
+    AgencyScopedQuerysetMixin,
+    AgencyStampedCreateMixin,
+    _is_admin,
+)
 from rest_framework.response import Response
 from rest_framework import status, generics
 
 from .models import ReusableClause, LeaseTemplate
 from .serializers import ReusableClauseSerializer
-from .template_views import _get_anthropic_api_key
+from .template_views import _get_anthropic_api_key, _scoped_lease_templates
 
 ALLOWED_CATEGORIES = [c[0] for c in ReusableClause.CATEGORIES]
 
@@ -35,12 +40,17 @@ _CLAUSE_SYSTEM = (
 )
 
 
-class ReusableClauseListCreateView(generics.ListCreateAPIView):
+class ReusableClauseListCreateView(
+    AgencyScopedQuerysetMixin, generics.ListCreateAPIView
+):
     serializer_class = ReusableClauseSerializer
     permission_classes = [IsAgentOrAdmin]
+    queryset = ReusableClause.objects.all()
 
     def get_queryset(self):
-        qs = ReusableClause.objects.filter(created_by=self.request.user)
+        # AgencyScopedQuerysetMixin filters to caller's agency_id; layer
+        # the original created_by filter on top.
+        qs = super().get_queryset().filter(created_by=self.request.user)
         cat = self.request.query_params.get("category")
         if cat and cat in ALLOWED_CATEGORIES:
             qs = qs.filter(category=cat)
@@ -50,22 +60,34 @@ class ReusableClauseListCreateView(generics.ListCreateAPIView):
         return qs
 
     def perform_create(self, serializer):
+        # Stamp agency (mirrors AgencyStampedCreateMixin) AND created_by in the
+        # same save() call so the model gets both fields atomically.
+        user = self.request.user
+        agency_id = getattr(user, "agency_id", None)
+        if agency_id is None and not _is_admin(user):
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(
+                {"detail": "Your user account is not linked to an agency. Contact your administrator."}
+            )
+        clause = serializer.save(created_by=user, agency_id=agency_id)
         template_id = self.request.data.get("source_template_id")
-        clause = serializer.save(created_by=self.request.user)
         if template_id:
             try:
-                tmpl = LeaseTemplate.objects.get(pk=template_id)
+                tmpl = _scoped_lease_templates(self.request).get(pk=template_id)
                 clause.source_templates.add(tmpl)
             except LeaseTemplate.DoesNotExist:
                 pass
 
 
-class ReusableClauseDestroyView(generics.DestroyAPIView):
+class ReusableClauseDestroyView(
+    AgencyScopedQuerysetMixin, generics.DestroyAPIView
+):
     serializer_class = ReusableClauseSerializer
     permission_classes = [IsAgentOrAdmin]
+    queryset = ReusableClause.objects.all()
 
     def get_queryset(self):
-        return ReusableClause.objects.filter(created_by=self.request.user)
+        return super().get_queryset().filter(created_by=self.request.user)
 
 
 class ReusableClauseUseView(APIView):
@@ -73,8 +95,15 @@ class ReusableClauseUseView(APIView):
     permission_classes = [IsAgentOrAdmin]
 
     def post(self, request, pk):
+        # Filter by both created_by and agency_id (defence in depth).
+        agency_id = getattr(request.user, "agency_id", None)
+        qs = ReusableClause.objects.filter(pk=pk, created_by=request.user)
+        if not _is_admin(request.user):
+            if agency_id is None:
+                return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+            qs = qs.filter(agency_id=agency_id)
         try:
-            clause = ReusableClause.objects.get(pk=pk, created_by=request.user)
+            clause = qs.get()
         except ReusableClause.DoesNotExist:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         ReusableClause.objects.filter(pk=pk).update(use_count=clause.use_count + 1)
@@ -155,7 +184,7 @@ class ExtractClausesView(APIView):
             return Response({"error": "template_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            tmpl = LeaseTemplate.objects.get(pk=template_id)
+            tmpl = _scoped_lease_templates(request).get(pk=template_id)
         except LeaseTemplate.DoesNotExist:
             return Response({"error": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
 

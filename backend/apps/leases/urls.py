@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework import generics, permissions
+from apps.accounts.scoping import AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
 from .views import LeaseViewSet, LeaseCalendarAPIView, InventoryTemplateViewSet
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
@@ -14,19 +15,25 @@ router = DefaultRouter()
 router.register("", LeaseViewSet, basename="lease")
 
 
-class LeaseTenantList(generics.ListCreateAPIView):
+class LeaseTenantList(
+    AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, generics.ListCreateAPIView
+):
     serializer_class = LeaseTenantSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = LeaseTenant.objects.select_related("person")
 
 
-class LeaseOccupantList(generics.ListCreateAPIView):
+class LeaseOccupantList(
+    AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, generics.ListCreateAPIView
+):
     serializer_class = LeaseOccupantSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = LeaseOccupant.objects.select_related("person")
 
 
-class LeaseGuarantorList(generics.ListCreateAPIView):
+class LeaseGuarantorList(
+    AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, generics.ListCreateAPIView
+):
     serializer_class = LeaseGuarantorSerializer
     permission_classes = [permissions.IsAuthenticated]
     queryset = LeaseGuarantor.objects.select_related("person")

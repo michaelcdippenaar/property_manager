@@ -9,6 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAgentOrAdmin
 from apps.accounts.models import User
+from apps.accounts.scoping import (
+    AgencyScopedQuerysetMixin,
+    AgencyStampedCreateMixin,
+    _is_admin,
+)
 from rest_framework.response import Response
 from rest_framework import status, generics
 
@@ -174,7 +179,43 @@ def _pdf_to_template_html(pdf_bytes: bytes, api_key: str):
     return html, fields
 
 
-class LeaseTemplateListView(generics.ListCreateAPIView):
+def _scoped_lease_templates(request):
+    """
+    Return the LeaseTemplate queryset scoped to the caller's agency.
+
+    Admins (or anonymous flows that should never reach these views) get the
+    full queryset; everyone else is filtered to their own agency_id, with
+    users lacking an agency seeing nothing.
+    """
+    user = getattr(request, "user", None)
+    if _is_admin(user):
+        return LeaseTemplate.objects.all()
+    agency_id = getattr(user, "agency_id", None) if user else None
+    if agency_id is None:
+        return LeaseTemplate.objects.none()
+    return LeaseTemplate.objects.filter(agency_id=agency_id)
+
+
+def _resolve_agency_id_for_create(request):
+    """
+    Resolve the agency_id to stamp on a LeaseTemplate (or related per-tenant
+    object) created via a non-DRF-default code path (e.g. raw Model.objects.create).
+
+    Mirrors AgencyStampedCreateMixin: admins may pass `agency` in the payload;
+    non-admins are forced to their own agency. Returns the agency_id or None
+    if the caller is allowed to create unscoped (admin without explicit agency
+    is treated as an error to keep behaviour consistent).
+    """
+    user = getattr(request, "user", None)
+    if _is_admin(user):
+        agency_id = request.data.get("agency") or getattr(user, "agency_id", None)
+        return agency_id  # may be None — caller decides what to do
+    return getattr(user, "agency_id", None)
+
+
+class LeaseTemplateListView(
+    AgencyScopedQuerysetMixin, generics.ListCreateAPIView
+):
     """
     GET  /api/v1/leases/templates/ — list active lease templates.
     POST /api/v1/leases/templates/ — upload a new DOCX template (multipart).
@@ -188,24 +229,39 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
     serializer_class = LeaseTemplateSerializer
     permission_classes = [IsAgentOrAdmin]
     parser_classes = [*generics.ListCreateAPIView.parser_classes]
+    queryset = LeaseTemplate.objects.all()
 
     def get_queryset(self):
-        return LeaseTemplate.objects.filter(is_active=True)
+        # AgencyScopedQuerysetMixin filters to the caller's agency_id; layer
+        # the existing is_active filter on top.
+        return super().get_queryset().filter(is_active=True)
 
     def create(self, request, *args, **kwargs):
         name = (request.data.get("name") or "").strip()
         if not name:
             return Response({"error": "name is required."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Phase 2.4 — stamp the caller's agency on every LeaseTemplate created
+        # in this method. We call Model.objects.create directly here (not via
+        # DRF perform_create), so the AgencyStampedCreateMixin doesn't apply.
+        agency_id = _resolve_agency_id_for_create(request)
+        user = getattr(request, "user", None)
+        if agency_id is None and not _is_admin(user):
+            return Response(
+                {"detail": "Your user account is not linked to an agency. Contact your administrator."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # ── Duplicate from existing template ──────────────────────────────
         duplicate_from = request.data.get("duplicate_from")
         if duplicate_from:
             try:
-                source = LeaseTemplate.objects.get(pk=int(duplicate_from))
+                source = _scoped_lease_templates(request).get(pk=int(duplicate_from))
             except (LeaseTemplate.DoesNotExist, ValueError, TypeError):
                 return Response({"error": "Source template not found."}, status=status.HTTP_404_NOT_FOUND)
 
             tmpl = LeaseTemplate.objects.create(
+                agency_id=agency_id,
                 name=name,
                 version=request.data.get("version") or "1.0",
                 province=request.data.get("province") or source.province or "",
@@ -221,6 +277,7 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
         uploaded_file = request.FILES.get("docx_file") or request.FILES.get("template_file")
         if not uploaded_file:
             tmpl = LeaseTemplate.objects.create(
+                agency_id=agency_id,
                 name=name,
                 version=request.data.get("version") or "1.0",
                 province=request.data.get("province") or "",
@@ -242,6 +299,7 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
         pdf_bytes = uploaded_file.read() if is_pdf else None
 
         tmpl = LeaseTemplate.objects.create(
+            agency_id=agency_id,
             name=name,
             version=request.data.get("version") or "1.0",
             province=request.data.get("province") or "",
@@ -292,7 +350,9 @@ class LeaseTemplateListView(generics.ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-class LeaseTemplateDetailView(generics.RetrieveUpdateDestroyAPIView):
+class LeaseTemplateDetailView(
+    AgencyScopedQuerysetMixin, generics.RetrieveUpdateDestroyAPIView
+):
     """
     GET    /api/v1/leases/templates/{id}/ — retrieve
     PATCH  /api/v1/leases/templates/{id}/ — update (supports multipart docx_file upload)
@@ -363,13 +423,14 @@ class GenerateLeaseDocumentView(APIView):
         template_id = request.data.get("template_id")
         context = request.data.get("context") or {}
 
+        scoped_qs = _scoped_lease_templates(request)
         if template_id:
             try:
-                tmpl = LeaseTemplate.objects.get(pk=template_id, is_active=True)
+                tmpl = scoped_qs.get(pk=template_id, is_active=True)
             except LeaseTemplate.DoesNotExist:
                 return Response({"error": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
         else:
-            tmpl = LeaseTemplate.objects.filter(is_active=True).first()
+            tmpl = scoped_qs.filter(is_active=True).first()
             if not tmpl:
                 return Response(
                     {"error": "No active lease template found. Upload one first."},
@@ -406,7 +467,7 @@ class LeaseTemplatePreviewView(APIView):
 
     def get(self, request, pk):
         try:
-            tmpl = LeaseTemplate.objects.get(pk=pk)
+            tmpl = _scoped_lease_templates(request).get(pk=pk)
         except LeaseTemplate.DoesNotExist:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1485,7 +1546,7 @@ class LeaseTemplateAIChatView(APIView):
         from django.conf import settings
 
         try:
-            tmpl = LeaseTemplate.objects.get(pk=pk)
+            tmpl = _scoped_lease_templates(request).get(pk=pk)
         except LeaseTemplate.DoesNotExist:
             return Response({"error": "Template not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1836,7 +1897,7 @@ class ExportTemplatePDFView(APIView):
 
     def get(self, request, pk):
         try:
-            tmpl = LeaseTemplate.objects.get(pk=pk)
+            tmpl = _scoped_lease_templates(request).get(pk=pk)
         except LeaseTemplate.DoesNotExist:
             return Response({"error": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1897,6 +1958,7 @@ class ExportTemplatePDFView(APIView):
                 from .models import PdfRenderJob
                 from .tasks import enqueue_pdf_render
                 job = PdfRenderJob.objects.create(
+                    agency=tmpl.agency,
                     template=tmpl,
                     html_payload=full_html,
                     requested_by=request.user,
@@ -1938,13 +2000,18 @@ class PdfRenderJobListView(APIView):
     def get(self, request):
         from .models import PdfRenderJob
         user = request.user
-        # Admins see all jobs; agents see only their own
+        # Admins see all jobs; non-admins see only their own AND only those
+        # belonging to their own agency (Phase 2.4 — defence in depth).
         if user.role == User.Role.ADMIN:
             qs = PdfRenderJob.objects.select_related('template', 'requested_by').all()
         else:
-            qs = PdfRenderJob.objects.select_related('template', 'requested_by').filter(
-                requested_by=user
-            )
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None:
+                qs = PdfRenderJob.objects.none()
+            else:
+                qs = PdfRenderJob.objects.select_related('template', 'requested_by').filter(
+                    requested_by=user, agency_id=agency_id,
+                )
         results = []
         for job in qs[:100]:  # cap at 100 — not paginated for now
             results.append({
@@ -1976,7 +2043,13 @@ class PdfRenderJobRetryView(APIView):
         if user.role == User.Role.ADMIN:
             qs = PdfRenderJob.objects.filter(pk=pk)
         else:
-            qs = PdfRenderJob.objects.filter(pk=pk, requested_by=user)
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None:
+                qs = PdfRenderJob.objects.none()
+            else:
+                qs = PdfRenderJob.objects.filter(
+                    pk=pk, requested_by=user, agency_id=agency_id,
+                )
         try:
             job = qs.get()
         except PdfRenderJob.DoesNotExist:
