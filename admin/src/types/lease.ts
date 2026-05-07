@@ -15,6 +15,8 @@ export interface LeaseTenantBrief {
   full_name: string
   email?: string
   phone?: string
+  /** Per-lessee payment reference (only present on co-tenants/occupants). */
+  payment_reference?: string
 }
 
 export interface LeaseDocumentBrief {

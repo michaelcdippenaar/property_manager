@@ -90,7 +90,14 @@ class Lease(models.Model):
 
     # Payment terms
     rent_due_day = models.PositiveSmallIntegerField(default=1, help_text="Day of month rent is due (1–28)")
-    payment_reference = models.CharField(max_length=100, blank=True)
+    payment_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text=(
+            "Payment reference for the primary tenant's rent EFT. "
+            "Co-tenants have their own payment_reference on LeaseTenant."
+        ),
+    )
 
     # Raw AI extraction result stored for audit / re-use
     ai_parse_result = models.JSONField(null=True, blank=True)
@@ -431,6 +438,12 @@ class LeaseTenant(models.Model):
 
     lease = models.ForeignKey(Lease, on_delete=models.CASCADE, related_name="co_tenants")
     person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="co_tenancies")
+    payment_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Payment reference for this lessee's rent EFT.",
+    )
 
     class Meta:
         unique_together = [("lease", "person")]

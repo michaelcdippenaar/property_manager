@@ -1413,6 +1413,8 @@ const leaseFields = [
   'lease_start', 'lease_end', 'monthly_rent', 'deposit',
   'escalation_percent', 'notice_period_days', 'max_occupants',
   'pets_allowed', 'water_included', 'electricity_prepaid', 'payment_reference',
+  'primary_tenant_payment_reference',
+  'cotenant_1_payment_reference', 'cotenant_2_payment_reference', 'cotenant_3_payment_reference',
   'page_number', 'total_pages',
 ]
 
@@ -1440,8 +1442,17 @@ const leaseFieldGroups = [
       { key: 'monthly_rent', label: 'Monthly Rent' },
       { key: 'deposit', label: 'Deposit' },
       { key: 'escalation_percent', label: 'Escalation %' },
-      { key: 'payment_reference', label: 'Payment Ref' },
+      { key: 'payment_reference', label: 'Payment Ref (legacy / primary)' },
       { key: 'receipt_number', label: 'Receipt' },
+    ],
+  },
+  {
+    label: 'Tenants',
+    fields: [
+      { key: 'primary_tenant_payment_reference', label: 'Primary tenant — Payment Ref' },
+      { key: 'cotenant_1_payment_reference', label: 'Co-tenant 1 — Payment Ref' },
+      { key: 'cotenant_2_payment_reference', label: 'Co-tenant 2 — Payment Ref' },
+      { key: 'cotenant_3_payment_reference', label: 'Co-tenant 3 — Payment Ref' },
     ],
   },
   {

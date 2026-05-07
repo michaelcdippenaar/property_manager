@@ -59,6 +59,8 @@ CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
     ("tenant_1",      "tenant_1_dob",                "Tenant 1 date of birth"),
     ("tenant_1",      "tenant_1_emergency_contact",  "Tenant 1 emergency contact"),
     ("tenant_1",      "tenant_1_emergency_phone",    "Tenant 1 emergency phone"),
+    ("tenant_1",      "primary_tenant_payment_reference", "Primary tenant payment reference (EFT)"),
+    ("tenant_1",      "cotenant_1_payment_reference", "Co-tenant 1 payment reference (EFT)"),
     # ── Tenant 2 ──────────────────────────────────────────────────────────
     ("tenant_2",      "tenant_2_name",               "Tenant 2 full name"),
     ("tenant_2",      "tenant_2_id",                 "Tenant 2 SA ID number"),
@@ -70,6 +72,7 @@ CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
     ("tenant_2",      "tenant_2_dob",                "Tenant 2 date of birth"),
     ("tenant_2",      "tenant_2_emergency_contact",  "Tenant 2 emergency contact"),
     ("tenant_2",      "tenant_2_emergency_phone",    "Tenant 2 emergency phone"),
+    ("tenant_2",      "cotenant_2_payment_reference", "Co-tenant 2 payment reference (EFT)"),
     # ── Tenant 3 ──────────────────────────────────────────────────────────
     ("tenant_3",      "tenant_3_name",               "Tenant 3 full name"),
     ("tenant_3",      "tenant_3_id",                 "Tenant 3 SA ID number"),
@@ -81,6 +84,7 @@ CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
     ("tenant_3",      "tenant_3_dob",                "Tenant 3 date of birth"),
     ("tenant_3",      "tenant_3_emergency_contact",  "Tenant 3 emergency contact"),
     ("tenant_3",      "tenant_3_emergency_phone",    "Tenant 3 emergency phone"),
+    ("tenant_3",      "cotenant_3_payment_reference", "Co-tenant 3 payment reference (EFT)"),
     # ── Co-tenants summary ────────────────────────────────────────────────
     ("co_tenants",    "co_tenants",                  "Comma-separated list of all co-tenant names"),
     # ── Occupants 1–4 ─────────────────────────────────────────────────────
@@ -107,7 +111,7 @@ CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
     ("lease_terms",   "water_included",              "Whether water is included (Yes/No)"),
     ("lease_terms",   "electricity_prepaid",         "Whether electricity is prepaid (Yes/No)"),
     ("lease_terms",   "max_occupants",               "Maximum number of authorised occupants"),
-    ("lease_terms",   "payment_reference",           "Payment reference for EFT"),
+    ("lease_terms",   "payment_reference",           "Payment reference for EFT (legacy alias for primary_tenant_payment_reference)"),
     ("lease_terms",   "lease_number",                "Unique lease reference number"),
 ]
 

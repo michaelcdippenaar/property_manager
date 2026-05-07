@@ -47,7 +47,7 @@ class LeaseTenantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LeaseTenant
-        fields = ["id", "person", "person_id"]
+        fields = ["id", "person", "person_id", "payment_reference"]
 
 
 class LeaseOccupantSerializer(serializers.ModelSerializer):

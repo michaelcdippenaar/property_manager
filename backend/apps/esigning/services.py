@@ -266,6 +266,7 @@ def build_lease_context(lease) -> dict:
         'electricity_prepaid': 'Prepaid' if getattr(lease, 'electricity_prepaid', True) else 'Included in rent',
         'max_occupants':    str(getattr(lease, 'max_occupants', 1)),
         'payment_reference': getattr(lease, 'payment_reference', '') or '—',
+        'primary_tenant_payment_reference': getattr(lease, 'payment_reference', '') or '—',
         'lease_number':     getattr(lease, 'lease_number', '') or '—',
     }
 
@@ -285,6 +286,20 @@ def build_lease_context(lease) -> dict:
         ctx[f'tenant_{i}_dob'] = str(p.date_of_birth) if p.date_of_birth else '—'
         ctx[f'tenant_{i}_emergency_contact'] = p.emergency_contact_name or '—'
         ctx[f'tenant_{i}_emergency_phone'] = p.emergency_contact_phone or '—'
+
+    # Per-lessee payment references — co-tenants ordered by id for stability
+    # (fall back to insertion order if id is not a sortable scalar, e.g. in tests).
+    try:
+        co_ordered = sorted(co, key=lambda ct: ct.id)
+    except TypeError:
+        co_ordered = list(co)
+    for n in range(1, 4):
+        if n - 1 < len(co_ordered):
+            ctx[f'cotenant_{n}_payment_reference'] = (
+                getattr(co_ordered[n - 1], 'payment_reference', '') or '—'
+            )
+        else:
+            ctx[f'cotenant_{n}_payment_reference'] = '—'
 
     # Fill any missing tenant slots with em-dash so templates don't
     # show raw {{ tenant_3_name }} when there's no third tenant.

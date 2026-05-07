@@ -15,6 +15,7 @@ from .models import Lease, LeaseDocument, LeaseEvent, LeaseTenant, LeaseOccupant
 from .serializers import (
     LeaseSerializer, LeaseDocumentSerializer, LeaseEventSerializer,
     LeaseOccupantSerializer, LeaseGuarantorSerializer, OnboardingStepSerializer, PersonSerializer,
+    LeaseTenantSerializer,
     InventoryItemSerializer, InventoryTemplateSerializer, MoveInChecklistItemSerializer,
 )
 from .events import generate_lease_events, generate_onboarding_steps
@@ -140,6 +141,20 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
             )
 
         return Response(PersonSerializer(person).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["patch"], url_path="co-tenants/(?P<co_tenant_id>[^/.]+)")
+    def update_co_tenant(self, request, pk=None, co_tenant_id=None):
+        """
+        PATCH /api/v1/leases/{id}/co-tenants/{co_tenant_id}/
+
+        Update LeaseTenant fields (currently only ``payment_reference``).
+        """
+        lease = self.get_object()
+        ct = get_object_or_404(LeaseTenant, pk=co_tenant_id, lease=lease)
+        if "payment_reference" in request.data:
+            ct.payment_reference = request.data.get("payment_reference") or ""
+            ct.save(update_fields=["payment_reference"])
+        return Response(LeaseTenantSerializer(ct).data)
 
     @action(detail=True, methods=["delete"], url_path="tenants/(?P<person_id>[^/.]+)")
     def remove_tenant(self, request, pk=None, person_id=None):

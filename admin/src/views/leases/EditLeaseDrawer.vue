@@ -187,6 +187,10 @@
                     <label class="label">Email</label>
                     <input v-model="t.email" type="email" class="input" placeholder="email@example.com" />
                   </div>
+                  <div class="col-span-2">
+                    <label class="label">Payment Reference</label>
+                    <input v-model="t.payment_reference" class="input" placeholder="e.g. 18 Irene - Smith" />
+                  </div>
                 </div>
               </div>
             </div>
@@ -488,10 +492,20 @@ const originalPersonData = new Map<number, Record<string, string>>()
 function initTenants() {
   const tenants: any[] = []
   if (props.lease.primary_tenant_detail) {
-    tenants.push({ ...props.lease.primary_tenant_detail })
+    tenants.push({
+      ...props.lease.primary_tenant_detail,
+      _is_primary: true,
+      _co_tenant_id: null,
+      payment_reference: props.lease.payment_reference ?? '',
+    })
   }
   for (const ct of props.lease.co_tenants ?? []) {
-    tenants.push({ ...ct.person })
+    tenants.push({
+      ...ct.person,
+      _is_primary: false,
+      _co_tenant_id: ct.id,
+      payment_reference: (ct as any).payment_reference ?? '',
+    })
   }
   allTenants.value = tenants
   for (const t of tenants) {
@@ -501,6 +515,7 @@ function initTenants() {
         id_number: t.id_number ?? '',
         phone: t.phone ?? '',
         email: t.email ?? '',
+        payment_reference: t.payment_reference ?? '',
       })
     }
   }
@@ -652,10 +667,16 @@ async function saveAll() {
   saveOk.value = false
   saveError.value = ''
   try {
+    // Primary tenant payment ref lives on Lease.payment_reference.
+    const primary = allTenants.value.find((t: any) => t._is_primary)
+    if (primary) {
+      form.payment_reference = primary.payment_reference ?? ''
+    }
+
     // 1. Patch lease basic fields
     const { data: updated } = await api.patch(`/leases/${props.lease.id}/`, form)
 
-    // 2. Patch any person details that changed
+    // 2. Patch any person details that changed (and per co-tenant payment_reference)
     const personPatches: Promise<any>[] = []
     for (const t of allTenants.value) {
       if (!t.id) continue
@@ -675,14 +696,28 @@ async function saveAll() {
             email: t.email,
           })
         )
-        // Update snapshot so re-saving doesn't re-patch
-        originalPersonData.set(t.id, {
-          full_name: t.full_name ?? '',
-          id_number: t.id_number ?? '',
-          phone: t.phone ?? '',
-          email: t.email ?? '',
-        })
       }
+      // Co-tenant payment_reference patch (LeaseTenant row).
+      if (
+        !t._is_primary &&
+        t._co_tenant_id &&
+        orig &&
+        orig.payment_reference !== (t.payment_reference ?? '')
+      ) {
+        personPatches.push(
+          api.patch(`/leases/${props.lease.id}/co-tenants/${t._co_tenant_id}/`, {
+            payment_reference: t.payment_reference ?? '',
+          })
+        )
+      }
+      // Update snapshot so re-saving doesn't re-patch
+      originalPersonData.set(t.id, {
+        full_name: t.full_name ?? '',
+        id_number: t.id_number ?? '',
+        phone: t.phone ?? '',
+        email: t.email ?? '',
+        payment_reference: t.payment_reference ?? '',
+      })
     }
     await Promise.all(personPatches)
 
