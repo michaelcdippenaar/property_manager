@@ -39,6 +39,7 @@ def _make_submission(mandate, agent_user):
         {"id": 2, "name": "Agent", "email": "agent@test.com", "role": "agent", "order": 1, "status": "completed"},
     ]
     sub = ESigningSubmission.objects.create(
+        agency=mandate.agency,  # Phase 2.6 — submissions inherit mandate's agency
         lease=None,
         mandate=mandate,
         signing_backend=ESigningSubmission.SigningBackend.NATIVE,
@@ -251,6 +252,7 @@ class MandateDownloadSignedRegressionTest(TremlyAPITestCase):
         dummy_html = "<html><body>Mandate</body></html>"
         doc_hash = hashlib.sha256(dummy_html.encode()).hexdigest()
         sub = ESigningSubmission.objects.create(
+            agency=self.mandate.agency,  # Phase 2.6 — inherit mandate's agency
             lease=None,
             mandate=self.mandate,
             signing_backend=ESigningSubmission.SigningBackend.NATIVE,
