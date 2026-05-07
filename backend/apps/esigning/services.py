@@ -611,8 +611,17 @@ def create_native_submission(lease, signers: list, signing_mode: str = 'sequenti
             'required_documents': s.get('required_documents', []),
         })
 
+    # Phase 2.6: stamp agency_id from the lease's property chain so this
+    # submission is tenant-isolated at write time.
+    agency_id = None
+    try:
+        agency_id = lease.unit.property.agency_id
+    except Exception:
+        agency_id = getattr(lease, "agency_id", None)
+
     submission = ESigningSubmission.objects.create(
         lease=lease,
+        agency_id=agency_id,
         signing_backend=ESigningSubmission.SigningBackend.NATIVE,
         status=ESigningSubmission.Status.PENDING,
         signing_mode=signing_mode,

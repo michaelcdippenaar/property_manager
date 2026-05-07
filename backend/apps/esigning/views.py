@@ -43,7 +43,7 @@ def accessible_leases_queryset(user):
         return qs.filter(pk__in=get_tenant_leases(user).values_list("pk", flat=True))
     if user.role == User.Role.ADMIN:
         return qs
-    if user.role == User.Role.AGENT:
+    if user.role in (User.Role.AGENT, User.Role.AGENCY_ADMIN, User.Role.MANAGING_AGENT):
         from apps.properties.access import get_accessible_property_ids
         prop_ids = get_accessible_property_ids(user)
         return qs.filter(unit__property_id__in=prop_ids)
@@ -51,15 +51,39 @@ def accessible_leases_queryset(user):
 
 
 def esigning_submissions_for_user(user):
+    """
+    Return ESigningSubmissions visible to *user*.
+
+    Phase 2.6 — agency_id is layered on top of the existing property/lease
+    scope as a hard boundary. ADMIN / superuser bypass agency scoping
+    (operator support / DSAR). Authenticated users with no agency_id
+    (tenants) are scoped purely by their accessible leases / properties
+    (which already filter to their own data via accessible_leases_queryset
+    and get_accessible_property_ids).
+    """
     from apps.properties.access import get_accessible_property_ids
     prop_ids = get_accessible_property_ids(user)
     lease_ids = accessible_leases_queryset(user).values_list("pk", flat=True)
-    return ESigningSubmission.objects.select_related(
+    qs = ESigningSubmission.objects.select_related(
         "lease__unit__property", "mandate__property"
     ).filter(
         Q(lease_id__in=lease_ids) |
         Q(mandate__property_id__in=prop_ids)
     )
+
+    is_admin = bool(
+        user
+        and getattr(user, "is_authenticated", False)
+        and (getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN)
+    )
+    if is_admin:
+        return qs
+
+    agency_id = getattr(user, "agency_id", None)
+    if agency_id is not None:
+        qs = qs.filter(agency_id=agency_id)
+    # Tenants (no agency) keep the lease/property-based scope already applied.
+    return qs
 
 
 def can_manage_esigning(user):
@@ -203,6 +227,7 @@ def _auto_send_signing_links(submission, original_signers, request):
 
         link = ESigningPublicLink.objects.create(
             submission=submission,
+            agency_id=submission.agency_id,
             signer_role=signer.get("role", ""),
             expires_at=timezone.now() + timedelta(days=default_days),
         )
@@ -446,6 +471,7 @@ class ESigningResendView(APIView):
         default_days = int(getattr(settings, "ESIGNING_PUBLIC_LINK_EXPIRY_DAYS", 14))
         link = ESigningPublicLink.objects.create(
             submission=obj,
+            agency_id=obj.agency_id,
             signer_role=signer_role,
             expires_at=timezone.now() + timedelta(days=default_days),
         )
@@ -802,6 +828,7 @@ class ESigningCreatePublicLinkView(APIView):
 
         link = ESigningPublicLink.objects.create(
             submission=submission,
+            agency_id=submission.agency_id,
             signer_role=signer.get("role", ""),
             expires_at=timezone.now() + timedelta(days=days),
         )
@@ -940,6 +967,7 @@ class ESigningPublicDraftView(APIView):
             defaults={
                 "signed_fields_data": signed_fields,
                 "captured_fields_data": captured_fields,
+                "agency_id": link.submission.agency_id,
             },
         )
 
@@ -1037,6 +1065,7 @@ class ESigningPublicDocumentsView(APIView):
         doc = SupportingDocument.objects.create(
             public_link=link,
             submission=link.submission,
+            agency_id=link.submission.agency_id,
             document_type=document_type,
             file=file_obj,
             original_filename=file_obj.name[:255],

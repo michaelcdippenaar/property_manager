@@ -27,6 +27,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminOrAgencyAdmin
 from apps.audit.models import AuditEvent
 
@@ -113,6 +114,7 @@ class DataExportRequestView(APIView):
         dsar = DSARRequest.objects.create(
             requester=request.user,
             requester_email=request.user.email,
+            agency_id=getattr(request.user, "agency_id", None),
             request_type=DSARRequest.RequestType.SAR,
             reason=ser.validated_data.get("reason", ""),
             status=DSARRequest.Status.PENDING,
@@ -182,6 +184,7 @@ class ErasureRequestView(APIView):
         dsar = DSARRequest.objects.create(
             requester=request.user,
             requester_email=request.user.email,
+            agency_id=getattr(request.user, "agency_id", None),
             request_type=DSARRequest.RequestType.RTBF,
             reason=ser.validated_data.get("reason", ""),
             status=DSARRequest.Status.PENDING,
@@ -313,6 +316,17 @@ class DSARQueueView(APIView):
             "requester", "reviewed_by"
         ).order_by("sla_deadline")
 
+        # Phase 2.6 — agency reviewers must never see another agency's DSAR
+        # queue. ADMIN / superuser bypass for cross-tenant operator support.
+        user = request.user
+        is_admin = bool(getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN)
+        if not is_admin:
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None:
+                qs = qs.none()
+            else:
+                qs = qs.filter(agency_id=agency_id)
+
         status_filter = request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
@@ -396,6 +410,14 @@ class DSARReviewView(APIView):
         except DSARRequest.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Phase 2.6 — block cross-agency review access. ADMIN bypass.
+        user = request.user
+        is_admin = bool(getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN)
+        if not is_admin:
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None or dsar.agency_id != agency_id:
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
         retention_flags = None
         retention_flags_computed = False
         if dsar.request_type == DSARRequest.RequestType.RTBF and dsar.requester:
@@ -424,6 +446,14 @@ class DSARReviewView(APIView):
             dsar = DSARRequest.objects.select_related("requester").get(pk=pk)
         except DSARRequest.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Phase 2.6 — block cross-agency review access. ADMIN bypass.
+        user = request.user
+        is_admin = bool(getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN)
+        if not is_admin:
+            agency_id = getattr(user, "agency_id", None)
+            if agency_id is None or dsar.agency_id != agency_id:
+                return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         if dsar.status not in (DSARRequest.Status.PENDING, DSARRequest.Status.IN_REVIEW):
             return Response(
@@ -466,7 +496,10 @@ class DSARReviewView(APIView):
                 execute_erasure(dsar, reviewer=request.user)
             elif dsar.request_type == DSARRequest.RequestType.SAR:
                 # For SAR: NOW queue the export (operator has verified identity)
-                job, _created = ExportJob.objects.get_or_create(dsar_request=dsar)
+                job, _created = ExportJob.objects.get_or_create(
+                    dsar_request=dsar,
+                    defaults={"agency_id": dsar.agency_id},
+                )
                 if job.status in (ExportJob.JobStatus.QUEUED, ExportJob.JobStatus.FAILED):
                     run_export_job_async(job.pk)
 

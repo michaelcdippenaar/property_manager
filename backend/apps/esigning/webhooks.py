@@ -175,6 +175,7 @@ def _notify_next_signer(submission: ESigningSubmission, next_signer: dict):
     default_days = int(getattr(settings, 'ESIGNING_PUBLIC_LINK_EXPIRY_DAYS', 14))
     link = ESigningPublicLink.objects.create(
         submission=submission,
+        agency_id=getattr(submission, "agency_id", None),
         signer_role=signer_role,
         expires_at=timezone.now() + timedelta(days=default_days),
     )

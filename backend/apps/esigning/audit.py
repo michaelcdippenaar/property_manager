@@ -12,6 +12,7 @@ def log_esigning_event(submission, event_type, request=None, signer_role="", use
 
     return ESigningAuditEvent.objects.create(
         submission=submission,
+        agency_id=getattr(submission, "agency_id", None),
         signer_role=signer_role,
         event_type=event_type,
         ip_address=ip or None,

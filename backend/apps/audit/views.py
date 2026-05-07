@@ -26,13 +26,16 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet
 
+from apps.accounts.models import User
 from apps.accounts.permissions import IsAdminOrAgencyAdmin
+from apps.accounts.scoping import AgencyScopedQuerysetMixin
 
 from .models import AuditEvent
 from .serializers import AuditEventSerializer
 
 
 class AuditEventViewSet(
+    AgencyScopedQuerysetMixin,
     mixins.RetrieveModelMixin,
     mixins.ListModelMixin,
     GenericViewSet,
@@ -42,14 +45,30 @@ class AuditEventViewSet(
 
     Access is restricted to admin/agency-admin roles — audit events contain
     full field snapshots that may include PII.
+
+    Phase 2.6: AgencyScopedQuerysetMixin enforces a HARD security boundary —
+    agency A must never see agency B's audit trail. Defence in depth: an
+    explicit ``filter(agency_id=...)`` is also applied below for non-admins.
+    The hash chain (`prev_hash`, `self_hash`) is preserved at the model
+    layer; this viewset only reads.
     """
 
+    queryset = AuditEvent.objects.all()
     serializer_class = AuditEventSerializer
     permission_classes = [IsAuthenticated, IsAdminOrAgencyAdmin]
     ordering = ["-timestamp"]
 
     def get_queryset(self):
-        qs = AuditEvent.objects.select_related("actor", "content_type").order_by("-timestamp")
+        qs = super().get_queryset().select_related("actor", "content_type").order_by("-timestamp")
+        # Defence in depth: even if the mixin is somehow bypassed, scope by
+        # the caller's agency for non-admin users.
+        user = getattr(self.request, "user", None)
+        is_admin = bool(user and (getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN))
+        if not is_admin:
+            agency_id = getattr(user, "agency_id", None) if user else None
+            if agency_id is None:
+                return qs.none()
+            qs = qs.filter(agency_id=agency_id)
 
         action = self.request.query_params.get("action")
         if action:
@@ -89,10 +108,22 @@ class AuditTimelineView(APIView):
 
     def get(self, request, app_label: str, model: str, pk: int):
         ct = get_object_or_404(ContentType, app_label=app_label, model=model)
+        events_qs = AuditEvent.objects.filter(content_type=ct, object_id=pk)
+
+        # Phase 2.6 — non-admin users can only see audit events for their
+        # own agency. Hard boundary: an agency A reviewer must never see
+        # agency B's audit trail for the same object id.
+        user = getattr(request, "user", None)
+        is_admin = bool(user and (getattr(user, "is_superuser", False) or getattr(user, "role", None) == User.Role.ADMIN))
+        if not is_admin:
+            agency_id = getattr(user, "agency_id", None) if user else None
+            if agency_id is None:
+                events_qs = events_qs.none()
+            else:
+                events_qs = events_qs.filter(agency_id=agency_id)
+
         events = (
-            AuditEvent.objects.filter(content_type=ct, object_id=pk)
-            .select_related("actor", "content_type")
-            .order_by("timestamp")
+            events_qs.select_related("actor", "content_type").order_by("timestamp")
         )
         serializer = AuditEventSerializer(events, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
