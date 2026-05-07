@@ -130,7 +130,19 @@ class AgencyStampedCreateMixin:
 
         if _is_admin(user):
             # Admin can pass `agency` explicitly; if absent, stamp their own.
-            agency_id = serializer.validated_data.get("agency_id") or getattr(user, "agency_id", None)
+            # QA-round-5 bug 2: DRF ModelSerializer exposes the FK as the
+            # model field name ("agency"), not "agency_id". Check both keys
+            # so admin "create on behalf of agency X" via {"agency": <pk>}
+            # actually lands in agency X instead of falling through to the
+            # admin's own agency. The "agency" value may be either an
+            # Agency instance (when the serializer resolves the FK pk) or
+            # a raw int (rare); handle both.
+            agency_obj = serializer.validated_data.get("agency")
+            explicit_agency_id = (
+                serializer.validated_data.get("agency_id")
+                or (agency_obj.pk if hasattr(agency_obj, "pk") else agency_obj)
+            )
+            agency_id = explicit_agency_id or getattr(user, "agency_id", None)
             if agency_id is None:
                 # Admin without agency creating without specifying — block.
                 raise ValidationError(

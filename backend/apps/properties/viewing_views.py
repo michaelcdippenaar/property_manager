@@ -134,6 +134,11 @@ class PropertyViewingViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
                     property=viewing.property,
                     unit_number="1",
                     rent_amount=request.data.get("monthly_rent") or 0,
+                    # Phase 4 / QA-round-5 bug 1: stamp agency from the parent
+                    # property so the new Unit doesn't fall through with
+                    # agency_id=NULL (which would bypass tenant_objects scoping
+                    # and re-create orphan rows).
+                    agency_id=viewing.property.agency_id,
                 )
                 unit_id = auto_created_unit.pk
             else:
@@ -164,6 +169,10 @@ class PropertyViewingViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin
                     monthly_rent=request.data["monthly_rent"],
                     deposit=request.data["deposit"],
                     status=Lease.Status.PENDING if hasattr(Lease, "Status") else "pending",
+                    # Phase 4 / QA-round-5 bug 1: stamp agency from the parent
+                    # property (single source of truth) so the lease is visible
+                    # to tenant_objects queries and is correctly scoped.
+                    agency_id=viewing.property.agency_id,
                 )
 
                 viewing.status             = PropertyViewing.Status.CONVERTED

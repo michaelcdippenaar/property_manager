@@ -30,6 +30,7 @@ from apps.accounts.tenancy import (
     current_agency_id,
     is_bypass_active,
     override,
+    tenant_context_for_task,
 )
 
 
@@ -97,6 +98,37 @@ class TenantContextHelpersTest(TestCase):
                 self.assertEqual(current_agency_id(), 42)
                 raise RuntimeError("boom")
         # Context cleaned up despite the exception
+        self.assertIsNone(current_agency_id())
+
+    def test_tenant_context_for_task_sets_and_restores(self):
+        """QA-round-5 bug 3: task helper round-trips agency_id correctly.
+
+        Accepts raw int agency_id, an Agency instance (via .pk), and None
+        (no-op). Restores the previous context on exit, even when raised.
+        """
+        # Raw int
+        self.assertIsNone(current_agency_id())
+        with tenant_context_for_task(77):
+            self.assertEqual(current_agency_id(), 77)
+        self.assertIsNone(current_agency_id())
+
+        # Object with .pk attribute
+        class _AgencyLike:
+            pk = 123
+        with tenant_context_for_task(_AgencyLike()):
+            self.assertEqual(current_agency_id(), 123)
+        self.assertIsNone(current_agency_id())
+
+        # None argument → context manager is a no-op (still cleans up)
+        with tenant_context_for_task(None):
+            self.assertIsNone(current_agency_id())
+        self.assertIsNone(current_agency_id())
+
+        # Restore on exception
+        with self.assertRaises(RuntimeError):
+            with tenant_context_for_task(55):
+                self.assertEqual(current_agency_id(), 55)
+                raise RuntimeError("boom")
         self.assertIsNone(current_agency_id())
 
     def test_thread_local_isolation(self):

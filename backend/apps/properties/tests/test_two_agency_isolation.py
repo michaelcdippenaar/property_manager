@@ -191,6 +191,84 @@ class LandlordViewSetIsolationTest(TwoAgencyIsolationTestBase):
         self.assertEqual(new_ll.agency_id, self.agency_a.id)
 
 
+class ViewingToLeaseConversionAgencyStampTest(TwoAgencyIsolationTestBase):
+    """QA-round-5 bug 1: viewing→lease conversion path must stamp agency on
+    auto-created Unit and the new Lease. Without the fix, agency_id was
+    NULL, bypassing tenant_objects scoping and re-creating Phase-4 orphans.
+    """
+
+    URL_TEMPLATE = "/api/v1/properties/viewings/{pk}/convert-to-lease/"
+
+    def setUp(self):
+        super().setUp()
+        from apps.accounts.models import Person
+        from apps.properties.models import PropertyViewing
+
+        # Property in agency A WITHOUT units, so the conversion path
+        # auto-creates one (the riskier branch where the unit is brand new).
+        self.prop_a_no_units = Property.objects.create(
+            agency=self.agency_a, agent=self.user_a, name="A House No Units",
+            property_type="house", address="2 A St", city="C", province="WC",
+            postal_code="0011",
+        )
+        self.prospect = Person.objects.create(
+            agency=self.agency_a, full_name="Pat Prospect", person_type="individual",
+        )
+        self.viewing = PropertyViewing.objects.create(
+            agency=self.agency_a,
+            property=self.prop_a_no_units,
+            prospect=self.prospect,
+            agent=self.user_a,
+            scheduled_at="2026-05-10T10:00:00Z",
+            status=PropertyViewing.Status.COMPLETED,
+        )
+
+    def test_convert_to_lease_stamps_agency_on_unit_and_lease(self):
+        from apps.leases.models import Lease
+        from apps.properties.models import Unit
+
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            self.URL_TEMPLATE.format(pk=self.viewing.pk),
+            {
+                "start_date": "2026-06-01",
+                "end_date": "2027-05-31",
+                "monthly_rent": 7500,
+                "deposit": 7500,
+            },
+            format="json",
+        )
+        self.assertEqual(
+            resp.status_code, status.HTTP_201_CREATED, resp.content,
+        )
+
+        body = resp.json()
+        # Auto-created unit was stamped with agency_a.
+        new_unit_id = body["auto_created_unit"]["id"]
+        new_unit = Unit.objects.get(pk=new_unit_id)
+        self.assertEqual(
+            new_unit.agency_id, self.agency_a.id,
+            "Auto-created Unit lost its agency stamp during viewing→lease conversion.",
+        )
+
+        # New Lease was stamped with agency_a.
+        new_lease_id = body["lease"]["id"]
+        new_lease = Lease.objects.get(pk=new_lease_id)
+        self.assertEqual(
+            new_lease.agency_id, self.agency_a.id,
+            "Lease created from viewing conversion lost its agency stamp.",
+        )
+
+        # Cross-agency user_b must not see the new lease via tenant_objects.
+        from apps.accounts.tenancy import override as tenant_override
+        with tenant_override(agency_id=self.agency_b.id):
+            visible = Lease.tenant_objects.filter(pk=new_lease_id).exists()
+        self.assertFalse(
+            visible,
+            "Lease created in agency A is visible from agency B's tenant_objects — leak.",
+        )
+
+
 class PropertyOwnershipViewSetIsolationTest(TwoAgencyIsolationTestBase):
     URL = "/api/v1/properties/ownerships/"
 

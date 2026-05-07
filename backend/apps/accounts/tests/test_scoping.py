@@ -50,14 +50,30 @@ class _PropertySerializer(serializers.ModelSerializer):
         extra_kwargs = {"agency": {"read_only": True}}
 
 
+class _PropertyAgencyWritableSerializer(serializers.ModelSerializer):
+    """Serializer where `agency` is writable — exercises QA-round-5 bug 2:
+    DRF exposes the FK under the model field name `"agency"`, not `"agency_id"`.
+    """
+    class Meta:
+        model = Property
+        fields = ["id", "name", "property_type", "address", "city",
+                  "province", "postal_code", "agency"]
+
+
 class _ScopedPropertyViewSet(AgencyScopedViewSet, viewsets.ModelViewSet):
     queryset = Property.objects.all()
     serializer_class = _PropertySerializer
 
 
+class _ScopedPropertyAgencyWritableViewSet(AgencyScopedViewSet, viewsets.ModelViewSet):
+    queryset = Property.objects.all()
+    serializer_class = _PropertyAgencyWritableSerializer
+
+
 # Build a tiny URL router so we have an addressable endpoint.
 _router = SimpleRouter()
 _router.register(r"props", _ScopedPropertyViewSet, basename="scoped-prop")
+_router.register(r"props-aw", _ScopedPropertyAgencyWritableViewSet, basename="scoped-prop-aw")
 
 urlpatterns = [
     path("api/test/", include(_router.urls)),
@@ -183,6 +199,71 @@ class CreateStampingTest(_ScopedViewSetTestBase):
         # In a real deployment, admins who need to create-on-behalf-of would
         # use a separate viewset that exposes agency as writable.
         self.assertIn(resp.status_code, (status.HTTP_400_BAD_REQUEST, status.HTTP_201_CREATED))
+
+
+# ─────────────────────────────────────────────────────────────────
+# QA-round-5 bug 2: admin "create on behalf of agency X" must honour
+# the `agency` key (DRF FK exposed under the model field name) and not
+# silently fall through to the admin's own agency_id.
+# ─────────────────────────────────────────────────────────────────
+
+
+class AdminCreateOnBehalfOfAgencyTest(_ScopedViewSetTestBase):
+    URL = "/api/test/props-aw/"
+
+    def _payload(self, name, agency_pk=None):
+        body = {
+            "name": name, "property_type": "house",
+            "address": "1 New St", "city": "C", "province": "W",
+            "postal_code": "0099",
+        }
+        if agency_pk is not None:
+            body["agency"] = agency_pk
+        return body
+
+    def test_admin_can_create_in_other_agency_via_agency_key(self):
+        """Admin POSTs {"agency": <other_pk>} — row lands in the OTHER agency.
+
+        Bug: AgencyStampedCreateMixin only checked validated_data.get("agency_id")
+        but DRF ModelSerializer with the FK exposed as "agency" puts the
+        resolved Agency instance under "agency". The mixin must look up both
+        keys and resolve the instance to a pk.
+        """
+        # Admin user. Give them their own agency_a so the fall-through path
+        # would land the row in agency_a if the bug were still present.
+        self.admin.agency = self.agency_a
+        self.admin.save(update_fields=["agency"])
+
+        self.client.force_authenticate(self.admin)
+        resp = self.client.post(
+            self.URL,
+            self._payload("AdminCrossAgency", agency_pk=self.agency_b.id),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        new_prop = Property.objects.get(name="AdminCrossAgency")
+        # Pre-fix: this would land on agency_a (admin's own). Post-fix: agency_b.
+        self.assertEqual(
+            new_prop.agency_id, self.agency_b.id,
+            f"Admin specified agency={self.agency_b.id} but row landed on "
+            f"{new_prop.agency_id} (admin's own={self.agency_a.id}).",
+        )
+
+    def test_non_admin_agency_key_is_ignored(self):
+        """Non-admin POSTing {"agency": <other_pk>} still gets stamped to own agency.
+
+        The override is admin-only by intent — non-admins always get their
+        own agency_id forced regardless of payload.
+        """
+        self.client.force_authenticate(self.user_a)
+        resp = self.client.post(
+            self.URL,
+            self._payload("NonAdminTriesOverride", agency_pk=self.agency_b.id),
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.content)
+        new_prop = Property.objects.get(name="NonAdminTriesOverride")
+        self.assertEqual(new_prop.agency_id, self.agency_a.id)
 
 
 # ─────────────────────────────────────────────────────────────────

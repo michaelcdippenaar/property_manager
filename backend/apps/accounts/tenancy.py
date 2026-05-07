@@ -102,6 +102,42 @@ def _clear_context() -> None:
 
 
 @contextmanager
+def tenant_context_for_task(agency_id_or_obj) -> Iterator[None]:
+    """
+    Tenant context wrapper for async / Celery / threading tasks.
+
+    QA-round-5 bug 3: task entry points run *outside* the
+    ``TenantContextMiddleware`` lifecycle, so ``current_agency_id()`` is
+    ``None`` by default. Any tenant-scoped queryset (``Model.tenant_objects``)
+    inside such a task would silently return ``.none()``. Tasks must either
+    (a) derive the agency from the task's primary input (e.g.
+    ``lease.agency_id``) and wrap the body in this context manager, or
+    (b) explicitly use ``unscoped_objects`` / ``Model.objects``.
+
+    Example::
+
+        from apps.accounts.tenancy import tenant_context_for_task
+        def my_task(lease_id: int):
+            lease = Lease.objects.get(pk=lease_id)
+            with tenant_context_for_task(lease.agency_id):
+                # ... tenant_objects queries inside this block ...
+
+    Accepts either a raw int agency_id or an object with a ``.pk`` attr
+    (e.g. an Agency instance) for caller convenience. Restores the
+    previous context on exit.
+    """
+    if agency_id_or_obj is None:
+        agency_id: int | None = None
+    elif hasattr(agency_id_or_obj, "pk"):
+        agency_id = agency_id_or_obj.pk
+    else:
+        agency_id = int(agency_id_or_obj)
+
+    with override(agency_id=agency_id):
+        yield
+
+
+@contextmanager
 def override(agency_id: int | None = None, *, bypass: bool = False) -> Iterator[None]:
     """
     Temporarily override the current tenant context.

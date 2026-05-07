@@ -1,6 +1,12 @@
 """
 Background work for the properties app.
 
+# Async/Celery tasks: use apps.accounts.tenancy.tenant_context_for_task(agency_id=...)
+# (or apps.accounts.tenancy.override(...)) before any tenant_objects access.
+# See QA round 5 bug 3. Current bodies use `Model.objects` (unscoped) and so
+# work today; refactors to `tenant_objects` MUST set tenant context first or
+# the queryset will silently return .none().
+
 No Celery in this project — we use a detached thread fired from
 `transaction.on_commit` so the web request doesn't block on embedding.
 If/when Celery is added, swap `_run_in_thread` for `@shared_task.delay`.
