@@ -226,7 +226,15 @@ class Person(models.Model):
     full_name = models.CharField(max_length=200)
     id_number = models.CharField(max_length=20, blank=True, help_text="SA ID or passport number")
     phone = models.CharField(max_length=20, blank=True)
+    phone_country_code = models.CharField(
+        max_length=4, blank=True, default="+27",
+        help_text="E.164 country dialing code with leading + (e.g. '+27', '+44'). Defaults to South Africa.",
+    )
     email = models.EmailField(blank=True)
+    country = models.CharField(
+        max_length=2, blank=True, default="ZA",
+        help_text="ISO 3166-1 alpha-2 country code (e.g. 'ZA', 'GB', 'NG'). Defaults to South Africa.",
+    )
     # Additional personal info (often captured during lease signing)
     address = models.TextField(blank=True, help_text="Current residential address")
     employer = models.CharField(max_length=200, blank=True)

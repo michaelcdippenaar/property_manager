@@ -181,11 +181,18 @@
                   </div>
                   <div>
                     <label class="label">Phone</label>
-                    <input v-model="t.phone" class="input" placeholder="+27 …" />
+                    <div class="flex gap-2">
+                      <PhoneCountryCodeSelect v-model="t.phone_country_code" />
+                      <input v-model="t.phone" class="input flex-1" placeholder="phone number" />
+                    </div>
                   </div>
                   <div class="col-span-2">
                     <label class="label">Email</label>
                     <input v-model="t.email" type="email" class="input" placeholder="email@example.com" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="label">Country</label>
+                    <CountrySelect v-model="t.country" />
                   </div>
                   <div class="col-span-2">
                     <label class="label">Payment Reference</label>
@@ -209,11 +216,18 @@
                 </div>
                 <div>
                   <label class="label">Phone</label>
-                  <input v-model="newTenant.phone" class="input" />
+                  <div class="flex gap-2">
+                    <PhoneCountryCodeSelect v-model="newTenant.phone_country_code" />
+                    <input v-model="newTenant.phone" class="input flex-1" />
+                  </div>
                 </div>
                 <div class="col-span-2">
                   <label class="label">Email</label>
                   <input v-model="newTenant.email" type="email" class="input" />
+                </div>
+                <div class="col-span-2">
+                  <label class="label">Country</label>
+                  <CountrySelect v-model="newTenant.country" />
                 </div>
               </div>
               <div v-if="addTenantError" class="mt-2 text-xs text-danger-600 flex items-center gap-1.5">
@@ -435,6 +449,8 @@ import {
 } from 'lucide-vue-next'
 import ESigningPanel from './ESigningPanel.vue'
 import MaskedInput from '../../components/shared/MaskedInput.vue'
+import CountrySelect from '../../components/CountrySelect.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 import { usePropertiesStore } from '../../stores/properties'
 import { usePersonsStore } from '../../stores/persons'
 
@@ -514,7 +530,9 @@ function initTenants() {
         full_name: t.full_name ?? '',
         id_number: t.id_number ?? '',
         phone: t.phone ?? '',
+        phone_country_code: t.phone_country_code ?? '',
         email: t.email ?? '',
+        country: t.country ?? '',
         payment_reference: t.payment_reference ?? '',
       })
     }
@@ -534,8 +552,8 @@ const docList = ref<any[]>([...(props.lease.documents ?? [])])
 const showAddTenant = ref(false)
 const addingTenant = ref(false)
 const addTenantError = ref('')
-const newTenant = ref({ full_name: '', id_number: '', phone: '', email: '' })
-function resetNewTenant() { newTenant.value = { full_name: '', id_number: '', phone: '', email: '' }; addTenantError.value = '' }
+const newTenant = ref({ full_name: '', id_number: '', phone: '', phone_country_code: '+27', email: '', country: 'ZA' })
+function resetNewTenant() { newTenant.value = { full_name: '', id_number: '', phone: '', phone_country_code: '+27', email: '', country: 'ZA' }; addTenantError.value = '' }
 
 async function addTenant() {
   if (!newTenant.value.full_name) return
@@ -686,14 +704,18 @@ async function saveAll() {
         (orig.full_name !== (t.full_name ?? '') ||
           orig.id_number !== (t.id_number ?? '') ||
           orig.phone !== (t.phone ?? '') ||
-          orig.email !== (t.email ?? ''))
+          orig.phone_country_code !== (t.phone_country_code ?? '') ||
+          orig.email !== (t.email ?? '') ||
+          orig.country !== (t.country ?? ''))
       ) {
         personPatches.push(
           personsStore.updatePerson(t.id, {
             full_name: t.full_name,
             id_number: t.id_number,
             phone: t.phone,
+            phone_country_code: t.phone_country_code,
             email: t.email,
+            country: t.country,
           })
         )
       }
@@ -715,7 +737,9 @@ async function saveAll() {
         full_name: t.full_name ?? '',
         id_number: t.id_number ?? '',
         phone: t.phone ?? '',
+        phone_country_code: t.phone_country_code ?? '',
         email: t.email ?? '',
+        country: t.country ?? '',
         payment_reference: t.payment_reference ?? '',
       })
     }

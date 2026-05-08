@@ -202,7 +202,8 @@ class PersonSerializer(serializers.ModelSerializer):
     class Meta:
         model = Person
         fields = [
-            "id", "person_type", "full_name", "id_number", "phone", "email",
+            "id", "person_type", "full_name", "id_number", "phone", "phone_country_code", "email",
+            "country",
             "address", "employer", "occupation", "monthly_income", "date_of_birth",
             "emergency_contact_name", "emergency_contact_phone",
             "company_reg", "vat_number", "linked_user", "created_at",
