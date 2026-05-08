@@ -415,6 +415,7 @@ import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
 import CountrySelect from '../../components/CountrySelect.vue'
 import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
+import EmailInput from '../../components/EmailInput.vue'
 import useTiptapEditor from '../../composables/useTiptapEditor'
 import { useLandlordsStore } from '../../stores/landlords'
 import { usePropertiesStore } from '../../stores/properties'
@@ -482,7 +483,12 @@ const PersonBlock = defineComponent({
           h('input', { class: cls + ' flex-1', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
-          h('input', { class: cls, value: p.email, type: 'email', placeholder: 'Email', onInput: (e: any) => upd('email', e.target.value) }),
+          h(EmailInput, {
+            modelValue: p.email ?? '',
+            placeholder: 'Email',
+            inputClass: cls,
+            'onUpdate:modelValue': (v: string) => upd('email', v),
+          }),
         ]),
         h('div', { class: 'col-span-2' }, [
           h(CountrySelect, {

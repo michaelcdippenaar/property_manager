@@ -202,7 +202,7 @@
                   </div>
                   <div class="col-span-2">
                     <label class="label">Email</label>
-                    <input v-model="t.email" type="email" class="input" placeholder="email@example.com" />
+                    <EmailInput v-model="t.email" placeholder="email@example.com" />
                   </div>
                   <div class="col-span-2">
                     <label class="label">Country</label>
@@ -237,7 +237,7 @@
                 </div>
                 <div class="col-span-2">
                   <label class="label">Email</label>
-                  <input v-model="newTenant.email" type="email" class="input" />
+                  <EmailInput v-model="newTenant.email" />
                 </div>
                 <div class="col-span-2">
                   <label class="label">Country</label>
@@ -330,7 +330,7 @@
                 </div>
                 <div>
                   <label class="label">Email</label>
-                  <input v-model="newOccupant.email" type="email" class="input" />
+                  <EmailInput v-model="newOccupant.email" />
                 </div>
                 <div class="col-span-2">
                   <label class="label">Relationship to Tenant</label>
@@ -502,6 +502,7 @@ import {
 } from 'lucide-vue-next'
 import ESigningPanel from './ESigningPanel.vue'
 import MaskedInput from '../../components/shared/MaskedInput.vue'
+import EmailInput from '../../components/EmailInput.vue'
 import CountrySelect from '../../components/CountrySelect.vue'
 import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 import { usePropertiesStore } from '../../stores/properties'

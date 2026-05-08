@@ -1630,7 +1630,7 @@
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="label">Email</label>
-            <input v-model="editTenantForm.email" type="email" class="input" placeholder="email@example.com" />
+            <EmailInput v-model="editTenantForm.email" placeholder="email@example.com" />
           </div>
           <div>
             <label class="label">Phone</label>
@@ -1733,6 +1733,7 @@ import { useFeatureFlags } from '../../composables/useFeatureFlags'
 import { extractApiError } from '../../utils/api-errors'
 import Breadcrumb from '../../components/Breadcrumb.vue'
 import BaseModal from '../../components/BaseModal.vue'
+import EmailInput from '../../components/EmailInput.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import LeaseTimelineGantt from '../../components/LeaseTimelineGantt.vue'

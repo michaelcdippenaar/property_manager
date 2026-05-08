@@ -299,7 +299,7 @@
       <div class="space-y-4">
         <div>
           <label class="label">Email</label>
-          <input v-model="inviteForm.email" type="email" class="input" placeholder="user@example.com" />
+          <EmailInput v-model="inviteForm.email" placeholder="user@example.com" />
         </div>
         <div>
           <label class="label">First name <span class="text-gray-400 font-normal">(optional)</span></label>
@@ -371,6 +371,7 @@ import { useToast } from '../../composables/useToast'
 import { Search, UserPlus, Pencil, Trash2, Loader2, Building2, Plus, X, Send } from 'lucide-vue-next'
 import PageHeader from '../../components/PageHeader.vue'
 import BaseModal from '../../components/BaseModal.vue'
+import EmailInput from '../../components/EmailInput.vue'
 
 const route = useRoute()
 const router = useRouter()

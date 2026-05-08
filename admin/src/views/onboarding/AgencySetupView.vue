@@ -59,7 +59,7 @@
               </div>
               <div>
                 <label class="label">Contact email</label>
-                <input v-model="form.email" type="email" class="input" placeholder="hello@yourbusiness.co.za" />
+                <EmailInput v-model="form.email" placeholder="hello@yourbusiness.co.za" />
               </div>
             </div>
 
@@ -117,7 +117,7 @@
             <template v-if="isAgency">
               <div>
                 <label class="label">Information Officer email</label>
-                <input v-model="form.information_officer_email" type="email" class="input" placeholder="popi@yourbusiness.co.za" />
+                <EmailInput v-model="form.information_officer_email" placeholder="popi@yourbusiness.co.za" />
                 <p class="text-micro text-gray-400 mt-1">POPIA s55 — required if you process personal information.</p>
               </div>
 
@@ -144,7 +144,7 @@
             <div v-for="(invite, i) in invites" :key="i" class="grid grid-cols-12 gap-2 items-end">
               <div class="col-span-7">
                 <label v-if="i === 0" class="label">Email</label>
-                <input v-model="invite.email" type="email" class="input" placeholder="teammate@yourbusiness.co.za" />
+                <EmailInput v-model="invite.email" placeholder="teammate@yourbusiness.co.za" />
               </div>
               <div class="col-span-4">
                 <label v-if="i === 0" class="label">Role</label>
@@ -226,6 +226,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import api from '../../api'
 import { AlertCircle, ChevronLeft, ChevronRight, Loader2, Plus, X } from 'lucide-vue-next'
+import EmailInput from '../../components/EmailInput.vue'
 
 const router = useRouter()
 const auth = useAuthStore()

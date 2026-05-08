@@ -115,7 +115,7 @@
               </div>
               <div>
                 <label class="label">Email</label>
-                <input v-model="local.email" type="email" class="input" />
+                <EmailInput v-model="local.email" />
               </div>
               <div>
                 <label class="label">Phone</label>
@@ -143,7 +143,7 @@
             </div>
             <div>
               <label class="label">Email</label>
-              <input v-model="local.representative_email" type="email" class="input" />
+              <EmailInput v-model="local.representative_email" />
             </div>
             <div>
               <label class="label">Phone</label>
@@ -718,6 +718,7 @@ import api from '../../api'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import PageHeader from '../../components/PageHeader.vue'
 import MaskedInput from '../../components/shared/MaskedInput.vue'
+import EmailInput from '../../components/EmailInput.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import { useToast } from '../../composables/useToast'
