@@ -474,10 +474,6 @@
           <label class="label">Primary tenant name</label>
           <input v-model="primaryTenantName" class="input" placeholder="Full name" />
         </div>
-        <div class="col-span-2">
-          <label class="label">Payment reference</label>
-          <input v-model="newLease.payment_reference" class="input" placeholder="18 Irene - Smith" />
-        </div>
       </div>
 
       <template #footer>

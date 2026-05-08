@@ -90,10 +90,6 @@
                 <label class="label">Deposit (R)</label>
                 <input v-model="form.deposit" type="number" min="0" class="input" />
               </div>
-              <div class="col-span-2">
-                <label class="label">Payment Reference</label>
-                <input v-model="form.payment_reference" class="input" placeholder="e.g. 18 Irene - Smith" />
-              </div>
             </div>
           </section>
 

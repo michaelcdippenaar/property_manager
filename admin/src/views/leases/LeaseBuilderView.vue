@@ -609,7 +609,6 @@ const LeaseFormFields = defineComponent({
             h('div', [h('label', { class: 'label' }, 'End date *'), h('input', { class: errs.includes('end_date') && !f.end_date ? errInputCls : inputCls, type: 'date', value: f.end_date, onInput: (e: any) => updForm('end_date', e.target.value) })]),
             h('div', [h('label', { class: 'label' }, 'Monthly rent (R) *'), h('input', { class: errs.includes('monthly_rent') && !f.monthly_rent ? errInputCls : inputCls, type: 'number', value: f.monthly_rent, onInput: (e: any) => updForm('monthly_rent', e.target.value) })]),
             h('div', [h('label', { class: 'label' }, 'Deposit (R)'), h('input', { class: inputCls, type: 'number', value: f.deposit, onInput: (e: any) => updForm('deposit', e.target.value) })]),
-            h('div', { class: 'col-span-2' }, [h('label', { class: 'label' }, 'Payment reference (primary tenant)'), h('input', { class: inputCls, value: f.payment_reference, onInput: (e: any) => updForm('payment_reference', e.target.value) })]),
             h('div', [h('label', { class: 'label' }, 'Max occupants'), h('input', { class: inputCls, type: 'number', value: f.max_occupants, onInput: (e: any) => updForm('max_occupants', Number(e.target.value)) })]),
             h('div', [h('label', { class: 'label' }, 'Notice period (days)'), h('input', { class: inputCls, type: 'number', value: f.notice_period_days, onInput: (e: any) => updForm('notice_period_days', Number(e.target.value)) })]),
             h('div', [h('label', { class: 'label' }, 'Early termination (months)'), h('input', { class: inputCls, type: 'number', value: f.early_termination_penalty_months, onInput: (e: any) => updForm('early_termination_penalty_months', Number(e.target.value)) })]),
@@ -675,6 +674,15 @@ const LeaseFormFields = defineComponent({
               h('span', { class: 'text-xs font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
             ]),
             h(PersonBlock, { modelValue: f.primary_tenant, hasError: errs.includes('primary_tenant'), 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) }),
+            h('div', { class: 'mt-2' }, [
+              h('label', { class: 'label' }, 'Payment reference'),
+              h('input', {
+                class: inputCls,
+                value: f.payment_reference || '',
+                placeholder: 'e.g. 18 Irene - Smith',
+                onInput: (e: any) => updForm('payment_reference', e.target.value),
+              }),
+            ]),
             docCheckboxes(f.primary_tenant, (v: any) => updForm('primary_tenant', v)),
           ]),
           ...(f.co_tenants ?? []).map((ct: any, i: number) =>

@@ -74,10 +74,6 @@
                   <label class="label">Rent Due Day</label>
                   <input v-model.number="form.rent_due_day" type="number" min="1" max="28" class="input" />
                 </div>
-                <div>
-                  <label class="label">Payment Reference (primary tenant)</label>
-                  <input v-model="form.payment_reference" type="text" class="input" placeholder="e.g. 18 Irene - Smith" />
-                </div>
               </div>
             </section>
 

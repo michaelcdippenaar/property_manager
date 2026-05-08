@@ -251,10 +251,6 @@
                   <label class="label">Deposit (R)</label>
                   <input v-model="form.deposit" type="number" class="input" />
                 </div>
-                <div class="col-span-2">
-                  <label class="label">Payment reference</label>
-                  <input v-model="form.payment_reference" class="input" />
-                </div>
                 <div>
                   <label class="label">Max occupants</label>
                   <input v-model.number="form.max_occupants" type="number" class="input" />
@@ -315,8 +311,16 @@
               <!-- Tenant 1 (primary — first signatory) -->
               <div class="relative border border-navy/20 rounded-xl p-4 bg-navy/5">
                 <span class="absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide">Tenant 1</span>
-                <div class="pt-4">
+                <div class="pt-4 space-y-2">
                   <PersonBlock v-model="form.primary_tenant" />
+                  <div>
+                    <label class="label">Payment reference (this tenant)</label>
+                    <input
+                      v-model="form.payment_reference"
+                      class="input text-xs"
+                      placeholder="e.g. 18 Irene - Smith"
+                    />
+                  </div>
                 </div>
               </div>
               <!-- Tenant 2, 3, 4 -->
