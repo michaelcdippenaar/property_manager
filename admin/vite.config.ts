@@ -82,6 +82,22 @@ export default defineConfig(({ mode }) => {
         '/ws': { target: 'http://127.0.0.1:8000', changeOrigin: true, ws: true },
       },
     },
+    // Pre-bundle the framework deps that are imported transitively from many
+    // routes / components. Forces Vite to optimise them at startup so the
+    // dep-scanner never re-bundles mid-session — re-bundling produces a
+    // second copy of vue-router etc., breaking Symbol-based DI (the
+    // ``injection "Symbol(router)" not found`` blank-page bug). Only
+    // affects dev mode; production build is unaffected.
+    optimizeDeps: {
+      include: [
+        'vue',
+        'vue-router',
+        'pinia',
+        'axios',
+        '@sentry/vue',
+        'lucide-vue-next',
+      ],
+    },
     define: {
       'process.env': {},
     },
