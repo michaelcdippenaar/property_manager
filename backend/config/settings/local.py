@@ -68,14 +68,18 @@ SILKY_INTERCEPT_FUNC = lambda r: any(
 
 _IS_TEST = "test" in sys.argv or "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
 if _IS_TEST:
-    # Effectively disable throttling in tests (rate limit tests override per-class)
+    # Effectively disable throttling in tests (rate limit tests override per-class).
+    # MERGE into the base scopes so production scopes (login_hourly_user, etc.)
+    # remain present — the rate-limit unit tests assert on those keys.
+    _test_throttle_rates = dict(REST_FRAMEWORK.get("DEFAULT_THROTTLE_RATES", {}))
+    _test_throttle_rates.update({
+        "anon_auth": "1000/min",
+        "otp_send": "1000/min",
+        "otp_verify": "1000/min",
+    })
     REST_FRAMEWORK = {
         **REST_FRAMEWORK,
-        "DEFAULT_THROTTLE_RATES": {
-            "anon_auth": "1000/min",
-            "otp_send": "1000/min",
-            "otp_verify": "1000/min",
-        },
+        "DEFAULT_THROTTLE_RATES": _test_throttle_rates,
         # Force JSON-only renderers in tests. Under DEBUG=True + Python
         # 3.13 the BrowsableAPIRenderer crashes with
         # `Invalid isoformat string: ''` when it tries to template-render
