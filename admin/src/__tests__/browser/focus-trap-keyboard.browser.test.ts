@@ -54,7 +54,7 @@ describe('BaseModal — focus trap keyboard', () => {
     // Tab through all 3 buttons + close button (4 elements) — none should leave dialog
     for (let i = 0; i < 6; i++) {
       pressTab()
-      expect(focusedInsideDialog()).toBe(true, `Tab press ${i + 1}: focus escaped dialog`)
+      expect(focusedInsideDialog(), `Tab press ${i + 1}: focus escaped dialog`).toBe(true)
     }
 
     wrapper.unmount()

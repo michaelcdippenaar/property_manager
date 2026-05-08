@@ -13,8 +13,15 @@ pytestmark = [pytest.mark.integration, pytest.mark.green]
 class SupplierViewSetTests(TremlyAPITestCase):
 
     def setUp(self):
-        self.agent = self.create_agent()
-        self.supplier = self.create_supplier(name="Plumber Joe", phone="0820001111")
+        # Bug 9 — SupplierViewSet uses AgencyScopedQuerysetMixin, so the
+        # agent and the supplier must share the same agency or the agent
+        # gets 404 on every detail endpoint. Pin both to one agency here.
+        from apps.accounts.models import Agency
+        self.agency = Agency.objects.create(name="Plumbing Agency")
+        self.agent = self.create_agent(agency=self.agency)
+        self.supplier = self.create_supplier(
+            name="Plumber Joe", phone="0820001111", agency=self.agency,
+        )
         SupplierTrade.objects.create(supplier=self.supplier, trade="plumbing")
 
     def test_list_suppliers(self):
@@ -64,7 +71,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 204)
 
     def test_filter_active(self):
-        inactive = self.create_supplier(name="Inactive", phone="0820002222", is_active=False)
+        inactive = self.create_supplier(name="Inactive", phone="0820002222", is_active=False, agency=self.agency)
         self.authenticate(self.agent)
         resp = self.client.get(reverse("supplier-list"), {"is_active": "true"})
         ids = [s["id"] for s in resp.data["results"]]
@@ -72,7 +79,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
         self.assertNotIn(inactive.pk, ids)
 
     def test_supplier_requests(self):
-        prop = self.create_property(agent=self.agent)
+        prop = self.create_property(agent=self.agent, agency=self.agency)
         unit = self.create_unit(property_obj=prop)
         mr = self.create_maintenance_request(unit=unit, supplier=self.supplier)
         self.authenticate(self.agent)
@@ -117,7 +124,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
     # --- Properties ---
 
     def test_properties_list(self):
-        prop = self.create_property(agent=self.agent)
+        prop = self.create_property(agent=self.agent, agency=self.agency)
         SupplierProperty.objects.create(supplier=self.supplier, property=prop)
         self.authenticate(self.agent)
         resp = self.client.get(reverse("supplier-properties", args=[self.supplier.pk]))
@@ -125,7 +132,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
         self.assertGreaterEqual(len(resp.data), 1)
 
     def test_properties_link(self):
-        prop = self.create_property(agent=self.agent, name="Link Prop")
+        prop = self.create_property(agent=self.agent, agency=self.agency, name="Link Prop")
         self.authenticate(self.agent)
         resp = self.client.post(
             reverse("supplier-properties", args=[self.supplier.pk]),
@@ -134,7 +141,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 201)
 
     def test_properties_remove(self):
-        prop = self.create_property(agent=self.agent, name="Remove Prop")
+        prop = self.create_property(agent=self.agent, agency=self.agency, name="Remove Prop")
         link = SupplierProperty.objects.create(supplier=self.supplier, property=prop)
         self.authenticate(self.agent)
         resp = self.client.delete(
@@ -146,7 +153,7 @@ class SupplierViewSetTests(TremlyAPITestCase):
 
     def test_attach_group(self):
         group = PropertyGroup.objects.create(name="Group A")
-        prop = self.create_property(agent=self.agent, name="Grouped Prop")
+        prop = self.create_property(agent=self.agent, agency=self.agency, name="Grouped Prop")
         group.properties.add(prop)
         self.authenticate(self.agent)
         resp = self.client.post(

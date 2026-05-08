@@ -1,3 +1,4 @@
+import os
 import sys
 
 from .base import *
@@ -65,7 +66,8 @@ SILKY_INTERCEPT_FUNC = lambda r: any(
     )
 )
 
-if "test" in sys.argv:
+_IS_TEST = "test" in sys.argv or "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
+if _IS_TEST:
     # Effectively disable throttling in tests (rate limit tests override per-class)
     REST_FRAMEWORK = {
         **REST_FRAMEWORK,
@@ -74,6 +76,15 @@ if "test" in sys.argv:
             "otp_send": "1000/min",
             "otp_verify": "1000/min",
         },
+        # Force JSON-only renderers in tests. Under DEBUG=True + Python
+        # 3.13 the BrowsableAPIRenderer crashes with
+        # `Invalid isoformat string: ''` when it tries to template-render
+        # empty DateFields back into the browsable API HTML. That produces
+        # ~30 spurious 500s in the RBAC matrix. JSON-only sidesteps it.
+        "DEFAULT_RENDERER_CLASSES": [
+            "rest_framework.renderers.JSONRenderer",
+        ],
+        "TEST_REQUEST_DEFAULT_FORMAT": "json",
     }
     # Remove silk from the test runner -- avoid creating silk tables in test DB
     INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "silk"]

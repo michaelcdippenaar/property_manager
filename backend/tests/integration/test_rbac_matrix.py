@@ -63,12 +63,20 @@ def _agency(name="Agency"):
     return Agency.objects.create(name=name)
 
 
-def _property(name="Prop", agent=None):
+def _property(name="Prop", agent=None, agency=None):
+    """Create a Property, stamping agency from the agent's agency by default.
+
+    Bug 8 fix — post 15676f9b the Property scoped queryset filters by
+    `agency_id`. Without this stamp, RBAC tests that look up a property
+    via the API return 404 even though the agent owns it.
+    """
     from apps.properties.models import Property
+    if agency is None and agent is not None:
+        agency = getattr(agent, "agency", None)
     return Property.objects.create(
         name=name, address="1 Test St", city="Cape Town",
         province="WC", postal_code="8001", property_type="apartment",
-        agent=agent,
+        agent=agent, agency=agency,
     )
 
 
