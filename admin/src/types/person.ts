@@ -11,7 +11,9 @@ export interface Person {
   full_name: string
   id_number: string
   phone: string
+  phone_country_code: string
   email: string
+  country: string
   address: string
   employer: string
   occupation: string

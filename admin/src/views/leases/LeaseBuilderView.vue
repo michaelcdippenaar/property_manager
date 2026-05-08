@@ -385,12 +385,31 @@
         </div>
       </div>
 
+      <!-- Unsaved-changes confirmation (Feature 2) -->
+      <BaseModal :open="showLeaveConfirm" title="Unsaved changes" @close="leaveCancel">
+        <div class="px-6 py-5 space-y-4 text-sm text-gray-700">
+          <p>You have unsaved changes to this lease. Save as a draft so you can come back to it?</p>
+        </div>
+        <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <button @click="leaveCancel" class="btn-ghost text-sm">Cancel</button>
+          <button @click="leaveDiscard" class="btn-ghost text-sm text-danger-600">Discard changes</button>
+          <button
+            data-testid="leave-save-draft"
+            @click="leaveSaveDraft"
+            :disabled="savingDraftFromGuard"
+            class="btn-primary text-sm"
+          >
+            Save as draft
+          </button>
+        </div>
+      </BaseModal>
+
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, watch, defineComponent, h, provide } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { EditorContent } from '@tiptap/vue-3'
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
@@ -837,6 +856,60 @@ const additionalTerms = ref('')
 // Clear validation errors when form changes
 watch(form, () => { if (validationErrors.value.length) validationErrors.value = [] }, { deep: true })
 
+// ── Dirty-tracking + unsaved-changes guard (Feature 2) ────────────────────
+// Tracks whether the user has made input since the last save/load. When the
+// user tries to navigate away (router or close tab), we prompt to save draft.
+const isDirty = ref(false)
+const showLeaveConfirm = ref(false)
+const pendingLeave = ref<null | (() => void)>(null)
+const pendingStay = ref<null | (() => void)>(null)
+const savingDraftFromGuard = ref(false)
+
+function markDirty() { isDirty.value = true }
+function markClean() { isDirty.value = false }
+
+watch(form, markDirty, { deep: true })
+watch(additionalTerms, markDirty)
+// Note: selectedUnit / selectedTemplateId are also tracked via separate watchers
+// installed in onMounted below to avoid initialisation-order issues.
+
+function onBeforeUnloadHandler(e: BeforeUnloadEvent) {
+  if (!isDirty.value) return
+  e.preventDefault()
+  // Modern browsers ignore the message string but require returnValue to be set.
+  e.returnValue = ''
+}
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (!isDirty.value) return next()
+  showLeaveConfirm.value = true
+  pendingLeave.value = () => { showLeaveConfirm.value = false; next() }
+  pendingStay.value = () => { showLeaveConfirm.value = false; next(false) }
+})
+
+async function leaveSaveDraft() {
+  savingDraftFromGuard.value = true
+  try {
+    await saveDraft()
+    markClean()
+  } finally {
+    savingDraftFromGuard.value = false
+  }
+  pendingLeave.value?.()
+  pendingLeave.value = null
+  pendingStay.value = null
+}
+function leaveDiscard() {
+  pendingLeave.value?.()
+  pendingLeave.value = null
+  pendingStay.value = null
+}
+function leaveCancel() {
+  pendingStay.value?.()
+  pendingLeave.value = null
+  pendingStay.value = null
+}
+
 // ── Template management ────────────────────────────────────────────────────
 
 const templates = ref<any[]>([])
@@ -1049,6 +1122,23 @@ onMounted(async () => {
       } catch { /* draft not found — ignore */ }
     }
   }
+
+  // Watch unit + template selection for dirty-tracking (Feature 2). Installed
+  // here so initial mount-time pre-selection (?property=…) doesn't mark dirty.
+  watch(selectedUnit, markDirty)
+  watch(selectedTemplateId, markDirty)
+  // Initial state is clean — any subsequent mutation flips dirty.
+  markClean()
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', onBeforeUnloadHandler)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('beforeunload', onBeforeUnloadHandler)
+  }
 })
 
 // Refresh drafts when panel opens
@@ -1130,6 +1220,7 @@ async function saveDraft() {
       draftId.value = data.id
     }
     await fetchDrafts()
+    markClean()
   } catch { /* silent */ }
   finally { savingDraft.value = false }
 }
@@ -1139,6 +1230,8 @@ function loadDraft(d: any) {
   const state = d.current_state ?? d.form_state
   if (state) loadDraftState(state)
   showDrafts.value = false
+  // Loading a draft sets a fresh baseline.
+  markClean()
 }
 
 async function deleteDraft(id: number) {

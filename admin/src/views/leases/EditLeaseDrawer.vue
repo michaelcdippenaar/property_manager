@@ -14,7 +14,7 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
-          <button @click="$emit('close')" class="btn-ghost">Cancel</button>
+          <button @click="onCancelClick" class="btn-ghost">Cancel</button>
           <button @click="saveAll" :disabled="saving" class="btn-primary">
             <Loader2 v-if="saving" :size="14" class="animate-spin" />
             Save Changes
@@ -441,7 +441,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import api from '../../api'
 import {
   Pencil, Loader2, Plus, Trash2, X, Users, Shield,
@@ -462,6 +462,21 @@ const saving = ref(false)
 const saveOk = ref(false)
 const saveError = ref('')
 const removingId = ref<number | null>(null)
+
+// Dirty-tracking for unsaved-changes guard (Feature 2). Drawer-level: confirm
+// before closing if user has touched fields.
+const isDirty = ref(false)
+function markDirty() { isDirty.value = true }
+function markClean() { isDirty.value = false }
+
+function onCancelClick() {
+  if (!isDirty.value) { emit('close'); return }
+  // eslint-disable-next-line no-alert
+  const ok = typeof window !== 'undefined'
+    ? window.confirm('You have unsaved changes. Discard and close?')
+    : true
+  if (ok) emit('close')
+}
 
 // Properties & units for reassignment
 const propertiesStore = usePropertiesStore()
@@ -745,6 +760,7 @@ async function saveAll() {
     }
     await Promise.all(personPatches)
 
+    markClean()
     emit('done', updated)
     emit('close')
   } catch (err: any) {
@@ -774,5 +790,11 @@ onMounted(async () => {
   } catch {
     /* properties will be empty — user can still edit other fields */
   }
+  // Install dirty watchers AFTER initial state load.
+  markClean()
+  watch(form, markDirty, { deep: true })
+  watch(allTenants, markDirty, { deep: true })
+  watch(allOccupants, markDirty, { deep: true })
+  watch(allGuarantors, markDirty, { deep: true })
 })
 </script>
