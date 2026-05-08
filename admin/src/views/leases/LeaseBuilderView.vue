@@ -478,9 +478,11 @@ const PersonBlock = defineComponent({
         h('div', { class: 'flex gap-1.5' }, [
           h(PhoneCountryCodeSelect, {
             modelValue: p.phone_country_code ?? '+27',
+            compact: true,
+            inputClass: cls,
             'onUpdate:modelValue': (v: string) => upd('phone_country_code', v),
           }),
-          h('input', { class: cls + ' flex-1', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
+          h('input', { class: cls + ' flex-1 min-w-0', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
           h(EmailInput, {
@@ -493,6 +495,8 @@ const PersonBlock = defineComponent({
         h('div', { class: 'col-span-2' }, [
           h(CountrySelect, {
             modelValue: p.country ?? 'ZA',
+            compact: true,
+            inputClass: cls,
             'onUpdate:modelValue': (v: string) => upd('country', v),
           }),
         ]),

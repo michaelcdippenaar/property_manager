@@ -41,7 +41,7 @@
             <div class="px-4 py-3 bg-warning-50 border border-warning-100 rounded-xl text-xs text-warning-700 flex items-start gap-2">
               <Info :size="14" class="flex-shrink-0 mt-0.5" />
               <div>
-                <strong>Tenants are not copied.</strong> This new lease starts with an empty tenant list — you'll capture the new occupants after saving. Use the future "Extend lease" flow to keep the same tenants.
+                <strong>Renewal with new tenants.</strong> This lease will follow {{ source?.lease_number || 'the source lease' }} with empty tenants — capture the new tenants after saving. To extend with the <em>same</em> tenants, use "Extend lease" instead.
               </div>
             </div>
 
@@ -100,12 +100,37 @@
                   <label class="label">Water Limit (litres)</label>
                   <input v-model.number="form.water_limit_litres" type="number" class="input" />
                 </div>
-                <div class="col-span-2 flex items-center gap-6 pt-1">
-                  <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <input v-model="form.water_included" type="checkbox" /> Water included
+              </div>
+            </section>
+
+            <section>
+              <div class="text-micro font-semibold text-gray-400 uppercase tracking-widest mb-3">Property services &amp; facilities</div>
+              <div class="card p-5 grid grid-cols-2 gap-4">
+                <div>
+                  <label class="label">Water</label>
+                  <select v-model="form.water_arrangement" class="input">
+                    <option value="included">Included in rent</option>
+                    <option value="not_included">Not included</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="label">Electricity</label>
+                  <select v-model="form.electricity_arrangement" class="input">
+                    <option value="prepaid">Prepaid</option>
+                    <option value="eskom_direct">Direct Eskom account</option>
+                    <option value="included">Included in rent</option>
+                    <option value="not_included">Tenant arranges separately</option>
+                  </select>
+                </div>
+                <div class="col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input v-model="form.gardening_service_included" type="checkbox" class="rounded" /> Gardening service
                   </label>
-                  <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                    <input v-model="form.electricity_prepaid" type="checkbox" /> Electricity prepaid
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input v-model="form.wifi_included" type="checkbox" class="rounded" /> Wifi included
+                  </label>
+                  <label class="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input v-model="form.security_service_included" type="checkbox" class="rounded" /> Armed response
                   </label>
                 </div>
               </div>
@@ -150,8 +175,11 @@ const form = reactive<{
   early_termination_penalty_months: number | null
   max_occupants: number | null
   water_limit_litres: number | null
-  water_included: boolean
-  electricity_prepaid: boolean
+  water_arrangement: 'included' | 'not_included'
+  electricity_arrangement: 'prepaid' | 'eskom_direct' | 'included' | 'not_included'
+  gardening_service_included: boolean
+  wifi_included: boolean
+  security_service_included: boolean
 }>({
   start_date: '',
   end_date: '',
@@ -163,8 +191,11 @@ const form = reactive<{
   early_termination_penalty_months: 3,
   max_occupants: 1,
   water_limit_litres: 4000,
-  water_included: true,
-  electricity_prepaid: true,
+  water_arrangement: 'not_included',
+  electricity_arrangement: 'prepaid',
+  gardening_service_included: false,
+  wifi_included: false,
+  security_service_included: false,
 })
 
 const canSave = computed(() => !!form.start_date && !!form.end_date)
@@ -198,8 +229,13 @@ onMounted(async () => {
     form.early_termination_penalty_months = s.early_termination_penalty_months ?? 3
     form.max_occupants = s.max_occupants ?? 1
     form.water_limit_litres = s.water_limit_litres ?? 4000
-    form.water_included = !!s.water_included
-    form.electricity_prepaid = !!s.electricity_prepaid
+    // Carry forward services from the source lease so the renewal mirrors
+    // the property's current arrangement by default.
+    form.water_arrangement = (s.water_arrangement as any) ?? (s.water_included ? 'included' : 'not_included')
+    form.electricity_arrangement = (s.electricity_arrangement as any) ?? (s.electricity_prepaid ? 'prepaid' : 'not_included')
+    form.gardening_service_included = !!s.gardening_service_included
+    form.wifi_included = !!s.wifi_included
+    form.security_service_included = !!s.security_service_included
   } catch (e: any) {
     loadError.value = e?.message || 'Failed to load source lease'
   } finally {

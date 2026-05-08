@@ -4,16 +4,27 @@
  * Most-likely-12 list for SA-context users + "Other" trigger that swaps to free text.
  *
  * v-model: ISO 3166-1 alpha-2 code (e.g. "ZA", "GB", "NG").
+ *
+ * `compact` switches the option labels to "ZA — South Africa" style and
+ * narrows the free-text fallback. `inputClass` lets the caller override
+ * the default `input` styling so this matches sibling fields' font size.
  */
 import { computed, ref, watch } from 'vue'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   modelValue: string | null | undefined
   /** Optional id for label association */
   id?: string
   /** Optional aria-label / placeholder for the free-text fallback */
   ariaLabel?: string
-}>()
+  /** Compact mode for inline use beside narrow inputs */
+  compact?: boolean
+  /** Override the default `input` class on both select and free-text input */
+  inputClass?: string
+}>(), {
+  compact: false,
+  inputClass: '',
+})
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 
 const COMMON_COUNTRIES: { code: string; name: string }[] = [
@@ -48,6 +59,10 @@ const selectValue = computed<string>(() => {
   return props.modelValue || 'ZA'
 })
 
+const selectClass = computed(() => props.inputClass || 'input')
+const otherInputBase = computed(() => props.inputClass || 'input')
+const otherWidth = computed(() => props.compact ? 'w-14' : 'w-24')
+
 function onSelect(e: Event) {
   const v = (e.target as HTMLSelectElement).value
   if (v === '__OTHER__') {
@@ -73,15 +88,15 @@ function onOtherInput(e: Event) {
 
 <template>
   <div class="flex gap-2 items-stretch">
-    <select :id="id" class="input" :value="selectValue" @change="onSelect">
+    <select :id="id" :class="[selectClass, 'country-select']" :value="selectValue" @change="onSelect">
       <option v-for="c in COMMON_COUNTRIES" :key="c.code" :value="c.code">
-        {{ c.name }} ({{ c.code }})
+        {{ compact ? `${c.code} — ${c.name}` : `${c.name} (${c.code})` }}
       </option>
       <option value="__OTHER__">Other (specify)</option>
     </select>
     <input
       v-if="isOther"
-      class="input w-24 font-mono uppercase"
+      :class="[otherInputBase, otherWidth, 'font-mono', 'uppercase']"
       maxlength="2"
       :placeholder="ariaLabel || 'ISO'"
       :value="otherText"
@@ -89,3 +104,7 @@ function onOtherInput(e: Event) {
     />
   </div>
 </template>
+
+<style scoped>
+.country-select { min-width: 4.5rem; }
+</style>

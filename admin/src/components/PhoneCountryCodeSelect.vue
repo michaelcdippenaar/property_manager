@@ -2,10 +2,24 @@
 /**
  * Small E.164 dialing-code dropdown. Defaults to +27 (South Africa).
  * v-model: dialing code with leading + (e.g. "+27", "+44").
+ *
+ * `compact` shrinks the visible label to just the dial code (no country
+ * suffix) so the select fits beside narrow phone inputs in the
+ * LeaseBuilder PersonBlock. `inputClass` lets the caller override the
+ * default `input` styling (e.g. `'input text-xs py-1.5'`) so the select
+ * matches sibling input font sizing.
  */
 import { computed, ref, watch } from 'vue'
 
-const props = defineProps<{ modelValue: string | null | undefined; id?: string }>()
+const props = withDefaults(defineProps<{
+  modelValue: string | null | undefined
+  id?: string
+  compact?: boolean
+  inputClass?: string
+}>(), {
+  compact: false,
+  inputClass: '',
+})
 const emit = defineEmits<{ (e: 'update:modelValue', v: string): void }>()
 
 const DIAL_CODES: { code: string; label: string }[] = [
@@ -36,6 +50,10 @@ const selectValue = computed<string>(() => {
   return props.modelValue || '+27'
 })
 
+const selectClass = computed(() => props.inputClass || 'input')
+const otherInputBase = computed(() => props.inputClass || 'input')
+const otherWidth = computed(() => props.compact ? 'w-14' : 'w-20')
+
 function onSelect(e: Event) {
   const v = (e.target as HTMLSelectElement).value
   if (v === '__OTHER__') {
@@ -56,13 +74,18 @@ function onOtherInput(e: Event) {
 
 <template>
   <div class="flex gap-2 items-stretch">
-    <select :id="id" class="input" :value="selectValue" @change="onSelect">
-      <option v-for="d in DIAL_CODES" :key="d.code" :value="d.code">{{ d.label }}</option>
+    <select
+      :id="id"
+      :class="[selectClass, 'phone-cc-select']"
+      :value="selectValue"
+      @change="onSelect"
+    >
+      <option v-for="d in DIAL_CODES" :key="d.code" :value="d.code">{{ compact ? d.code : d.label }}</option>
       <option value="__OTHER__">Other</option>
     </select>
     <input
       v-if="isOther"
-      class="input w-20 font-mono"
+      :class="[otherInputBase, otherWidth, 'font-mono']"
       maxlength="4"
       placeholder="+__"
       :value="otherText"
@@ -70,3 +93,7 @@ function onOtherInput(e: Event) {
     />
   </div>
 </template>
+
+<style scoped>
+.phone-cc-select { min-width: 4.5rem; }
+</style>
