@@ -892,12 +892,19 @@ async function leaveSaveDraft() {
   try {
     await saveDraft()
     markClean()
+    pendingLeave.value?.()
+  } catch (e: any) {
+    // Save failed — surface the error and KEEP the user on the page so their
+    // work isn't lost. (Bug 1: previously we navigated away anyway.)
+    submitError.value = e?.response?.data?.error
+      || e?.message
+      || "Couldn't save draft — your work is still on this page; please copy critical info before continuing."
+    pendingStay.value?.()
   } finally {
     savingDraftFromGuard.value = false
+    pendingLeave.value = null
+    pendingStay.value = null
   }
-  pendingLeave.value?.()
-  pendingLeave.value = null
-  pendingStay.value = null
 }
 function leaveDiscard() {
   pendingLeave.value?.()
@@ -1209,7 +1216,11 @@ async function fetchDrafts() {
 }
 
 async function saveDraft() {
-  if (!selectedUnit.value?.propertyId) return
+  if (!selectedUnit.value?.propertyId) {
+    // Caller (leaveSaveDraft) needs a clean signal here so it doesn't navigate
+    // away thinking the draft was saved.
+    throw new Error('Select a property before saving a draft.')
+  }
   savingDraft.value = true
   try {
     const payload = { form_state: buildDraftState(), template_id: selectedTemplateId.value }
@@ -1221,8 +1232,9 @@ async function saveDraft() {
     }
     await fetchDrafts()
     markClean()
-  } catch { /* silent */ }
-  finally { savingDraft.value = false }
+  } finally {
+    savingDraft.value = false
+  }
 }
 
 function loadDraft(d: any) {
