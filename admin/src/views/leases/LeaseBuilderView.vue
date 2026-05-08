@@ -424,7 +424,7 @@ import { useOwnershipsStore } from '../../stores/ownerships'
 import '../../styles/tiptap-editor.css'
 import {
   FileSignature, AlertCircle, Loader2, CheckCircle2, Plus, X, Save, FolderOpen,
-  Building2, ChevronRight, Search, Send,
+  Building2, ChevronRight, Search, Send, UserCheck,
 } from 'lucide-vue-next'
 
 const route = useRoute()
@@ -511,6 +511,45 @@ const LeaseFormFields = defineComponent({
   setup(props, { emit }) {
     function updForm(field: string, val: any) {
       emit('update:form', { ...props.form, [field]: val })
+    }
+
+    // Feature 4: "Same as tenant" — list available tenants and a copier.
+    // Source key: 'primary' for primary_tenant, otherwise the co_tenants index.
+    const tenantCopyOptions = computed(() => {
+      const f: any = props.form
+      const opts: { label: string; source: 'primary' | number }[] = []
+      const pt = f?.primary_tenant
+      if (pt && (pt.full_name || pt.id_number)) {
+        opts.push({ label: `Primary tenant${pt.full_name ? `: ${pt.full_name}` : ''}`, source: 'primary' })
+      }
+      ;(f?.co_tenants ?? []).forEach((ct: any, i: number) => {
+        if (ct && (ct.full_name || ct.id_number)) {
+          opts.push({ label: `Co-tenant ${i + 1}${ct.full_name ? `: ${ct.full_name}` : ''}`, source: i })
+        }
+      })
+      return opts
+    })
+
+    function onCopyTenantToOccupant(occupantIndex: number, source: 'primary' | number | string) {
+      if (source === '' || source === undefined || source === null) return
+      const f: any = props.form
+      const src = source === 'primary'
+        ? f?.primary_tenant
+        : f?.co_tenants?.[Number(source)]
+      if (!src) return
+      const occupants = [...(f?.occupants ?? [])]
+      const current = occupants[occupantIndex] ?? {}
+      occupants[occupantIndex] = {
+        ...current,
+        full_name:          src.full_name ?? '',
+        id_number:          src.id_number ?? '',
+        date_of_birth:      src.date_of_birth ?? '',
+        phone:              src.phone ?? '',
+        phone_country_code: src.phone_country_code ?? '+27',
+        email:              src.email ?? '',
+        country:            src.country ?? 'ZA',
+      }
+      updForm('occupants', occupants)
     }
 
     const DOC_TYPES = [
@@ -674,9 +713,36 @@ const LeaseFormFields = defineComponent({
             }, '+ Add'),
           ]),
           ...(f.occupants?.length
-            ? f.occupants.map((oc: any, i: number) =>
-                h('div', { key: i, class: 'relative border border-success-100 rounded-lg p-3 bg-success-50/40' }, [
-                  h('div', { class: 'flex items-center justify-end mb-1.5' }, [
+            ? f.occupants.map((oc: any, i: number) => {
+                const copyOpts = tenantCopyOptions.value
+                const copierNode = copyOpts.length === 0
+                  ? null
+                  : copyOpts.length === 1
+                    ? h('button', {
+                        type: 'button',
+                        class: 'btn-ghost text-xs flex items-center gap-1',
+                        'data-testid': 'copy-tenant-to-occupant',
+                        onClick: () => onCopyTenantToOccupant(i, copyOpts[0].source),
+                      }, [h(UserCheck, { size: 12 }), 'Same as tenant'])
+                    : h('select', {
+                        class: 'input text-xs py-1',
+                        value: '',
+                        onChange: (e: any) => {
+                          const v = (e.target as HTMLSelectElement).value
+                          if (v === '') return
+                          const src: 'primary' | number = v === 'primary' ? 'primary' : Number(v)
+                          onCopyTenantToOccupant(i, src)
+                          ;(e.target as HTMLSelectElement).value = ''
+                        },
+                      }, [
+                        h('option', { value: '' }, '— Copy from tenant —'),
+                        ...copyOpts.map(opt =>
+                          h('option', { key: String(opt.source), value: String(opt.source) }, opt.label),
+                        ),
+                      ])
+                return h('div', { key: i, class: 'relative border border-success-100 rounded-lg p-3 bg-success-50/40' }, [
+                  h('div', { class: 'flex items-center justify-between mb-1.5' }, [
+                    copierNode ?? h('span'),
                     h('button', { class: 'text-gray-400 hover:text-danger-500', onClick: () => updForm('occupants', f.occupants.filter((_: any, j: number) => j !== i)) }, h(X, { size: 12 })),
                   ]),
                   h(PersonBlock, { modelValue: oc, 'onUpdate:modelValue': (v: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? v : o)) }),
@@ -684,7 +750,7 @@ const LeaseFormFields = defineComponent({
                     h('input', { class: 'input text-xs py-1.5', value: oc.relationship_to_tenant, placeholder: 'Relationship (self, spouse, child…)', onInput: (e: any) => updForm('occupants', f.occupants.map((o: any, j: number) => j === i ? { ...o, relationship_to_tenant: e.target.value } : o)) }),
                   ]),
                 ])
-              )
+              })
             : [h('p', { class: 'text-xs text-gray-400' }, 'None')]),
         ]),
 
