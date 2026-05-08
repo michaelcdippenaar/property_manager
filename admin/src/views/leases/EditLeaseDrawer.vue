@@ -287,11 +287,50 @@
 
             <!-- Add occupant form -->
             <div v-if="showAddOccupant" class="card p-4 mt-3 border-dashed border-2 border-gray-200">
-              <div class="text-xs font-semibold text-gray-500 mb-3">New Occupant</div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-xs font-semibold text-gray-500">New Occupant</div>
+                <!-- Feature 4: copy info from a tenant -->
+                <div v-if="tenantCopyOptions.length" class="flex items-center gap-2">
+                  <span class="text-xs text-gray-400">Same as:</span>
+                  <select
+                    v-if="tenantCopyOptions.length > 1"
+                    class="input text-xs py-1"
+                    @change="onCopyTenantToOccupant(($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">— pick tenant —</option>
+                    <option v-for="opt in tenantCopyOptions" :key="opt.id" :value="opt.id">{{ opt.label }}</option>
+                  </select>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn-ghost text-xs"
+                    data-testid="copy-tenant-to-occupant"
+                    @click="onCopyTenantToOccupant(String(tenantCopyOptions[0].id))"
+                  >
+                    <UserCheck :size="12" /> Same as tenant
+                  </button>
+                </div>
+              </div>
               <div class="grid grid-cols-2 gap-3">
                 <div class="col-span-2">
                   <label class="label">Full Name *</label>
                   <input v-model="newOccupant.full_name" class="input" placeholder="Full legal name" />
+                </div>
+                <div>
+                  <label class="label">ID / Passport</label>
+                  <MaskedInput v-model="newOccupant.id_number" class="input font-mono" placeholder="SA ID or passport" />
+                </div>
+                <div>
+                  <label class="label">Date of birth</label>
+                  <input v-model="newOccupant.date_of_birth" type="date" class="input" />
+                </div>
+                <div>
+                  <label class="label">Phone</label>
+                  <input v-model="newOccupant.phone" class="input" />
+                </div>
+                <div>
+                  <label class="label">Email</label>
+                  <input v-model="newOccupant.email" type="email" class="input" />
                 </div>
                 <div class="col-span-2">
                   <label class="label">Relationship to Tenant</label>
@@ -459,7 +498,7 @@ import { ref, reactive, computed, onMounted, watch } from 'vue'
 import api from '../../api'
 import {
   Pencil, Loader2, Plus, Trash2, X, Users, Shield,
-  FileText, Download, CheckCircle2, AlertCircle,
+  FileText, Download, CheckCircle2, AlertCircle, UserCheck,
 } from 'lucide-vue-next'
 import ESigningPanel from './ESigningPanel.vue'
 import MaskedInput from '../../components/shared/MaskedInput.vue'
@@ -630,15 +669,58 @@ async function removeTenant(t: any) {
 // ── Add / remove occupant ────────────────────────────────────────────── //
 const showAddOccupant = ref(false)
 const addingOccupant = ref(false)
-const newOccupant = ref({ full_name: '', relationship: '' })
-function resetNewOccupant() { newOccupant.value = { full_name: '', relationship: '' } }
+const newOccupant = ref({
+  full_name: '',
+  id_number: '',
+  date_of_birth: '',
+  phone: '',
+  email: '',
+  relationship: '',
+})
+function resetNewOccupant() {
+  newOccupant.value = {
+    full_name: '', id_number: '', date_of_birth: '',
+    phone: '', email: '', relationship: '',
+  }
+}
+
+// Feature 4: "copy from tenant" — list available tenants and a copier.
+const tenantCopyOptions = computed(() =>
+  allTenants.value
+    .filter((t: any) => t.full_name)
+    .map((t: any) => ({
+      id: t.id,
+      label: t._is_primary ? `${t.full_name} (primary)` : t.full_name,
+    }))
+)
+function onCopyTenantToOccupant(personIdRaw: string) {
+  if (!personIdRaw) return
+  const id = Number(personIdRaw)
+  const t = allTenants.value.find((x: any) => x.id === id)
+  if (!t) return
+  newOccupant.value = {
+    full_name:     t.full_name ?? '',
+    id_number:     t.id_number ?? '',
+    date_of_birth: t.date_of_birth ?? '',
+    phone:         t.phone ?? '',
+    email:         t.email ?? '',
+    relationship:  'self',
+  }
+}
 
 async function addOccupant() {
   if (!newOccupant.value.full_name) return
   addingOccupant.value = true
   try {
     const { data } = await api.post(`/leases/${props.lease.id}/occupants/`, {
-      person: { person_type: 'individual', full_name: newOccupant.value.full_name },
+      person: {
+        person_type:    'individual',
+        full_name:      newOccupant.value.full_name,
+        id_number:      newOccupant.value.id_number,
+        date_of_birth:  newOccupant.value.date_of_birth || null,
+        phone:          newOccupant.value.phone,
+        email:          newOccupant.value.email,
+      },
       relationship_to_tenant: newOccupant.value.relationship,
     })
     allOccupants.value.push(data)
