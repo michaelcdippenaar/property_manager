@@ -413,6 +413,8 @@ import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { EditorContent } from '@tiptap/vue-3'
 import api from '../../api'
 import BaseModal from '../../components/BaseModal.vue'
+import CountrySelect from '../../components/CountrySelect.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 import useTiptapEditor from '../../composables/useTiptapEditor'
 import { useLandlordsStore } from '../../stores/landlords'
 import { usePropertiesStore } from '../../stores/properties'
@@ -472,11 +474,21 @@ const PersonBlock = defineComponent({
         h('div', [
           h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
-        h('div', [
-          h('input', { class: cls, value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
+        h('div', { class: 'flex gap-1.5' }, [
+          h(PhoneCountryCodeSelect, {
+            modelValue: p.phone_country_code ?? '+27',
+            'onUpdate:modelValue': (v: string) => upd('phone_country_code', v),
+          }),
+          h('input', { class: cls + ' flex-1', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
           h('input', { class: cls, value: p.email, type: 'email', placeholder: 'Email', onInput: (e: any) => upd('email', e.target.value) }),
+        ]),
+        h('div', { class: 'col-span-2' }, [
+          h(CountrySelect, {
+            modelValue: p.country ?? 'ZA',
+            'onUpdate:modelValue': (v: string) => upd('country', v),
+          }),
         ]),
       ])
     }
@@ -552,14 +564,47 @@ const LeaseFormFields = defineComponent({
             h('div', [h('label', { class: 'label' }, 'Max occupants'), h('input', { class: inputCls, type: 'number', value: f.max_occupants, onInput: (e: any) => updForm('max_occupants', Number(e.target.value)) })]),
             h('div', [h('label', { class: 'label' }, 'Notice period (days)'), h('input', { class: inputCls, type: 'number', value: f.notice_period_days, onInput: (e: any) => updForm('notice_period_days', Number(e.target.value)) })]),
             h('div', [h('label', { class: 'label' }, 'Early termination (months)'), h('input', { class: inputCls, type: 'number', value: f.early_termination_penalty_months, onInput: (e: any) => updForm('early_termination_penalty_months', Number(e.target.value)) })]),
-            h('div', { class: 'flex items-end gap-5 pb-1 col-span-2' }, [
-              h('label', { class: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer' }, [
-                h('input', { type: 'checkbox', class: 'rounded', checked: f.water_included, onChange: (e: any) => updForm('water_included', e.target.checked) }),
-                'Water included',
+          ]),
+          h('div', { class: 'pt-3 mt-1 border-t border-gray-100' }, [
+            h(SectionLabel, { text: 'Property services & facilities', color: 'navy' }),
+            h('div', { class: 'grid grid-cols-2 gap-3 mt-2' }, [
+              h('div', [
+                h('label', { class: 'label' }, 'Water'),
+                h('select', {
+                  class: inputCls,
+                  value: f.water_arrangement ?? 'not_included',
+                  onChange: (e: any) => updForm('water_arrangement', e.target.value),
+                }, [
+                  h('option', { value: 'included' }, 'Included in rent'),
+                  h('option', { value: 'not_included' }, 'Not included'),
+                ]),
               ]),
-              h('label', { class: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer' }, [
-                h('input', { type: 'checkbox', class: 'rounded', checked: f.electricity_prepaid, onChange: (e: any) => updForm('electricity_prepaid', e.target.checked) }),
-                'Prepaid electricity',
+              h('div', [
+                h('label', { class: 'label' }, 'Electricity'),
+                h('select', {
+                  class: inputCls,
+                  value: f.electricity_arrangement ?? 'not_included',
+                  onChange: (e: any) => updForm('electricity_arrangement', e.target.value),
+                }, [
+                  h('option', { value: 'prepaid' }, 'Prepaid'),
+                  h('option', { value: 'eskom_direct' }, 'Direct Eskom account'),
+                  h('option', { value: 'included' }, 'Included in rent'),
+                  h('option', { value: 'not_included' }, 'Tenant arranges separately'),
+                ]),
+              ]),
+              h('div', { class: 'col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2 pt-1' }, [
+                h('label', { class: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer' }, [
+                  h('input', { type: 'checkbox', class: 'rounded', checked: !!f.gardening_service_included, onChange: (e: any) => updForm('gardening_service_included', e.target.checked) }),
+                  'Gardening service',
+                ]),
+                h('label', { class: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer' }, [
+                  h('input', { type: 'checkbox', class: 'rounded', checked: !!f.wifi_included, onChange: (e: any) => updForm('wifi_included', e.target.checked) }),
+                  'Wifi included',
+                ]),
+                h('label', { class: 'flex items-center gap-2 text-sm text-gray-700 cursor-pointer' }, [
+                  h('input', { type: 'checkbox', class: 'rounded', checked: !!f.security_service_included, onChange: (e: any) => updForm('security_service_included', e.target.checked) }),
+                  'Armed response',
+                ]),
               ]),
             ]),
           ]),
@@ -792,7 +837,7 @@ function onLandlordChange(id: number | null) {
 }
 
 // Sync selected property/unit into form fields for preview
-watch(selectedUnit, (su) => {
+watch(selectedUnit, async (su) => {
   if (su) {
     form.value.property = {
       ...form.value.property,
@@ -805,6 +850,19 @@ watch(selectedUnit, (su) => {
       form.value.unit = { ...form.value.unit, unit_number: su.unitNumber }
     }
     fetchLandlordForProperty(su.propertyId)
+    // Pre-populate property services from the selected property's defaults.
+    // The lease can override these per-lease, but the property's settings are
+    // the sensible starting point.
+    try {
+      const p: any = await propertiesStore.fetchOne(su.propertyId)
+      if (p) {
+        form.value.water_arrangement = p.water_arrangement ?? form.value.water_arrangement
+        form.value.electricity_arrangement = p.electricity_arrangement ?? form.value.electricity_arrangement
+        form.value.gardening_service_included = !!p.gardening_service_included
+        form.value.wifi_included = !!p.wifi_included
+        form.value.security_service_included = !!p.security_service_included
+      }
+    } catch { /* non-fatal */ }
   }
 })
 const submitting = ref(false)
@@ -842,8 +900,11 @@ const form = ref({
   monthly_rent: '', deposit: '',
   payment_reference: '',
   max_occupants: 1,
-  water_included: true,
-  electricity_prepaid: true,
+  water_arrangement: 'not_included' as 'included' | 'not_included',
+  electricity_arrangement: 'not_included' as 'prepaid' | 'eskom_direct' | 'included' | 'not_included',
+  gardening_service_included: false,
+  wifi_included: false,
+  security_service_included: false,
   water_limit_litres: 4000,
   notice_period_days: 30,
   early_termination_penalty_months: 3,
@@ -1351,9 +1412,24 @@ function buildDocxContext() {
     escalation_date: '—',
     notice_period_days: f.notice_period_days,
     early_termination_months: f.early_termination_penalty_months,
-    water_included: f.water_included ? 'Included' : 'Excluded',
+    water_included: f.water_arrangement === 'included' ? 'Included' : 'Excluded',
     water_limit: f.water_limit_litres,
-    electricity_prepaid: f.electricity_prepaid ? 'Prepaid' : 'Included in rent',
+    electricity_prepaid: f.electricity_arrangement === 'prepaid' ? 'Prepaid' : 'Included in rent',
+    water_arrangement: f.water_arrangement || '—',
+    water_arrangement_label: f.water_arrangement === 'included' ? 'Included in rent' : 'Not included',
+    electricity_arrangement: f.electricity_arrangement || '—',
+    electricity_arrangement_label: ({
+      prepaid: 'Prepaid',
+      eskom_direct: 'Direct Eskom account',
+      included: 'Included in rent',
+      not_included: 'Tenant arranges separately',
+    } as Record<string, string>)[f.electricity_arrangement] || '—',
+    gardening_service_included: f.gardening_service_included ? 'Yes' : 'No',
+    gardening_service_included_label: f.gardening_service_included ? 'Yes' : 'No',
+    wifi_included: f.wifi_included ? 'Yes' : 'No',
+    wifi_included_label: f.wifi_included ? 'Yes' : 'No',
+    security_service_included: f.security_service_included ? 'Yes' : 'No',
+    security_service_included_label: f.security_service_included ? 'Yes' : 'No',
     max_occupants: f.max_occupants,
     pets_allowed: '—',
     // Bank account (from landlord default) — both generic and landlord-prefixed
@@ -1384,7 +1460,11 @@ function reset() {
     unit: { unit_number: '1', bedrooms: 1, bathrooms: 1 },
     start_date: '', end_date: '', monthly_rent: '', deposit: '',
     payment_reference: '', max_occupants: 1,
-    water_included: true, electricity_prepaid: true,
+    water_arrangement: 'not_included',
+    electricity_arrangement: 'not_included',
+    gardening_service_included: false,
+    wifi_included: false,
+    security_service_included: false,
     water_limit_litres: 4000, notice_period_days: 30,
     early_termination_penalty_months: 3,
     primary_tenant: emptyPerson(),
