@@ -1413,6 +1413,12 @@ const leaseFields = [
   'lease_start', 'lease_end', 'monthly_rent', 'deposit',
   'escalation_percent', 'notice_period_days', 'max_occupants',
   'pets_allowed', 'water_included', 'electricity_prepaid', 'payment_reference',
+  // Property services & facilities (Feature 3)
+  'water_arrangement', 'water_arrangement_label',
+  'electricity_arrangement', 'electricity_arrangement_label',
+  'gardening_service_included', 'gardening_service_included_label',
+  'wifi_included', 'wifi_included_label',
+  'security_service_included', 'security_service_included_label',
   'primary_tenant_payment_reference',
   'cotenant_1_payment_reference', 'cotenant_2_payment_reference', 'cotenant_3_payment_reference',
   'page_number', 'total_pages',
@@ -1460,8 +1466,18 @@ const leaseFieldGroups = [
     fields: [
       { key: 'max_occupants', label: 'Max Occupants' },
       { key: 'pets_allowed', label: 'Pets Allowed' },
-      { key: 'water_included', label: 'Water Included' },
-      { key: 'electricity_prepaid', label: 'Electricity Prepaid' },
+      { key: 'water_included', label: 'Water Included (legacy)' },
+      { key: 'electricity_prepaid', label: 'Electricity Prepaid (legacy)' },
+    ],
+  },
+  {
+    label: 'Property services',
+    fields: [
+      { key: 'water_arrangement_label', label: 'Water arrangement (label)' },
+      { key: 'electricity_arrangement_label', label: 'Electricity arrangement (label)' },
+      { key: 'gardening_service_included_label', label: 'Gardening service (Yes/No)' },
+      { key: 'wifi_included_label', label: 'Wifi (Yes/No)' },
+      { key: 'security_service_included_label', label: 'Armed response (Yes/No)' },
     ],
   },
   {

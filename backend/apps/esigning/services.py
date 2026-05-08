@@ -145,6 +145,19 @@ def _number_to_words(n: int) -> str:
     return ' '.join(parts) + ' Rand'
 
 
+_WATER_ARRANGEMENT_LABELS = {
+    'included': 'Water included in rent',
+    'not_included': 'Water not included',
+}
+
+_ELECTRICITY_ARRANGEMENT_LABELS = {
+    'prepaid': 'Prepaid electricity',
+    'eskom_direct': 'Direct Eskom account',
+    'included': 'Included in rent',
+    'not_included': 'Tenant arranges separately',
+}
+
+
 def build_lease_context(lease) -> dict:
     """Map a Lease ORM object to merge-field key/value pairs."""
     unit = lease.unit
@@ -264,6 +277,26 @@ def build_lease_context(lease) -> dict:
         'notice_period_days': str(getattr(lease, 'notice_period_days', 30)),
         'water_included':   'Included' if getattr(lease, 'water_included', True) else 'Excluded',
         'electricity_prepaid': 'Prepaid' if getattr(lease, 'electricity_prepaid', True) else 'Included in rent',
+        # ── Property services & facilities (Feature 3 — bug 2 fix) ──
+        # Raw values for boolean checks in templates and label aliases for
+        # human-readable rendering. Keep both so existing templates continue
+        # to work and template authors can pick the form they need.
+        'water_arrangement':            getattr(lease, 'water_arrangement', '') or 'not_included',
+        'water_arrangement_label':      _WATER_ARRANGEMENT_LABELS.get(
+            getattr(lease, 'water_arrangement', '') or 'not_included',
+            'Water not included',
+        ),
+        'electricity_arrangement':      getattr(lease, 'electricity_arrangement', '') or 'not_included',
+        'electricity_arrangement_label': _ELECTRICITY_ARRANGEMENT_LABELS.get(
+            getattr(lease, 'electricity_arrangement', '') or 'not_included',
+            'Tenant arranges separately',
+        ),
+        'gardening_service_included':       bool(getattr(lease, 'gardening_service_included', False)),
+        'gardening_service_included_label': 'Yes' if getattr(lease, 'gardening_service_included', False) else 'No',
+        'wifi_included':                    bool(getattr(lease, 'wifi_included', False)),
+        'wifi_included_label':              'Yes' if getattr(lease, 'wifi_included', False) else 'No',
+        'security_service_included':        bool(getattr(lease, 'security_service_included', False)),
+        'security_service_included_label':  'Yes' if getattr(lease, 'security_service_included', False) else 'No',
         'max_occupants':    str(getattr(lease, 'max_occupants', 1)),
         'payment_reference': getattr(lease, 'payment_reference', '') or '—',
         'primary_tenant_payment_reference': getattr(lease, 'payment_reference', '') or '—',

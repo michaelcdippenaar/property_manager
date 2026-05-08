@@ -110,6 +110,17 @@ CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
     ("lease_terms",   "notice_period_days",          "Notice period in days (minimum 20 business days per RHA)"),
     ("lease_terms",   "water_included",              "Whether water is included (Yes/No)"),
     ("lease_terms",   "electricity_prepaid",         "Whether electricity is prepaid (Yes/No)"),
+    # ── Property services & facilities (Feature 3) ─────────────────────────
+    ("services",      "water_arrangement",           "Water arrangement key: included | not_included"),
+    ("services",      "water_arrangement_label",     "Water arrangement (human-readable)"),
+    ("services",      "electricity_arrangement",     "Electricity arrangement key: prepaid | eskom_direct | included | not_included"),
+    ("services",      "electricity_arrangement_label", "Electricity arrangement (human-readable)"),
+    ("services",      "gardening_service_included",  "Gardening service included (boolean)"),
+    ("services",      "gardening_service_included_label", "Gardening service included (Yes/No)"),
+    ("services",      "wifi_included",               "Wifi included (boolean)"),
+    ("services",      "wifi_included_label",         "Wifi included (Yes/No)"),
+    ("services",      "security_service_included",   "Armed response / security service included (boolean)"),
+    ("services",      "security_service_included_label", "Armed response / security service included (Yes/No)"),
     ("lease_terms",   "max_occupants",               "Maximum number of authorised occupants"),
     ("lease_terms",   "payment_reference",           "Payment reference for EFT (legacy alias for primary_tenant_payment_reference)"),
     ("lease_terms",   "lease_number",                "Unique lease reference number"),
@@ -133,6 +144,7 @@ _CATEGORY_LABELS: dict[str, str] = {
     "occupant_3":    "Occupant 3",
     "occupant_4":    "Occupant 4",
     "lease_terms":   "Lease Terms",
+    "services":      "Property Services",
 }
 
 
