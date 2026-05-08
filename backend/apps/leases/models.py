@@ -52,6 +52,33 @@ class Lease(models.Model):
     water_limit_litres = models.PositiveIntegerField(default=4000)
     electricity_prepaid = models.BooleanField(default=True)
 
+    # ── Services & Facilities (Feature 3) ──────────────────────────────────
+    # Lease-level overrides for the property's defaults. Populated from the
+    # parent property at create time; agent can override per-lease.
+    water_arrangement = models.CharField(
+        max_length=20,
+        choices=[
+            ("included", "Water included in rent"),
+            ("not_included", "Water not included"),
+        ],
+        default="not_included",
+        help_text="Lease-level water arrangement (overrides property default).",
+    )
+    electricity_arrangement = models.CharField(
+        max_length=20,
+        choices=[
+            ("prepaid", "Prepaid electricity"),
+            ("eskom_direct", "Direct Eskom account"),
+            ("included", "Included in rent"),
+            ("not_included", "Tenant arranges separately"),
+        ],
+        default="not_included",
+        help_text="Lease-level electricity arrangement (overrides property default).",
+    )
+    gardening_service_included = models.BooleanField(default=False)
+    wifi_included = models.BooleanField(default=False)
+    security_service_included = models.BooleanField(default=False)
+
     # Termination terms
     notice_period_days = models.PositiveSmallIntegerField(default=20)
     early_termination_penalty_months = models.PositiveSmallIntegerField(default=3)

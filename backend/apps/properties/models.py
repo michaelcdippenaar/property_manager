@@ -6,6 +6,20 @@ from apps.accounts.models import User, Person
 from apps.popia.choices import AnonymisationReason, LawfulBasis, RetentionPolicy
 
 
+class WaterArrangement(models.TextChoices):
+    """Property/Lease water billing arrangement (Feature 3)."""
+    INCLUDED = "included", "Water included in rent"
+    NOT_INCLUDED = "not_included", "Water not included"
+
+
+class ElectricityArrangement(models.TextChoices):
+    """Property/Lease electricity arrangement (Feature 3)."""
+    PREPAID = "prepaid", "Prepaid electricity"
+    ESKOM_DIRECT = "eskom_direct", "Direct Eskom account"
+    INCLUDED = "included", "Included in rent"
+    NOT_INCLUDED = "not_included", "Tenant arranges separately"
+
+
 class Property(models.Model):
     class PropertyType(models.TextChoices):
         APARTMENT = "apartment", "Apartment"
@@ -57,6 +71,27 @@ class Property(models.Model):
         help_text="Landlord notes ingested into the tenant maintenance RAG. Each item: {id, label, body, category, updated_at}."
     )
     image = models.ImageField(upload_to="properties/", null=True, blank=True)
+
+    # ── Services & Facilities (Feature 3) ──────────────────────────────────
+    # Default arrangement for the property — inherited by new leases unless
+    # the lease overrides via its own services fields.
+    water_arrangement = models.CharField(
+        max_length=20, choices=WaterArrangement.choices,
+        default=WaterArrangement.NOT_INCLUDED,
+        help_text="Default water arrangement (lease may override).",
+    )
+    electricity_arrangement = models.CharField(
+        max_length=20, choices=ElectricityArrangement.choices,
+        default=ElectricityArrangement.NOT_INCLUDED,
+        help_text="Default electricity arrangement (lease may override).",
+    )
+    gardening_service_included = models.BooleanField(default=False)
+    wifi_included = models.BooleanField(default=False)
+    security_service_included = models.BooleanField(
+        default=False,
+        help_text="Armed response / monitoring service.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

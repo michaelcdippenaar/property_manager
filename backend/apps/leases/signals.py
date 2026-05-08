@@ -11,12 +11,44 @@ swallow, never raise).
 """
 import logging
 
-from django.db.models.signals import post_delete, post_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from apps.properties.models import Unit
 
 from .models import Lease
+
+
+@receiver(pre_save, sender=Lease)
+def inherit_services_from_property(sender, instance: Lease, **kwargs):
+    """
+    Feature 3: Property services & facilities.
+
+    On lease CREATE, inherit any unset services fields from the parent
+    property's defaults. This is a one-time copy: once the lease exists the
+    agent is free to override per-lease via the edit drawer.
+
+    Only runs on first save (no pk), and only fills fields that still match
+    the model default — so an explicit override at create time wins.
+    """
+    if instance.pk:
+        return
+    unit = getattr(instance, "unit", None)
+    prop = getattr(unit, "property", None) if unit else None
+    if prop is None:
+        return
+    # Map of (lease_field, property_field, model_default) — only copy when the
+    # lease still holds the field default (i.e. caller didn't set it).
+    pairs = [
+        ("water_arrangement",          "water_arrangement",          "not_included"),
+        ("electricity_arrangement",    "electricity_arrangement",    "not_included"),
+        ("gardening_service_included", "gardening_service_included", False),
+        ("wifi_included",              "wifi_included",              False),
+        ("security_service_included",  "security_service_included",  False),
+    ]
+    for lease_f, prop_f, default_val in pairs:
+        if getattr(instance, lease_f, default_val) == default_val:
+            setattr(instance, lease_f, getattr(prop, prop_f, default_val))
 
 logger = logging.getLogger(__name__)
 

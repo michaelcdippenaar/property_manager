@@ -50,6 +50,12 @@ export interface Lease {
   water_included: boolean
   water_limit_litres: number
   electricity_prepaid: boolean
+  // Feature 3 — services & facilities (lease-level overrides of property defaults)
+  water_arrangement: 'included' | 'not_included'
+  electricity_arrangement: 'prepaid' | 'eskom_direct' | 'included' | 'not_included'
+  gardening_service_included: boolean
+  wifi_included: boolean
+  security_service_included: boolean
   notice_period_days: number
   early_termination_penalty_months: number
   renewal_start_date: string | null

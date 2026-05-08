@@ -459,6 +459,41 @@
               <label class="text-xs text-gray-400 mb-1 block">Description</label>
               <textarea v-model="propDetailsForm.description" rows="2" class="input text-sm resize-y" placeholder="Optional property description" />
             </div>
+
+            <!-- Services & Facilities (Feature 3) — property-level defaults -->
+            <div class="border-t border-gray-100 pt-4 mt-2">
+              <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Services &amp; Facilities</div>
+              <div class="text-xs text-gray-400 mb-3">Defaults inherited by new leases on this property. Each lease can override.</div>
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Water</label>
+                  <select v-model="propDetailsForm.water_arrangement" class="input text-sm">
+                    <option value="included">Water included in rent</option>
+                    <option value="not_included">Water not included</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-gray-400 mb-1 block">Electricity</label>
+                  <select v-model="propDetailsForm.electricity_arrangement" class="input text-sm">
+                    <option value="prepaid">Prepaid</option>
+                    <option value="eskom_direct">Direct Eskom account</option>
+                    <option value="included">Included in rent</option>
+                    <option value="not_included">Tenant arranges separately</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-3 gap-4 mt-3">
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="propDetailsForm.gardening_service_included" type="checkbox" /> Gardening service
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="propDetailsForm.wifi_included" type="checkbox" /> Wifi included
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="propDetailsForm.security_service_included" type="checkbox" /> Armed response
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1896,6 +1931,12 @@ const propDetailsForm = ref({
   province: '',
   postal_code: '',
   description: '',
+  // Feature 3 — services & facilities defaults
+  water_arrangement: 'not_included',
+  electricity_arrangement: 'not_included',
+  gardening_service_included: false,
+  wifi_included: false,
+  security_service_included: false,
 })
 const propDetailsSnapshot = ref('')
 const savingPropDetails = ref(false)
@@ -1914,6 +1955,11 @@ function syncPropDetailsForm() {
     province: p.province ?? '',
     postal_code: p.postal_code ?? '',
     description: p.description ?? '',
+    water_arrangement: p.water_arrangement ?? 'not_included',
+    electricity_arrangement: p.electricity_arrangement ?? 'not_included',
+    gardening_service_included: !!p.gardening_service_included,
+    wifi_included: !!p.wifi_included,
+    security_service_included: !!p.security_service_included,
   }
   propDetailsSnapshot.value = JSON.stringify(propDetailsForm.value)
 }

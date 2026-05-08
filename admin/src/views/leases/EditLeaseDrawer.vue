@@ -114,26 +114,40 @@
                 <input v-model="form.early_termination_penalty_months" type="number" min="0" class="input" />
               </div>
               <div class="col-span-2 sm:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <!-- Water -->
+                <!-- Water arrangement (Feature 3) -->
                 <div>
                   <label class="label">Water</label>
-                  <select v-model="form.water_included" class="input">
-                    <option :value="true">Included</option>
-                    <option :value="false">Excluded</option>
+                  <select v-model="form.water_arrangement" class="input">
+                    <option value="included">Included in rent</option>
+                    <option value="not_included">Not included</option>
                   </select>
+                  <div class="text-xs text-gray-400 mt-1">Inherited from property; override per-lease if needed.</div>
                 </div>
-                <div v-if="form.water_included">
+                <div v-if="form.water_arrangement === 'included'">
                   <label class="label">Water Limit (litres)</label>
                   <input v-model="form.water_limit_litres" type="number" min="0" class="input" />
                 </div>
-                <!-- Electricity -->
+                <!-- Electricity arrangement -->
                 <div>
                   <label class="label">Electricity</label>
-                  <select v-model="form.electricity_prepaid" class="input">
-                    <option :value="true">Prepaid</option>
-                    <option :value="false">Included</option>
+                  <select v-model="form.electricity_arrangement" class="input">
+                    <option value="prepaid">Prepaid</option>
+                    <option value="eskom_direct">Direct Eskom account</option>
+                    <option value="included">Included in rent</option>
+                    <option value="not_included">Tenant arranges separately</option>
                   </select>
                 </div>
+              </div>
+              <div class="col-span-2 sm:col-span-3 grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="form.gardening_service_included" type="checkbox" /> Gardening service
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="form.wifi_included" type="checkbox" /> Wifi included
+                </label>
+                <label class="flex items-center gap-2 text-sm">
+                  <input v-model="form.security_service_included" type="checkbox" /> Armed response
+                </label>
               </div>
             </div>
           </section>
@@ -511,6 +525,12 @@ const form = reactive({
   water_included: props.lease.water_included ?? true,
   water_limit_litres: props.lease.water_limit_litres ?? 4000,
   electricity_prepaid: props.lease.electricity_prepaid ?? true,
+  // Feature 3 — services & facilities (lease-level overrides)
+  water_arrangement: props.lease.water_arrangement ?? (props.lease.water_included ? 'included' : 'not_included'),
+  electricity_arrangement: props.lease.electricity_arrangement ?? (props.lease.electricity_prepaid ? 'prepaid' : 'included'),
+  gardening_service_included: props.lease.gardening_service_included ?? false,
+  wifi_included: props.lease.wifi_included ?? false,
+  security_service_included: props.lease.security_service_included ?? false,
   notice_period_days: props.lease.notice_period_days ?? 20,
   early_termination_penalty_months: props.lease.early_termination_penalty_months ?? 3,
 })
