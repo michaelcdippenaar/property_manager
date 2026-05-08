@@ -84,7 +84,7 @@
 
           <div>
             <label for="reg-email" class="label">Email</label>
-            <input id="reg-email" v-model="form.email" type="email" class="input" placeholder="you@klikk.co.za" required autocomplete="email" />
+            <EmailInput id="reg-email" v-model="form.email" placeholder="you@klikk.co.za" required autocomplete="email" />
           </div>
 
           <div>
@@ -194,6 +194,7 @@ import { useGoogleAuth } from '../../composables/useGoogleAuth'
 import { Eye, EyeOff, AlertCircle, Loader2, Building2, Home, ChevronLeft } from 'lucide-vue-next'
 import api from '../../api'
 import { trackEvent } from '../../plugins/plausible'
+import EmailInput from '../../components/EmailInput.vue'
 
 const router = useRouter()
 const auth = useAuthStore()

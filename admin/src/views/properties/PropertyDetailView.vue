@@ -1634,12 +1634,25 @@
           </div>
           <div>
             <label class="label">Phone</label>
-            <input v-model="editTenantForm.phone" class="input" placeholder="082 123 4567" />
+            <div class="flex gap-1.5">
+              <PhoneCountryCodeSelect
+                v-model="editTenantForm.phone_country_code"
+                compact
+                input-class="input"
+              />
+              <input v-model="editTenantForm.phone" class="input flex-1 min-w-0" placeholder="082 123 4567" />
+            </div>
           </div>
         </div>
-        <div>
-          <label class="label">ID / Passport number</label>
-          <MaskedInput v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" />
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="label">ID / Passport number</label>
+            <MaskedInput v-model="editTenantForm.id_number" class="input" placeholder="SA ID or passport" />
+          </div>
+          <div>
+            <label class="label">Country</label>
+            <CountrySelect v-model="editTenantForm.country" compact input-class="input" />
+          </div>
         </div>
 
         <div class="border-t border-gray-200 pt-4 mt-4">
@@ -1734,6 +1747,8 @@ import { extractApiError } from '../../utils/api-errors'
 import Breadcrumb from '../../components/Breadcrumb.vue'
 import BaseModal from '../../components/BaseModal.vue'
 import EmailInput from '../../components/EmailInput.vue'
+import CountrySelect from '../../components/CountrySelect.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 import ConfirmDialog from '../../components/ConfirmDialog.vue'
 import EmptyState from '../../components/EmptyState.vue'
 import LeaseTimelineGantt from '../../components/LeaseTimelineGantt.vue'
@@ -1866,7 +1881,7 @@ const assignForm        = ref({ tenant_id: null as number | null, unit_id: null 
 const editTenantModal   = ref(false)
 const editingAssignment = ref<any>(null)
 const savingTenant      = ref(false)
-const editTenantForm    = ref({ full_name: '', email: '', phone: '', id_number: '', start_date: '', end_date: '', notes: '' })
+const editTenantForm    = ref({ full_name: '', email: '', phone: '', phone_country_code: '+27', country: 'ZA', id_number: '', start_date: '', end_date: '', notes: '' })
 
 const menuOpen   = ref(false)
 const menuRef    = ref<HTMLElement | null>(null)
@@ -2748,15 +2763,22 @@ function openEditTenant(assignment: any) {
     full_name: assignment.tenant_name || '',
     email: assignment.tenant_email || '',
     phone: assignment.tenant_phone || '',
+    phone_country_code: '+27',
+    country: 'ZA',
     id_number: '',
     start_date: assignment.start_date || '',
     end_date: assignment.end_date || '',
     notes: assignment.notes || '',
   }
-  // Fetch full person details to get id_number
+  // Fetch full person details to get id_number, country, phone_country_code
   const tenantId = assignment.tenant
   api.get(`/tenant/tenants/${tenantId}/`)
-    .then(r => { editTenantForm.value.id_number = r.data.person?.id_number || '' })
+    .then(r => {
+      const person = r.data.person ?? {}
+      editTenantForm.value.id_number = person.id_number || ''
+      editTenantForm.value.country = person.country || 'ZA'
+      editTenantForm.value.phone_country_code = person.phone_country_code || '+27'
+    })
     .catch(() => {})
   editTenantModal.value = true
 }
@@ -2773,6 +2795,8 @@ async function saveEditTenant() {
       full_name: editTenantForm.value.full_name,
       email: editTenantForm.value.email,
       phone: editTenantForm.value.phone,
+      phone_country_code: editTenantForm.value.phone_country_code,
+      country: editTenantForm.value.country,
       id_number: editTenantForm.value.id_number,
     })
     // 2) Update assignment details
