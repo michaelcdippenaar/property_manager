@@ -494,7 +494,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import api from '../../api'
 import {
   Pencil, Loader2, Plus, Trash2, X, Users, Shield,
@@ -522,13 +522,30 @@ const isDirty = ref(false)
 function markDirty() { isDirty.value = true }
 function markClean() { isDirty.value = false }
 
-function onCancelClick() {
+/**
+ * Single close path — used by Cancel button, X icon, ESC key, and backdrop
+ * clicks. Bug 4: previously only Cancel ran the dirty check, so other paths
+ * silently dropped unsaved edits. All close requests must funnel through
+ * here so the prompt fires consistently.
+ */
+function attemptClose() {
   if (!isDirty.value) { emit('close'); return }
   // eslint-disable-next-line no-alert
   const ok = typeof window !== 'undefined'
     ? window.confirm('You have unsaved changes. Discard and close?')
     : true
   if (ok) emit('close')
+}
+
+function onCancelClick() {
+  attemptClose()
+}
+
+function onEscKey(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    e.preventDefault()
+    attemptClose()
+  }
 }
 
 // Properties & units for reassignment
@@ -898,5 +915,15 @@ onMounted(async () => {
   watch(allTenants, markDirty, { deep: true })
   watch(allOccupants, markDirty, { deep: true })
   watch(allGuarantors, markDirty, { deep: true })
+  // Bug 4: ESC must trigger the same dirty-check guard as the Cancel button.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('keydown', onEscKey)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('keydown', onEscKey)
+  }
 })
 </script>
