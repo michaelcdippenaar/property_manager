@@ -268,6 +268,40 @@
                   </label>
                 </div>
               </div>
+
+              <!-- Property services & facilities -->
+              <div class="pt-3 mt-1 border-t border-gray-100 space-y-3">
+                <SectionLabel text="Property services & facilities" color="navy" />
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="label">Water</label>
+                    <select v-model="form.water_arrangement" class="input">
+                      <option value="included">Included in rent</option>
+                      <option value="not_included">Not included</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="label">Electricity</label>
+                    <select v-model="form.electricity_arrangement" class="input">
+                      <option value="prepaid">Prepaid</option>
+                      <option value="eskom_direct">Direct Eskom account</option>
+                      <option value="included">Included in rent</option>
+                      <option value="not_included">Tenant arranges separately</option>
+                    </select>
+                  </div>
+                  <div class="col-span-2 flex flex-wrap items-center gap-x-5 gap-y-2 pt-1">
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input v-model="form.gardening_service_included" type="checkbox" class="rounded" /> Gardening service
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input v-model="form.wifi_included" type="checkbox" class="rounded" /> Wifi included
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                      <input v-model="form.security_service_included" type="checkbox" class="rounded" /> Armed response
+                    </label>
+                  </div>
+                </div>
+              </div>
             </section>
 
             <!-- Tenants — all equally liable signatories -->
@@ -289,8 +323,16 @@
               <div v-for="(ct, i) in form.co_tenants" :key="i" class="relative border border-navy/20 rounded-xl p-4 bg-navy/5">
                 <span class="absolute top-3 left-4 text-micro font-semibold text-navy/50 uppercase tracking-wide">Tenant {{ i + 2 }}</span>
                 <button @click="form.co_tenants.splice(i, 1)" class="absolute top-2.5 right-3 text-gray-400 hover:text-danger-500"><X :size="14" /></button>
-                <div class="pt-4">
+                <div class="pt-4 space-y-2">
                   <PersonBlock v-model="form.co_tenants[i]" compact />
+                  <div>
+                    <label class="label">Payment reference (this tenant)</label>
+                    <input
+                      v-model="form.co_tenants[i].payment_reference"
+                      class="input text-xs"
+                      placeholder="Optional — defaults to the lease's reference"
+                    />
+                  </div>
                 </div>
               </div>
             </section>
@@ -460,7 +502,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, defineComponent, h } from 'vue'
+import { ref, computed, onMounted, onUnmounted, defineComponent, h, watch } from 'vue'
 import api from '../../api'
 import {
   Sparkles, X, FileText, AlertCircle, CheckCircle2,
@@ -468,6 +510,9 @@ import {
 } from 'lucide-vue-next'
 import { usePropertiesStore } from '../../stores/properties'
 import { useLeasesStore } from '../../stores/leases'
+import CountrySelect from '../../components/CountrySelect.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
+import EmailInput from '../../components/EmailInput.vue'
 
 const DRAFT_KEY = 'lease_import_draft'
 
@@ -513,13 +558,32 @@ const PersonBlock = defineComponent({
           h('label', { class: 'label' }, 'ID / Passport'),
           h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID number', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
-        h('div', [
-          h('label', { class: 'label' }, 'Phone'),
-          h('input', { class: cls, value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
+        h('div', { class: 'flex gap-1.5' }, [
+          h(PhoneCountryCodeSelect, {
+            modelValue: p.phone_country_code ?? '+27',
+            compact: true,
+            inputClass: cls,
+            'onUpdate:modelValue': (v: string) => upd('phone_country_code', v),
+          }),
+          h('input', { class: cls + ' flex-1 min-w-0', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
           h('label', { class: 'label' }, 'Email'),
-          h('input', { class: cls, value: p.email, type: 'email', placeholder: 'Email', onInput: (e: any) => upd('email', e.target.value) }),
+          h(EmailInput, {
+            modelValue: p.email ?? '',
+            placeholder: 'Email',
+            inputClass: cls,
+            'onUpdate:modelValue': (v: string) => upd('email', v),
+          }),
+        ]),
+        h('div', { class: 'col-span-2' }, [
+          h('label', { class: 'label' }, 'Country'),
+          h(CountrySelect, {
+            modelValue: p.country ?? 'ZA',
+            compact: true,
+            inputClass: cls,
+            'onUpdate:modelValue': (v: string) => upd('country', v),
+          }),
         ]),
       ])
     }
@@ -604,7 +668,10 @@ interface ExtraDoc {
 const extraDocs = ref<ExtraDoc[]>([])
 
 function emptyPerson() {
-  return { full_name: '', id_number: '', phone: '', email: '' }
+  return {
+    full_name: '', id_number: '', phone: '', email: '',
+    phone_country_code: '+27', country: 'ZA',
+  }
 }
 
 const form = ref({
@@ -619,6 +686,12 @@ const form = ref({
   water_limit_litres: 4000,
   notice_period_days: 20,
   early_termination_penalty_months: 3,
+  // Per-lease services overrides — pre-populated from the resolved property.
+  water_arrangement: 'not_included' as 'included' | 'not_included',
+  electricity_arrangement: 'not_included' as 'prepaid' | 'eskom_direct' | 'included' | 'not_included',
+  gardening_service_included: false,
+  wifi_included: false,
+  security_service_included: false,
   status: 'active' as 'active' | 'pending',
   primary_tenant: emptyPerson(),
   co_tenants: [] as any[],
@@ -631,16 +704,45 @@ const unitsForProperty = computed(() => {
   return properties.value.find((p: any) => p.id === useExistingProperty.value)?.units ?? []
 })
 
+// Pre-populate the per-lease services from the resolved property. The agent
+// can still override per-lease via the form below — this just gives them a
+// sensible starting point that mirrors the property's defaults.
+watch(useExistingProperty, async (id) => {
+  if (!id || typeof id !== 'number') return
+  try {
+    const p: any = await propertiesStore.fetchOne(id)
+    if (!p) return
+    if (p.water_arrangement)        form.value.water_arrangement = p.water_arrangement
+    if (p.electricity_arrangement)  form.value.electricity_arrangement = p.electricity_arrangement
+    form.value.gardening_service_included = !!p.gardening_service_included
+    form.value.wifi_included = !!p.wifi_included
+    form.value.security_service_included = !!p.security_service_included
+  } catch { /* non-fatal */ }
+}, { immediate: false })
+
 async function loadProperties() {
   await propertiesStore.fetchAll()
 }
 
-onMounted(() => {
+onMounted(async () => {
   loadProperties()
   // Pre-fill property/unit when launched from the property detail page
   if (props.prefilledPropertyId) {
     useExistingProperty.value = props.prefilledPropertyId
     if (props.prefilledUnitId) useExistingUnit.value = props.prefilledUnitId
+    // Pre-populate services from the locked property too — the watch above
+    // only fires when the value changes, not on initial assignment with the
+    // same ref value, so do it explicitly here.
+    try {
+      const p: any = await propertiesStore.fetchOne(props.prefilledPropertyId)
+      if (p) {
+        if (p.water_arrangement)       form.value.water_arrangement = p.water_arrangement
+        if (p.electricity_arrangement) form.value.electricity_arrangement = p.electricity_arrangement
+        form.value.gardening_service_included = !!p.gardening_service_included
+        form.value.wifi_included = !!p.wifi_included
+        form.value.security_service_included = !!p.security_service_included
+      }
+    } catch { /* non-fatal */ }
     // Skip draft restore when context is already provided
     return
   }
@@ -787,7 +889,15 @@ function applyParsed(d: any) {
 }
 
 function pick(p: any) {
-  return { full_name: p.full_name || '', id_number: p.id_number || '', phone: p.phone || '', email: p.email || '' }
+  return {
+    full_name: p.full_name || '',
+    id_number: p.id_number || '',
+    phone: p.phone || '',
+    email: p.email || '',
+    phone_country_code: p.phone_country_code || '+27',
+    country: p.country || 'ZA',
+    payment_reference: p.payment_reference || '',
+  }
 }
 
 // ── Import ─────────────────────────────────────────────────────────────────
@@ -872,6 +982,11 @@ function reset() {
     water_included: true, electricity_prepaid: true,
     water_limit_litres: 4000, notice_period_days: 20,
     early_termination_penalty_months: 3,
+    water_arrangement: 'not_included',
+    electricity_arrangement: 'not_included',
+    gardening_service_included: false,
+    wifi_included: false,
+    security_service_included: false,
     primary_tenant: emptyPerson(),
     co_tenants: [], occupants: [], guarantors: [],
   }
