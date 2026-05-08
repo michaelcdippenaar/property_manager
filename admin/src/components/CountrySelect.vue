@@ -52,7 +52,10 @@ function onSelect(e: Event) {
   const v = (e.target as HTMLSelectElement).value
   if (v === '__OTHER__') {
     isOther.value = true
-    emit('update:modelValue', otherText.value || '')
+    // Bug 5: don't emit a blank value when the user picks "Other" but
+    // hasn't typed anything yet — that bypasses the Person model's ZA
+    // default. Hold the existing value until they type a 2-letter code.
+    if (otherText.value) emit('update:modelValue', otherText.value)
   } else {
     isOther.value = false
     emit('update:modelValue', v)
@@ -60,7 +63,11 @@ function onSelect(e: Event) {
 }
 function onOtherInput(e: Event) {
   otherText.value = (e.target as HTMLInputElement).value.toUpperCase().slice(0, 2)
-  emit('update:modelValue', otherText.value)
+  // Only emit when we have a complete 2-letter ISO code; otherwise the
+  // previous value stays in place. Empty input never emits a blank.
+  if (otherText.value.length === 2) {
+    emit('update:modelValue', otherText.value)
+  }
 }
 </script>
 
