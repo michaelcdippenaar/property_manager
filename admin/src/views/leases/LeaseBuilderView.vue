@@ -827,7 +827,9 @@ function emptyPerson() {
     full_name: '',
     id_number: '',
     phone: '',
+    phone_country_code: '+27',
     email: '',
+    country: 'ZA',
     payment_reference: '',
     required_documents: ['bank_statement', 'id_copy', 'proof_of_address'] as string[],
   }

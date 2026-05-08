@@ -68,7 +68,10 @@
               </div>
               <div>
                 <label class="label">Phone</label>
-                <input v-model="local.phone" type="tel" class="input" />
+                <div class="flex gap-2">
+                  <PhoneCountryCodeSelect v-model="local.phone_country_code" />
+                  <input v-model="local.phone" type="tel" class="input flex-1" />
+                </div>
               </div>
               <div>
                 <label class="label">SA ID / Passport number</label>
@@ -77,6 +80,10 @@
               <div>
                 <label class="label">Date of birth</label>
                 <input v-model="local.date_of_birth" type="date" class="input" />
+              </div>
+              <div>
+                <label class="label">Country</label>
+                <CountrySelect v-model="local.country" />
               </div>
               <div class="col-span-2">
                 <label class="label">Address</label>
@@ -353,6 +360,8 @@ import {
 
 import api from '../../api'
 import PageHeader from '../../components/PageHeader.vue'
+import CountrySelect from '../../components/CountrySelect.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 import TenantOnboardingView from './TenantOnboardingView.vue'
 import type { Person } from '../../types/person'
 import type { Lease } from '../../types/lease'
