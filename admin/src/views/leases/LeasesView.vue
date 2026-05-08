@@ -620,9 +620,25 @@ async function initView() {
   // Capture deep-link params before any async work (route.query is reactive and
   // could change if a watcher elsewhere calls router.replace).
   const expandId = Number(route.query.expand) || 0
+  const editId = Number(route.query.edit) || 0
   const shouldSign = route.query.sign === '1'
 
   await Promise.all([loadLeases(), loadUnits(), loadDrafts()])
+
+  // Deep-link: ?edit=<id> opens EditLeaseDrawer for that lease. Used by the
+  // dashboard renewal flow so the agent lands directly on the new lease's
+  // tenant capture step instead of a toast-then-blank screen.
+  if (editId) {
+    const target = leases.value.find((l: any) => l.id === editId)
+    if (target) {
+      editingLease.value = target
+      showEdit.value = true
+      // Strip the param so re-activating the view doesn't re-open the drawer.
+      const { edit: _edit, ...restQuery } = route.query as Record<string, string>
+      void _edit
+      router.replace({ query: restQuery })
+    }
+  }
 
   // Deep-link: auto-expand a lease from query params
   if (expandId && leases.value.some((l: any) => l.id === expandId)) {

@@ -286,6 +286,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../../api'
 import { useToast } from '../../composables/useToast'
 import { useAuthStore } from '../../stores/auth'
@@ -304,6 +305,7 @@ import {
 const toast = useToast()
 const auth = useAuthStore()
 const propertiesStore = usePropertiesStore()
+const router = useRouter()
 
 const loading = ref(true)
 const animReady = ref(false)
@@ -381,10 +383,16 @@ function openNextLeaseDrawer(leaseId: number) {
   nextLeaseSourceId.value = leaseId
 }
 
-async function onRenewalSaved(_newLeaseId: number) {
+async function onRenewalSaved(newLeaseId: number) {
   nextLeaseSourceId.value = null
   toast.success('Next lease drafted as pending.')
   await propertiesStore.fetchPortfolio({ force: true })
+  // Land the agent on the new lease's edit drawer so they can immediately
+  // capture the new tenant signatories — closing the QA gap where the
+  // toast hid the next step ("where do I click on tenant?").
+  if (newLeaseId) {
+    router.push({ path: '/leases', query: { edit: String(newLeaseId) } })
+  }
 }
 
 // ── Hero Metrics ─────────────────────────────────────────────────────────────
