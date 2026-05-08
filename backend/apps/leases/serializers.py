@@ -33,6 +33,7 @@ class PersonSerializer(serializers.ModelSerializer):
         model = Person
         fields = [
             "id", "person_type", "full_name", "id_number", "phone", "email",
+            "phone_country_code", "country",
             "address", "employer", "occupation", "date_of_birth",
             "emergency_contact_name", "emergency_contact_phone",
             "company_reg", "vat_number",

@@ -557,6 +557,8 @@ def _build_import_payload(state: dict, request) -> dict:
             "id_number": state.get("tenant_id", ""),
             "phone": state.get("tenant_phone", ""),
             "email": state.get("tenant_email", ""),
+            "phone_country_code": state.get("tenant_phone_country_code", "") or state.get("phone_country_code", ""),
+            "country": state.get("tenant_country", "") or state.get("country", ""),
         },
         "co_tenants": _parse_co_tenants(state.get("co_tenants")),
         "start_date": state.get("lease_start"),
@@ -571,6 +573,19 @@ def _build_import_payload(state: dict, request) -> dict:
         "payment_reference": state.get("payment_reference", ""),
         "status": "pending",
     }
+    # Forward the per-lease services overrides when the builder session
+    # captured them — empty/None values are dropped so the import view's
+    # property-inherit signal still fires.
+    for key in (
+        "water_arrangement",
+        "electricity_arrangement",
+        "gardening_service_included",
+        "wifi_included",
+        "security_service_included",
+    ):
+        val = state.get(key)
+        if val not in (None, ""):
+            payload[key] = val
     return payload
 
 
@@ -590,6 +605,11 @@ def _parse_co_tenants(value) -> list:
             elif isinstance(v, dict):
                 merged = dict(v)
                 merged.setdefault("payment_reference", "")
+                # Preserve country / phone_country_code if the builder captured
+                # them — _get_or_create_person uses these on Person creation.
+                for k in ("country", "phone_country_code"):
+                    if k in v and v[k]:
+                        merged[k] = v[k]
                 out.append(merged)
             else:
                 out.append({"full_name": str(v), "payment_reference": ""})

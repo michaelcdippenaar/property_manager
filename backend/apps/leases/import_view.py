@@ -21,6 +21,8 @@ def _get_or_create_person(data: dict, agency_id) -> Person:
     full_name = (data.get("full_name") or "").strip()
     phone = (data.get("phone") or "").strip()
     email = (data.get("email") or "").strip()
+    country = (data.get("country") or "").strip()
+    phone_country_code = (data.get("phone_country_code") or "").strip()
 
     if not full_name:
         return None
@@ -45,7 +47,7 @@ def _get_or_create_person(data: dict, agency_id) -> Person:
         if person:
             return person
 
-    return Person.objects.create(
+    create_kwargs = dict(
         agency_id=agency_id,
         full_name=full_name,
         id_number=id_number or "",
@@ -53,6 +55,13 @@ def _get_or_create_person(data: dict, agency_id) -> Person:
         email=email,
         person_type="individual",
     )
+    # Only override the model defaults when the caller actually supplied a value —
+    # otherwise the Person model defaults (ZA / +27) apply.
+    if country:
+        create_kwargs["country"] = country
+    if phone_country_code:
+        create_kwargs["phone_country_code"] = phone_country_code
+    return Person.objects.create(**create_kwargs)
 
 
 class ImportLeaseView(APIView):
@@ -196,6 +205,17 @@ class ImportLeaseView(APIView):
             "water_included": d.get("water_included", True),
             "water_limit_litres": d.get("water_limit_litres", 4000),
             "electricity_prepaid": d.get("electricity_prepaid", True),
+            # Per-lease service overrides (also defaulted from the property by the
+            # ``inherit_services_from_property`` pre_save signal on first save).
+            # When the caller passes a value we honour it; otherwise we omit the
+            # key so the signal can fill it in from Property defaults.
+            **{k: d[k] for k in (
+                "water_arrangement",
+                "electricity_arrangement",
+                "gardening_service_included",
+                "wifi_included",
+                "security_service_included",
+            ) if k in d and d[k] not in (None, "")},
             "notice_period_days": d.get("notice_period_days", 20),
             "early_termination_penalty_months": d.get("early_termination_penalty_months", 3),
             "payment_reference": d.get("payment_reference", ""),

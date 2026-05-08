@@ -438,3 +438,116 @@ class ImportLeaseRoleHandlingTests(TremlyAPITestCase):
         self.assertEqual(resp.status_code, 201)
         lease = Lease.objects.get(pk=resp.data["id"])
         self.assertIsNone(lease.unit.property.agent)
+
+
+class ImportLeasePersonCountryAndServicesTests(TremlyAPITestCase):
+    """Regression cover for the multi-tenant features bundle.
+
+    The serializer + import view dropped two batches of user-entered data at
+    the API boundary:
+
+      1. ``country`` and ``phone_country_code`` on Person create — the lease
+         module's PersonSerializer + _get_or_create_person ignored both,
+         so every imported tenant inherited the model defaults (ZA / +27).
+      2. The five new per-lease services fields (water_arrangement,
+         electricity_arrangement, gardening/wifi/security flags) — the
+         lease_fields dict ignored them, then the inherit_services_from_property
+         signal overwrote with the property defaults.
+    """
+    url = reverse("lease-import")
+
+    def setUp(self):
+        from apps.accounts.models import Agency
+        self.agency = Agency.objects.create(name="Country Services Agency")
+        self.agent = self.create_agent(
+            email="country-services@lease.test",
+            agency=self.agency,
+        )
+        self.authenticate(self.agent)
+
+    def test_primary_tenant_country_and_phone_country_code_persisted(self):
+        payload = {
+            **BASE_PAYLOAD,
+            "property": {"name": "Country Test Prop"},
+            "primary_tenant": {
+                "full_name": "Aanya Patel",
+                "id_number": "AB1234567",  # passport
+                "phone": "7700123456",
+                "phone_country_code": "+44",
+                "country": "GB",
+            },
+        }
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        lease = Lease.objects.get(pk=resp.data["id"])
+        self.assertEqual(lease.primary_tenant.country, "GB")
+        self.assertEqual(lease.primary_tenant.phone_country_code, "+44")
+
+    def test_co_tenant_country_and_phone_country_code_persisted(self):
+        payload = {
+            **BASE_PAYLOAD,
+            "property": {"name": "CoTenant Country Prop"},
+            "co_tenants": [
+                {
+                    "full_name": "Boris Petrov",
+                    "id_number": "ZX8888888",
+                    "phone": "9151234567",
+                    "phone_country_code": "+7",
+                    "country": "RU",
+                },
+            ],
+        }
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        lease = Lease.objects.get(pk=resp.data["id"])
+        co = lease.co_tenants.first().person
+        self.assertEqual(co.country, "RU")
+        self.assertEqual(co.phone_country_code, "+7")
+
+    def test_default_country_when_unspecified(self):
+        """Sanity: when the caller omits country, the Person model default applies."""
+        payload = {
+            **BASE_PAYLOAD,
+            "property": {"name": "Default Country Prop"},
+        }
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 201)
+        lease = Lease.objects.get(pk=resp.data["id"])
+        # Model default = "ZA" / "+27" — verify they are populated and not blank
+        self.assertEqual(lease.primary_tenant.country, "ZA")
+        self.assertEqual(lease.primary_tenant.phone_country_code, "+27")
+
+    def test_lease_services_fields_persisted_when_provided(self):
+        payload = {
+            **BASE_PAYLOAD,
+            "property": {"name": "Services Override Prop"},
+            "water_arrangement": "included",
+            "electricity_arrangement": "eskom_direct",
+            "gardening_service_included": True,
+            "wifi_included": True,
+            "security_service_included": True,
+        }
+        resp = self.client.post(self.url, payload, format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        lease = Lease.objects.get(pk=resp.data["id"])
+        self.assertEqual(lease.water_arrangement, "included")
+        self.assertEqual(lease.electricity_arrangement, "eskom_direct")
+        self.assertTrue(lease.gardening_service_included)
+        self.assertTrue(lease.wifi_included)
+        self.assertTrue(lease.security_service_included)
+
+    def test_serializer_round_trip_returns_country_fields(self):
+        """The leases-app PersonSerializer must surface country fields so the
+        admin EditLeaseDrawer can hydrate without falling back to ZA."""
+        from apps.leases.serializers import PersonSerializer
+        person = Person.objects.create(
+            full_name="Hannah Müller",
+            id_number="MUL900101",
+            phone="1701234567",
+            phone_country_code="+49",
+            country="DE",
+            person_type="individual",
+        )
+        data = PersonSerializer(person).data
+        self.assertEqual(data["country"], "DE")
+        self.assertEqual(data["phone_country_code"], "+49")
