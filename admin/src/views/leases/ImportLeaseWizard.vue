@@ -255,14 +255,6 @@
                   <label class="label">Max occupants</label>
                   <input v-model.number="form.max_occupants" type="number" class="input" />
                 </div>
-                <div class="flex items-end gap-5 pb-1">
-                  <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input v-model="form.water_included" type="checkbox" class="rounded" /> Water incl.
-                  </label>
-                  <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                    <input v-model="form.electricity_prepaid" type="checkbox" class="rounded" /> Prepaid elec.
-                  </label>
-                </div>
               </div>
 
               <!-- Property services & facilities -->
@@ -765,8 +757,6 @@ const form = ref({
   monthly_rent: '', deposit: '',
   payment_reference: '',
   max_occupants: 1,
-  water_included: true,
-  electricity_prepaid: true,
   water_limit_litres: 4000,
   notice_period_days: 20,
   early_termination_penalty_months: 3,
@@ -935,8 +925,13 @@ function applyParsed(d: any) {
   if (d.end_date)            form.value.end_date = d.end_date
   if (d.payment_reference)   form.value.payment_reference = d.payment_reference
   if (d.max_occupants)       form.value.max_occupants = d.max_occupants
-  if (d.water_included != null)      form.value.water_included = d.water_included
-  if (d.electricity_prepaid != null) form.value.electricity_prepaid = d.electricity_prepaid
+  // Legacy water_included/electricity_prepaid booleans replaced by the
+  // water_arrangement / electricity_arrangement selects — map AI output forward
+  // so older parsers still seed the new fields.
+  if (d.water_arrangement)            form.value.water_arrangement = d.water_arrangement
+  else if (d.water_included != null)  form.value.water_arrangement = d.water_included ? 'included' : 'not_included'
+  if (d.electricity_arrangement)         form.value.electricity_arrangement = d.electricity_arrangement
+  else if (d.electricity_prepaid != null) form.value.electricity_arrangement = d.electricity_prepaid ? 'prepaid' : 'not_included'
   if (d.water_limit_litres)  form.value.water_limit_litres = d.water_limit_litres
   if (d.notice_period_days)  form.value.notice_period_days = d.notice_period_days
   if (d.early_termination_penalty_months) form.value.early_termination_penalty_months = d.early_termination_penalty_months
@@ -1069,7 +1064,6 @@ function reset() {
     unit: { unit_number: '1', bedrooms: 1, bathrooms: 1 },
     start_date: '', end_date: '', monthly_rent: '', deposit: '',
     payment_reference: '', max_occupants: 1, status: 'active' as 'active' | 'pending',
-    water_included: true, electricity_prepaid: true,
     water_limit_litres: 4000, notice_period_days: 20,
     early_termination_penalty_months: 3,
     water_arrangement: 'not_included',
