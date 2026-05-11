@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime
 from django.db import transaction
 from rest_framework.views import APIView
@@ -57,10 +58,19 @@ def _phone_variants(raw: str) -> list[str]:
     _add(bare)
 
     # SA-specific: +27NNNNNNNNN ↔ 0NNNNNNNNN.
-    if bare.startswith("27") and len(bare) > 2:
+    #
+    # Audit Bug 11: previously this swapped any number starting with "27" or
+    # "0" regardless of length / subsequent digits, so e.g. a Botswana
+    # number "+267..." would generate misleading "067..." variants. Restrict
+    # the swap to genuine SA mobile shapes only:
+    #   - "27" + SA-mobile-prefix (6/7/8) + 8 digits  → "0" + mobile
+    #   - "0"  + SA-mobile-prefix (6/7/8) + 8 digits  → "+27" + mobile
+    # Anything else (landlines, +267, +1, malformed) is left alone — no
+    # variant emitted means we just look it up verbatim, which is correct.
+    if re.fullmatch(r"27[678]\d{8}", bare):
         _add("0" + bare[2:])
         _add("+27" + bare[2:])
-    elif bare.startswith("0") and len(bare) > 1:
+    elif re.fullmatch(r"0[678]\d{8}", bare):
         _add("+27" + bare[1:])
         _add("27" + bare[1:])
 

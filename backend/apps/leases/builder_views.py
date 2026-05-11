@@ -525,6 +525,11 @@ class LeaseBuilderFinalizeView(APIView):
 
         lease_id = response.data["id"]
         lease_number = response.data["lease_number"]
+        # Audit Bug 10: ImportLeaseView exposes `matched_persons` so the UI
+        # can show "Linked to existing tenant: …". Forward it through the
+        # chat-mode finalize response so the LeaseBuilder UI can render the
+        # same toast that ImportLeaseWizard does.
+        matched_persons = response.data.get("matched_persons", [])
 
         # Link session to the new lease
         session.lease_id = lease_id
@@ -532,7 +537,11 @@ class LeaseBuilderFinalizeView(APIView):
         session.save(update_fields=["lease", "status", "updated_at"])
 
         return Response(
-            {"lease_id": lease_id, "lease_number": lease_number},
+            {
+                "lease_id": lease_id,
+                "lease_number": lease_number,
+                "matched_persons": matched_persons,
+            },
             status=status.HTTP_201_CREATED,
         )
 
