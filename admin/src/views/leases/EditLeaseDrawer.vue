@@ -320,13 +320,20 @@
                   <label class="label">Date of birth</label>
                   <input v-model="newOccupant.date_of_birth" type="date" class="input" />
                 </div>
-                <div>
+                <div class="col-span-2">
                   <label class="label">Phone</label>
-                  <input v-model="newOccupant.phone" class="input" />
+                  <div class="flex gap-2">
+                    <PhoneCountryCodeSelect v-model="newOccupant.phone_country_code" compact />
+                    <input v-model="newOccupant.phone" class="input flex-1 min-w-0" />
+                  </div>
                 </div>
-                <div>
+                <div class="col-span-2">
                   <label class="label">Email</label>
                   <EmailInput v-model="newOccupant.email" />
+                </div>
+                <div class="col-span-2">
+                  <label class="label">Country</label>
+                  <CountrySelect v-model="newOccupant.country" />
                 </div>
                 <div class="col-span-2">
                   <label class="label">Relationship to Tenant</label>
@@ -688,13 +695,16 @@ const newOccupant = ref({
   id_number: '',
   date_of_birth: '',
   phone: '',
+  phone_country_code: '+27',
   email: '',
+  country: 'ZA',
   relationship: '',
 })
 function resetNewOccupant() {
   newOccupant.value = {
     full_name: '', id_number: '', date_of_birth: '',
-    phone: '', email: '', relationship: '',
+    phone: '', phone_country_code: '+27', email: '', country: 'ZA',
+    relationship: '',
   }
 }
 
@@ -713,12 +723,14 @@ function onCopyTenantToOccupant(personIdRaw: string) {
   const t = allTenants.value.find((x: any) => x.id === id)
   if (!t) return
   newOccupant.value = {
-    full_name:     t.full_name ?? '',
-    id_number:     t.id_number ?? '',
-    date_of_birth: t.date_of_birth ?? '',
-    phone:         t.phone ?? '',
-    email:         t.email ?? '',
-    relationship:  'self',
+    full_name:          t.full_name ?? '',
+    id_number:          t.id_number ?? '',
+    date_of_birth:      t.date_of_birth ?? '',
+    phone:              t.phone ?? '',
+    phone_country_code: t.phone_country_code || '+27',
+    email:              t.email ?? '',
+    country:            t.country || 'ZA',
+    relationship:       'self',
   }
 }
 
@@ -728,12 +740,14 @@ async function addOccupant() {
   try {
     const { data } = await api.post(`/leases/${props.lease.id}/occupants/`, {
       person: {
-        person_type:    'individual',
-        full_name:      newOccupant.value.full_name,
-        id_number:      newOccupant.value.id_number,
-        date_of_birth:  newOccupant.value.date_of_birth || null,
-        phone:          newOccupant.value.phone,
-        email:          newOccupant.value.email,
+        person_type:        'individual',
+        full_name:          newOccupant.value.full_name,
+        id_number:          newOccupant.value.id_number,
+        date_of_birth:      newOccupant.value.date_of_birth || null,
+        phone:              newOccupant.value.phone,
+        phone_country_code: newOccupant.value.phone_country_code,
+        email:              newOccupant.value.email,
+        country:            newOccupant.value.country,
       },
       relationship_to_tenant: newOccupant.value.relationship,
     })
