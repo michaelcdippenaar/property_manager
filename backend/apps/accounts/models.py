@@ -252,10 +252,15 @@ class Person(models.Model):
     class Meta:
         ordering = ["full_name"]
         constraints = [
+            # Phone is unique WITHIN an agency. Two agencies can legitimately
+            # have a tenant with the same phone number (people move agencies
+            # over time, share phones, etc.). The previous global constraint
+            # crashed lease imports across agencies — see commit history for
+            # the staging 500 trace.
             models.UniqueConstraint(
-                fields=["phone"],
+                fields=["agency", "phone"],
                 condition=~models.Q(phone=""),
-                name="unique_person_phone_when_set",
+                name="unique_person_phone_per_agency",
             ),
         ]
         indexes = [
