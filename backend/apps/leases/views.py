@@ -121,28 +121,35 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
 
     @action(detail=True, methods=["post"], url_path="tenants")
     def add_tenant(self, request, pk=None):
+        from apps.leases.import_view import _get_or_create_person
+
         lease = self.get_object()
         person_id = request.data.get("person_id")
         # Persons are agency-scoped (Phase 4). Bind the lease's agency so we
         # neither leak across tenants on lookup nor stamp NULL on create.
         agency_id = lease.agency_id
+        matched = False
         if person_id:
             person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
-            person_data = request.data.get("person", {})
-            s = PersonSerializer(data=person_data)
-            s.is_valid(raise_exception=True)
-            person = s.save(agency_id=agency_id)
+            person_data = request.data.get("person", {}) or {}
+            person, matched = _get_or_create_person(person_data, agency_id=agency_id)
+            if person is None:
+                return Response(
+                    {"error": "person.full_name is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         payment_reference = (request.data.get("payment_reference") or "").strip()
 
         if not lease.primary_tenant:
             lease.primary_tenant = person
-            update_fields = ["primary_tenant"]
-            if payment_reference:
-                lease.payment_reference = payment_reference
-                update_fields.append("payment_reference")
-            lease.save(update_fields=update_fields)
+            # Phase: payment_reference is per-tenant (LeaseTenant.payment_reference)
+            # only. The lease-level Lease.payment_reference column is being phased
+            # out — do NOT write to it here. Primary-tenant references are surfaced
+            # via lease.primary_tenant_payment_reference (LeaseTenant row created
+            # elsewhere) or via the LeaseTenant table directly.
+            lease.save(update_fields=["primary_tenant"])
         else:
             ct, created = LeaseTenant.objects.get_or_create(
                 lease=lease, person=person,
@@ -155,7 +162,15 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
                 ct.payment_reference = payment_reference
                 ct.save(update_fields=["payment_reference"])
 
-        return Response(PersonSerializer(person).data, status=status.HTTP_201_CREATED)
+        payload = PersonSerializer(person).data
+        if matched:
+            payload = dict(payload)
+            payload["matched_persons"] = [{
+                "role": "tenant",
+                "id": person.id,
+                "full_name": person.full_name,
+            }]
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["patch"], url_path="co-tenants/(?P<co_tenant_id>[^/.]+)")
     def update_co_tenant(self, request, pk=None, co_tenant_id=None):
@@ -192,15 +207,23 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
 
     @action(detail=True, methods=["post"], url_path="occupants")
     def add_occupant(self, request, pk=None):
+        from apps.leases.import_view import _get_or_create_person
+
         lease = self.get_object()
         person_id = request.data.get("person_id")
         agency_id = lease.agency_id
+        matched = False
         if person_id:
             person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
-            s = PersonSerializer(data=request.data.get("person", {}))
-            s.is_valid(raise_exception=True)
-            person = s.save(agency_id=agency_id)
+            person, matched = _get_or_create_person(
+                request.data.get("person", {}) or {}, agency_id=agency_id
+            )
+            if person is None:
+                return Response(
+                    {"error": "person.full_name is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         relationship = request.data.get("relationship_to_tenant", "")
         occ, created = LeaseOccupant.objects.get_or_create(
             lease=lease, person=person,
@@ -211,8 +234,21 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
         )
         if not created:
             occ.relationship_to_tenant = relationship
-            occ.save(update_fields=["relationship_to_tenant"])
-        return Response(LeaseOccupantSerializer(occ).data, status=status.HTTP_201_CREATED)
+            # Backfill agency_id if a legacy row was missing it.
+            if not occ.agency_id:
+                occ.agency_id = lease.agency_id
+                occ.save(update_fields=["relationship_to_tenant", "agency_id"])
+            else:
+                occ.save(update_fields=["relationship_to_tenant"])
+        payload = LeaseOccupantSerializer(occ).data
+        if matched:
+            payload = dict(payload)
+            payload["matched_persons"] = [{
+                "role": "occupant",
+                "id": person.id,
+                "full_name": person.full_name,
+            }]
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="occupants/(?P<occupant_id>[^/.]+)")
     def remove_occupant(self, request, pk=None, occupant_id=None):
@@ -227,15 +263,23 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
 
     @action(detail=True, methods=["post"], url_path="guarantors")
     def add_guarantor(self, request, pk=None):
+        from apps.leases.import_view import _get_or_create_person
+
         lease = self.get_object()
         person_id = request.data.get("person_id")
         agency_id = lease.agency_id
+        matched = False
         if person_id:
             person = get_object_or_404(Person, pk=person_id, agency_id=agency_id)
         else:
-            s = PersonSerializer(data=request.data.get("person", {}))
-            s.is_valid(raise_exception=True)
-            person = s.save(agency_id=agency_id)
+            person, matched = _get_or_create_person(
+                request.data.get("person", {}) or {}, agency_id=agency_id
+            )
+            if person is None:
+                return Response(
+                    {"error": "person.full_name is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         covers_tenant_id = request.data.get("covers_tenant_id")
         covers = (
             Person.objects.filter(pk=covers_tenant_id, agency_id=agency_id).first()
@@ -246,7 +290,15 @@ class LeaseViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, viewsets
             agency_id=lease.agency_id, lease=lease,
             person=person, covers_tenant=covers,
         )
-        return Response(LeaseGuarantorSerializer(gua).data, status=status.HTTP_201_CREATED)
+        payload = LeaseGuarantorSerializer(gua).data
+        if matched:
+            payload = dict(payload)
+            payload["matched_persons"] = [{
+                "role": "guarantor",
+                "id": person.id,
+                "full_name": person.full_name,
+            }]
+        return Response(payload, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["delete"], url_path="guarantors/(?P<guarantor_id>[^/.]+)")
     def remove_guarantor(self, request, pk=None, guarantor_id=None):

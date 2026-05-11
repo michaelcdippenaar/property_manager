@@ -88,7 +88,16 @@ def esigning_submissions_for_user(user):
 
 
 def can_manage_esigning(user):
-    return user.role in (User.Role.ADMIN, User.Role.AGENT)
+    # Mirror IsAgentOrAdmin's allowlist: any staff role except read-only
+    # personas (VIEWER, ACCOUNTANT) and external personas (OWNER, SUPPLIER,
+    # TENANT) may manage e-signing for leases/mandates they can access.
+    return user.role in (
+        User.Role.ADMIN,
+        User.Role.AGENCY_ADMIN,
+        User.Role.MANAGING_AGENT,
+        User.Role.ESTATE_AGENT,
+        User.Role.AGENT,
+    )
 
 
 def _expire_prior_links(submission, signer_role: str):

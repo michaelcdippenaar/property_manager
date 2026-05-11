@@ -84,17 +84,49 @@ class ESigningStatusConsumer(AsyncWebsocketConsumer):
         from .models import ESigningSubmission
 
         try:
-            sub = ESigningSubmission.objects.select_related("lease__unit__property").get(
-                pk=self.submission_pk
-            )
+            sub = ESigningSubmission.objects.select_related(
+                "lease__unit__property", "mandate__property"
+            ).get(pk=self.submission_pk)
         except ESigningSubmission.DoesNotExist:
             return False
 
-        if user.role in (User.Role.ADMIN,):
+        if user.role in (User.Role.ADMIN,) or getattr(user, "is_superuser", False):
             return True
-        if user.role == User.Role.AGENT:
-            return sub.lease.unit.property.agent_id == user.pk or sub.created_by_id == user.pk
+
+        # Resolve the underlying property + agency for either a lease-bound or
+        # mandate-only submission.
+        prop = None
+        sub_agency_id = getattr(sub, "agency_id", None)
+        if sub.lease_id and sub.lease and sub.lease.unit_id:
+            prop = sub.lease.unit.property
+        elif sub.mandate_id and sub.mandate:
+            prop = sub.mandate.property
+
+        staff_roles = (
+            User.Role.AGENT,
+            User.Role.ESTATE_AGENT,
+            User.Role.MANAGING_AGENT,
+            User.Role.AGENCY_ADMIN,
+        )
+        if user.role in staff_roles:
+            if sub.created_by_id == user.pk:
+                return True
+            user_agency_id = getattr(user, "agency_id", None)
+            if user.role in (User.Role.AGENCY_ADMIN, User.Role.MANAGING_AGENT):
+                # Agency-wide reach
+                if user_agency_id and sub_agency_id and user_agency_id == sub_agency_id:
+                    return True
+                if prop is not None and user_agency_id and prop.agency_id == user_agency_id:
+                    return True
+                return False
+            # Individual agent — must be the property's agent
+            if prop is not None and prop.agent_id == user.pk:
+                return True
+            return False
+
         if user.role == User.Role.TENANT:
+            if not sub.lease_id or not sub.lease:
+                return False
             return sub.lease.co_tenants.filter(person__user=user).exists() or (
                 sub.lease.primary_tenant and sub.lease.primary_tenant.user_id == user.pk
             )
