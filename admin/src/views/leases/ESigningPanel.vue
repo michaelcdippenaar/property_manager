@@ -1,6 +1,58 @@
 <template>
   <div class="space-y-4">
 
+    <!-- Just-sent success banner — prominent, persistent confirmation that
+         the lease has actually been dispatched. Sticks for ~15s and lists
+         who got emailed. Complements the corner toast for unambiguous
+         "yes, that worked" feedback. -->
+    <transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="justSent"
+        class="flex items-start gap-3 p-4 bg-success-50 border border-success-200 rounded-xl shadow-sm"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="flex-shrink-0 w-9 h-9 rounded-full bg-success-500 flex items-center justify-center">
+          <CheckCircle2 :size="20" class="text-white" />
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-success-900">
+            Lease sent for signing
+          </div>
+          <div class="text-xs text-success-800 mt-1 leading-relaxed">
+            <template v-if="justSent.recipients.length === 1">
+              Signing email is on its way to
+              <span class="font-medium">{{ justSent.recipients[0] }}</span>.
+            </template>
+            <template v-else-if="justSent.recipients.length > 1">
+              Signing emails are on their way to
+              <span class="font-medium">{{ justSent.recipients.length }} signers</span>:
+              {{ justSent.recipients.join(', ') }}.
+            </template>
+            <template v-else>
+              {{ justSent.count }} signer{{ justSent.count === 1 ? '' : 's' }} added — share signing links manually below.
+            </template>
+            <span class="text-success-600/80"> You'll see live status updates appear here as each signer opens and signs.</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          class="flex-shrink-0 text-success-700/60 hover:text-success-900 p-1 -mt-1 -mr-1 transition-colors"
+          aria-label="Dismiss"
+          @click="justSent = null"
+        >
+          <X :size="14" />
+        </button>
+      </div>
+    </transition>
+
     <!-- Loading -->
     <div v-if="loading" class="flex items-center gap-2 text-sm text-gray-400 py-4">
       <Loader2 :size="15" class="animate-spin" />
@@ -446,10 +498,12 @@ import { useESigningSocket } from '../../composables/useESigningSocket'
 import { markSigningEventSeen } from '../../composables/useGlobalSigningNotifications'
 import { usePersonsStore } from '../../stores/persons'
 import { useAuthStore } from '../../stores/auth'
+import { useToast } from '../../composables/useToast'
 import { trackEvent } from '../../plugins/plausible'
 
 const personsStore = usePersonsStore()
 const authStore = useAuthStore()
+const toast = useToast()
 
 /** Only staff and agency_admin users may record an RHA override. */
 const canRecordOverride = computed(() => {
@@ -507,6 +561,16 @@ interface DraftSigner {
   required_documents?: string[]
 }
 const draftSigners = ref<DraftSigner[]>([])
+
+/**
+ * Post-submit success state. Populated immediately after a successful
+ * POST /esigning/submissions/ and cleared automatically after ~15s.
+ * Drives the prominent green confirmation banner above the timeline so
+ * the user gets unambiguous feedback that the lease has gone out — the
+ * tiny live-WS pulse dot wasn't loud enough on its own.
+ */
+const justSent = ref<{ count: number; recipients: string[]; at: Date } | null>(null)
+let justSentTimer: ReturnType<typeof setTimeout> | null = null
 
 // ── Computed ─────────────────────────────────────────────────────────── //
 const latestSub = computed(() => submissions.value[0] ?? null)
@@ -614,6 +678,7 @@ watch(() => latestSub.value?.status, (status) => {
 }, { immediate: true })
 onUnmounted(() => {
   if (pollTimer) clearInterval(pollTimer)
+  if (justSentTimer) clearTimeout(justSentTimer)
   _mounted = false
 })
 
@@ -722,12 +787,40 @@ async function submitSigning() {
       }))
     if (savePromises.length) await Promise.allSettled(savePromises)
 
+    const emailRecipients = draftSigners.value
+      .filter(s => s.send_email && s.email)
+      .map(s => s.email)
     const { data } = await api.post('/esigning/submissions/', {
       lease_id: props.leaseId,
       signers: draftSigners.value,
     })
     submissions.value.unshift(data)
     closeModal()
+
+    // Explicit success feedback — the live-update pulse alone was too subtle.
+    // 1. Toast (corner): immediate, glanceable confirmation
+    // 2. justSent banner (above timeline): persistent for ~15s, lists
+    //    exactly who was emailed and at what time, so the user sees the
+    //    delivery without any ambiguity.
+    const recipientCount = emailRecipients.length
+    const signerCount = draftSigners.value.length
+    if (recipientCount > 0) {
+      toast.success(
+        recipientCount === 1
+          ? `Lease sent for signing — email on its way to ${emailRecipients[0]}`
+          : `Lease sent for signing — emails on their way to ${recipientCount} signers`,
+      )
+    } else {
+      toast.success(`Lease sent for signing — ${signerCount} signer${signerCount === 1 ? '' : 's'} added`)
+    }
+    justSent.value = {
+      count: signerCount,
+      recipients: emailRecipients,
+      at: new Date(),
+    }
+    if (justSentTimer) clearTimeout(justSentTimer)
+    justSentTimer = setTimeout(() => { justSent.value = null }, 15000)
+
     emit('signed')
   } catch (e: any) {
     const responseData = e?.response?.data
