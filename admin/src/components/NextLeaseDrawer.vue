@@ -166,7 +166,6 @@ const form = reactive<{
   monthly_rent: number | null
   deposit: number | null
   rent_due_day: number | null
-  payment_reference: string
   notice_period_days: number | null
   early_termination_penalty_months: number | null
   max_occupants: number | null
@@ -182,7 +181,6 @@ const form = reactive<{
   monthly_rent: null,
   deposit: null,
   rent_due_day: 1,
-  payment_reference: '',
   notice_period_days: 20,
   early_termination_penalty_months: 3,
   max_occupants: 1,
@@ -220,7 +218,6 @@ onMounted(async () => {
     form.monthly_rent = Number(s.monthly_rent ?? 0)
     form.deposit = Number(s.deposit ?? 0)
     form.rent_due_day = s.rent_due_day ?? 1
-    form.payment_reference = s.payment_reference ?? ''
     form.notice_period_days = s.notice_period_days ?? 20
     form.early_termination_penalty_months = s.early_termination_penalty_months ?? 3
     form.max_occupants = s.max_occupants ?? 1
