@@ -11,21 +11,81 @@ from apps.properties.models import Property, Unit
 from .models import Lease, LeaseTenant, LeaseOccupant, LeaseGuarantor
 
 
-def _get_or_create_person(data: dict, agency_id) -> Person:
+def _normalize_phone(raw: str) -> str:
+    """Strip everything that isn't a digit (or leading +).
+
+    Same human entered as ``"082 306 8144"``, ``"0823068144"`` or
+    ``"+27 82 306 8144"`` should collapse to a single normalised key so
+    lookups match across UI input quirks. We keep the leading ``+`` (if
+    any) but drop everything else.
+    """
+    if not raw:
+        return ""
+    raw = raw.strip()
+    plus = raw.startswith("+")
+    digits = "".join(c for c in raw if c.isdigit())
+    return ("+" if plus else "") + digits
+
+
+def _phone_variants(raw: str) -> list[str]:
+    """Return all reasonable lookup keys for a phone number.
+
+    Stored values may be canonical ("0823068144") or contain spaces /
+    country prefix. Match on every plausible representation so we never
+    fail to find an obvious duplicate just because the format differs
+    between an existing record and the new import.
+
+    SA-aware: "+27 82 306 8144", "0823068144", and "082 306 8144" all
+    refer to the same number — generate cross-format variants so any
+    one of them looks up the others.
+    """
+    if not raw:
+        return []
+    raw = raw.strip()
+    normalised = _normalize_phone(raw)  # keeps leading + if any
+    out: list[str] = []
+
+    def _add(v: str) -> None:
+        if v and v not in out:
+            out.append(v)
+
+    _add(raw)
+    _add(normalised)
+
+    # Without the leading + (some DB rows store bare digits).
+    bare = normalised.lstrip("+")
+    _add(bare)
+
+    # SA-specific: +27NNNNNNNNN ↔ 0NNNNNNNNN.
+    if bare.startswith("27") and len(bare) > 2:
+        _add("0" + bare[2:])
+        _add("+27" + bare[2:])
+    elif bare.startswith("0") and len(bare) > 1:
+        _add("+27" + bare[1:])
+        _add("27" + bare[1:])
+
+    return out
+
+
+def _get_or_create_person(data: dict, agency_id) -> tuple[Person, bool]:
     """Find a matching Person by ID number, phone, or email — or create a new one.
 
     All lookups and the create are scoped to ``agency_id`` so an importer in
     agency A can never silently re-use a Person belonging to agency B.
+
+    Returns ``(person, matched)`` where ``matched=True`` means we reused an
+    existing record (caller may want to surface "linked to existing tenant"
+    in the response). ``matched=False`` means a fresh row was created.
     """
     id_number = (data.get("id_number") or "").strip()
     full_name = (data.get("full_name") or "").strip()
     phone = (data.get("phone") or "").strip()
-    email = (data.get("email") or "").strip()
+    email = (data.get("email") or "").strip().lower()
     country = (data.get("country") or "").strip()
     phone_country_code = (data.get("phone_country_code") or "").strip()
 
     if not full_name:
-        return None
+        return None, False
 
     base_qs = Person.objects.filter(agency_id=agency_id)
 
@@ -33,25 +93,28 @@ def _get_or_create_person(data: dict, agency_id) -> Person:
     if id_number:
         person = base_qs.filter(id_number=id_number).first()
         if person:
-            return person
+            return person, True
 
-    # Match on phone (unique when set)
-    if phone:
-        person = base_qs.filter(phone=phone).first()
+    # Match on phone — try all normalised variants so "082 306 8144" and
+    # "0823068144" match the same DB row.
+    variants = _phone_variants(phone)
+    if variants:
+        person = base_qs.filter(phone__in=variants).first()
         if person:
-            return person
+            return person, True
 
-    # Match on email
+    # Match on email (case-insensitive)
     if email:
-        person = base_qs.filter(email=email).first()
+        person = base_qs.filter(email__iexact=email).first()
         if person:
-            return person
+            return person, True
 
+    # Store phone in normalised form so future lookups don't depend on input formatting.
     create_kwargs = dict(
         agency_id=agency_id,
         full_name=full_name,
         id_number=id_number or "",
-        phone=phone,
+        phone=_normalize_phone(phone),
         email=email,
         person_type="individual",
     )
@@ -61,7 +124,7 @@ def _get_or_create_person(data: dict, agency_id) -> Person:
         create_kwargs["country"] = country
     if phone_country_code:
         create_kwargs["phone_country_code"] = phone_country_code
-    return Person.objects.create(**create_kwargs)
+    return Person.objects.create(**create_kwargs), False
 
 
 class ImportLeaseView(APIView):
@@ -168,9 +231,15 @@ class ImportLeaseView(APIView):
         # same tenancy as the lease.
         person_agency_id = prop.agency_id
         primary_data = d.get("primary_tenant") or {}
-        primary_person = _get_or_create_person(primary_data, agency_id=person_agency_id)
+        primary_person, primary_matched = _get_or_create_person(primary_data, agency_id=person_agency_id)
         if not primary_person:
             return Response({"error": "primary_tenant.full_name is required."}, status=400)
+
+        # Track which Persons we linked vs created so the response can show
+        # "Linked to existing tenant Joe Smith (already on Property X)" toasts.
+        matched_persons: list[dict] = []
+        if primary_matched:
+            matched_persons.append({"role": "primary_tenant", "id": primary_person.id, "full_name": primary_person.full_name})
 
         # ── Validate required date fields ───────────────────────────────────
         start_date = (d.get("start_date") or "").strip() or None
@@ -230,8 +299,10 @@ class ImportLeaseView(APIView):
 
         # ── Co-tenants ───────────────────────────────────────────────────────
         for ct_data in (d.get("co_tenants") or []):
-            person = _get_or_create_person(ct_data, agency_id=person_agency_id)
+            person, matched = _get_or_create_person(ct_data, agency_id=person_agency_id)
             if person:
+                if matched:
+                    matched_persons.append({"role": "co_tenant", "id": person.id, "full_name": person.full_name})
                 LeaseTenant.objects.get_or_create(
                     lease=lease, person=person,
                     defaults={
@@ -242,8 +313,10 @@ class ImportLeaseView(APIView):
 
         # ── Occupants ────────────────────────────────────────────────────────
         for oc_data in (d.get("occupants") or []):
-            person = _get_or_create_person(oc_data, agency_id=person_agency_id)
+            person, matched = _get_or_create_person(oc_data, agency_id=person_agency_id)
             if person:
+                if matched:
+                    matched_persons.append({"role": "occupant", "id": person.id, "full_name": person.full_name})
                 LeaseOccupant.objects.get_or_create(
                     lease=lease, person=person,
                     defaults={
@@ -254,8 +327,10 @@ class ImportLeaseView(APIView):
 
         # ── Guarantors ───────────────────────────────────────────────────────
         for g_data in (d.get("guarantors") or []):
-            person = _get_or_create_person(g_data, agency_id=person_agency_id)
+            person, matched = _get_or_create_person(g_data, agency_id=person_agency_id)
             if person:
+                if matched:
+                    matched_persons.append({"role": "guarantor", "id": person.id, "full_name": person.full_name})
                 # Resolve who they cover by name — scoped so we don't bind the
                 # guarantor to a same-named Person in another agency.
                 covers_name = (g_data.get("for_tenant") or "").strip()
@@ -277,4 +352,9 @@ class ImportLeaseView(APIView):
             "primary_tenant_id": primary_person.id,
             "co_tenant_person_ids": list(lease.co_tenants.values_list("person_id", flat=True)),
             "guarantor_person_ids": list(lease.guarantors.values_list("person_id", flat=True)),
+            # Frontend uses this to show "Linked to existing tenant <name>"
+            # toasts so the user understands that no new Person was created
+            # for parties that matched an existing record by phone / id_number
+            # / email within the same agency.
+            "matched_persons": matched_persons,
         }, status=status.HTTP_201_CREATED)

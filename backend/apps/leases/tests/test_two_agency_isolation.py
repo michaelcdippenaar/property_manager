@@ -242,7 +242,7 @@ class ImportLeasePersonScopingTest(TwoAgencyLeaseIsolationTestBase):
             agency=self.agency_b, full_name="Bob Foreigner",
             id_number="9001015009087",
         )
-        person = _get_or_create_person(
+        person, matched = _get_or_create_person(
             {
                 "full_name": "Alice Local",
                 "id_number": "9001015009087",  # collides with agency B's row
@@ -251,16 +251,49 @@ class ImportLeasePersonScopingTest(TwoAgencyLeaseIsolationTestBase):
         )
         self.assertEqual(person.agency_id, self.agency_a.id)
         self.assertEqual(person.full_name, "Alice Local")
+        # New row was created — not matched to agency B's foreign Person.
+        self.assertFalse(matched)
 
     def test_import_creates_person_with_caller_agency_id(self):
         from apps.leases.import_view import _get_or_create_person
 
-        person = _get_or_create_person(
+        person, matched = _get_or_create_person(
             {"full_name": "Fresh Tenant", "id_number": "8501015009088"},
             agency_id=self.agency_a.id,
         )
         self.assertIsNotNone(person.agency_id)
         self.assertEqual(person.agency_id, self.agency_a.id)
+        self.assertFalse(matched)
+
+    def test_import_reuses_existing_person_in_same_agency_by_phone(self):
+        """Same agency, same phone (in any format) → reuse existing Person.
+
+        Regression for the staging 500 — one parent rents two units for
+        their two children in the same agency. Second lease must match
+        the existing Person record by phone, not crash on UNIQUE.
+        """
+        from apps.leases.import_view import _get_or_create_person
+
+        existing = Person.objects.create(
+            agency=self.agency_a,
+            full_name="Mom Renter",
+            phone="0823068144",
+        )
+        # Second lease, same agency, same phone but formatted with spaces.
+        person, matched = _get_or_create_person(
+            {"full_name": "Mom Renter", "phone": "082 306 8144"},
+            agency_id=self.agency_a.id,
+        )
+        self.assertEqual(person.pk, existing.pk)  # reused
+        self.assertTrue(matched)
+
+        # And with +27 prefix.
+        person2, matched2 = _get_or_create_person(
+            {"full_name": "Mom Renter", "phone": "+27 82 306 8144"},
+            agency_id=self.agency_a.id,
+        )
+        self.assertEqual(person2.pk, existing.pk)
+        self.assertTrue(matched2)
 
 
 class AddTenantCrossAgencyTest(TwoAgencyLeaseIsolationTestBase):
