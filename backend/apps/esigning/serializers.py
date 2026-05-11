@@ -6,18 +6,30 @@ class ESigningSubmissionSerializer(serializers.ModelSerializer):
     lease_label = serializers.SerializerMethodField()
     current_signer = serializers.SerializerMethodField()
     signing_progress = serializers.SerializerMethodField()
+    # Backwards-compatible alias for the SPA. The field name `signed_pdf_url`
+    # comes from the DocuSeal era (a TextField). After the native-signing
+    # migration the storage is `signed_pdf_file` (FileField) — we surface the
+    # file's URL under the legacy key so the WS state and REST payload align.
+    signed_pdf_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ESigningSubmission
         fields = [
-            'id', 'lease', 'lease_label',
+            'id', 'lease', 'mandate', 'lease_label',
             'status', 'signing_mode', 'signing_backend', 'signers',
             'captured_data', 'created_at', 'updated_at',
-            'current_signer', 'signing_progress',
+            'current_signer', 'signing_progress', 'signed_pdf_url',
         ]
         read_only_fields = [
             'status', 'signers', 'created_at', 'updated_at',
         ]
+
+    def get_signed_pdf_url(self, obj):
+        f = getattr(obj, "signed_pdf_file", None)
+        try:
+            return f.url if f else None
+        except ValueError:
+            return None
 
     def get_lease_label(self, obj):
         if obj.lease_id:
