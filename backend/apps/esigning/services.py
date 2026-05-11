@@ -460,9 +460,12 @@ def generate_lease_html(lease, num_signers: int = 1, template_id: int | None = N
     # lease's owning agency. A null lease.agency_id can only happen for
     # legacy data; in that case we keep the historical fallback (no scope).
     caller_agency_id = getattr(lease, "agency_id", None)
-    template_qs = LeaseTemplate.objects.all()
-    if caller_agency_id is not None:
-        template_qs = template_qs.filter(agency_id=caller_agency_id)
+    # Scope strictly to the lease's owning agency. A null agency_id is treated
+    # as "no scope resolvable" → empty set, so we never render foreign content.
+    if caller_agency_id is None:
+        template_qs = LeaseTemplate.objects.none()
+    else:
+        template_qs = LeaseTemplate.objects.filter(agency_id=caller_agency_id)
 
     # Use specified template or fall back to most recent active one
     tmpl = None
@@ -974,17 +977,22 @@ def sync_captured_data_to_models(submission):
     # lease's agency so a tenant in agency A cannot reuse / leak an
     # occupant Person belonging to agency B.
     person_agency_id = getattr(lease, 'agency_id', None)
+    from apps.leases.import_view import _get_or_create_person
     for i in range(1, 5):
         occ_name = data.get(f'occupant_{i}_name', '').strip()
         if occ_name and occ_name != '—':
-            person, created = Person.objects.get_or_create(
-                agency_id=person_agency_id,
-                full_name=occ_name,
-                defaults={
-                    'id_number': data.get(f'occupant_{i}_id', '').strip(),
-                }
-            )
-            if not created:
+            # Normalise + dedupe by ID/phone/email so signing-time capture does
+            # not duplicate Persons already created during onboarding.
+            person_data = {
+                'full_name': occ_name,
+                'id_number': data.get(f'occupant_{i}_id', '').strip(),
+                'phone': data.get(f'occupant_{i}_phone', '').strip(),
+                'email': data.get(f'occupant_{i}_email', '').strip(),
+            }
+            person, matched = _get_or_create_person(person_data, agency_id=person_agency_id)
+            if person is None:
+                continue
+            if matched:
                 _update_person(person, f'occupant_{i}')
             LeaseOccupant.objects.get_or_create(
                 lease=lease, person=person,
