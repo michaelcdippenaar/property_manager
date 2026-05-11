@@ -629,6 +629,12 @@ async function initView() {
     if (target) {
       editingLease.value = target
       showEdit.value = true
+      // Audit Bug 6: the active tab defaults to whatever ?tab= says (or
+      // 'all' from the constructor). A newly-renewed lease has
+      // status='pending', which is invisible on the Active tab and shown
+      // only when 'all' includes drafts/pending. Force 'all' here so the
+      // drawer-close lands on a tab where the lease is actually visible.
+      activeTab.value = 'all'
       // Strip the param so re-activating the view doesn't re-open the drawer.
       const { edit: _edit, ...restQuery } = route.query as Record<string, string>
       void _edit

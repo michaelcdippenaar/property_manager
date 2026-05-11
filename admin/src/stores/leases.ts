@@ -156,8 +156,15 @@ export const useLeasesStore = defineStore('leases', () => {
   async function importLease(payload: Record<string, unknown>): Promise<Lease> {
     try {
       const { data } = await api.post('/leases/import/', payload)
-      const created = upsert(data)
+      const created = upsert(data) as Lease & { matched_persons?: any[] }
       loadedAt.value = null
+      // Pass through the backend's matched_persons (existing-tenant dedupe
+      // signal) so the wizard can surface "Linked to existing tenant: …"
+      // toasts. Not a persistent Lease field — attached on the returned
+      // instance only, audit Bug 9.
+      if (Array.isArray(data?.matched_persons)) {
+        created.matched_persons = data.matched_persons
+      }
       await maybeRefreshParentProperty(data)
       return created
     } catch (err) {

@@ -685,8 +685,12 @@ const LeaseFormFields = defineComponent({
               h('span', { class: 'text-xs font-semibold text-navy/50 uppercase tracking-wide' }, 'Tenant 1'),
             ]),
             h(PersonBlock, { modelValue: f.primary_tenant, hasError: errs.includes('primary_tenant'), 'onUpdate:modelValue': (v: any) => updForm('primary_tenant', v) }),
+            // Audit Bug 13: primary tenant payment_reference still lives on
+            // Lease.payment_reference (not LeaseTenant) while co-tenants use
+            // LeaseTenant.payment_reference. Label-clarify so users
+            // understand the storage asymmetry until the migration lands.
             h('div', { class: 'mt-2' }, [
-              h('label', { class: 'label' }, 'Payment reference'),
+              h('label', { class: 'label' }, 'Lease payment reference (primary tenant default)'),
               h('input', {
                 class: inputCls,
                 value: f.payment_reference || '',

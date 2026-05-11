@@ -185,7 +185,7 @@
                     <label class="label">Full Name</label>
                     <input v-model="t.full_name" class="input" placeholder="Full legal name" />
                   </div>
-                  <div>
+                  <div class="col-span-2">
                     <label class="label">ID / Passport</label>
                     <MaskedInput v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" />
                   </div>
@@ -220,7 +220,7 @@
                   <label class="label">Full Name *</label>
                   <input v-model="newTenant.full_name" class="input" placeholder="Full legal name" />
                 </div>
-                <div>
+                <div class="col-span-2">
                   <label class="label">ID / Passport</label>
                   <MaskedInput v-model="newTenant.id_number" class="input font-mono" />
                 </div>

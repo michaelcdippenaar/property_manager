@@ -314,7 +314,14 @@
                 <div class="pt-4 space-y-2">
                   <PersonBlock v-model="form.primary_tenant" />
                   <div>
-                    <label class="label">Payment reference (this tenant)</label>
+                    <!--
+                      Audit Bug 13: primary tenant payment_reference still
+                      lives on Lease.payment_reference (not LeaseTenant)
+                      while co-tenants use LeaseTenant.payment_reference.
+                      Label-clarify so users understand the storage
+                      asymmetry until the migration follow-up lands.
+                    -->
+                    <label class="label">Lease payment reference (primary tenant default)</label>
                     <input
                       v-model="form.payment_reference"
                       class="input text-xs"
@@ -351,6 +358,26 @@
               </div>
               <div v-for="(oc, i) in form.occupants" :key="i" class="relative border border-success-100 rounded-xl p-4 bg-success-50/40">
                 <button @click="form.occupants.splice(i, 1)" class="absolute top-3 right-3 text-gray-400 hover:text-danger-500"><X :size="14" /></button>
+                <!-- Audit Bug 14: parity with LeaseBuilderView + EditLeaseDrawer — "Same as tenant" copier -->
+                <div v-if="tenantCopyOptions.length" class="flex items-center justify-end gap-2 mb-2">
+                  <span class="text-xs text-gray-400">Same as:</span>
+                  <select
+                    v-if="tenantCopyOptions.length > 1"
+                    class="input text-xs py-1 w-auto"
+                    @change="onCopyTenantToOccupant(i, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">— pick tenant —</option>
+                    <option v-for="(opt, oi) in tenantCopyOptions" :key="oi" :value="opt.source">{{ opt.label }}</option>
+                  </select>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn-ghost text-xs"
+                    @click="onCopyTenantToOccupant(i, String(tenantCopyOptions[0].source))"
+                  >
+                    Same as tenant
+                  </button>
+                </div>
                 <PersonBlock v-model="form.occupants[i]" compact />
                 <div class="mt-2">
                   <label class="label">Relationship to tenant</label>
@@ -477,6 +504,18 @@
           <div>
             <div class="font-semibold text-gray-900 text-lg">Lease imported!</div>
             <div class="text-sm text-gray-500 mt-1">Property, tenants and contract have been created.</div>
+          </div>
+          <!-- Audit Bug 9: tell the agent which rows were reused. -->
+          <div v-if="matchedPersons.length" class="bg-info-50 border border-info-100 rounded-xl p-3 text-left">
+            <p class="text-xs font-semibold text-info-700 mb-1.5">
+              Linked to existing {{ matchedPersons.length === 1 ? 'person' : 'people' }}:
+            </p>
+            <ul class="text-xs text-info-700 space-y-0.5">
+              <li v-for="(m, mi) in matchedPersons" :key="mi">
+                <span class="font-medium capitalize">{{ m.role.replace(/_/g, ' ') }}:</span>
+                {{ m.full_name }}
+              </li>
+            </ul>
           </div>
           <div class="flex gap-2 justify-center pt-2">
             <button class="btn-ghost" @click="reset">Import another</button>
@@ -670,6 +709,47 @@ interface ExtraDoc {
   file: File | null
 }
 const extraDocs = ref<ExtraDoc[]>([])
+
+// Audit Bug 9: backend returns matched_persons on a successful import so we
+// can show the agent which roles were linked to existing Person rows (and
+// which were freshly created). Populated by doImport(), rendered on step 3.
+const matchedPersons = ref<Array<{ role: string; id: number; full_name: string }>>([])
+
+// Audit Bug 14: parity with EditLeaseDrawer / LeaseBuilderView — let the
+// agent populate an occupant from one of the captured tenants (the
+// physical occupant is often the primary tenant themselves).
+const tenantCopyOptions = computed(() => {
+  const opts: { label: string; source: 'primary' | number }[] = []
+  const pt = form.value.primary_tenant as any
+  if (pt && (pt.full_name || pt.id_number)) {
+    opts.push({ label: `Primary tenant${pt.full_name ? `: ${pt.full_name}` : ''}`, source: 'primary' })
+  }
+  ;(form.value.co_tenants ?? []).forEach((ct: any, i: number) => {
+    if (ct && (ct.full_name || ct.id_number)) {
+      opts.push({ label: `Tenant ${i + 2}${ct.full_name ? `: ${ct.full_name}` : ''}`, source: i })
+    }
+  })
+  return opts
+})
+
+function onCopyTenantToOccupant(occupantIndex: number, source: 'primary' | number | string) {
+  if (source === '' || source === undefined || source === null) return
+  const src: any = source === 'primary'
+    ? form.value.primary_tenant
+    : (form.value.co_tenants ?? [])[Number(source)]
+  if (!src) return
+  const current = form.value.occupants[occupantIndex] ?? {}
+  form.value.occupants[occupantIndex] = {
+    ...current,
+    full_name:          src.full_name ?? '',
+    id_number:          src.id_number ?? '',
+    phone:              src.phone ?? '',
+    phone_country_code: src.phone_country_code ?? '+27',
+    email:              src.email ?? '',
+    country:            src.country ?? 'ZA',
+    relationship_to_tenant: current.relationship_to_tenant || 'self',
+  }
+}
 
 function emptyPerson() {
   return {
@@ -916,6 +996,11 @@ async function doImport() {
       if (useExistingUnit.value) payload.unit_id = useExistingUnit.value
     }
     const created = await leasesStore.importLease(payload)
+    // Audit Bug 9: surface "linked to existing tenant" matches on the
+    // success screen so the agent knows which rows were reused vs newly
+    // created (and can sanity-check that the import didn't accidentally
+    // attach to the wrong person).
+    matchedPersons.value = (created as any).matched_persons ?? []
 
     // Auto-attach the original PDF as a signed_lease document
     if (pdfFile.value && created.id) {
@@ -978,6 +1063,7 @@ function reset() {
   useExistingProperty.value = false
   useExistingUnit.value = false
   extraDocs.value = []
+  matchedPersons.value = []
   form.value = {
     property: { name: '', address: '', city: '', province: '', postal_code: '', property_type: 'house' },
     unit: { unit_number: '1', bedrooms: 1, bathrooms: 1 },
