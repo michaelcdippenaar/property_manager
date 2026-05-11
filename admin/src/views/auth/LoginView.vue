@@ -107,7 +107,14 @@ const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 const loading = ref(false)
-const error = ref('')
+// Audit Bug 8: tenant role homeRoute redirects here with ?error=tenant_use_app
+// when an attempt is made to log a tenant into the admin portal. Surface a
+// human-friendly explanation rather than dropping them on a blank form.
+const error = ref(
+  route.query.error === 'tenant_use_app'
+    ? 'Tenants use the Klikk mobile app, not the admin portal.'
+    : ''
+)
 const googleButtonRef = ref<HTMLElement | null>(null)
 
 onMounted(async () => {

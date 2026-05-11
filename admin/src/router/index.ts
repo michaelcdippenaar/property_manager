@@ -252,6 +252,17 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
 
+  // Audit Bug 8: a tenant role authenticated against /api/v1/auth/login/
+  // must not enter the admin SPA. Detect, logout, and let them through to
+  // the login page (where ?error=tenant_use_app surfaces the reason). Without
+  // this, the auth-redirect loop below would bounce them to homeRoute →
+  // /login?error=… → guard sees isAuthenticated again → homeRoute → infinite.
+  if (auth.isAuthenticated && auth.user && auth.isTenant) {
+    auth.logout()
+    if (to.path === '/login' && to.query.error === 'tenant_use_app') return
+    return { path: '/login', query: { error: 'tenant_use_app' } }
+  }
+
   // Public routes (e.g. login, passwordless /sign/:token)
   if (to.meta.public) {
     const allowWhenAuthed = to.meta.allowWhenAuthenticated === true

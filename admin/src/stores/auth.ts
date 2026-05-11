@@ -52,6 +52,11 @@ export const useAuthStore = defineStore('auth', () => {
   const homeRoute = computed(() => {
     if (isSupplier.value) return '/jobs'
     if (isOwner.value) return '/owner'
+    // Audit Bug 8: tenants don't belong in the admin portal — every dashboard
+    // endpoint will 403 and the user lands on a blank screen. The admin SPA
+    // has no tenant-facing route. The router guard detects this role and
+    // logs them out before redirecting to login with an explanatory error.
+    if (isTenant.value) return '/login?error=tenant_use_app'
     const role = user.value?.role
     if (role === 'agency_admin') return '/agency'
     if (role === 'agent' || role === 'estate_agent' || role === 'managing_agent') return '/agent'
@@ -104,6 +109,7 @@ export const useAuthStore = defineStore('auth', () => {
     first_name: string
     last_name: string
     phone?: string
+    phone_country_code?: string
     account_type?: string
     agency_name?: string
     tos_document_id?: number | null

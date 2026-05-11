@@ -89,7 +89,10 @@
 
           <div>
             <label for="reg-phone" class="label">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
-            <input id="reg-phone" v-model="form.phone" type="tel" class="input" placeholder="082 123 4567" autocomplete="tel" />
+            <div class="flex gap-2">
+              <PhoneCountryCodeSelect v-model="form.phone_country_code" compact />
+              <input id="reg-phone" v-model="form.phone" type="tel" class="input flex-1 min-w-0" placeholder="082 123 4567" autocomplete="tel" />
+            </div>
           </div>
 
           <div>
@@ -195,6 +198,7 @@ import { Eye, EyeOff, AlertCircle, Loader2, Building2, Home, ChevronLeft } from 
 import api from '../../api'
 import { trackEvent } from '../../plugins/plausible'
 import EmailInput from '../../components/EmailInput.vue'
+import PhoneCountryCodeSelect from '../../components/PhoneCountryCodeSelect.vue'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -209,6 +213,7 @@ const form = reactive({
   last_name: '',
   email: '',
   phone: '',
+  phone_country_code: '+27',
   password: '',
 })
 const confirmPassword = ref('')
@@ -290,6 +295,7 @@ async function handleRegister() {
       first_name: form.first_name,
       last_name: form.last_name,
       phone: form.phone || undefined,
+      phone_country_code: form.phone ? form.phone_country_code : undefined,
       account_type: form.account_type || 'individual',
       agency_name: form.account_type === 'agency' ? form.agency_name : undefined,
       // POPIA s11 — pass current document IDs so the backend can persist
