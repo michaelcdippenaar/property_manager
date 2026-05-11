@@ -468,23 +468,33 @@ const PersonBlock = defineComponent({
       const p = props.modelValue as any
       const cls = 'input text-xs py-1.5'
       const errCls = 'input text-xs py-1.5 !border-danger-400 !ring-danger-100'
+      // Audit Bug 5 — WCAG 1.3.1 / 3.3.2: PersonBlock used placeholders as
+      // pseudo-labels (a screen reader hears "Phone" only until the user
+      // starts typing). Mirror ImportLeaseWizard's PersonBlock so the
+      // labels are real <label class="label"> elements.
       return h('div', { class: 'grid grid-cols-2 gap-1.5' }, [
         h('div', { class: 'col-span-2' }, [
+          h('label', { class: 'label' }, 'Full name'),
           h('input', { class: props.hasError && !p.full_name ? errCls : cls, value: p.full_name, placeholder: 'Full name *', onInput: (e: any) => upd('full_name', e.target.value) }),
         ]),
         h('div', [
-          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
-        ]),
-        h('div', { class: 'col-span-2 flex gap-1.5' }, [
-          h(PhoneCountryCodeSelect, {
-            modelValue: p.phone_country_code ?? '+27',
-            compact: true,
-            inputClass: cls,
-            'onUpdate:modelValue': (v: string) => upd('phone_country_code', v),
-          }),
-          h('input', { class: cls + ' flex-1 min-w-0', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
+          h('label', { class: 'label' }, 'ID / Passport'),
+          h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID number', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
         h('div', { class: 'col-span-2' }, [
+          h('label', { class: 'label' }, 'Phone'),
+          h('div', { class: 'flex gap-1.5' }, [
+            h(PhoneCountryCodeSelect, {
+              modelValue: p.phone_country_code ?? '+27',
+              compact: true,
+              inputClass: cls,
+              'onUpdate:modelValue': (v: string) => upd('phone_country_code', v),
+            }),
+            h('input', { class: cls + ' flex-1 min-w-0', value: p.phone, placeholder: 'Phone', onInput: (e: any) => upd('phone', e.target.value) }),
+          ]),
+        ]),
+        h('div', { class: 'col-span-2' }, [
+          h('label', { class: 'label' }, 'Email'),
           h(EmailInput, {
             modelValue: p.email ?? '',
             placeholder: 'Email',
@@ -493,6 +503,7 @@ const PersonBlock = defineComponent({
           }),
         ]),
         h('div', { class: 'col-span-2' }, [
+          h('label', { class: 'label' }, 'Country'),
           h(CountrySelect, {
             modelValue: p.country ?? 'ZA',
             compact: true,

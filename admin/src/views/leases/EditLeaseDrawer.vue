@@ -621,13 +621,24 @@ function initTenants() {
   allTenants.value = tenants
   for (const t of tenants) {
     if (t.id) {
+      // Audit Bug 7: empty country / phone_country_code from the API let the
+      // CountrySelect *display* ZA (via its `?? 'ZA'` fallback) while the
+      // form model held ''. The save-time diff then read `t.country ?? ''`
+      // against `orig.country ?? ''` — both blank → no patch was emitted →
+      // reload showed the field as blank again. The agent thought they'd
+      // saved ZA. Fix by normalising the form model AND the snapshot to
+      // the same defaults the selects use, so:
+      //   - first load shows the correct flag/code
+      //   - editing back to blank-and-saving doesn't silently no-op
+      t.country = t.country || 'ZA'
+      t.phone_country_code = t.phone_country_code || '+27'
       originalPersonData.set(t.id, {
         full_name: t.full_name ?? '',
         id_number: t.id_number ?? '',
         phone: t.phone ?? '',
-        phone_country_code: t.phone_country_code ?? '',
+        phone_country_code: t.phone_country_code,
         email: t.email ?? '',
-        country: t.country ?? '',
+        country: t.country,
         payment_reference: t.payment_reference ?? '',
       })
     }
@@ -658,12 +669,19 @@ async function addTenant() {
     const { data } = await api.post(`/leases/${props.lease.id}/tenants/`, {
       person: { person_type: 'individual', ...newTenant.value },
     })
+    // Normalise empty country / phone_country_code to ZA / +27 so the
+    // initial snapshot matches what the selects render (audit Bug 7).
+    data.country = data.country || 'ZA'
+    data.phone_country_code = data.phone_country_code || '+27'
     allTenants.value.push({ ...data })
     originalPersonData.set(data.id, {
       full_name: data.full_name ?? '',
       id_number: data.id_number ?? '',
       phone: data.phone ?? '',
+      phone_country_code: data.phone_country_code,
       email: data.email ?? '',
+      country: data.country,
+      payment_reference: '',
     })
     showAddTenant.value = false
     resetNewTenant()
@@ -877,14 +895,16 @@ async function saveAll() {
           })
         )
       }
-      // Update snapshot so re-saving doesn't re-patch
+      // Update snapshot so re-saving doesn't re-patch.
+      // Mirror initTenants() defaults so the diff above stays consistent
+      // across save → reload cycles (audit Bug 7).
       originalPersonData.set(t.id, {
         full_name: t.full_name ?? '',
         id_number: t.id_number ?? '',
         phone: t.phone ?? '',
-        phone_country_code: t.phone_country_code ?? '',
+        phone_country_code: t.phone_country_code || '+27',
         email: t.email ?? '',
-        country: t.country ?? '',
+        country: t.country || 'ZA',
         payment_reference: t.payment_reference ?? '',
       })
     }
