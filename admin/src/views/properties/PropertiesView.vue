@@ -281,6 +281,44 @@
             <option v-for="ll in landlords" :key="ll.id" :value="ll.id">{{ ll.name }}</option>
           </select>
         </div>
+
+        <!-- Services & Facilities (audit Bug 3) — property-level defaults.
+             Captured at creation so the first lease can inherit useful
+             values instead of "all defaults". Mirrors the section in
+             PropertyDetailView so the layout stays consistent. -->
+        <div class="border-t border-gray-100 pt-4 mt-2">
+          <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Services &amp; Facilities</div>
+          <div class="text-xs text-gray-400 mb-3">Defaults inherited by new leases on this property. Each lease can override.</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="label">Water</label>
+              <select v-model="newProperty.water_arrangement" class="input">
+                <option value="included">Water included in rent</option>
+                <option value="not_included">Water not included</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Electricity</label>
+              <select v-model="newProperty.electricity_arrangement" class="input">
+                <option value="prepaid">Prepaid</option>
+                <option value="eskom_direct">Direct Eskom account</option>
+                <option value="included">Included in rent</option>
+                <option value="not_included">Tenant arranges separately</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-3 mt-3">
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="newProperty.gardening_service_included" type="checkbox" /> Gardening
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="newProperty.wifi_included" type="checkbox" /> Wifi
+            </label>
+            <label class="flex items-center gap-2 text-sm">
+              <input v-model="newProperty.security_service_included" type="checkbox" /> Armed response
+            </label>
+          </div>
+        </div>
       </div>
 
       <template #footer>
@@ -390,7 +428,17 @@ const sortDir = ref<'asc' | 'desc'>('asc')
 const dialog = ref(false)
 const propertyTypes = PROPERTY_TYPES
 const propertyTypeValues = PROPERTY_TYPE_VALUES
-const newProperty = ref({ name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' })
+const newProperty = ref({
+  name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '',
+  // Services & facilities defaults (audit Bug 3): captured at creation so
+  // the very first lease on this property can inherit something better than
+  // "not_included / prepaid / all-false". Each lease can still override.
+  water_arrangement: 'not_included' as 'included' | 'not_included',
+  electricity_arrangement: 'prepaid' as 'prepaid' | 'eskom_direct' | 'included' | 'not_included',
+  gardening_service_included: false,
+  wifi_included: false,
+  security_service_included: false,
+})
 const selectedAddress = ref<AddressResult | null>(null)
 const landlordsStore = useLandlordsStore()
 const { list: landlords } = storeToRefs(landlordsStore)
@@ -609,7 +657,14 @@ async function createProperty() {
     }
 
     dialog.value = false
-    newProperty.value = { name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '' }
+    newProperty.value = {
+      name: '', property_type: 'apartment', address: '', city: '', province: '', postal_code: '',
+      water_arrangement: 'not_included',
+      electricity_arrangement: 'prepaid',
+      gardening_service_included: false,
+      wifi_included: false,
+      security_service_included: false,
+    }
     selectedAddress.value = null
     newPropertyLandlordId.value = null
     toast.success('Property created successfully')
