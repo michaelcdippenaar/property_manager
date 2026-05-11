@@ -642,7 +642,16 @@ async function initView() {
     }
   }
 
-  // Deep-link: auto-expand a lease from query params
+  // Deep-link: auto-expand a lease from query params.
+  // Force 'all' tab on any ?expand= — the user may have been on Draft
+  // (via the dashboard stat tile or a cached KeepAlive tab state) when
+  // they kicked off the builder. The newly-created lease lives in
+  // `leases`, not `drafts`, so the Draft tab would render an empty
+  // state and hide the row we're trying to expand. Same pattern as
+  // the ?edit= deep-link above.
+  if (expandId) {
+    activeTab.value = 'all'
+  }
   if (expandId && leases.value.some((l: any) => l.id === expandId)) {
     if (!expanded.value.includes(expandId)) expanded.value.push(expandId)
 
