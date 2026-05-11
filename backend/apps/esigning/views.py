@@ -153,8 +153,14 @@ class ESigningSubmissionListCreateView(ScopedESigningQuerysetMixin, ListCreateAP
         # ESigningSubmission, only one pending submission can exist per lease.
         try:
             with transaction.atomic():
+                # `select_for_update(of=("self",))` scopes the row lock to the
+                # Lease table only. Without `of=...` Postgres rejects the
+                # query with "FOR UPDATE cannot be applied to the nullable
+                # side of an outer join" because `select_related` on
+                # `unit__property__agency` produces LEFT OUTER JOINs
+                # (unit/property/agency are nullable).
                 lease = (
-                    Lease.objects.select_for_update()
+                    Lease.objects.select_for_update(of=("self",))
                     .select_related("unit__property__agency")
                     .get(pk=lease_id)
                 )
