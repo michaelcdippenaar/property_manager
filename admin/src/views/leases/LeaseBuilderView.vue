@@ -1342,6 +1342,17 @@ async function doFormCreate() {
     createdLeaseNumber.value = data.lease_number
     createdLeaseId.value = data.id
     step.value = 3
+    // Lease is now persisted as a real record — the form is no longer "dirty
+    // unsaved work." Clear the dirty flag so the route-leave guard doesn't
+    // pop a "save as draft?" prompt on the user. The draft-prompt is reserved
+    // for cases where the user exits without an explicit save/create action.
+    markClean()
+    // If we were editing an auto-saved draft, drop it now that the real lease
+    // exists — otherwise the draft would coexist with its own finalized lease.
+    if (draftId.value) {
+      try { await api.delete(`/leases/builder/drafts/${draftId.value}/`) } catch { /* silent */ }
+      draftId.value = null
+    }
   } catch (e: any) {
     const detail = e?.response?.data?.error ?? e?.message ?? 'Failed to create lease'
     submitError.value = typeof detail === 'string' ? detail : JSON.stringify(detail)
