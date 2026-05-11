@@ -189,11 +189,11 @@
                     <label class="label">ID / Passport</label>
                     <MaskedInput v-model="t.id_number" class="input font-mono" placeholder="SA ID or passport" />
                   </div>
-                  <div>
+                  <div class="col-span-2">
                     <label class="label">Phone</label>
                     <div class="flex gap-2">
-                      <PhoneCountryCodeSelect v-model="t.phone_country_code" />
-                      <input v-model="t.phone" class="input flex-1" placeholder="phone number" />
+                      <PhoneCountryCodeSelect v-model="t.phone_country_code" compact />
+                      <input v-model="t.phone" class="input flex-1 min-w-0" placeholder="phone number" />
                     </div>
                   </div>
                   <div class="col-span-2">
@@ -224,11 +224,11 @@
                   <label class="label">ID / Passport</label>
                   <MaskedInput v-model="newTenant.id_number" class="input font-mono" />
                 </div>
-                <div>
+                <div class="col-span-2">
                   <label class="label">Phone</label>
                   <div class="flex gap-2">
-                    <PhoneCountryCodeSelect v-model="newTenant.phone_country_code" />
-                    <input v-model="newTenant.phone" class="input flex-1" />
+                    <PhoneCountryCodeSelect v-model="newTenant.phone_country_code" compact />
+                    <input v-model="newTenant.phone" class="input flex-1 min-w-0" />
                   </div>
                 </div>
                 <div class="col-span-2">

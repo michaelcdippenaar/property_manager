@@ -475,7 +475,7 @@ const PersonBlock = defineComponent({
         h('div', [
           h('input', { class: cls + ' font-mono', value: p.id_number, placeholder: 'ID / Passport', 'data-clarity-mask': 'true', onInput: (e: any) => upd('id_number', e.target.value) }),
         ]),
-        h('div', { class: 'flex gap-1.5' }, [
+        h('div', { class: 'col-span-2 flex gap-1.5' }, [
           h(PhoneCountryCodeSelect, {
             modelValue: p.phone_country_code ?? '+27',
             compact: true,
