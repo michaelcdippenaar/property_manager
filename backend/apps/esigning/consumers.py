@@ -130,7 +130,12 @@ class ESigningStatusConsumer(AsyncWebsocketConsumer):
             "current_signer": current_signer,
             "completed_count": len(completed_signers),
             "total_signers": len(sub.signers or []),
-            "signed_pdf_url": sub.signed_pdf_url or None,
+            # Field name from the DocuSeal era was `signed_pdf_url` (a TextField
+            # holding an external URL). After the native-signing migration (0010)
+            # the column was dropped in favour of `signed_pdf_file` (FileField).
+            # Build the URL from the file on the fly for backwards-compatible
+            # WebSocket state payloads.
+            "signed_pdf_url": sub.signed_pdf_file.url if sub.signed_pdf_file else None,
         }
 
 
