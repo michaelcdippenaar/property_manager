@@ -2,16 +2,16 @@
   <div class="h-screen bg-gray-50 flex flex-col overflow-hidden">
 
     <!-- Header -->
-    <header class="bg-navy text-white px-5 py-3.5 shadow-md flex items-center justify-between">
-      <div class="min-w-0">
+    <header class="bg-navy text-white px-4 sm:px-5 py-3 sm:py-3.5 shadow-md flex items-center justify-between gap-3">
+      <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <svg class="w-5 h-5 flex-shrink-0 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          <h1 class="text-base font-semibold tracking-tight truncate">{{ docTitle || 'Sign Document' }}</h1>
+          <h1 class="text-sm sm:text-base font-semibold tracking-tight truncate">{{ docTitle || 'Sign Document' }}</h1>
         </div>
-        <p v-if="signerLine" class="text-xs text-white/60 mt-0.5 ml-7">{{ signerLine }}</p>
+        <p v-if="signerLine" class="text-xs text-white/60 mt-0.5 ml-7 truncate">{{ signerLine }}</p>
       </div>
       <!-- Step indicator when signing -->
       <div
@@ -28,7 +28,7 @@
     </header>
 
     <!-- Loading -->
-    <div v-if="loading" class="flex-1 flex items-center justify-center p-8">
+    <div v-if="loading" class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="flex flex-col items-center gap-3">
         <div class="w-8 h-8 border-3 border-navy/20 border-t-navy rounded-full animate-spin" />
         <span class="text-gray-500 text-sm">Loading document...</span>
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Error -->
-    <div v-else-if="errorMsg" class="flex-1 flex items-center justify-center p-8">
+    <div v-else-if="errorMsg" class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="max-w-md text-center">
         <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-red-50 flex items-center justify-center">
           <svg class="w-7 h-7 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@
     </div>
 
     <!-- Completed -->
-    <div v-else-if="completed" class="flex-1 flex items-center justify-center p-8">
+    <div v-else-if="completed" class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="max-w-md text-center">
         <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-green-50 flex items-center justify-center">
           <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,7 +83,7 @@
     </div>
 
     <!-- Welcome / Consent Gate -->
-    <div v-else-if="!showForm" class="flex-1 flex items-center justify-center p-8">
+    <div v-else-if="!showForm" class="flex-1 flex items-center justify-center p-4 sm:p-8">
       <div class="max-w-md w-full">
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           <div class="bg-navy/[0.03] px-6 pt-6 pb-4 border-b border-gray-100">
@@ -146,7 +146,7 @@
 
     <!-- ══════════════ DOCUMENTS STEP ══════════════ -->
     <div v-else-if="showDocumentsStep" class="flex-1 overflow-auto">
-      <div class="max-w-lg mx-auto px-4 py-8 space-y-5">
+      <div class="max-w-lg mx-auto px-4 py-5 sm:py-8 space-y-5">
 
         <!-- Header -->
         <div class="text-center">
@@ -317,8 +317,12 @@
         />
 
         <!-- Floating action bar -->
-        <div class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200 px-5 py-3 flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3 min-w-0">
+        <div
+          class="sticky bottom-0 bg-white/95 backdrop-blur border-t border-gray-200
+                 px-4 sm:px-5 py-2.5 sm:py-3 pb-[max(env(safe-area-inset-bottom),0.625rem)]
+                 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3"
+        >
+          <div class="flex items-center justify-between sm:justify-start gap-3 min-w-0">
             <div class="text-xs text-gray-500 truncate">
               <template v-if="unfilledMergeFieldCount > 0">
                 {{ unfilledMergeFieldCount }} info field{{ unfilledMergeFieldCount > 1 ? 's' : '' }} to fill
@@ -342,14 +346,15 @@
             <button
               @click="saveDraft"
               :disabled="savingDraft"
-              class="px-3 py-2 text-xs font-medium text-gray-500 hover:text-navy rounded-lg transition-colors border border-gray-200 hover:border-navy/30"
+              class="px-3 py-2 sm:py-2 text-xs font-medium text-gray-500 hover:text-navy rounded-lg transition-colors border border-gray-200 hover:border-navy/30 flex-shrink-0"
               title="Save your progress and continue later"
+              aria-label="Save progress"
             >
-              <svg v-if="!savingDraft" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-if="!savingDraft" class="w-4 h-4 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
                   d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/>
               </svg>
-              <svg v-else class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <svg v-else class="w-4 h-4 sm:w-3.5 sm:h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
               </svg>
@@ -357,14 +362,14 @@
             <button
               v-if="unsignedFieldCount > 0 || unfilledMergeFieldCount > 0"
               @click="scrollToNextField"
-              class="px-4 py-2 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors"
+              class="flex-1 sm:flex-initial px-3 sm:px-4 py-2.5 sm:py-2 text-xs font-medium text-navy bg-navy/5 hover:bg-navy/10 rounded-lg transition-colors whitespace-nowrap"
             >
               Next Field
             </button>
             <button
               @click="submitSignatures"
               :disabled="unsignedFieldCount > 0 || unfilledMergeFieldCount > 0 || submitting"
-              class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all"
+              class="flex-1 sm:flex-initial px-4 sm:px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-all whitespace-nowrap"
               :class="unsignedFieldCount === 0 && unfilledMergeFieldCount === 0 && !submitting
                 ? 'bg-navy hover:bg-navy/90 shadow-sm'
                 : 'bg-gray-300 cursor-not-allowed'"
@@ -378,7 +383,10 @@
                   <span>Submitting</span>
                 </span>
               </template>
-              <template v-else>Submit Signature</template>
+              <template v-else>
+                <span class="sm:hidden">Submit</span>
+                <span class="hidden sm:inline">Submit Signature</span>
+              </template>
             </button>
           </div>
         </div>
