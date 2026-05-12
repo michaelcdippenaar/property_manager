@@ -157,7 +157,11 @@
           <div class="text-xs font-semibold uppercase tracking-wide text-navy">Address (Domicilium)</div>
           <div>
             <label class="label">Search address</label>
-            <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+            <AddressAutocomplete
+              input-class="input"
+              @select="onAddressSelect"
+              @text="(t) => { if (!local.address) local.address = { street: '', city: '', province: '', postal_code: '' }; local.address.street = t }"
+            />
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div class="col-span-2">

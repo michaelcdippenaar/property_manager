@@ -164,7 +164,17 @@
           <!-- Address -->
           <div class="border-t border-gray-100 pt-4">
             <h3 class="text-sm font-medium text-gray-700 mb-3">Address</h3>
-            <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+            <!-- Fallback for when Google Places isn't loaded (missing API
+                 key, ad-blocker, blocked CSP, offline). Unlike LandlordTab,
+                 this form has no separate Street input, so the autocomplete
+                 IS the only entry point for `form.address`. Without @text
+                 the typed value never reaches the model — supplier saves
+                 with empty `address` field silently. -->
+            <AddressAutocomplete
+              input-class="input"
+              @select="onAddressSelect"
+              @text="(t) => form.address = t"
+            />
             <div class="grid grid-cols-2 gap-3 mt-3">
               <div>
                 <label class="label">City</label>

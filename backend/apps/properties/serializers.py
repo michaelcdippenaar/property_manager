@@ -108,11 +108,22 @@ class PropertySerializer(serializers.ModelSerializer):
         if "agent" not in validated_data:
             validated_data["agent"] = user
         prop = super().create(validated_data)
-        # Auto-assign the creator so the property appears in their scoped list
+        # Auto-assign the creator so the property appears in their scoped list.
+        # `agency` is stamped explicitly here as defence-in-depth on top of the
+        # AGENCY_PARENT_FIELD pre_save signal in apps/accounts/tenancy.py —
+        # both layers must work; never rely on a single tenancy guarantee.
+        # Without the explicit stamp, every property created via the SPA
+        # produced an assignment row that the PropertyAgentAssignmentViewSet
+        # couldn't see (it filters by `tenant_objects`, the assignment had
+        # agency_id=NULL before commit b9ef075a).
         from .models import PropertyAgentAssignment
         PropertyAgentAssignment.objects.get_or_create(
             property=prop, agent=user,
-            defaults={"assignment_type": "managing", "assigned_by": user},
+            defaults={
+                "assignment_type": "managing",
+                "assigned_by": user,
+                "agency": prop.agency,
+            },
         )
         return prop
 

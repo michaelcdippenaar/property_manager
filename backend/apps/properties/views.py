@@ -98,11 +98,18 @@ class PropertyViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, views
             return Response({"detail": "Unit does not belong to this property."}, status=status.HTTP_400_BAD_REQUEST)
         created = []
         for f in files:
+            # `agency` stamped explicitly — defence-in-depth alongside the
+            # AGENCY_PARENT_FIELD pre_save signal (apps/accounts/tenancy.py).
+            # Custom @action handlers bypass AgencyStampedCreateMixin's
+            # perform_create, so without this stamp every photo upload from
+            # the SPA would land with agency_id=NULL and be invisible to
+            # `tenant_objects`-scoped queries.
             photo = PropertyPhoto.objects.create(
                 property=prop,
                 unit_id=unit_id,
                 photo=f,
                 caption=request.data.get("caption", ""),
+                agency=prop.agency,
             )
             # Generate and save thumbnail
             try:
@@ -146,6 +153,7 @@ class PropertyViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, views
         file = request.FILES.get("document")
         if not file:
             return Response({"detail": "No document file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        # `agency` stamped explicitly — see PropertyPhoto handler above.
         doc = PropertyDocument.objects.create(
             property=prop,
             unit_id=request.data.get("unit") or None,
@@ -153,6 +161,7 @@ class PropertyViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, views
             doc_type=request.data.get("doc_type", "other"),
             name=request.data.get("name", ""),
             notes=request.data.get("notes", ""),
+            agency=prop.agency,
         )
         return Response(
             PropertyDocumentSerializer(doc, context={"request": request}).data,
@@ -234,7 +243,15 @@ class PropertyOwnershipViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMix
 
     @action(detail=False, methods=["get"], url_path="current/(?P<property_id>[0-9]+)")
     def current(self, request, property_id=None):
-        ownership = get_object_or_404(PropertyOwnership, property_id=property_id, is_current=True)
+        # Defence-in-depth: route through self.get_queryset() so this @action
+        # inherits both the tenant scope AND the property-accessibility check.
+        # The previous unscoped get_object_or_404(PropertyOwnership, ...) was
+        # protected at the URL level (the caller's property_id had to come
+        # from a property they could already see) but a code-level lookup
+        # bypass is a permission footgun waiting to be hit.
+        ownership = get_object_or_404(
+            self.get_queryset(), property_id=property_id, is_current=True,
+        )
         return Response(PropertyOwnershipSerializer(ownership).data)
 
 
@@ -311,7 +328,12 @@ class LandlordViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, views
             return Response({'error': 'No files provided.'}, status=status.HTTP_400_BAD_REQUEST)
         created = []
         for f in files:
-            doc = LandlordDocument.objects.create(landlord=landlord, file=f, filename=f.name)
+            # `agency` stamped explicitly — defence-in-depth alongside the
+            # AGENCY_PARENT_FIELD pre_save signal (apps/accounts/tenancy.py).
+            doc = LandlordDocument.objects.create(
+                landlord=landlord, file=f, filename=f.name,
+                agency=landlord.agency,
+            )
             created.append(doc)
         return Response(
             LandlordDocumentSerializer(created, many=True, context={'request': request}).data,
@@ -336,9 +358,17 @@ class BankAccountViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, vi
 
     def get_queryset(self):
         base = super().get_queryset()
+        # `base` is already agency-scoped (AgencyScopedQuerysetMixin). Within
+        # that scope, include bank accounts whose landlord either has an
+        # ownership in an accessible property OR has no ownerships yet (just
+        # created, not attached). Without the orphan branch, the FIRST bank
+        # account a fresh agency adds to a brand-new landlord 404s on
+        # edit / upload-confirmation. Mirrors the LandlordViewSet fix in
+        # commit 3e17b552.
         prop_ids = get_accessible_property_ids(self.request.user)
         qs = base.filter(
-            landlord__ownerships__property_id__in=prop_ids
+            Q(landlord__ownerships__property_id__in=prop_ids)
+            | Q(landlord__ownerships__isnull=True)
         ).distinct().select_related('landlord')
         landlord_id = self.request.query_params.get('landlord')
         if landlord_id:
@@ -378,9 +408,15 @@ class PropertyGroupViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, 
 
     def get_queryset(self):
         qs = super().get_queryset()
+        # `qs` is already agency-scoped (AgencyScopedQuerysetMixin). Within
+        # that scope, include groups that either contain an accessible
+        # property OR have no members yet (newly created — same orphan
+        # pattern fixed in commit 3e17b552 for Landlord). The PropertyGroup
+        # ↔ Property relation is M2M, so the join can be genuinely empty
+        # for a brand-new group; without the orphan branch the group 404s.
         prop_ids = get_accessible_property_ids(self.request.user)
         return qs.filter(
-            properties__id__in=prop_ids
+            Q(properties__id__in=prop_ids) | Q(properties__isnull=True)
         ).distinct().prefetch_related("properties")
 
 

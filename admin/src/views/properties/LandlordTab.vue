@@ -73,7 +73,11 @@
         <div class="text-xs font-semibold uppercase tracking-wide text-navy">Owner Address <span class="font-normal text-gray-400 normal-case">(domicilium)</span></div>
         <div>
           <label class="label">Search address</label>
-          <AddressAutocomplete input-class="input" @select="onAddressSelect" />
+          <AddressAutocomplete
+            input-class="input"
+            @select="onAddressSelect"
+            @text="(t) => form.owner_address.street = t"
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div class="col-span-2">
@@ -168,12 +172,19 @@
 
       <!-- Actions -->
       <div class="flex items-center justify-between pt-2">
-        <div>
+        <div class="flex items-center gap-2">
           <span
             v-if="saved"
             class="text-xs font-medium text-success-600 bg-success-50 px-2.5 py-1 rounded-full"
           >
             Saved
+          </span>
+          <span
+            v-else-if="dirty"
+            class="text-xs font-medium text-warning-700 bg-warning-50 px-2.5 py-1 rounded-full"
+            title="Form has unsaved changes. Click Save before switching tabs."
+          >
+            Unsaved changes
           </span>
           <span v-if="error" class="text-xs text-danger-600">{{ error }}</span>
         </div>
@@ -207,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import { Loader2, UserCircle } from 'lucide-vue-next'
 import AddressAutocomplete, { type AddressResult } from '../../components/AddressAutocomplete.vue'
 import MaskedInput from '../../components/shared/MaskedInput.vue'
@@ -224,6 +235,10 @@ const loading = ref(true)
 const saving  = ref(false)
 const saved   = ref(false)
 const error   = ref('')
+// True after the user (or onLandlordSelected auto-fill) modifies the form
+// since the last successful save / initial load. Cleared on successful save
+// and when populateForm() resets the form to a server-fetched snapshot.
+const dirty   = ref(false)
 
 const ownership = ref<any>(null)
 const history   = ref<any[]>([])
@@ -298,9 +313,18 @@ function onLandlordSelected() {
   form.value.representative_id_number = ll.representative_id_number || form.value.representative_id_number
   form.value.representative_email = ll.representative_email || form.value.representative_email
   form.value.representative_phone = ll.representative_phone || form.value.representative_phone
+  // The auto-fill is in-memory only; the user MUST press Save before the
+  // ownership row is updated server-side. Surface that explicitly so they
+  // don't switch tabs assuming the fill persisted.
+  dirty.value = true
+  saved.value = false
 }
 
-function populateForm(data: any) {
+async function populateForm(data: any) {
+  // Suppress the deep watch's dirty flip while we replace form contents
+  // from server-fetched data. Without this, every successful load would
+  // immediately read as "Unsaved changes".
+  _suppressDirty = true
   form.value = {
     owner_name: data.owner_name || '',
     owner_type: data.owner_type || 'company',
@@ -318,6 +342,10 @@ function populateForm(data: any) {
     end_date: data.end_date || '',
     is_current: data.is_current ?? true,
   }
+  // Let Vue's reactivity flush before clearing the suppress flag.
+  await nextTick()
+  dirty.value = false
+  _suppressDirty = false
 }
 
 function onAddressSelect(result: AddressResult) {
@@ -329,9 +357,13 @@ function onAddressSelect(result: AddressResult) {
   }
 }
 
-function createNew() {
+async function createNew() {
+  _suppressDirty = true
   ownership.value = { _new: true }
   form.value = emptyForm()
+  await nextTick()
+  dirty.value = false
+  _suppressDirty = false
 }
 
 async function save() {
@@ -353,6 +385,7 @@ async function save() {
     }
 
     saved.value = true
+    dirty.value = false
     setTimeout(() => { saved.value = false }, 3000)
 
     // Refresh history from the store (already force-refreshed by create/update,
@@ -364,6 +397,16 @@ async function save() {
     saving.value = false
   }
 }
+
+// Mark the form dirty on any user-driven change to form.value. populateForm()
+// and the successful-save handler suppress this watch during the synchronous
+// form re-assignment + nextTick flush so a fresh server snapshot doesn't
+// immediately read as "Unsaved changes".
+let _suppressDirty = false
+watch(form, () => {
+  if (_suppressDirty) return
+  dirty.value = true
+}, { deep: true })
 
 watch(() => props.propertyId, () => { if (props.propertyId) load() })
 onMounted(() => { if (props.propertyId) load() })

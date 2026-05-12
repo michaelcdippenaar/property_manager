@@ -105,3 +105,46 @@ class LandlordOrphanRetrieveAsAgencyAdminTest(TremlyAPITestCase):
         assert resp.data["name"] == "Brand-new Owner (Pty) Ltd"
         assert resp.data.get("properties") == []
         assert resp.data.get("property_count") == 0
+
+    def test_bank_account_on_orphan_landlord_is_retrievable(self):
+        """Sibling regression: BankAccountViewSet had the same indirect-
+        join filter (`landlord__ownerships__property_id__in=prop_ids`)
+        with no orphan branch. A bank account added to a brand-new
+        landlord that hasn't been attached to a property would 404 on
+        any later GET / PATCH / DELETE / upload-confirmation."""
+        # First create the landlord (orphan).
+        resp = self.client.post(
+            "/api/v1/properties/landlords/",
+            {
+                "name": "Orphan-bank Owner",
+                "landlord_type": "company",
+                "email": "orphan@bank.test",
+            },
+            format="json",
+        )
+        assert resp.status_code == 201
+        ll_id = resp.data["id"]
+
+        # Add a bank account to it (still no property attached).
+        resp = self.client.post(
+            "/api/v1/properties/bank-accounts/",
+            {
+                "landlord": ll_id,
+                "bank_name": "First National Bank",
+                "branch_code": "250655",
+                "account_number": "62012345678",
+                "account_type": "Cheque",
+                "account_holder": "Orphan-bank Owner",
+            },
+            format="json",
+        )
+        assert resp.status_code == 201, resp.content
+        ba_id = resp.data["id"]
+
+        # Retrieve the bank account — must succeed despite orphan landlord.
+        resp = self.client.get(f"/api/v1/properties/bank-accounts/{ba_id}/")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}. Body: {resp.content!r}. "
+            f"BankAccountViewSet is still rejecting bank accounts on orphan "
+            f"landlords — the get_queryset() orphan branch is missing."
+        )

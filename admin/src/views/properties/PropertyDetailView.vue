@@ -1896,6 +1896,11 @@ function normaliseTab(t: unknown): SectionKey | null {
 const activeSection = ref<SectionKey>(normaliseTab(route.query.tab) ?? 'overview')
 
 function setSection(key: SectionKey) {
+  // No-op when the section is already active. Without this guard, every
+  // identical click pushed a redundant router.replace, which re-fired
+  // route guards / watchers and created visible jank under KeepAlive
+  // when an intermediate route stripped `?tab=`. Audit P2 finding.
+  if (activeSection.value === key && route.query.tab === key) return
   activeSection.value = key
   router.replace({ query: { ...route.query, tab: key } })
 }
