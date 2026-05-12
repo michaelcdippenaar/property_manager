@@ -117,6 +117,11 @@ class Unit(models.Model):
         OCCUPIED = "occupied", "Occupied"
         MAINTENANCE = "maintenance", "Under Maintenance"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant scoping (Phase 1.2). Backfilled from property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -177,6 +182,11 @@ class Room(models.Model):
         PATIO = "patio", "Patio"
         OTHER = "other", "Other"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "unit"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via unit.property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -228,6 +238,11 @@ class UnitInfo(models.Model):
         LAUNDRY = "laundry", "Laundry"
         OTHER = "other", "Other"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -268,6 +283,11 @@ class UnitInfo(models.Model):
 
 
 class PropertyAgentConfig(models.Model):
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -428,6 +448,11 @@ class Landlord(models.Model):
 
 class LandlordDocument(models.Model):
     """A supporting document uploaded for owner FICA/CIPC compliance (multiple per landlord)."""
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "landlord"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -465,6 +490,11 @@ class LandlordDocument(models.Model):
 
 class BankAccount(models.Model):
     """Bank account linked to a landlord. One landlord can have multiple accounts."""
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "landlord"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -521,6 +551,11 @@ class LandlordChatMessage(models.Model):
         ASSISTANT = "assistant", "Assistant"
         SYSTEM = "system", "System"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "landlord"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via landlord.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -568,6 +603,11 @@ class PropertyOwnership(models.Model):
     A property can change owners (e.g. sold), and existing leases
     remain linked to the ownership record that was active when signed.
     """
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -661,6 +701,11 @@ class RentalMandate(models.Model):
         EXPIRED          = "expired",          "Expired"
         CANCELLED        = "cancelled",        "Cancelled"
         TERMINATED       = "terminated",       "Terminated"
+
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
 
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
@@ -816,6 +861,11 @@ class PropertyDetail(models.Model):
         FLAT         = "flat",         "Flat Roof"
         OTHER        = "other",        "Other"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -901,6 +951,11 @@ class PropertyPhoto(models.Model):
         GARDEN    = "garden",    "Garden"
         PLANS     = "plans",     "Floor Plans"
         OTHER     = "other",     "Other"
+
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
 
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
@@ -990,6 +1045,11 @@ class PropertyDocument(models.Model):
         HOUSE_RULES       = "house_rules",       "House Rules"
         OTHER             = "other",             "Other"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1050,6 +1110,11 @@ class ComplianceCertificate(models.Model):
         EXPIRED = "expired", "Expired"
         PENDING = "pending", "Pending Renewal"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1109,6 +1174,11 @@ class MunicipalAccount(models.Model):
         SEWERAGE   = "sewerage",   "Sewerage"
         COMBINED   = "combined",   "Combined Municipal Account"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1161,6 +1231,11 @@ class PropertyValuation(models.Model):
         AGENT     = "agent",     "Agent Estimate"
         FORMAL    = "formal",    "Formal Appraisal"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1209,6 +1284,11 @@ class InsurancePolicy(models.Model):
         LIABILITY  = "liability",  "Public Liability"
         LANDLORD   = "landlord",   "Landlord Insurance"
         OTHER      = "other",      "Other"
+
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
 
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
@@ -1278,6 +1358,11 @@ class InsuranceClaim(models.Model):
         SETTLED    = "settled",    "Settled / Paid Out"
         WITHDRAWN  = "withdrawn",  "Withdrawn"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "insurance_policy"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via policy.property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1335,6 +1420,11 @@ class MunicipalBill(models.Model):
         OVERDUE = "overdue", "Overdue"
         PARTIAL = "partial", "Partially Paid"
         DISPUTE = "dispute", "In Dispute"
+
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "municipal_account"
 
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
@@ -1411,6 +1501,11 @@ class PropertyViewing(models.Model):
         CANCELLED = "cancelled", "Cancelled"
         CONVERTED = "converted", "Converted to Lease"
 
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
+
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(
         "accounts.Agency", on_delete=models.PROTECT, null=True, blank=True,
@@ -1473,6 +1568,11 @@ class PropertyAgentAssignment(models.Model):
         ACTIVE = "active", "Active"
         COMPLETED = "completed", "Completed"
         INACTIVE = "inactive", "Inactive"
+
+    # Defence-in-depth: tenancy.py pre_save signal copies
+    # agency_id from this FK when a row is saved without one
+    # (e.g. by code paths that bypass perform_create).
+    AGENCY_PARENT_FIELD = "property"
 
     # Multi-tenant + POPIA (Phase 1.2). Backfilled via property.agency_id.
     agency = models.ForeignKey(

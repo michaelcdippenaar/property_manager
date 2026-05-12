@@ -243,3 +243,67 @@ class TenantContextMiddleware:
             _clear_context()
 
         return response
+
+
+# ---------------------------------------------------------------------------
+# Defence-in-depth: agency_id backfill from parent FK on pre_save
+# ---------------------------------------------------------------------------
+#
+# The CTO audit on 2026-05-12 surfaced multiple `agency_id=NULL` orphans
+# created by code paths that bypassed ``AgencyStampedCreateMixin.perform_create``
+# (custom @action handlers, serializer `objects.create(...)` calls, etc.).
+# Each of those is its own fix, but the systemic risk persists: every future
+# code path that writes a row without going through the viewset's perform_create
+# can produce a silent orphan. Orphans are then invisible through ``tenant_objects``
+# and may leak across tenants depending on how downstream queries are written.
+#
+# Mitigation: a single ``pre_save`` receiver that — for any model declaring
+# ``AGENCY_PARENT_FIELD = '<fk_attr>'`` as a class attribute — copies the
+# parent's ``agency_id`` onto the instance when the instance's own
+# ``agency_id`` is None. This makes "save a child without explicit agency_id"
+# automatically correct rather than silently broken.
+#
+# Cost: one ``getattr(sender, ...)`` per save on any model. If the attribute
+# isn't declared, the receiver returns immediately. Negligible.
+#
+# Models opt in by declaring (example):
+#
+#     class PropertyAgentAssignment(models.Model):
+#         AGENCY_PARENT_FIELD = 'property'      # ← attribute name of the parent FK
+#         agency   = models.ForeignKey(Agency, ...)
+#         property = models.ForeignKey(Property, ...)
+#
+# Top-level models (Property, Landlord, Agency itself) do NOT opt in; their
+# ``agency_id`` must be set explicitly at create time via the mixin or the
+# RegisterSerializer.
+
+def _backfill_agency_id_from_parent(sender, instance, **kwargs):
+    """Pre-save receiver — see module-level note above."""
+    parent_attr = getattr(sender, "AGENCY_PARENT_FIELD", None)
+    if not parent_attr:
+        return
+    # Only act when the row genuinely has no agency_id. Never overwrite an
+    # explicitly set value (admins creating on behalf of another agency,
+    # cross-agency moves, etc. — all preserved).
+    if getattr(instance, "agency_id", None) is not None:
+        return
+    parent = getattr(instance, parent_attr, None)
+    if parent is None:
+        return
+    parent_agency_id = getattr(parent, "agency_id", None)
+    if parent_agency_id is not None:
+        instance.agency_id = parent_agency_id
+
+
+def connect_agency_backfill_signal() -> None:
+    """Wire ``_backfill_agency_id_from_parent`` to ``pre_save``.
+
+    Called once from ``AccountsConfig.ready()``. Idempotent — connecting the
+    same receiver twice with the same dispatch_uid is a no-op in Django.
+    """
+    from django.db.models.signals import pre_save
+
+    pre_save.connect(
+        _backfill_agency_id_from_parent,
+        dispatch_uid="accounts.tenancy.backfill_agency_id_from_parent",
+    )
