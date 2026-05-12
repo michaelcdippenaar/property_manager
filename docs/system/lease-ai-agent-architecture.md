@@ -2,13 +2,14 @@
 
 | Field | Value |
 |---|---|
-| **Status** | Design locked, ready to build |
-| **Phase** | 0 → 1 transition |
-| **Date locked** | 2026-05-12 |
-| **Author** | MC + Claude (design conversation) |
-| **Implementation target** | `apps.leases.template_views` + new `apps.leases.lease_law_corpus` |
+| **Status** | Design locked (post-audit refactor), ready to build |
+| **Phase** | 0 → 0.5 (prerequisites) → 1 |
+| **Date locked** | 2026-05-12 (initial); 2026-05-12 (post-audit revision) |
+| **Author** | MC + Claude (design conversation); pre-implementation audit by CTO agent on Opus |
+| **Implementation target** | `apps.leases.template_views` + new `apps.leases.lease_law_corpus/` + new `apps.leases.runner.LeaseAgentRunner` |
 | **Endpoint** | `POST /api/v1/leases/templates/<id>/ai-chat-v2/` (parallel to v1 until cutover) |
 | **Supersedes** | Single-agent `LeaseTemplateAIChatView` (kept as fallback during rollout) |
+| **Audit findings applied** | 6 P0 (caching, forced tool output, loop math, coordinator class, indexing race, case-law verifier), 2 P1 (push viability, ASGI prerequisite), 5 risk-register items (POPIA accuracy, cache invalidation cascades, layout token round-trip, corpus growth, `@page` CSS reliability) |
 
 ---
 
@@ -73,18 +74,23 @@ Multi-agent + RAG fixes all five.
 | 3 | Single source of legal truth | **RAG store** (ChromaDB-in-app v1, MCP product v2) |
 | 4 | Corpus tier | **Tier C** — clauses + statutes + 30-50 case law + ~50 pitfall patterns |
 | 5 | Corpus storage | **ChromaDB-in-app for v1**, **standalone MCP server for v2** |
-| 6 | Corpus canonical form | **YAML files in `backend/apps/leases/lease_law_corpus/`**, synced to Chroma on startup |
+| 6 | Corpus canonical form | **YAML files in `backend/apps/leases/lease_law_corpus/`**, indexed by `manage.py reindex_lease_corpus` (NOT on startup — see §6.3) |
 | 7 | Corpus maintenance | **Code-only YAML + git PR** for v1; admin-UI deferred to Tier D |
 | 8 | Indexing strategy | **Tags + citations + semantic** (all three on same chunks) |
-| 9 | Query pattern | **Push for Drafter** (Front Door inlines clauses), **pull for Reviewer** (tool calls on demand) |
-| 10 | Reviewer loop budget | **1 retry max** — worst case 4 LLM calls per request |
-| 11 | Tool partitioning | **Strict** — each agent gets only tools matching its role |
+| 9 | Query pattern | **Push for Drafter** (Front Door inlines clauses), **pull for Reviewer** (tool calls on demand). Push viability is **conditional on prompt caching working** — see decision 18. |
+| 10 | Reviewer loop budget | **1 retry max.** Hard caps enforced in `LeaseAgentRunner` coordinator: **≤8 total LLM calls per request**, **≤90s wall-clock budget**, **≤3 internal turns per agent**. On cap-hit: ship partial result with `terminated_reason=cap` and a banner to the user. Realistic worst case is 6-8 calls, not 4 — see §8.1 for the honest math. |
+| 11 | Tool partitioning | **Strict** — each agent gets only tools matching its role. Enforced per-call (each `messages.create` defines its own tools list). |
 | 12 | Question-asking UX | **Conversational** — agent asks in plain text, user answers in next message |
-| 13 | Case-law sourcing | **AI-curated seed (Claude + MC review)** → staging/internal use → SA-lawyer review before external customer |
+| 13 | Case-law sourcing | **AI-curated seed (Claude + MC review) → SAFLII verifier → MC review → staging/internal use → SA-lawyer review before external customer.** No `case_law` chunk advances past `confidence_level=ai_curated` until `manage.py verify_caselaw_citations` confirms the citation exists on SAFLII. See decision 19 + §6.5. |
 | 14 | Page layout | **Klikk-uniform for v1** — per-agency customisation deferred to Tier D |
-| 15 | UX disclosure | **One coherent reply, pipeline visible in tools-used badges** — audit report in expander |
+| 15 | UX disclosure | **One coherent reply, pipeline visible in tools-used badges** — audit report in expander. Every Reviewer finding shows its `confidence_level` (ai_curated / mc_reviewed / lawyer_reviewed) so the user knows the strength of the citation. |
 | 16 | API contract | **`POST /api/v1/leases/templates/<id>/ai-chat-v2/`** alongside v1 during rollout; v1 retired after stability |
-| 17 | Streaming | **SSE within v2 from day one** — token streaming inside turns, status events between agents |
+| 17 | Streaming | **SSE within v2 from day one** — token streaming inside turns, status events between agents. **REQUIRES ASGI RUNTIME** (Daphne / Uvicorn / async `View`). Django sync WSGI buffers `StreamingHttpResponse` — SSE will appear to hang in production. Migrating the lease AI endpoint to async is a Phase 1 prerequisite. See §10.2. |
+| **18** | **Prompt caching (mandatory)** | **`cache_control: {"type": "ephemeral"}` markers on tools array + 3 system-prompt blocks (persona, merge-fields block, RAG chunks block).** Per-request user data lives AFTER the last breakpoint. Audit telemetry: every Drafter call after the first in a session MUST report `cache_read_input_tokens > 0` — failure raises a sev-2 alert. See decision 22 + §6.6. |
+| **19** | **Case-law citation verifier** | **`manage.py verify_caselaw_citations` is a corpus-build gate.** Runs on every PR to `lease_law_corpus/case_law/`. Verifies each citation exists on SAFLII (or Jutastat, or another authoritative source). Unverified citations cannot be loaded into the live RAG. Phase 4 ships **only** with `verification_status=verified` case-law chunks. |
+| **20** | **`LeaseAgentRunner` coordinator** | **Single class owns all budget enforcement.** All agent dispatches go through it. Tracks total LLM calls, wall-clock (monotonic), retry count, running cost (USD). Hard cost cap per request: `LEASE_AI_MAX_COST_USD_PER_REQUEST` (default 0.50). Cap-hit triggers immediate abort + persisted `AILeaseAgentRun.terminated_reason`. |
+| **21** | **`update_all` removed from Drafter v2** | The legacy `update_all` tool (whole-doc rewrite) is **NOT carried into v2**. With `add_clause(clause_id, ...)` for surgical inserts from RAG + `format_sa_standard` for full restructures + `edit_lines` for targeted edits, there is no legitimate reason for full-doc rewrites in v2. Removing it eliminates the "AI claimed to add 13 sections but emitted placeholders" failure class (§2 row 1). |
+| **22** | **Reviewer uses forced tool output** | **`tool_choice={"type":"tool","name":"submit_audit_report"}` + `strict: true` + `additionalProperties: false`** on the `submit_audit_report` input_schema. Reviewer yields exactly one `tool_use` block and no prose text. The user-facing one-liner lives in `summary` inside the structured critique. See §5.3 invariants. |
 
 ---
 
@@ -129,7 +135,6 @@ Intent routing is heuristic in v1. If routing complexity grows, promote to a hai
 
 **Tools:**
 - `edit_lines(from_index, to_index, new_lines, summary)`
-- `update_all(lines, summary)` (rare — for whole-doc rewrites; discouraged in prompt)
 - `add_clause(after_line_index, clause_id, customise)` *(new — surgical insert from RAG by id)*
 - `format_sa_standard(add_missing, preserve_custom)`
 - `insert_signature_field(after_line_index, field_type, signer_role, field_name)`
@@ -137,6 +142,8 @@ Intent routing is heuristic in v1. If routing complexity grows, promote to a hai
 - `check_rha_compliance` (READ — runs the same diagnostic the Reviewer does, so Drafter can self-check before submitting; result returned to Drafter, not the user)
 
 **Cannot do:** apply formatting, set page layout, set running headers. These are out of scope.
+
+**`update_all` is REMOVED in v2** (audit P0, decision 21). With `add_clause` for surgical inserts from the RAG, `format_sa_standard` for full restructures, and `edit_lines` for targeted edits, there is no legitimate need for full-doc rewrites. Removing it eliminates the "AI claimed to add 13 sections but emitted placeholders" failure class.
 
 **Output:** the document after its tool calls + a conversational reply.
 
@@ -161,6 +168,8 @@ Intent routing is heuristic in v1. If routing complexity grows, promote to a hai
 **Cannot do:** any document modification, any text editing, any formatting changes. Read-only is load-bearing.
 
 **Output:** the structured critique only.
+
+**LOCKED INVARIANT (audit P0):** the Reviewer call uses `tool_choice={'type':'tool','name':'submit_audit_report'}` + `strict: true`, and the `input_schema` declares `additionalProperties: false`. The model MUST emit exactly one `tool_use` block and zero text blocks. The user-facing one-sentence headline lives in the `summary` field of the critique — there is no separate prose "reply" from the Reviewer. Verify the chosen model snapshot supports `strict: true` for tool calls before locking model version (`claude-sonnet-4-5` does; older snapshots may not). `strict: true` also restricts the JSON Schema dialect supported in `input_schema` — keep the schema flat (no `oneOf`, no conditionals, no discriminated unions). See §7.2.
 
 ### 5.4 Formatter — "Layout Engineer"
 
@@ -257,9 +266,12 @@ For case law:
   - `statutes/rha.yml`, `statutes/cpa.yml`, `statutes/popia.yml`, ...
   - `case_law/western_cape.yml`, `case_law/gauteng.yml`, ...
   - `pitfall_patterns.yml`
-- **Index built on Django startup:** YAML → ChromaDB collection `klikk_lease_law` + metadata table `LeaseLawChunk`
+- **Index built by `manage.py reindex_lease_corpus`** — invoked from the deployment release hook (NOT on app startup). The startup path computes `sha256(corpus_dir)` and compares it to the last-indexed hash stored on disk (`.corpus_index_state.json`) AND in the DB (`LeaseLawCorpusVersion` table). On mismatch, the worker refuses to serve `/ai-chat-v2/` (returns 503 with `corpus_indexing_required`) and logs sev-1. App workers NEVER trigger embedding generation at boot.
+  - **Concurrency safety:** the management command acquires `pg_advisory_lock(literal('lease_corpus_reindex'))` before reindexing — guarantees one worker indexes at a time even with parallel deploys.
+  - **Dev workflow:** `manage.py reindex_lease_corpus --watch` (file-watcher) for local iteration; CI runs `manage.py reindex_lease_corpus --check` to fail PRs that change YAML without bumping the embeddings.
+  - **Why not on startup:** three real bugs — multi-worker boot race on Chroma collection create, hot-reload re-embedding cost, 30-60s blocked startup on cold boots. Audit P0 (item H).
 - **Embedding model:** `text-embedding-3-small` (cheap, fast, adequate for English legal text — chosen for cost; can upgrade)
-- **Versioning:** every chunk has `version` + `effective_from`; index records `corpus_version` from the YAML directory's git SHA
+- **Versioning:** every chunk has `version` + `effective_from`; the index records `corpus_version` = `sha256(corpus_dir)` truncated to 12 chars. The full SHA is stored in `LeaseLawCorpusVersion`. Every `AILeaseAgentRun` records the `corpus_version` it ran against — answering "what version of SA law was applied to this lease?" forever.
 
 ### 6.4 Query API
 
@@ -298,6 +310,33 @@ Each result carries `corpus_version` for audit trail.
 - **Event-driven patches** — when a known amendment lands, immediate patch + version bump
 - **Pre-external review** — SA-qualified lawyer reviews + signs off corpus before any external customer can rely on the audit-grade signal
 - **Confidence levels bubble up to UI** — when Auditor's finding is backed by `ai_curated` content only, surface that uncertainty to the user
+- **Citation verification gate (audit P0)** — every `case_law` chunk is verified against SAFLII (or Jutastat / authoritative SA legal source) before its `confidence_level` advances past `ai_curated`. `manage.py verify_caselaw_citations` runs on every PR touching `lease_law_corpus/case_law/` (CI gate) and quarterly as part of the review cycle. Unverified case-law chunks are **excluded from Reviewer's `query_case_law` results** — the Reviewer sees only verified citations. Rationale: Claude has fabricated tribunal references in past Klikk runs; a fabricated `WC RHT 1234/2019` cited to a customer is a POPIA s23 accuracy violation. The verifier closes that gap before any human review ever sees the chunk.
+
+### 6.6 Prompt caching layout
+
+Locked decision 18 mandates `cache_control` markers on every agent call. The structure for each agent:
+
+```python
+# Drafter call (and similarly Reviewer / Formatter, with their own personas + RAG slices)
+client.messages.create(
+    model=settings.ANTHROPIC_MODEL_LEASE_CHAT,
+    tools=[..., {"name": "submit_audit_report", "cache_control": {"type": "ephemeral"}, ...}],
+    system=[
+        {"type": "text", "text": PERSONA_DRAFTER},
+        {"type": "text", "text": MERGE_FIELDS_BLOCK, "cache_control": {"type": "ephemeral"}},
+        {"type": "text", "text": RAG_CHUNKS_BLOCK, "cache_control": {"type": "ephemeral"}},
+        # The user's actual message + per-request context goes into messages[], not system,
+        # so it lives AFTER the last cache breakpoint and doesn't invalidate the cache.
+    ],
+    messages=api_messages,
+)
+```
+
+**Cache lanes are per-agent.** Drafter and Reviewer have different system prompts (personas) — they don't share cache. But within one user request, the Drafter's *retry* call hits the cache from the Drafter's *initial* call (assuming <5 min between them, which the wall-clock budget of 90s guarantees).
+
+**Telemetry assertion:** the second Drafter call of any session MUST report `cache_read_input_tokens > 0`. Failure raises a sev-2 alert and a Plausible event `lease_ai_cache_miss`. Three reasons it could miss: (a) breakpoints are wrong, (b) `tool_choice` changed mid-session and invalidated the messages cache (acceptable for Reviewer; not for Drafter), (c) >5 min elapsed.
+
+**Caveat (audit R2):** `tool_choice` changes invalidate the messages-portion of the cache. The Reviewer's forced-tool-choice setup is fine — Reviewer has its own cache lane. The Drafter never changes `tool_choice` within a session.
 
 ---
 
@@ -428,16 +467,21 @@ USER MESSAGE
 │        IF gaps:                                                │
 │          return conversational question, end turn              │
 │   6. Query RAG: query_clauses(...) → 15-25 chunks              │
-│   7. Inline chunks into Drafter system prompt                  │
-│   8. Dispatch to Drafter                                       │
+│   7. Inline chunks into Drafter's system prompt AS A           │
+│      SEPARATE CACHED BLOCK (3rd cache_control breakpoint       │
+│      after persona + merge_fields). See §6.6.                  │
+│   8. Initialise LeaseAgentRunner (budget caps) and dispatch    │
+│      via runner.run(agent="drafter", ...) — NEVER directly.    │
 └────────────────────────────────────────────────────────────────┘
      │
      ▼
 ┌────────────────────────────────────────────────────────────────┐
-│  DRAFTER (LLM call 1)                                          │
+│  DRAFTER (LLM call 1) — via LeaseAgentRunner                   │
 │   • Reads pushed clauses + context + user message              │
 │   • Calls tools: format_sa_standard / edit_lines / add_clause  │
-│   • Multi-turn inside this agent if needed (max 4 turns)       │
+│     (NOT update_all — removed in v2, decision 21)              │
+│   • Multi-turn inside this agent if needed (HARD CAP 3 turns,  │
+│     was 4 — gate retry adds the budget back)                   │
 │   • Persists document changes via _persist() helper            │
 └────────────────────────────────────────────────────────────────┘
      │
@@ -483,7 +527,14 @@ USER MESSAGE
    ↳ One coherent assistant message + audit-report expander
 ```
 
-Worst case: 5 LLM calls (4 in the loop + 1 if Drafter does 2 turns to handle a complex pushdown). Mostly: 3 calls.
+**Honest LLM-call accounting** (the v1 doc's "worst case 4" was wrong — audit P0):
+
+- **Best case** (no retry, Drafter does 1 internal turn): Drafter 1 + Formatter 1 + Reviewer 1 = **3 calls**
+- **Realistic / P95** (no retry, Drafter does 2 internal turns): Drafter 2 + Formatter 1 + Reviewer 1 = **4 calls**
+- **Worst case with retry** (Drafter takes max 3 internal turns each pass + Formatter + Reviewer + retry): 3 + 1 + 1 + 3 + 1 = **9 calls**
+- **Hard cap** (decision 10): **8 total LLM calls per request**, **90s wall-clock budget**. On cap-hit: ship partial result with `terminated_reason=cap` and a user-visible banner.
+
+Cost ceiling (Sonnet at ~$3/MTok input + $15/MTok output): worst-case 9 calls × ~25k input cached + 1k output uncached ≈ **$0.40 per worst-case request**. With caching: ~**$0.08**. Without caching: ~**$0.50**. Hard cap per request: `LEASE_AI_MAX_COST_USD_PER_REQUEST=0.50` (decision 20).
 
 ### 8.2 Other intents (short paths)
 
@@ -549,16 +600,21 @@ Strict partitioning is the load-bearing rule. If we let it slip, the system coll
 
 From day one of v2. Implementation:
 
-- Backend: `StreamingHttpResponse` with `text/event-stream`
+**PREREQUISITE (audit P1):** the `/ai-chat-v2/` endpoint **must run on an ASGI worker** (Daphne / Uvicorn) OR be implemented as a Django `async def` view served by an async-compatible deployment. Django's sync WSGI workers buffer `StreamingHttpResponse` chunks until the response completes — SSE will appear to hang in production, even though it works locally on the dev server. Audit decision: migrate the lease AI endpoint to async **before Phase 5 (frontend SSE) is wired up**. Options: (a) move whole Django app to ASGI (largest change, cleanest long-term); (b) move the lease AI endpoint to a separate async sub-app (smaller blast radius); (c) drop SSE for v1 and ship final-response-only (defeats the "feedback as it goes" UX goal). Recommend (a) if Django is otherwise ASGI-ready, else (b).
+
+- Backend: `StreamingHttpResponse` with `text/event-stream`, served by ASGI
 - Events:
-  - `event: status` — `data: { phase, agent, message }`
-  - `event: text_chunk` — `data: { agent, text }`
-  - `event: tool_use` — `data: { agent, tool_name, input_summary }`
+  - `event: agent_started` — `data: { agent, phase }` — fired when each agent dispatch begins
+  - `event: agent_finished` — `data: { agent, llm_calls, duration_ms }`
+  - `event: agent_handoff` — `data: { from_agent, to_agent, reason }` — Drafter→Formatter, Reviewer→Drafter retry, etc.
+  - `event: status` — `data: { phase, agent, message }` — human-readable user-facing status
+  - `event: text_chunk` — `data: { agent, text }` — Claude's tokens as they arrive
+  - `event: tool_use` — `data: { agent, tool_name, input_summary }` — emitted per tool call (not batched at agent end)
   - `event: document_update` — `data: { html, summary }`
   - `event: audit_report` — `data: { full critique JSON }`
-  - `event: done` — `data: { reply, total_calls, total_latency_ms }`
+  - `event: done` — `data: { reply, total_calls, total_latency_ms, total_cost_usd, corpus_version, terminated_reason? }`
   - `event: error` — `data: { message, recoverable }`
-- Frontend: `fetch + ReadableStream` (not `EventSource` because we need to POST with auth headers + body)
+- Frontend: `fetch + ReadableStream` (not `EventSource` — POST with auth headers + body required). Tools-used badges accumulate from `tool_use` events, not from a final payload. Multiplexing: when retry happens, the second `agent_started` for the Drafter MUST NOT clobber the first one's badges — the UI accumulates per-agent-per-pass.
 
 ### 10.3 Markdown in assistant replies
 
@@ -570,16 +626,32 @@ The assistant's text replies are rendered as Markdown (bold, lists, headings, co
 
 | Phase | Scope | LOC est | Calendar |
 |---|---|---|---|
-| **0 — Design** | This document. Locks 17 architectural decisions. | 0 | done |
-| **1 — Front Door + RAG infra** | New Django module `apps.leases.lease_law_corpus/`; YAML loader; ChromaDB indexer on startup; 4 query functions; `LeaseContext` dataclass; Front Door intent classifier (heuristic); clarifying-question return path. | ~400 | days |
-| **2 — Drafter + Reviewer** | New `LeaseTemplateAIChatV2View`; Drafter system prompt + tool config; Reviewer system prompt + `submit_audit_report` tool; gate flow with 1-retry loop; `AILeaseAgentRun` model + persistence; SSE skeleton. | ~600 | days |
-| **3 — Formatter** | Formatter system prompt; 4 new layout tools (`set_running_header`, `set_running_footer`, `set_per_page_initials`, `insert_page_break`); CSS `@page` infra in PDF render path; Gotenberg verification. | ~350 | days |
-| **4 — Corpus seed** | 80–100 clauses + 30-50 statute extracts + 30-50 case law + ~50 pitfall patterns. Curated by Claude, reviewed by MC. | ~2000 lines YAML | week |
-| **5 — Frontend** | New `LeaseTemplateAIChatPanelV2.vue` with SSE consumer, markdown rendering, audit-report expander, agent-aware tools-used badges, per-page status indicators. | ~600 | days |
-| **6 — Cutover** | Feature flag enables v2 for selected templates; v1 fallback retained for 30 days; observe; cut over; retire v1. | ~50 | week |
-| **7 — Extract to MCP product** | Move corpus + query API to a standalone MCP server `klikk-lease-law-rag`. Klikk calls it via MCP. Same kernel; new transport. Potentially the basis for a standalone product. | ~600 | weeks, when ready |
+| **0 — Design** | This document. Locks 22 architectural decisions. | 0 | done |
+| **0.5 — Prerequisites** *(audit-mandated, before Phase 1 LOC counts)* | (a) 50-line cache-hit spike: 5 sequential `messages.create` calls with `cache_control` markers; assert `cache_read_input_tokens > 0` from call #2; (b) decide ASGI strategy (whole-app vs per-endpoint vs drop SSE for v1); (c) build `LeaseAgentRunner` coordinator class first — owns budget caps, telemetry, cost tracking; (d) build `manage.py verify_caselaw_citations` BEFORE any case-law YAML lands; (e) spike `tool_choice: tool + strict: true + additionalProperties: false` against the `submit_audit_report` schema to confirm the model supports it. | ~250 | 1-2 days |
+| **1 — Front Door + RAG infra** | New Django module `apps.leases.lease_law_corpus/`; YAML loader; content-hash-based indexer (`manage.py reindex_lease_corpus`); pg_advisory_lock for safety; 4 query functions; `LeaseContext` dataclass; Front Door intent classifier (heuristic); clarifying-question return path; `LeaseLawCorpusVersion` model. | ~400 | days |
+| **2 — Drafter + Reviewer** | New `LeaseTemplateAIChatV2View` wired through `LeaseAgentRunner`; Drafter system prompt + tool config WITH `cache_control` markers; Reviewer system prompt + `submit_audit_report` tool WITH `tool_choice: tool + strict: true`; gate flow with 1-retry loop; `AILeaseAgentRun` model + persistence (incl. `corpus_version`, `terminated_reason`, `total_cost_usd`); SSE skeleton on the ASGI endpoint chosen in Phase 0.5. | ~600 | days |
+| **3 — Formatter** | Formatter system prompt; 4 new layout tools (`set_running_header`, `set_running_footer`, `set_per_page_initials`, `insert_page_break`); CSS `@page` infra in PDF render path; **Gotenberg `@page` POC FIRST** (audit R5 — per-page-initials may need a fallback strategy if `@page` running content is too inconsistent). | ~350 | days |
+| **4 — Corpus seed** | 80–100 clauses + 30-50 statute extracts + **30-50 case law (ALL `verification_status=verified`** via the verifier from Phase 0.5; unverifiable citations dropped — if <30 verified citations remain, ship sparse rather than fabricated) + ~50 pitfall patterns. Curated by Claude, reviewed by MC, gated by SAFLII verifier. | ~2000 lines YAML | week |
+| **5 — Frontend** | New `LeaseTemplateAIChatPanelV2.vue` with SSE consumer (multiplexing `agent_started` / `agent_finished` / `agent_handoff` events), markdown rendering, audit-report expander, agent-aware tools-used badges with `confidence_level` chips, per-page status indicators, "this is not legal advice" disclaimer. | ~600 | days |
+| **6 — Cutover** | Feature flag enables v2 for selected templates; v1 fallback retained for 30 days; observe via Plausible (`lease_ai_cache_miss`, `lease_ai_terminated_cap`, etc.); regression-battery (3 fixtures from pre-impl checklist #10) must pass before cutover; cut over; retire v1. | ~50 | week |
+| **7 — Extract to MCP product** | Move corpus + query API to a standalone MCP server `klikk-lease-law-rag`. Klikk calls it via MCP. Same kernel; new transport. Document the +100-300ms per-query latency cost (audit J). Potentially the basis for a standalone product. | ~600 | weeks, when ready |
 
-Estimated total Phase 1–6: **3–4 calendar weeks** of focused work, building on the foundation laid in commits `2795e47c` through `da13ed74` today.
+Estimated total Phase 0.5–6: **3–4 calendar weeks** of focused work, building on the foundation laid in commits `2795e47c` through `da13ed74` today.
+
+### 11.1 Pre-implementation checklist *(audit-mandated; Phase 0.5)*
+
+Before any Phase 1 LOC counts begin, verify or build these:
+
+1. **Cache-hit spike (50 LOC throwaway).** Sequential `messages.create` calls with the breakpoint layout from §6.6. Assert `cache_read_input_tokens > 0` from call #2 onward. If it doesn't hit, FIX the breakpoint structure before scaling up. The 5-min TTL bites if multi-agent calls span >5 min — measure real p50/p95 first.
+2. **ASGI decision locked.** Don't ship "SSE works on my machine". Either commit to ASGI deployment, or drop SSE for v1 and document it.
+3. **`LeaseAgentRunner` built first.** All agent dispatches go through it. Cap-checking (total LLM calls, wall-clock via `time.monotonic()`, retry counter, running cost), telemetry, cache-hit assertion all live here. The view becomes thin.
+4. **Case-law verifier built BEFORE the corpus.** No `case_law` YAML lands without `manage.py verify_caselaw_citations` confirming on SAFLII / Jutastat. Pipeline: Claude proposes → MC sketches a 5-case batch → verifier confirms 5/5 → only then commit.
+5. **Spike `tool_choice: tool + strict: true + additionalProperties: false`** against the actual `submit_audit_report` schema. Strict has JSON Schema dialect limitations (no `oneOf`, no discriminated unions, no conditionals). Pin the schema shape before designing the audit-report contract.
+6. **Test multi-turn-inside-multi-agent with full history preservation.** The existing v1 code drops `tool_use`/`tool_result` blocks at persistence time (template_views.py:2452-2467). For v2: PRESERVE them, because the Drafter retry reads the critique. Means the persisted `api_history` will be larger; also means the v1 frontend's localStorage shape will break — version the API contract explicitly.
+7. **Confirm model snapshot supports `strict` and prompt caching.** `claude-sonnet-4-5` does — verify in your account before locking; future snapshots inherit but pin the model in `settings.ANTHROPIC_MODEL_LEASE_CHAT`.
+8. **Set `LEASE_AI_MAX_COST_USD_PER_REQUEST=0.50`** in `.env`. Coordinator computes running cost from each `usage` payload and aborts if exceeded. Insurance against runaway loops before observability catches them.
+9. **Drop `update_all` from Drafter v2** (decision 21).
+10. **Regression battery as cutover gate.** Three fixtures: (a) original Stellenbosch v1 lease scenario, (b) sectional-title 2-tenant fixed-term, (c) freehold 1-tenant month-to-month. Each runs through v1 and v2; outputs diffed by a human-readable assertion suite (clause-count, citation density, no-placeholder, RHA s5(3)(f) present, etc.). Cutover blocked until all three pass.
 
 ---
 
@@ -612,7 +684,16 @@ When extraction becomes valuable (likely when ≥2 consumers want the RAG, or wh
 ### Within v1 scope
 
 - **Streaming during multi-turn**: when Drafter chains multiple tool calls within one agent, do we stream tokens between tool calls, or batch them up? Lean toward streaming with status events between tool calls.
-- **Retry strategies on tool errors**: if a Drafter tool call fails (e.g. invalid line index), do we retry once with the error message in context, or abort? Lean toward retry once.
+- **Retry strategies on tool errors**: if a Drafter tool call fails (e.g. invalid line index), do we retry once with the error message in context, or abort? Lean toward retry once (counts against the 8-call budget).
+- **Anthropic Agent SDK (parallel project)**: Anthropic shipped a Claude Agent SDK with sub-agent / hook primitives. Our design re-implements parts of that. Migration cost is non-trivial because of Django request lifecycle vs the SDK's CLI orientation. Decision (audit G): don't migrate; document. Revisit at end of v1 if Anthropic ships first-party orchestration for HTTP backends.
+
+### Audit-surfaced risk register (track, don't ignore)
+
+- **R1 — POPIA s23 accuracy violation via wrong corpus.** When the Reviewer asserts "this clause violates RHA s5(3)(h)" and is wrong, the customer relies on it. Mitigations baked into v1: (a) `confidence_level` chip on every finding, (b) "this is not legal advice" disclaimer on the audit-report expander, (c) external customers gated behind `is_legal_advice_eligible` flag pending lawyer sign-off on the corpus.
+- **R2 — `tool_choice` invalidates messages cache.** Reviewer's forced-tool-choice is fine — it has its own cache lane. Drafter MUST NOT change `tool_choice` mid-session. Documented in §6.6.
+- **R3 — Signature/layout token round-trip across multi-agent.** Existing v1 already tokenises `⟪SIG#N⟫`. For v2, page-breaks / running-header / per-page-initials elements emitted by Formatter MUST receive the same tokenisation treatment (`⟪LAYOUT#N⟫` sidecar) so the Drafter retry pass doesn't rewrite them. Alternative: enforce ordering — Drafter always before Formatter, retry restarts from Drafter, Formatter never re-runs in a session. Lock in Phase 3.
+- **R4 — Corpus growth past 200 chunks risks Sonnet's 200k context.** Tier C is ~210 chunks (~105k tokens). Drafter inlines 15-25 chunks per call (7-12k after caching). Cap inlined chunks at **20 hard** in `query_clauses(...)`. Track corpus chunk count as a Plausible metric. If corpus exceeds 500 chunks (Tier D agency variants), re-evaluate push-vs-pull for Drafter.
+- **R5 — Per-page-initials via CSS `@page` is browser-inconsistent.** Gotenberg's Chromium has decent `@page` support, but `running()` / named pages are partial. Per-page-initials at the bottom of each page is harder than the design suggests. Phase 3 starts with a **1-day Gotenberg `@page` POC** before the Formatter prompt is even written. Fallback if `@page` proves insufficient: Drafter inserts "Initials: ____" rows every ~25 lines (page-estimated), Formatter aligns them. Less elegant; reliable.
 
 ### Future phases
 
@@ -640,4 +721,12 @@ When extraction becomes valuable (likely when ≥2 consumers want the RAG, or wh
 
 ## 15. Implementation kickoff
 
-Phase 1 starts here. Next concrete step: scaffold `backend/apps/leases/lease_law_corpus/` with the YAML loader + ChromaDB indexer, then write 5 seed clauses to validate the round-trip end-to-end before scaling up.
+**Phase 0.5 starts here** (NOT Phase 1 — pre-implementation work first, per audit). The five gates that must pass before any Phase 1 LOC counts:
+
+1. **Cache-hit spike confirms `cache_read_input_tokens > 0` from call #2.** ~50 LOC throwaway. If it doesn't hit, fix breakpoint structure (§6.6) before scaling up.
+2. **ASGI decision locked + documented** (§10.2). Don't ship "SSE works on my machine".
+3. **`LeaseAgentRunner` coordinator class lands first.** ~150 LOC. All agent dispatches go through it. Owns the 8-call cap, 90s wall-clock, 1-retry counter, cost cap, telemetry.
+4. **`manage.py verify_caselaw_citations` lands BEFORE the first case-law YAML.** Pipeline gate against fabricated citations.
+5. **`tool_choice: tool + strict: true + additionalProperties: false`** spiked against the `submit_audit_report` schema. Confirm the model snapshot supports it; confirm the schema dialect restrictions don't break the audit-report shape.
+
+Once those 5 are green, Phase 1 begins: scaffold `backend/apps/leases/lease_law_corpus/` with the YAML loader + ChromaDB indexer (content-hash addressed, not on startup), then write 5 seed clauses to validate the round-trip end-to-end before scaling up to the full corpus.
