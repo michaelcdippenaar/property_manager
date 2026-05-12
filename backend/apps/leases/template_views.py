@@ -621,6 +621,36 @@ def _extract_signature_tokens(html: str) -> tuple[str, dict]:
     return new_html, sidecar
 
 
+_SIG_DIMS_BY_TYPE = {
+    "signature": ("signature-field", "width:200px;height:60px"),
+    "initials":  ("initials-field",  "width:100px;height:40px"),
+    "date":      ("date-field",      "width:120px;height:24px"),
+    "signed_at": ("signedat-field",  "width:160px;height:24px"),
+}
+
+
+def _build_signature_field_html(field_type: str, signer_role: str, field_name: str = "") -> str:
+    """Construct the canonical signing-field HTML span.
+
+    Mirrors ``admin/src/extensions/SignatureBlockNode.ts::renderHTML`` so the
+    output round-trips through TipTap's parseHTML without dropping attributes.
+    The signing engine (``apps.esigning.services``) reads `name` + `role` to
+    figure out who fills it in.
+    """
+    if field_type not in _SIG_DIMS_BY_TYPE:
+        field_type = "signature"
+    tag, dims = _SIG_DIMS_BY_TYPE[field_type]
+    if not field_name:
+        field_name = f"{signer_role}_{field_type}"
+    style = f"display:inline-block;{dims};margin:4px 6px;vertical-align:middle;"
+    fmt_attr = ' format="drawn_or_typed"' if field_type == "signature" else ""
+    return (
+        f'<{tag} name="{field_name}" role="{signer_role}" required="true" '
+        f'style="{style}" data-field-type="{field_type}" '
+        f'data-signer-role="{signer_role}" data-field-name="{field_name}"{fmt_attr}> </{tag}>'
+    )
+
+
 def _restore_signature_tokens(html: str, sidecar: dict) -> str:
     """Replace each ``⟪SIG#N⟫`` token with its original tag.
 
@@ -1596,6 +1626,63 @@ _TEMPLATE_TOOLS = [
             "required": []
         }
     },
+    {
+        "name": "insert_signature_field",
+        "description": (
+            "Insert a SignatureBlock atomic node into the document. Use this when the user "
+            "asks you to ADD a signature, initials, date-signed, or signed-at field for a "
+            "specific actor. The new block becomes an interactive fillable widget when the "
+            "lease is sent to signers.\n\n"
+            "Only call this when the user explicitly asks for a signature/initials/date field, "
+            "and only for actors they specifically named (landlord, tenant_1, tenant_2, "
+            "witness, agent). NEVER bulk-insert signature blocks across the document during a "
+            "restructure — that's noisy. To remove existing signature blocks, omit their "
+            "⟪SIG#N⟫ token from your edit_lines / update_all output."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "after_line_index": {
+                    "type": "integer",
+                    "description": (
+                        "The block is appended to the END of this line (paragraph). "
+                        "Use the [N] index from the document text view. If you want "
+                        "the block on its own line, call edit_lines first to insert "
+                        "a label paragraph (e.g. 'Landlord signature:'), then call "
+                        "this with that line's index."
+                    ),
+                },
+                "field_type": {
+                    "type": "string",
+                    "enum": ["signature", "initials", "date", "signed_at"],
+                    "description": (
+                        "signature = full pad (drawn or typed). initials = small pad. "
+                        "date = auto-filled date at signing. signed_at = location/place."
+                    ),
+                },
+                "signer_role": {
+                    "type": "string",
+                    "enum": ["landlord", "tenant_1", "tenant_2", "tenant_3",
+                             "witness_1", "witness_2", "agent", "occupant_1"],
+                    "description": (
+                        "Which signer the block belongs to. Use tenant_1 for the primary "
+                        "tenant (most leases). Default to landlord/tenant_1 pairs unless "
+                        "the user explicitly names additional parties."
+                    ),
+                },
+                "field_name": {
+                    "type": "string",
+                    "description": (
+                        "Optional unique field name. If omitted, auto-generated as "
+                        "<role>_<type> (e.g. landlord_signature, tenant_1_initials). "
+                        "Useful when inserting multiple initials per party (e.g. "
+                        "'landlord_initials_p2' for page 2)."
+                    ),
+                },
+            },
+            "required": ["after_line_index", "field_type", "signer_role"],
+        },
+    },
 ]
 
 
@@ -1921,6 +2008,56 @@ class LeaseTemplateAIChatView(APIView):
                         tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
                         if not reply_parts:
                             reply_parts.append("Template restructured to standard SA lease format.")
+
+                    elif name == "insert_signature_field":
+                        # AI Section 3 — lift the "AI can't insert signature blocks"
+                        # limitation. Append a SignatureBlock to the END of an
+                        # existing line (so the user retains the surrounding
+                        # paragraph text e.g. "Landlord:" before the widget).
+                        after_idx = int(inp.get("after_line_index", -1))
+                        field_type = inp.get("field_type", "signature")
+                        signer_role = inp.get("signer_role", "landlord")
+                        field_name = inp.get("field_name", "") or f"{signer_role}_{field_type}"
+
+                        # Build the canonical signature-field HTML, then convert
+                        # to a token so it travels through merge_lines_into_html
+                        # like every other signature block.
+                        new_tag_html = _build_signature_field_html(field_type, signer_role, field_name)
+                        new_token = f"⟪SIG#{len(sig_sidecar)}⟫"
+                        sig_sidecar[new_token] = new_tag_html
+
+                        # Find the target line, append the token to its text.
+                        lines = html_to_plain_lines(current_html)
+                        if after_idx < 0 or after_idx >= len(lines):
+                            tools_used.append({
+                                "name": "insert_signature_field",
+                                "detail": f"(invalid line index {after_idx})",
+                                "type": "warn",
+                            })
+                            reply_parts.append(
+                                f"I tried to insert a {field_type} field for {signer_role} "
+                                f"but the target line index {after_idx} is out of range. "
+                                f"The document has {len(lines)} lines."
+                            )
+                        else:
+                            target = lines[after_idx]
+                            target["text"] = (target["text"].rstrip() + " " + new_token).strip()
+                            new_html = merge_lines_into_html(current_html, [target])
+                            restored = _persist(new_html, f"Inserted {field_type} field for {signer_role}.")
+                            document_update = {
+                                "html": restored,
+                                "summary": f"Inserted {field_type} field for {signer_role}.",
+                            }
+                            current_html = new_html
+                            tools_used.append({
+                                "name": "insert_signature_field",
+                                "detail": f"{field_type} → {signer_role} @ line {after_idx}",
+                                "type": "tool",
+                            })
+                            if not reply_parts:
+                                reply_parts.append(
+                                    f"Added a {field_type} field for {signer_role} at line {after_idx}."
+                                )
 
                     else:
                         # AI #4 fix — unknown tool fallthrough. Before this,

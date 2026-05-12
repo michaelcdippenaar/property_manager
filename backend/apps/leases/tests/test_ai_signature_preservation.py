@@ -20,9 +20,10 @@ from __future__ import annotations
 import pytest
 
 from apps.leases.template_views import (
+    _build_signature_field_html,
     _extract_signature_tokens,
-    _restore_signature_tokens,
     _rebuild_html_from_lines,
+    _restore_signature_tokens,
     html_to_plain_lines,
     merge_lines_into_html,
 )
@@ -154,3 +155,49 @@ class TestSignatureSurvivesRoundTrip:
         assert "Lessor:" in final
         assert 'name="ll"' in final
         assert 'name="t"' in final
+
+
+# ── _build_signature_field_html ──────────────────────────────────────────
+
+class TestBuildSignatureFieldHtml:
+    """The AI Section 3 fix added insert_signature_field as a tool. This
+    builder emits the canonical TipTap-compatible signing-field HTML."""
+
+    def test_signature_tag_shape(self):
+        html = _build_signature_field_html("signature", "landlord")
+        assert html.startswith("<signature-field")
+        assert 'name="landlord_signature"' in html
+        assert 'role="landlord"' in html
+        assert 'required="true"' in html
+        assert 'format="drawn_or_typed"' in html
+        # Round-trips through the extractor
+        tok, sb = _extract_signature_tokens(html)
+        assert tok == "⟪SIG#0⟫"
+        assert _restore_signature_tokens(tok, sb) == html
+
+    def test_initials_has_no_format_attr(self):
+        html = _build_signature_field_html("initials", "tenant_1")
+        assert html.startswith("<initials-field")
+        assert "format=" not in html  # only signature carries format
+        assert 'name="tenant_1_initials"' in html
+
+    def test_date_field_shape(self):
+        html = _build_signature_field_html("date", "landlord")
+        assert html.startswith("<date-field")
+        assert 'name="landlord_date"' in html
+
+    def test_signed_at_field_shape(self):
+        html = _build_signature_field_html("signed_at", "tenant_1")
+        assert html.startswith("<signedat-field")
+        assert 'name="tenant_1_signed_at"' in html
+
+    def test_custom_field_name_overrides_default(self):
+        html = _build_signature_field_html("initials", "landlord", field_name="landlord_initials_p2")
+        assert 'name="landlord_initials_p2"' in html
+        assert 'data-field-name="landlord_initials_p2"' in html
+
+    def test_unknown_type_falls_back_to_signature(self):
+        # Defensive: prevents Claude from emitting an exotic field_type and
+        # ending up with empty tags.
+        html = _build_signature_field_html("bogus_type", "landlord")
+        assert html.startswith("<signature-field")
