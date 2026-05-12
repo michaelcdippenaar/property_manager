@@ -1390,8 +1390,255 @@ def _check_rha_compliance(html: str) -> dict:
     }
 
 
+# Boilerplate prose for each of the 13 standard SA-lease sections, with
+# RHA / CPA / POPIA-compliant clauses and Klikk canonical merge fields.
+# Each entry is the inner HTML for the section, ALREADY structured to flow
+# through ``html_to_plain_lines`` cleanly (single-purpose <p>/<li> elements;
+# no nested block tags; merge fields as data-merge-field spans). The
+# section header (h2) is added by the caller — these are bodies only.
+#
+# Audit finding #13 — was previously a stub
+#   '<p><em>[This section needs to be completed]</em></p>'
+# which made the AI's "I've restructured the template" reply technically
+# accurate but practically useless. Now each section ships with usable
+# legal prose the user can edit, not a TODO they have to write from
+# scratch.
+def _mf(name: str) -> str:
+    """Render a merge-field span the way html_to_doc_json expects."""
+    return f'<span data-merge-field="{name}">{{{{ {name} }}}}</span>'
+
+
+_SA_STANDARD_SECTION_BODIES: dict[str, str] = {
+    "PARTIES": (
+        f'<p>This agreement is entered into between:</p>'
+        f'<p><strong>LANDLORD:</strong> {_mf("landlord_name")} '
+        f'(ID/Reg No: {_mf("landlord_id")}), of {_mf("landlord_physical_address")}, '
+        f'contactable on {_mf("landlord_phone")} or {_mf("landlord_email")} '
+        f'(hereinafter "the Landlord");</p>'
+        f'<p><strong>TENANT:</strong> {_mf("tenant_name")} '
+        f'(ID No: {_mf("tenant_id")}), currently of {_mf("tenant_address")}, '
+        f'contactable on {_mf("tenant_phone")} or {_mf("tenant_email")} '
+        f'(hereinafter "the Tenant").</p>'
+    ),
+    "PREMISES": (
+        f'<p>The Landlord lets to the Tenant, and the Tenant hires from the Landlord, '
+        f'the residential premises situated at:</p>'
+        f'<p><strong>{_mf("property_address")}</strong></p>'
+        f'<p>Unit/Section: {_mf("unit_number")} · {_mf("city")}, {_mf("province")}</p>'
+        f'<p>Property description: {_mf("property_description")} ({_mf("property_name")}).</p>'
+        f'<p>(hereinafter "the Premises").</p>'
+        f'<p>Where the Premises form part of a sectional title scheme, the Tenant '
+        f'acknowledges that the conduct rules of the body corporate apply, and the '
+        f'Landlord shall provide a copy on request.</p>'
+    ),
+    "LEASE PERIOD": (
+        f'<p>This lease commences on <strong>{_mf("lease_start")}</strong> '
+        f'and terminates on <strong>{_mf("lease_end")}</strong> '
+        f'("the Lease Period"), subject to early termination as provided herein.</p>'
+        f'<p>Either party may terminate this fixed-term lease before its expiry '
+        f'by giving the other party at least 20 (twenty) business days\' written '
+        f'notice, in accordance with section 14(2) of the Consumer Protection Act '
+        f'68/2008. Where the Tenant terminates early, the Landlord may impose a '
+        f'reasonable cancellation penalty as contemplated by Regulation 5 to the '
+        f'CPA.</p>'
+        f'<p>If neither party gives notice before the Lease Period ends, the lease '
+        f'will continue on a month-to-month basis on the same terms, terminable by '
+        f'one calendar month\'s written notice from either side (s5(3)(d) of the '
+        f'Rental Housing Act 50/1999).</p>'
+    ),
+    "RENTAL AND DEPOSIT": (
+        f'<p>The Tenant shall pay rental of <strong>R{_mf("monthly_rent")} '
+        f'({_mf("monthly_rent_words")})</strong> per month, in advance, on or '
+        f'before the first day of each month, free of any deduction or set-off.</p>'
+        f'<p>Payment shall be made by electronic funds transfer to:</p>'
+        f'<p>Bank: {_mf("landlord_bank_name")} · Branch: {_mf("landlord_bank_branch_code")} · '
+        f'Account: {_mf("landlord_bank_account_no")} ({_mf("landlord_bank_account_type")}) · '
+        f'Reference: {_mf("payment_reference")}</p>'
+        f'<p>The Tenant shall pay a deposit of <strong>R{_mf("deposit")} '
+        f'({_mf("deposit_words")})</strong> on signature of this lease. In terms '
+        f'of section 5(3)(f) of the Rental Housing Act 50/1999, the deposit will '
+        f'be held in an interest-bearing account with a registered financial '
+        f'institution, and the interest accrued (less reasonable account fees) '
+        f'will accrue to the Tenant.</p>'
+        f'<p>The deposit, together with interest, will be refunded to the Tenant '
+        f'within 14 days of the lease termination, after deduction of any amounts '
+        f'lawfully owing in respect of damage to the Premises, outstanding rental, '
+        f'or other amounts due (s5(3)(h) of the Rental Housing Act).</p>'
+    ),
+    "UTILITIES": (
+        f'<p>Water and sewerage charges: as set out in the Lease Schedule. '
+        f'Where the property is on a prepaid water system, the Tenant pays '
+        f'directly. Where water is metered to the Landlord\'s account, the '
+        f'Tenant reimburses actual usage on production of the municipal bill.</p>'
+        f'<p>Electricity: where the property is on prepaid meter, the Tenant '
+        f'purchases tokens directly. Where on a conventional municipal account, '
+        f'the Tenant pays actual usage as billed.</p>'
+        f'<p>Refuse, sanitation and other municipal levies attributable to '
+        f'occupation of the Premises are for the Tenant\'s account, except '
+        f'where these are charged as part of the body corporate levy in a '
+        f'sectional title scheme, in which case the Landlord remains liable.</p>'
+        f'<p>The Landlord remains liable for rates, sectional title levies, '
+        f'and any contributions to the body corporate reserve fund (Sectional '
+        f'Titles Schemes Management Act 8/2011).</p>'
+    ),
+    "OCCUPANCY": (
+        f'<p>The Premises may be occupied only by the Tenant and the household '
+        f'members declared at the time of signing. The maximum permitted number '
+        f'of authorised occupants is <strong>{_mf("max_occupants")}</strong>.</p>'
+        f'<p>The Tenant shall not sub-let any part of the Premises, nor cede '
+        f'or assign any rights under this lease, without the Landlord\'s prior '
+        f'written consent. Short-term letting (including Airbnb-style rentals) '
+        f'is prohibited unless specifically agreed in writing and permitted by '
+        f'the body corporate / homeowners\' association rules.</p>'
+        f'<p>The Tenant shall use the Premises for residential purposes only '
+        f'and shall comply with all applicable laws, zoning requirements, and '
+        f'any sectional title conduct rules.</p>'
+    ),
+    "MAINTENANCE AND REPAIRS": (
+        f'<p>In terms of section 5A of the Rental Housing Act 50/1999, the '
+        f'Landlord undertakes to maintain the Premises in a habitable condition '
+        f'and to attend to repairs that arise from fair wear and tear or '
+        f'structural defects.</p>'
+        f'<p>In sectional title schemes the Landlord\'s maintenance duty is '
+        f'limited to the interior of the section and the fixtures fitted by '
+        f'the Landlord. Maintenance of the common property (lifts, roofs, '
+        f'exterior walls, communal gardens, etc.) remains the responsibility '
+        f'of the body corporate.</p>'
+        f'<p>The Tenant shall report any defect or required repair to the '
+        f'Landlord in writing within 48 hours of becoming aware of it. The '
+        f'Tenant shall be liable for the cost of any damage caused by the '
+        f'Tenant, the Tenant\'s household, visitors, or pets, beyond fair '
+        f'wear and tear.</p>'
+        f'<p>The Tenant may not effect alterations, additions, or '
+        f'redecoration (including painting, drilling into walls, or '
+        f'installing fittings) without the Landlord\'s prior written consent.</p>'
+    ),
+    "INSPECTIONS": (
+        f'<p>In compliance with sections 5(3)(e), (i) and (j) of the Rental '
+        f'Housing Act 50/1999, the parties shall jointly inspect the Premises:</p>'
+        f'<ul>'
+        f'<li><strong>Ingoing inspection</strong> — before or on the date the '
+        f'Tenant takes occupation, to record the condition of the Premises and '
+        f'any existing defects.</li>'
+        f'<li><strong>Outgoing inspection</strong> — within 3 days before the '
+        f'lease expires, to assess any damage attributable to the Tenant.</li>'
+        f'</ul>'
+        f'<p>Where the Tenant fails to attend the outgoing inspection after '
+        f'being given reasonable notice, the Landlord may proceed alone, and '
+        f'the inspection record so produced is binding on the Tenant.</p>'
+        f'<p>The Landlord may, on 24 hours\' notice and at reasonable times, '
+        f'enter the Premises to inspect, perform maintenance, or show the '
+        f'Premises to prospective tenants or purchasers in the final 60 days '
+        f'of the Lease Period.</p>'
+    ),
+    "NOTICE AND TERMINATION": (
+        f'<p>This lease may be terminated:</p>'
+        f'<ul>'
+        f'<li>By expiry of the fixed term, subject to the renewal provisions '
+        f'in the Lease Period section;</li>'
+        f'<li>By either party on at least 20 (twenty) business days\' written '
+        f'notice in terms of section 14(2)(b)(i) of the Consumer Protection Act '
+        f'68/2008 (the Tenant) and s5(5) of the Rental Housing Act read with '
+        f'the CPA (the Landlord);</li>'
+        f'<li>By the Landlord on 20 business days\' notice for material breach '
+        f'by the Tenant (including non-payment of rent), per section 5(5) of '
+        f'the Rental Housing Act and section 14 of the CPA;</li>'
+        f'<li>Immediately, on grounds of fraud, illegal use of the Premises, '
+        f'or such other ground as the law allows.</li>'
+        f'</ul>'
+        f'<p>All notices under this lease must be in writing and delivered to '
+        f'the addresses or email addresses set out in the Parties section, or '
+        f'such other address as either party may nominate in writing.</p>'
+        f'<p>Eviction may only proceed in terms of the Prevention of Illegal '
+        f'Eviction from and Unlawful Occupation of Land Act 19/1998 (PIE), '
+        f'after due notice and an order of the competent court.</p>'
+    ),
+    "CONSUMER PROTECTION ACT": (
+        f'<p>This lease is a fixed-term consumer agreement to which the '
+        f'Consumer Protection Act 68/2008 applies. In particular:</p>'
+        f'<ul>'
+        f'<li><strong>Section 14 — Fixed-term agreements:</strong> the Tenant '
+        f'may cancel this lease on 20 business days\' written notice, subject '
+        f'to a reasonable cancellation penalty as contemplated by '
+        f'Regulation 5 to the CPA. The Landlord shall furnish the Tenant with '
+        f'a written calculation of any such penalty on request.</li>'
+        f'<li><strong>Section 51 — Prohibited terms:</strong> any provision in '
+        f'this lease that purports to waive the Tenant\'s rights under the CPA, '
+        f'or to impose an unfair, unreasonable or unjust contract term, is '
+        f'severable and of no force.</li>'
+        f'<li><strong>Renewal notice:</strong> 40-80 business days before the '
+        f'Lease Period ends, the Landlord shall notify the Tenant in writing '
+        f'of the lease expiry, any material changes to the renewal terms, and '
+        f'the options available — failing which the lease will continue on a '
+        f'month-to-month basis as set out in the Lease Period section.</li>'
+        f'</ul>'
+    ),
+    "PROTECTION OF PERSONAL INFORMATION": (
+        f'<p>The Landlord is a responsible party in terms of the Protection of '
+        f'Personal Information Act 4/2013 ("POPIA") and processes the Tenant\'s '
+        f'personal information for the lawful purposes of:</p>'
+        f'<ul>'
+        f'<li>Concluding and administering this lease (s11(1)(b) — performance '
+        f'of a contract);</li>'
+        f'<li>Complying with statutory record-keeping under the Rental Housing '
+        f'Act and the Financial Intelligence Centre Act 38/2001 (s11(1)(c) — '
+        f'compliance with a legal obligation);</li>'
+        f'<li>Conducting credit, identity, and reference checks where the '
+        f'Tenant has provided express written consent (s11(1)(a)).</li>'
+        f'</ul>'
+        f'<p>The Tenant\'s information will be retained for the duration of '
+        f'this lease and for a maximum of 5 years thereafter (or longer where '
+        f'a statute requires), and thereafter destroyed or de-identified in '
+        f'accordance with POPIA section 14.</p>'
+        f'<p>The Tenant has the right to access, correct, or request deletion '
+        f'of personal information in terms of POPIA sections 23, 24 and 25, '
+        f'and may lodge a complaint with the Information Regulator at '
+        f'inforeg@justice.gov.za.</p>'
+    ),
+    "DISPUTE RESOLUTION": (
+        f'<p>Any dispute arising from or in connection with this lease '
+        f'(including any question regarding its existence, validity or '
+        f'termination) shall first be referred to the Rental Housing '
+        f'Tribunal of the province in which the Premises are situated, in '
+        f'terms of section 13 of the Rental Housing Act 50/1999. Referral '
+        f'to the Tribunal is free of charge and stays any contemplated '
+        f'eviction proceedings until the dispute is resolved.</p>'
+        f'<p>Where the dispute is not resolved by the Tribunal, or where '
+        f'the Tribunal declines jurisdiction, the parties may approach the '
+        f'Magistrate\'s Court having jurisdiction. Nothing in this clause '
+        f'limits a party\'s right to seek urgent relief from a competent '
+        f'court.</p>'
+        f'<p>This lease is governed by the laws of the Republic of South '
+        f'Africa. Each party consents to the jurisdiction of the '
+        f'Magistrate\'s Court for any action arising from this lease, '
+        f'notwithstanding that the amount in dispute may otherwise exceed '
+        f'the court\'s jurisdiction.</p>'
+    ),
+    "SIGNATURES": (
+        f'<p>Signed at <strong>{_mf("city")}</strong> on this '
+        f'{_mf("lease_start")}.</p>'
+        f'<p>The parties confirm that they have read this lease, understand '
+        f'its content, and accept its terms.</p>'
+        f'<p><strong>LANDLORD:</strong> {_mf("landlord_name")}</p>'
+        f'<p>Signature: ____________________ &nbsp; Date: ____________________</p>'
+        f'<p><strong>TENANT:</strong> {_mf("tenant_name")}</p>'
+        f'<p>Signature: ____________________ &nbsp; Date: ____________________</p>'
+        f'<p><em>For interactive signing, use the "Send for Signing" wizard '
+        f'on the lease detail page. The AI assistant can add fillable '
+        f'signature/initials/date blocks via the insert_signature_field tool '
+        f'if you ask.</em></p>'
+    ),
+}
+
+
 def _format_sa_standard(html: str, add_missing: bool = True, preserve_custom: bool = True) -> str:
-    """Add missing standard SA lease sections without reordering existing content.
+    """Add missing standard SA lease sections, populated with usable
+    RHA / CPA / POPIA-compliant boilerplate (audit finding #13).
+
+    Previously this function only inserted ``[This section needs to be
+    completed]`` placeholders — making the assistant's "I restructured
+    your template" reply technically true but practically useless. Now
+    each missing section ships with real legal prose the user can edit.
 
     Preserves the original document order and only appends missing
     standard sections before the final Signatures/Signatories section.
@@ -1416,14 +1663,16 @@ def _format_sa_standard(html: str, add_missing: bool = True, preserve_custom: bo
     if not add_missing:
         return html
 
-    # Build list of missing sections
+    # Build list of missing sections — populated with real boilerplate
     missing_sections = []
     for standard_name, _ in _SA_STANDARD_SECTIONS:
-        if standard_name not in present:
-            missing_sections.append(
-                f'<h2>{standard_name}</h2>\n'
-                f'<p><em>[This section needs to be completed]</em></p>\n'
-            )
+        if standard_name in present:
+            continue
+        body = _SA_STANDARD_SECTION_BODIES.get(
+            standard_name,
+            f'<p><em>[This section needs to be completed]</em></p>',
+        )
+        missing_sections.append(f'<h2>{standard_name}</h2>\n{body}\n')
 
     if not missing_sections:
         return html
@@ -1606,10 +1855,13 @@ _TEMPLATE_TOOLS = [
     {
         "name": "format_sa_standard",
         "description": (
-            "Restructure the entire template to match the standard 13-section South African lease format. "
-            "Reorders existing sections to the standard order, adds placeholder sections for any missing "
-            "standard sections, and preserves custom sections at the end. "
-            "Use when asked to 'format as standard SA lease', 'restructure', or 'add missing sections'."
+            "Restructure the entire template to match the standard 13-section South African residential lease format. "
+            "For each missing section, this inserts USABLE LEGAL PROSE with the canonical merge fields baked in — "
+            "RHA-compliant deposit/notice clauses, CPA s14 cancellation terms, POPIA s11 lawful-basis language, "
+            "PIE-Act-aware eviction language, and sectional-title-aware maintenance clauses. The user can edit "
+            "after, but the document will be IMMEDIATELY usable (not a list of `[needs completion]` placeholders). "
+            "Use when asked to 'format as standard SA lease', 'restructure', 'write me a proper lease', or "
+            "'add missing sections'."
         ),
         "input_schema": {
             "type": "object",
@@ -2053,8 +2305,18 @@ class LeaseTemplateAIChatView(APIView):
                             current_html = new_html
                             tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
                             if not reply_parts:
-                                reply_parts.append("Template restructured to standard SA lease format.")
-                            result_summary = "Template restructured to standard SA 13-section format. Missing sections added as placeholders — caller should fill them in."
+                                reply_parts.append(
+                                    "Template restructured to the standard SA 13-section format. "
+                                    "Any missing sections were populated with RHA / CPA / POPIA-compliant "
+                                    "boilerplate using the canonical merge fields — edit the rental amount, "
+                                    "dates, and party-specific terms before sending for signing."
+                                )
+                            result_summary = (
+                                "format_sa_standard: template now follows the 13-section RHA structure. "
+                                "Missing sections were populated with REAL clause prose (not placeholders) "
+                                "using canonical merge fields. The user should edit rental amounts, party "
+                                "names, banking details, etc., but the document is immediately usable."
+                            )
 
                         elif name == "insert_signature_field":
                             # AI Section 3 — lift the "AI can't insert signature blocks"

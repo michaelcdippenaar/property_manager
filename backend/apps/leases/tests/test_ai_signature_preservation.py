@@ -20,8 +20,10 @@ from __future__ import annotations
 import pytest
 
 from apps.leases.template_views import (
+    _SA_STANDARD_SECTION_BODIES,
     _build_signature_field_html,
     _extract_signature_tokens,
+    _format_sa_standard,
     _rebuild_html_from_lines,
     _restore_signature_tokens,
     html_to_plain_lines,
@@ -201,3 +203,108 @@ class TestBuildSignatureFieldHtml:
         # ending up with empty tags.
         html = _build_signature_field_html("bogus_type", "landlord")
         assert html.startswith("<signature-field")
+
+
+# ── _format_sa_standard — usable boilerplate, not [needs completion] stubs ─
+
+class TestFormatSaStandardEmitsRealProse:
+    """Audit #13 — _format_sa_standard used to emit
+    `<p><em>[This section needs to be completed]</em></p>` for every
+    missing section, making the AI's "I've restructured your template"
+    confident reply technically true but practically useless. Now each
+    section ships with RHA / CPA / POPIA-compliant prose."""
+
+    def test_all_13_sections_have_a_body(self):
+        # Every standard section must have prose, not be missing from the dict
+        from apps.leases.template_views import _SA_STANDARD_SECTIONS
+        for name, _ in _SA_STANDARD_SECTIONS:
+            assert name in _SA_STANDARD_SECTION_BODIES, (
+                f"Section {name!r} has no boilerplate body — _format_sa_standard "
+                f"will fall back to the [needs completion] placeholder."
+            )
+
+    def test_no_section_is_a_needs_completion_placeholder(self):
+        """The boilerplate must NOT be the old stub. This is the test that
+        would have failed before audit #13 was fixed."""
+        for name, body in _SA_STANDARD_SECTION_BODIES.items():
+            assert "[This section needs to be completed]" not in body, (
+                f"Section {name!r} is still the stub."
+            )
+            assert "[needs completion]" not in body, (
+                f"Section {name!r} is still the stub."
+            )
+            # Each body should be at least 200 chars of real prose — the old
+            # stub was ~52 chars. Catches future regressions where someone
+            # accidentally truncates a body to "Edit this." or similar.
+            assert len(body) > 200, (
+                f"Section {name!r} body is suspiciously short ({len(body)} chars): "
+                f"{body!r}"
+            )
+
+    def test_rha_cpa_popia_sections_cite_their_statutes(self):
+        """Spot-check that the legally-load-bearing sections actually carry
+        the right statutory references."""
+        rental = _SA_STANDARD_SECTION_BODIES["RENTAL AND DEPOSIT"]
+        assert "Rental Housing Act" in rental
+        assert "5(3)(f)" in rental or "interest-bearing" in rental
+        assert "14 days" in rental or "14 day" in rental
+
+        cpa = _SA_STANDARD_SECTION_BODIES["CONSUMER PROTECTION ACT"]
+        assert "Consumer Protection Act" in cpa
+        assert "Section 14" in cpa or "section 14" in cpa
+        assert "20 business days" in cpa
+
+        popia = _SA_STANDARD_SECTION_BODIES["PROTECTION OF PERSONAL INFORMATION"]
+        assert "Protection of Personal Information Act" in popia
+        assert "Information Regulator" in popia
+
+        dispute = _SA_STANDARD_SECTION_BODIES["DISPUTE RESOLUTION"]
+        assert "Rental Housing Tribunal" in dispute
+        assert "PIE" in _SA_STANDARD_SECTION_BODIES["NOTICE AND TERMINATION"] or \
+               "Prevention of Illegal Eviction" in _SA_STANDARD_SECTION_BODIES["NOTICE AND TERMINATION"]
+
+    def test_format_sa_standard_on_empty_doc_produces_real_lease(self):
+        """End-to-end: starting from a stub document, the formatted output
+        must contain real prose for every section — not a list of TODOs.
+        This is the test that would have caught MC's bug today."""
+        stub = '<p>Placeholder lease. Edit before use.</p>'
+        out = _format_sa_standard(stub, add_missing=True)
+        # Must not contain the old stub copy
+        assert "[This section needs to be completed]" not in out, (
+            "Output still contains the [needs completion] placeholder — "
+            "_format_sa_standard regressed to its v1 behaviour."
+        )
+        # Must contain real legal prose anchors
+        assert "Rental Housing Act" in out
+        assert "Consumer Protection Act" in out
+        assert "Protection of Personal Information Act" in out
+        assert "Rental Housing Tribunal" in out
+        # And every h2 has body content after it
+        sections = re.split(r'(?=<h2)', out)
+        for sec in sections:
+            if "<h2>" not in sec:
+                continue
+            # Strip the h2 heading
+            body = re.sub(r'<h2[^>]*>.*?</h2>', '', sec, count=1, flags=re.I)
+            assert body.strip(), f"Empty section body: {sec[:100]!r}"
+
+    def test_format_sa_standard_preserves_existing_sections(self):
+        """If a section is already present in the source, _format_sa_standard
+        must leave it alone — only fill missing sections."""
+        custom_html = (
+            '<h2>PARTIES</h2>\n'
+            '<p>This is the original parties block — MC wrote it, leave alone.</p>\n'
+            '<h2>SIGNATURES</h2>\n<p>Original signatures.</p>\n'
+        )
+        out = _format_sa_standard(custom_html, add_missing=True)
+        # Custom PARTIES content preserved verbatim
+        assert "MC wrote it, leave alone" in out
+        # Missing sections added (e.g. PREMISES)
+        assert "<h2>PREMISES</h2>" in out
+        # SIGNATURES stays at the end
+        assert out.rstrip().endswith("Original signatures.</p>") or \
+               "Original signatures" in out.split("<h2>SIGNATURES</h2>")[-1]
+
+
+# `re` is imported in the production module; pull it locally for the assertions
+import re  # noqa: E402
