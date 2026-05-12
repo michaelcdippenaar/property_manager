@@ -44,6 +44,12 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: AddressResult | null]
   select: [value: AddressResult]
+  // Raw input string — fires on every keystroke. Parents that need
+  // the form to work without Google Places (broken key / blocked CSP /
+  // ad-blocker) can listen for this to keep their `address` field in
+  // sync as the user types. `select` still only fires on a real
+  // place_changed and carries the full structured AddressResult.
+  text: [value: string]
 }>()
 
 const inputEl = ref<HTMLInputElement | null>(null)
@@ -57,7 +63,9 @@ watch(() => props.modelValue, (v) => {
 })
 
 function onInput(e: Event) {
-  displayValue.value = (e.target as HTMLInputElement).value
+  const v = (e.target as HTMLInputElement).value
+  displayValue.value = v
+  emit('text', v)
 }
 
 // Load Google Maps script once

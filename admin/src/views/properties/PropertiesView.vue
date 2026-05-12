@@ -262,6 +262,7 @@
             :model-value="selectedAddress"
             placeholder="Start typing an address…"
             @select="onAddressSelect"
+            @text="onAddressText"
           />
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -582,6 +583,15 @@ function onAddressSelect(addr: AddressResult) {
   newProperty.value.city = addr.city
   newProperty.value.province = addr.province
   newProperty.value.postal_code = addr.postal_code
+}
+
+// Fallback for when Google Places isn't loaded (missing API key, ad-blocker,
+// blocked CSP, offline). The autocomplete component still accepts manual
+// typing — this keeps newProperty.address in sync so the backend's required
+// validator passes. City/Province/Postal are typed into their own dedicated
+// inputs (lines 268–276), so we don't touch them here.
+function onAddressText(text: string) {
+  newProperty.value.address = text
 }
 // Both lists flow through Pinia stores: cross-view mutations stay in sync
 // reactively, the 30s staleness window dedupes navigation, and KeepAlive's
