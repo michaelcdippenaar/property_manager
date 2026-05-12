@@ -1848,20 +1848,6 @@ class LeaseTemplateAIChatView(APIView):
             if not api_key:
                 return Response({"error": "ANTHROPIC_API_KEY is not configured on the server."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             client = anthropic.Anthropic(api_key=api_key, timeout=120.0)
-            response = client.messages.create(
-                model="claude-sonnet-4-6",
-                max_tokens=16000,
-                system=system,
-                tools=_TEMPLATE_TOOLS,
-                messages=api_messages,
-            )
-
-            # Handle max_tokens truncation gracefully
-            if getattr(response, 'stop_reason', None) == 'max_tokens':
-                return Response({
-                "reply": "The document is too large to process in one go. Try asking for a specific section only, or use 'renumber sections' and 'add table of contents' as separate requests.",
-                "document_update": None,
-            })
 
             reply_parts = []
             document_update = None
@@ -1871,202 +1857,284 @@ class LeaseTemplateAIChatView(APIView):
             # the user something concrete instead of silently saying "Done."
             unknown_tool_attempts: list[str] = []
 
-            for block in response.content:
-                if block.type == "text" and block.text.strip():
-                    reply_parts.append(block.text.strip())
+            # AI #3 (P0) — multi-turn tool loop. The previous one-shot dispatch
+            # meant Claude could only call ONE tool per user message; chained
+            # work like "audit this and fix any issues" had to be split across
+            # several follow-up messages (the audit tool ran, but Claude never
+            # saw the report, so couldn't decide what to fix). Now we feed
+            # tool_result blocks back and let Claude continue for up to
+            # MAX_TURNS before stopping. Bound MAX_TURNS to cap latency + cost.
+            MAX_TURNS = 4
+            response = None
+            for turn in range(MAX_TURNS):
+                response = client.messages.create(
+                    model=getattr(__import__('django.conf', fromlist=['settings']).settings, 'ANTHROPIC_MODEL_LEASE_CHAT', None) or "claude-sonnet-4-5",
+                    max_tokens=32000,
+                    system=system,
+                    tools=_TEMPLATE_TOOLS,
+                    messages=api_messages,
+                )
 
-                elif block.type == "tool_use":
-                    name = block.name
-                    inp  = block.input
+                # AI #9 — Handle max_tokens truncation gracefully. Bumped
+                # max_tokens from 16k → 32k above; this is the fallback for
+                # truly oversized documents.
+                if getattr(response, 'stop_reason', None) == 'max_tokens':
+                    logger.warning(
+                        "Lease AI hit max_tokens cap (template=%s, turn=%d); user message: %r",
+                        pk, turn, user_message[:200] if user_message else None,
+                    )
+                    return Response({
+                        "reply": (
+                            "The document is too large to rewrite in one go. Try asking "
+                            "for a specific section (e.g. 'rewrite section 3' or 'add a "
+                            "POPIA clause after the deposit section') instead of a full "
+                            "restructure. For very large templates, the format_sa_standard "
+                            "skill works incrementally."
+                        ),
+                        "document_update": None,
+                    })
 
-                    # Helper: save edited (tokenised) HTML to DB after
-                    # restoring signature blocks, and emit the restored form
-                    # to the frontend. Keeps `current_html` tokenised for
-                    # downstream tools (if Claude chains multiple in one
-                    # turn, which is rare today but cheap to support).
-                    def _persist(new_html_tokenised: str, summary: str) -> str:
-                        restored = _restore_signature_tokens(new_html_tokenised, sig_sidecar)
-                        tmpl.content_html = restored
-                        tmpl.save(update_fields=["content_html"])
-                        return restored
+                turn_tool_uses = []   # raw blocks to feed back as assistant turn
+                turn_tool_results = []   # tool_result blocks for next user turn
 
-                    if name == "edit_lines":
-                        from_i    = int(inp.get("from_index", 0))
-                        to_i      = int(inp.get("to_index", from_i))
-                        new_lines = inp.get("new_lines", [])
-                        summary   = inp.get("summary", "Document updated.")
-                        # Assign sequential indices to new_lines starting at from_i
-                        indexed = [{'i': from_i + j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
-                                   for j, ln in enumerate(new_lines)]
-                        new_html = merge_lines_into_html(current_html, indexed)
-                        # For additions/deletions that change line count, rebuild from scratch
-                        if len(new_lines) != (to_i - from_i + 1):
-                            orig_lines  = html_to_plain_lines(current_html)
-                            before      = [l for l in orig_lines if l['i'] < from_i]
-                            after_lines = [l for l in orig_lines if l['i'] > to_i]
-                            # Re-index after block
-                            delta = len(new_lines) - (to_i - from_i + 1)
-                            for l in after_lines:
-                                l['i'] += delta
-                            rebuilt = before + indexed + after_lines
-                            new_html = _rebuild_html_from_lines(current_html, rebuilt)
-                        restored = _persist(new_html, summary)
-                        document_update = {"html": restored, "summary": summary}
-                        current_html = new_html
-                        tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(summary)
+                for block in response.content:
+                    if block.type == "text" and block.text.strip():
+                        reply_parts.append(block.text.strip())
 
-                    elif name == "update_all":
-                        lines   = inp.get("lines", [])
-                        summary = inp.get("summary", "Document updated.")
-                        indexed = [{'i': j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
-                                   for j, ln in enumerate(lines)]
-                        new_html = _rebuild_html_from_lines(current_html, indexed)
-                        restored = _persist(new_html, summary)
-                        document_update = {"html": restored, "summary": summary}
-                        current_html = new_html
-                        tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(summary)
+                    elif block.type == "tool_use":
+                        name = block.name
+                        inp  = block.input
+                        # AI #3: track this tool_use so we can feed a tool_result
+                        # back to Claude in the next turn. result_summary is the
+                        # text Claude sees as the tool's output — keep it short
+                        # (Claude doesn't need the full document, just the
+                        # outcome of its tool call).
+                        turn_tool_uses.append(block)
+                        result_summary = "OK"
 
-                    elif name == "add_comment":
-                        new_html = _insert_comment_html(
-                            current_html,
-                            inp.get("comment", ""),
-                            inp.get("position", "end"),
-                            inp.get("after_heading", ""),
-                        )
-                        restored = _persist(new_html, "Comment added.")
-                        document_update = {"html": restored, "summary": "Comment added."}
-                        current_html = new_html
-                        tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(document_update["summary"])
+                        # Helper: save edited (tokenised) HTML to DB after
+                        # restoring signature blocks, and emit the restored form
+                        # to the frontend. Keeps `current_html` tokenised for
+                        # downstream tools (if Claude chains multiple in one
+                        # turn, which is rare today but cheap to support).
+                        def _persist(new_html_tokenised: str, summary: str) -> str:
+                            restored = _restore_signature_tokens(new_html_tokenised, sig_sidecar)
+                            tmpl.content_html = restored
+                            tmpl.save(update_fields=["content_html"])
+                            return restored
 
-                    elif name == "insert_toc":
-                        toc = _build_toc_html(current_html, inp.get("title", "TABLE OF CONTENTS"))
-                        if toc:
-                            new_html = toc + current_html
-                            restored = _persist(new_html, "Table of contents inserted.")
-                            document_update = {"html": restored, "summary": "Table of contents inserted."}
+                        if name == "edit_lines":
+                            from_i    = int(inp.get("from_index", 0))
+                            to_i      = int(inp.get("to_index", from_i))
+                            new_lines = inp.get("new_lines", [])
+                            summary   = inp.get("summary", "Document updated.")
+                            # Assign sequential indices to new_lines starting at from_i
+                            indexed = [{'i': from_i + j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
+                                       for j, ln in enumerate(new_lines)]
+                            new_html = merge_lines_into_html(current_html, indexed)
+                            # For additions/deletions that change line count, rebuild from scratch
+                            if len(new_lines) != (to_i - from_i + 1):
+                                orig_lines  = html_to_plain_lines(current_html)
+                                before      = [l for l in orig_lines if l['i'] < from_i]
+                                after_lines = [l for l in orig_lines if l['i'] > to_i]
+                                # Re-index after block
+                                delta = len(new_lines) - (to_i - from_i + 1)
+                                for l in after_lines:
+                                    l['i'] += delta
+                                rebuilt = before + indexed + after_lines
+                                new_html = _rebuild_html_from_lines(current_html, rebuilt)
+                            restored = _persist(new_html, summary)
+                            document_update = {"html": restored, "summary": summary}
                             current_html = new_html
-                        tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(document_update["summary"] if document_update else "No headings found.")
-
-                    elif name == "renumber_sections":
-                        levels = inp.get("levels", "h2_h3_h4")
-                        style = inp.get("style", "number_dot")
-                        renum_p = inp.get("renumber_paragraphs", True)
-                        new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
-                        restored = _persist(new_html, f"Headings renumbered ({levels}).")
-                        document_update = {"html": restored, "summary": f"Headings renumbered ({levels})."}
-                        current_html = new_html
-                        tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(f"All headings renumbered with multi-level numbering ({levels}).")
-
-                    elif name == "apply_formatting":
-                        from_i   = int(inp.get("from_index", 0))
-                        to_i     = int(inp.get("to_index", from_i))
-                        fmt      = inp.get("style") or {}
-                        summary  = inp.get("summary", "Formatting applied.")
-                        new_html = _apply_formatting_to_html(current_html, from_i, to_i, fmt)
-                        restored = _persist(new_html, summary)
-                        document_update = {"html": restored, "summary": summary}
-                        current_html = new_html
-                        tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(summary)
-
-                    elif name == "highlight_fields":
-                        field_highlight = {
-                            "field_names": inp.get("field_names", []),
-                            "message":     inp.get("message", ""),
-                        }
-                        tools_used.append({"name": "highlight_fields", "detail": ", ".join(inp.get("field_names", [])[:3]), "type": "tool"})
-                        if not reply_parts:
-                            reply_parts.append(inp.get("message", "Fields highlighted."))
-
-                    elif name == "check_rha_compliance":
-                        report = _check_rha_compliance(current_html)
-                        tools_used.append({
-                            "name": "check_rha_compliance",
-                            "detail": f"{report['pass_count']}/{report['total_checks']} passed",
-                            "type": "skill",
-                        })
-                        reply_parts.append(report["summary"])
-
-                    elif name == "format_sa_standard":
-                        add_missing = inp.get("add_missing_sections", True)
-                        preserve_custom = inp.get("preserve_custom_sections", True)
-                        new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
-                        restored = _persist(new_html, "Template restructured to standard SA lease format.")
-                        document_update = {"html": restored, "summary": "Template restructured to standard SA lease format."}
-                        current_html = new_html
-                        tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
-                        if not reply_parts:
-                            reply_parts.append("Template restructured to standard SA lease format.")
-
-                    elif name == "insert_signature_field":
-                        # AI Section 3 — lift the "AI can't insert signature blocks"
-                        # limitation. Append a SignatureBlock to the END of an
-                        # existing line (so the user retains the surrounding
-                        # paragraph text e.g. "Landlord:" before the widget).
-                        after_idx = int(inp.get("after_line_index", -1))
-                        field_type = inp.get("field_type", "signature")
-                        signer_role = inp.get("signer_role", "landlord")
-                        field_name = inp.get("field_name", "") or f"{signer_role}_{field_type}"
-
-                        # Build the canonical signature-field HTML, then convert
-                        # to a token so it travels through merge_lines_into_html
-                        # like every other signature block.
-                        new_tag_html = _build_signature_field_html(field_type, signer_role, field_name)
-                        new_token = f"⟪SIG#{len(sig_sidecar)}⟫"
-                        sig_sidecar[new_token] = new_tag_html
-
-                        # Find the target line, append the token to its text.
-                        lines = html_to_plain_lines(current_html)
-                        if after_idx < 0 or after_idx >= len(lines):
-                            tools_used.append({
-                                "name": "insert_signature_field",
-                                "detail": f"(invalid line index {after_idx})",
-                                "type": "warn",
-                            })
-                            reply_parts.append(
-                                f"I tried to insert a {field_type} field for {signer_role} "
-                                f"but the target line index {after_idx} is out of range. "
-                                f"The document has {len(lines)} lines."
-                            )
-                        else:
-                            target = lines[after_idx]
-                            target["text"] = (target["text"].rstrip() + " " + new_token).strip()
-                            new_html = merge_lines_into_html(current_html, [target])
-                            restored = _persist(new_html, f"Inserted {field_type} field for {signer_role}.")
-                            document_update = {
-                                "html": restored,
-                                "summary": f"Inserted {field_type} field for {signer_role}.",
-                            }
-                            current_html = new_html
-                            tools_used.append({
-                                "name": "insert_signature_field",
-                                "detail": f"{field_type} → {signer_role} @ line {after_idx}",
-                                "type": "tool",
-                            })
+                            tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
                             if not reply_parts:
-                                reply_parts.append(
-                                    f"Added a {field_type} field for {signer_role} at line {after_idx}."
-                                )
+                                reply_parts.append(summary)
+                            result_summary = f"edit_lines: {summary}"
 
-                    else:
-                        # AI #4 fix — unknown tool fallthrough. Before this,
-                        # an unrecognised tool name (e.g. Claude hallucinated
-                        # "insert_signature" before the tool existed) silently
-                        # completed with `reply = "Done."` and nothing changed.
-                        # Surface it instead so the user sees what happened.
-                        unknown_tool_attempts.append(name)
-                        tools_used.append({"name": name, "detail": "(unknown tool — skipped)", "type": "warn"})
+                        elif name == "update_all":
+                            lines   = inp.get("lines", [])
+                            summary = inp.get("summary", "Document updated.")
+                            indexed = [{'i': j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
+                                       for j, ln in enumerate(lines)]
+                            new_html = _rebuild_html_from_lines(current_html, indexed)
+                            restored = _persist(new_html, summary)
+                            document_update = {"html": restored, "summary": summary}
+                            current_html = new_html
+                            tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(summary)
+                            result_summary = f"update_all: {summary} ({len(lines)} lines)"
+
+                        elif name == "add_comment":
+                            new_html = _insert_comment_html(
+                                current_html,
+                                inp.get("comment", ""),
+                                inp.get("position", "end"),
+                                inp.get("after_heading", ""),
+                            )
+                            restored = _persist(new_html, "Comment added.")
+                            document_update = {"html": restored, "summary": "Comment added."}
+                            current_html = new_html
+                            tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(document_update["summary"])
+                            result_summary = "Comment added."
+
+                        elif name == "insert_toc":
+                            toc = _build_toc_html(current_html, inp.get("title", "TABLE OF CONTENTS"))
+                            if toc:
+                                new_html = toc + current_html
+                                restored = _persist(new_html, "Table of contents inserted.")
+                                document_update = {"html": restored, "summary": "Table of contents inserted."}
+                                current_html = new_html
+                            tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(document_update["summary"] if document_update else "No headings found.")
+                            result_summary = "Table of contents inserted." if document_update else "No headings found — TOC not built."
+
+                        elif name == "renumber_sections":
+                            levels = inp.get("levels", "h2_h3_h4")
+                            style = inp.get("style", "number_dot")
+                            renum_p = inp.get("renumber_paragraphs", True)
+                            new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
+                            restored = _persist(new_html, f"Headings renumbered ({levels}).")
+                            document_update = {"html": restored, "summary": f"Headings renumbered ({levels})."}
+                            current_html = new_html
+                            tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(f"All headings renumbered with multi-level numbering ({levels}).")
+                            result_summary = f"Headings renumbered ({levels})."
+
+                        elif name == "apply_formatting":
+                            from_i   = int(inp.get("from_index", 0))
+                            to_i     = int(inp.get("to_index", from_i))
+                            fmt      = inp.get("style") or {}
+                            summary  = inp.get("summary", "Formatting applied.")
+                            new_html = _apply_formatting_to_html(current_html, from_i, to_i, fmt)
+                            restored = _persist(new_html, summary)
+                            document_update = {"html": restored, "summary": summary}
+                            current_html = new_html
+                            tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(summary)
+                            result_summary = f"apply_formatting: {summary}"
+
+                        elif name == "highlight_fields":
+                            field_highlight = {
+                                "field_names": inp.get("field_names", []),
+                                "message":     inp.get("message", ""),
+                            }
+                            tools_used.append({"name": "highlight_fields", "detail": ", ".join(inp.get("field_names", [])[:3]), "type": "tool"})
+                            if not reply_parts:
+                                reply_parts.append(inp.get("message", "Fields highlighted."))
+                            result_summary = "Fields highlighted for user attention."
+
+                        elif name == "check_rha_compliance":
+                            report = _check_rha_compliance(current_html)
+                            tools_used.append({
+                                "name": "check_rha_compliance",
+                                "detail": f"{report['pass_count']}/{report['total_checks']} passed",
+                                "type": "skill",
+                            })
+                            reply_parts.append(report["summary"])
+                            result_summary = report["summary"]
+
+                        elif name == "format_sa_standard":
+                            add_missing = inp.get("add_missing_sections", True)
+                            preserve_custom = inp.get("preserve_custom_sections", True)
+                            new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
+                            restored = _persist(new_html, "Template restructured to standard SA lease format.")
+                            document_update = {"html": restored, "summary": "Template restructured to standard SA lease format."}
+                            current_html = new_html
+                            tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
+                            if not reply_parts:
+                                reply_parts.append("Template restructured to standard SA lease format.")
+                            result_summary = "Template restructured to standard SA 13-section format. Missing sections added as placeholders — caller should fill them in."
+
+                        elif name == "insert_signature_field":
+                            # AI Section 3 — lift the "AI can't insert signature blocks"
+                            # limitation. Append a SignatureBlock to the END of an
+                            # existing line (so the user retains the surrounding
+                            # paragraph text e.g. "Landlord:" before the widget).
+                            after_idx = int(inp.get("after_line_index", -1))
+                            field_type = inp.get("field_type", "signature")
+                            signer_role = inp.get("signer_role", "landlord")
+                            field_name = inp.get("field_name", "") or f"{signer_role}_{field_type}"
+
+                            # Build the canonical signature-field HTML, then convert
+                            # to a token so it travels through merge_lines_into_html
+                            # like every other signature block.
+                            new_tag_html = _build_signature_field_html(field_type, signer_role, field_name)
+                            new_token = f"⟪SIG#{len(sig_sidecar)}⟫"
+                            sig_sidecar[new_token] = new_tag_html
+
+                            # Find the target line, append the token to its text.
+                            lines = html_to_plain_lines(current_html)
+                            if after_idx < 0 or after_idx >= len(lines):
+                                tools_used.append({
+                                    "name": "insert_signature_field",
+                                    "detail": f"(invalid line index {after_idx})",
+                                    "type": "warn",
+                                })
+                                reply_parts.append(
+                                    f"I tried to insert a {field_type} field for {signer_role} "
+                                    f"but the target line index {after_idx} is out of range. "
+                                    f"The document has {len(lines)} lines."
+                                )
+                                result_summary = f"Error: line index {after_idx} out of range (document has {len(lines)} lines)."
+                            else:
+                                target = lines[after_idx]
+                                target["text"] = (target["text"].rstrip() + " " + new_token).strip()
+                                new_html = merge_lines_into_html(current_html, [target])
+                                restored = _persist(new_html, f"Inserted {field_type} field for {signer_role}.")
+                                document_update = {
+                                    "html": restored,
+                                    "summary": f"Inserted {field_type} field for {signer_role}.",
+                                }
+                                current_html = new_html
+                                tools_used.append({
+                                    "name": "insert_signature_field",
+                                    "detail": f"{field_type} → {signer_role} @ line {after_idx}",
+                                    "type": "tool",
+                                })
+                                if not reply_parts:
+                                    reply_parts.append(
+                                        f"Added a {field_type} field for {signer_role} at line {after_idx}."
+                                    )
+                                result_summary = f"Inserted {field_type} field for {signer_role} at line {after_idx}."
+
+                        else:
+                            # AI #4 fix — unknown tool fallthrough. Before this,
+                            # an unrecognised tool name (e.g. Claude hallucinated
+                            # "insert_signature" before the tool existed) silently
+                            # completed with `reply = "Done."` and nothing changed.
+                            # Surface it instead so the user sees what happened.
+                            unknown_tool_attempts.append(name)
+                            tools_used.append({"name": name, "detail": "(unknown tool — skipped)", "type": "warn"})
+                            result_summary = f"Error: tool '{name}' is not available. Available tools: edit_lines, update_all, apply_formatting, insert_toc, renumber_sections, add_comment, highlight_fields, check_rha_compliance, format_sa_standard, insert_signature_field."
+
+                        # AI #3: feed the tool's outcome back to Claude in the
+                        # next turn so it can decide what to do next (e.g. run
+                        # check_rha_compliance → see report → call format_
+                        # sa_standard to fix the missing sections). Default
+                        # result_summary is "OK" — most tool branches override
+                        # it with a more specific outcome string above.
+                        turn_tool_results.append({
+                            "type": "tool_result",
+                            "tool_use_id": block.id,
+                            "content": result_summary,
+                        })
+
+                # AI #3: end the multi-turn loop. Either Claude is
+                # done (`end_turn`), or it didn't request any tools
+                # this turn — feeding empty tool_results back would
+                # just waste an API round-trip.
+                if getattr(response, 'stop_reason', None) == 'end_turn' or not turn_tool_uses:
+                    break
+                # Continue conversation: append assistant turn + tool_result blocks.
+                # Anthropic SDK accepts the response.content blocks verbatim.
+                api_messages.append({"role": "assistant", "content": list(response.content)})
+                api_messages.append({"role": "user", "content": turn_tool_results})
 
             # AI #4: if the only thing Claude did was call unknown tools,
             # tell the user — don't lie with "Done."
@@ -2078,20 +2146,38 @@ class LeaseTemplateAIChatView(APIView):
                 )
             reply = " ".join(reply_parts) or "Done."
 
-            # Build updated api_history for the frontend to store.
-            # If the document was modified, reset history with fresh doc context so
-            # the next turn doesn't work from stale "(empty document)" state.
-            if document_update:
+            # AI #7: preserve the conversation across doc_update turns.
+            # Previously, when document_update was set, the api_history was
+            # reset to a 4-message stub — meaning the next user message had
+            # no memory of what was discussed about the just-edited section.
+            # "Rewrite section 3" then "and add a clause about pets" was
+            # broken: the second message saw only the doc state, not the
+            # prior intent. Fix: keep the full conversation, just rewrite
+            # the FIRST user message (the doc-context one) with the current
+            # document text so Claude reads from a fresh snapshot of the doc.
+            #
+            # Caveat: `api_messages` after the multi-turn loop also contains
+            # `tool_use`/`tool_result` blocks from any iterations. Those are
+            # fine to keep in history — they're informative context for the
+            # next turn ("you ran format_sa_standard and got this result").
+            # The frontend stores it opaquely and sends it back on the next
+            # request; we don't render them to the user.
+            updated_history = [dict(m) for m in api_messages]  # shallow copy
+            if document_update and updated_history:
                 fresh_lines = html_to_plain_lines(current_html) if current_html else []
                 fresh_doc   = plain_lines_to_text(fresh_lines) if fresh_lines else "(empty document)"
-                updated_history = [
-                    {"role": "user",      "content": f"Full document — {len(fresh_lines)} lines:\n\n{fresh_doc}"},
-                    {"role": "assistant", "content": "Understood. I have the updated document. How can I help?"},
-                    {"role": "user",      "content": user_message},
-                    {"role": "assistant", "content": reply},
-                ]
-            else:
-                updated_history = api_messages + [{"role": "assistant", "content": reply}]
+                # Replace the FIRST user message (which carried the original
+                # doc context) so subsequent turns work from up-to-date HTML.
+                # All later messages stay intact, including the user's
+                # original request and any tool exchanges.
+                for i, m in enumerate(updated_history):
+                    if m.get("role") == "user":
+                        updated_history[i] = {
+                            "role": "user",
+                            "content": f"Full document — {len(fresh_lines)} lines:\n\n{fresh_doc}",
+                        }
+                        break
+            updated_history.append({"role": "assistant", "content": reply})
 
             result: dict = {"reply": reply, "api_history": updated_history}
             if document_update:
