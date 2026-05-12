@@ -1,4 +1,5 @@
-FROM node:22.17.1-alpine AS build
+# @quasar/app-vite ^2.6.0 requires Node 22.22.0+; use the latest 22.x.
+FROM node:22-alpine AS build
 
 WORKDIR /app
 COPY package.json package-lock.json ./
