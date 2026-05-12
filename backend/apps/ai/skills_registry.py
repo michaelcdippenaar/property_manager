@@ -68,7 +68,9 @@ def _parse_skill_md(path: Path) -> dict | None:
         category = "security"
     elif any(kw in name for kw in ("lease", "rental", "format-lease", "parse-lease")):
         category = "lease"
-    elif "docuseal" in name:
+    elif "docuseal" in name or "esigning" in name or "signing" in name:
+        # DocuSeal was removed in April 2026; "docuseal" kept for any legacy
+        # skill names still on disk. Native signing keywords routed here too.
         category = "esigning"
     else:
         category = "general"
