@@ -12,6 +12,11 @@ concurrency:
   group: staging-deploy
   cancel-in-progress: false   # Never cancel an in-flight deploy; queue instead
 
+# GITHUB_TOKEN needs packages:write to create + push images to ghcr.io
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-push:
     name: Build & push Docker images
