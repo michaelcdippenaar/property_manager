@@ -11,6 +11,7 @@ Single source of truth for product features, marketing copy, and sales materials
 | `sales/` | ICP, objections, demo flow, case studies |
 | `website/copy/` | Page-level marketing copy |
 | `changelog/` | Release notes linked to features.yaml |
+| `cto/` | CTO-owned canonical references (legal citations, architecture-spanning decisions) — **read before publishing legal claims** |
 
 ## Website repository
 
@@ -48,3 +49,4 @@ Copy from `content/website/copy/` into that project (or wire a build step) as ne
 1. Check `product/features.yaml` for current status
 2. Never advertise PLANNED features as available
 3. Follow `brand/voice.md` for tone and style
+4. For any claim about SA legal compliance (POPIA, RHA, CPA, PIE), cite the section from `cto/rha-citation-canonical-map.md` — that is the only authoritative source for which section number to use. Skill .md files may lag. Run `python backend/manage.py verify_caselaw_citations` before committing copy that contains statute citations.

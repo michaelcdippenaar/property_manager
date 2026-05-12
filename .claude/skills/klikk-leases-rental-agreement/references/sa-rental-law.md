@@ -2,6 +2,8 @@
 
 Quick-reference for the three primary statutes governing residential leases. Use this to validate agreement clauses and flag compliance issues.
 
+> **Citation grounding.** The canonical citation map is `content/cto/rha-citation-canonical-map.md`. Where this file and the map disagree, the map wins. LOW-confidence sub-section letters (interest-bearing account, refund deadlines) are pending SA-admitted-attorney sign-off and are flagged below.
+
 ## Table of Contents
 1. [Rental Housing Act 50 of 1999](#rental-housing-act)
 2. [Consumer Protection Act 68 of 2008](#consumer-protection-act)
@@ -27,13 +29,18 @@ Quick-reference for the three primary statutes governing residential leases. Use
 | s5(2) | Tenant has right to a written lease | This agreement satisfies this requirement |
 | s5(3)(a) | Lease must contain names and addresses of parties | Parties section must be complete |
 | s5(3)(b) | Description of dwelling | Premises section required |
-| s5(3)(c) | Term of lease and notice period (minimum one calendar month) | Notice period must be >= ~20 business days |
-| s5(3)(d) | Rental amount and escalation | Rental section must specify both |
+| s5(3)(c) | Rental amount and reasonable escalation | Rental section must specify both |
+| s5(3)(d) | Term of lease, or if indefinite, notice period (minimum one calendar month under s5(5)) | Notice period must be >= one calendar month |
 | s5(3)(e) | Deposit amount | Must be stated explicitly |
-| s5(3)(f) | Obligation to pay deposit into interest-bearing account | **Mandatory clause** |
-| s5(3)(g) | Deposit may not exceed amount prescribed (currently 2x monthly rent per regulations) | **Validation rule: deposit <= 2 * rent** |
-| s5(3)(h) | Deposit refund within 14 days of termination | **Mandatory clause** |
-| s5(5) | House rules must be annexed if they exist | Include house rules section |
+| s5(3)(f) ⚠️ LOW-confidence | Obligation to pay deposit into interest-bearing account, interest accrues for tenant | **Mandatory clause** — sub-section letter pending lawyer sign-off; see canonical map |
+| s5(3)(g) | Rent due date | Must be stated |
+| s5(3)(h) | Top-level listing of landlord and tenant obligations | Detailed duties at s5A (landlord) and s5B (tenant) |
+| s5(3)(i) | Rules of the house annexed | Include house rules section |
+| s5(3)(j) | Deposit purpose + refund terms | Must be stated in lease |
+| s5(3)(k) | Joint ingoing / outgoing inspection requirements | Both inspections required |
+| Refund deadlines ⚠️ LOW-confidence | 7 days (no damage), 14 days (damage + repairs), 21 days (tenant absent) | Sub-section letters pending lawyer sign-off; see canonical map |
+
+> ⚠️ **There is no statutory deposit cap in s5(3).** The "2× monthly rent" convention is industry custom, not statute. Deposits disproportionate to rent may be challenged as an **unfair practice under s4A**.
 
 **Section 5A — Obligations of Landlord**
 - Maintain premises in habitable condition
@@ -47,8 +54,10 @@ Quick-reference for the three primary statutes governing residential leases. Use
 - Not alter the premises without consent
 - Not use premises for unlawful purposes
 
-**Section 13 — Rental Housing Tribunal**
-- Any dispute must first be referred to the provincial Rental Housing Tribunal
+**Section 7 — Rental Housing Tribunals (establishment)** and **Section 13 — Tribunal powers / referral**
+- Provincial Rental Housing Tribunals are **established under s7** of the RHA
+- Their powers, procedure, and the effect of their rulings are set out in **s13** (rulings have the effect of a Magistrate's Court order under s13(12))
+- Any dispute should be referred to the provincial Rental Housing Tribunal
 - Tribunal services are free of charge
 - Tribunal has power to make binding rulings
 
@@ -56,7 +65,7 @@ Quick-reference for the three primary statutes governing residential leases. Use
 
 The deposit regime is one of the most litigated areas. Get these right:
 
-1. **Cap**: Deposit cannot exceed the amount prescribed by the Minister (currently 2x monthly rental by regulation). Exceeding this is an unfair practice.
+1. **Cap**: The RHA does **not** impose a statutory deposit cap in s5(3). The "2× monthly rental" figure is industry convention. A deposit disproportionate to the rent may be challenged as an **unfair practice under s4A**, with provincial Tribunal jurisprudence applying the "reasonableness" test.
 2. **Interest-bearing account**: Landlord must invest the deposit in an interest-bearing account with a financial institution.
 3. **Interest accrual**: Interest accrues for the benefit of the tenant.
 4. **Inspection**: Landlord must inspect premises within 7 days before or after termination, in the presence of the tenant (or after giving 3 days written notice if tenant is absent).

@@ -1,5 +1,7 @@
 # Deposit Rules — Complete Lifecycle
 
+> **Citation grounding.** Authoritative reference is `content/cto/rha-citation-canonical-map.md`. The interest-bearing-account requirement is cited as **RHA s5(3)(f)** below, but that sub-section letter is **LOW-confidence** pending SA-admitted-attorney verification of the current consolidated Act (1999 + 2014 amendments).
+
 Everything about rental security deposits in South Africa: caps, accounts, inspections, refund timelines, deductions, and disputes.
 
 ---

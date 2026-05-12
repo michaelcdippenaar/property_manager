@@ -1,6 +1,8 @@
 # Rental Housing Act — RHA 50 of 1999 (as amended by Act 35 of 2014)
 
-The primary statute for residential rentals in SA. Creates the **Rental Housing Tribunal** in each province, defines landlord and tenant duties, and regulates deposits, inspections, and written leases.
+> **Citation grounding.** Authoritative reference for which RHA sub-section we cite for each concept is `content/cto/rha-citation-canonical-map.md`. Sub-section letters for the deposit interest-bearing account and the 7 / 14 / 21-day refund deadlines are flagged LOW-confidence and require SA-admitted-attorney sign-off before any externally-facing lease text relies on them.
+
+The primary statute for residential rentals in SA. Provincial **Rental Housing Tribunals** are established under **s7**, with powers in **s13**. The Act defines landlord and tenant duties, and regulates deposits, inspections, and written leases.
 
 **Amendment Act 35 of 2014** introduced **s4A** (unfair practices) and tightened s5. Commencement of some s4A provisions was staggered — as of 2025 most are in force.
 
@@ -42,7 +44,7 @@ A lease **must** be in writing if the tenant so requests. The landlord must redu
 | (c) | Rental amount and reasonable escalation |
 | (d) | Term of the lease, or if indefinite, notice period |
 | (e) | Deposit amount (if any) |
-| (f) | Obligation to invest deposit in an interest-bearing account, with interest rate at least equivalent to standard savings account |
+| (f) ⚠️ LOW-confidence | Obligation to invest deposit in an interest-bearing account, with interest rate at least equivalent to standard savings account (sub-section letter pending lawyer sign-off — see canonical map) |
 | (g) | Date on which rental is due |
 | (h) | Landlord's obligations and tenant's obligations |
 | (i) | Rules of the house in writing (annexed) |
@@ -65,13 +67,15 @@ On expiry of a lease, if the tenant remains in occupation with the landlord's ex
 - **Interest accrues for the tenant**
 - Landlord must, on written request, provide **proof of the interest accrued**
 
-### Refund timelines (s5(3)(g)–(i))
+### Refund timelines ⚠️ LOW-confidence sub-section letters — pending lawyer sign-off
 
 | Scenario | Deadline |
 |---|---|
 | No damage, lease terminated normally, joint inspection done | **7 days** after expiration of the lease |
 | Damage exists — repairs required | **14 days** after repairs completed, against written repair invoices |
 | Tenant failed to attend outgoing inspection | **21 days** from expiration of the lease |
+
+> The deadlines themselves (7 / 14 / 21 days) are well established. The specific RHA s5(3) sub-section letters that house each deadline are pending SA-admitted-attorney verification — see `content/cto/rha-citation-canonical-map.md` items #17–19.
 
 ### Inspections (s5(3)(k))
 - **Ingoing joint inspection** — within 7 days before occupation

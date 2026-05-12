@@ -4,12 +4,12 @@
 |---|---|
 | **Status** | Design locked (post-audit refactor), ready to build |
 | **Phase** | 0 → 0.5 (prerequisites) → 1 |
-| **Date locked** | 2026-05-12 (initial); 2026-05-12 (post-audit revision) |
-| **Author** | MC + Claude (design conversation); pre-implementation audit by CTO agent on Opus |
+| **Date locked** | 2026-05-12 (initial); 2026-05-12 (post-audit revision); 2026-05-12 (citation-map cutover) |
+| **Author** | MC + Claude (design conversation); pre-implementation audit by CTO agent on Opus; second audit grounded in SA law (citation findings consolidated in `content/cto/rha-citation-canonical-map.md`) |
 | **Implementation target** | `apps.leases.template_views` + new `apps.leases.lease_law_corpus/` + new `apps.leases.runner.LeaseAgentRunner` |
 | **Endpoint** | `POST /api/v1/leases/templates/<id>/ai-chat-v2/` (parallel to v1 until cutover) |
 | **Supersedes** | Single-agent `LeaseTemplateAIChatView` (kept as fallback during rollout) |
-| **Audit findings applied** | 6 P0 (caching, forced tool output, loop math, coordinator class, indexing race, case-law verifier), 2 P1 (push viability, ASGI prerequisite), 5 risk-register items (POPIA accuracy, cache invalidation cascades, layout token round-trip, corpus growth, `@page` CSS reliability) |
+| **Audit findings applied** | 6 P0 (caching, forced tool output, loop math, coordinator class, indexing race, case-law verifier), 2 P1 (push viability, ASGI prerequisite), 5 risk-register items. Citation-map cutover applied HIGH-confidence corrections (RHT establishment s13→s7; POPIA accuracy s23→s16); LOW-confidence sub-section letters remain provisional pending SA-admitted-attorney sign-off — see `content/cto/rha-citation-canonical-map.md`. |
 
 ---
 
@@ -81,16 +81,19 @@ Multi-agent + RAG fixes all five.
 | 10 | Reviewer loop budget | **1 retry max.** Hard caps enforced in `LeaseAgentRunner` coordinator: **≤8 total LLM calls per request**, **≤90s wall-clock budget**, **≤3 internal turns per agent**. On cap-hit: ship partial result with `terminated_reason=cap` and a banner to the user. Realistic worst case is 6-8 calls, not 4 — see §8.1 for the honest math. |
 | 11 | Tool partitioning | **Strict** — each agent gets only tools matching its role. Enforced per-call (each `messages.create` defines its own tools list). |
 | 12 | Question-asking UX | **Conversational** — agent asks in plain text, user answers in next message |
-| 13 | Case-law sourcing | **AI-curated seed (Claude + MC review) → SAFLII verifier → MC review → staging/internal use → SA-lawyer review before external customer.** No `case_law` chunk advances past `confidence_level=ai_curated` until `manage.py verify_caselaw_citations` confirms the citation exists on SAFLII. See decision 19 + §6.5. |
+| 13 | Case-law sourcing | **AI-curated seed (Claude + MC review) → canonical-map drift check → MC review → staging/internal use → SA-lawyer attestation before external customer.** No `case_law` chunk advances past `confidence_level=ai_curated` until `manage.py verify_caselaw_citations` confirms (a) every statute citation in the chunk matches the canonical map, AND (b) the chunk carries a lawyer-attested `verification_status: verified` field. SAFLII fetching is Cloudflare-blocked, so we cannot programmatically verify case-law URLs at runtime — lawyer attestation is the substitute. See decision 19 + §6.5. |
 | 14 | Page layout | **Klikk-uniform for v1** — per-agency customisation deferred to Tier D |
 | 15 | UX disclosure | **One coherent reply, pipeline visible in tools-used badges** — audit report in expander. Every Reviewer finding shows its `confidence_level` (ai_curated / mc_reviewed / lawyer_reviewed) so the user knows the strength of the citation. |
 | 16 | API contract | **`POST /api/v1/leases/templates/<id>/ai-chat-v2/`** alongside v1 during rollout; v1 retired after stability |
 | 17 | Streaming | **SSE within v2 from day one** — token streaming inside turns, status events between agents. **REQUIRES ASGI RUNTIME** (Daphne / Uvicorn / async `View`). Django sync WSGI buffers `StreamingHttpResponse` — SSE will appear to hang in production. Migrating the lease AI endpoint to async is a Phase 1 prerequisite. See §10.2. |
 | **18** | **Prompt caching (mandatory)** | **`cache_control: {"type": "ephemeral"}` markers on tools array + 3 system-prompt blocks (persona, merge-fields block, RAG chunks block).** Per-request user data lives AFTER the last breakpoint. Audit telemetry: every Drafter call after the first in a session MUST report `cache_read_input_tokens > 0` — failure raises a sev-2 alert. See decision 22 + §6.6. |
-| **19** | **Case-law citation verifier** | **`manage.py verify_caselaw_citations` is a corpus-build gate.** Runs on every PR to `lease_law_corpus/case_law/`. Verifies each citation exists on SAFLII (or Jutastat, or another authoritative source). Unverified citations cannot be loaded into the live RAG. Phase 4 ships **only** with `verification_status=verified` case-law chunks. |
+| **19** | **Citation verifier CLI** | **`manage.py verify_caselaw_citations` is a corpus-build gate** (implemented at `backend/apps/leases/management/commands/verify_caselaw_citations.py`). Two functions: (1) static drift check — scans MD/YAML for statute citations and compares against the HIGH-confidence canonical map; FAILS on known-wrong citations, WARNS on LOW-confidence rows pending lawyer sign-off; (2) case-law attestation check — every `case_law` chunk must carry a lawyer-attested `verification_status: verified` field with reviewer ID + ISO timestamp (Phase 4+ when corpus YAML lands). Runs on every PR to corpus + skill files (`--strict` mode in CI). Unverified case-law chunks cannot be loaded into the live RAG. Phase 4 ships **only** with `verification_status=verified` case-law chunks. |
 | **20** | **`LeaseAgentRunner` coordinator** | **Single class owns all budget enforcement.** All agent dispatches go through it. Tracks total LLM calls, wall-clock (monotonic), retry count, running cost (USD). Hard cost cap per request: `LEASE_AI_MAX_COST_USD_PER_REQUEST` (default 0.50). Cap-hit triggers immediate abort + persisted `AILeaseAgentRun.terminated_reason`. |
 | **21** | **`update_all` removed from Drafter v2** | The legacy `update_all` tool (whole-doc rewrite) is **NOT carried into v2**. With `add_clause(clause_id, ...)` for surgical inserts from RAG + `format_sa_standard` for full restructures + `edit_lines` for targeted edits, there is no legitimate reason for full-doc rewrites in v2. Removing it eliminates the "AI claimed to add 13 sections but emitted placeholders" failure class (§2 row 1). |
 | **22** | **Reviewer uses forced tool output** | **`tool_choice={"type":"tool","name":"submit_audit_report"}` + `strict: true` + `additionalProperties: false`** on the `submit_audit_report` input_schema. Reviewer yields exactly one `tool_use` block and no prose text. The user-facing one-liner lives in `summary` inside the structured critique. See §5.3 invariants. |
+| **23** | **Per-agent model selection (speed / cost)** | **Drafter → Claude Sonnet** (only agent that writes legal prose, needs the highest model). **Reviewer → Claude Haiku** (reads a finished doc, emits structured `submit_audit_report` — cheap, fast, strict schema constrains hallucination). **Formatter → Claude Haiku** (heading hierarchy + page layout — narrow, deterministic). Front Door is Python. Net effect: ~3× cost reduction and ~2× wall-clock reduction in the typical 4-call request, with no measurable quality drop on the regression battery. Configurable per agent via `LEASE_AI_DRAFTER_MODEL` / `LEASE_AI_REVIEWER_MODEL` / `LEASE_AI_FORMATTER_MODEL` env vars; defaults baked in. |
+| **24** | **Retry only on `blocking` severity** | Reviewer's `submit_audit_report` emits findings tagged `severity: blocking \| recommended \| nice_to_have`. Drafter is invoked for a retry pass **only** when ≥1 `blocking` finding exists. `recommended` and `nice_to_have` findings ship in the audit report without forcing a Drafter re-run. Saves the typical 2nd Drafter call (~30% of requests in v1 simulation). Enforced in `LeaseAgentRunner._should_retry()`; severity ladder defined in §7.2. |
+| **25** | **`fast_mode` opt-out for hot-path requests** | Optional request flag `fast_mode: true` (default false). When set, the pipeline skips the Reviewer entirely and returns Drafter's output directly. Used for: (a) `edit` intent on small targeted edits, (b) `answer` intent (Q&A — no document mutation), (c) `format` intent (Formatter only). NEVER applied to `generate` or `audit` intents — those always go through Reviewer. UI exposes this as a "quick edit" toggle only on intents where the gate adds little value. Tracked separately in telemetry (`fast_mode_used: true`) so we can measure quality drift if any. |
 
 ---
 
@@ -204,9 +207,18 @@ See §6 for full detail. Summary: ChromaDB-in-app, YAML canonical store, Tier C 
 | Category | Estimated count v1 | Source |
 |---|---|---|
 | Clause chunks | 80–100 | Curated by MC + Claude, based on common SA lease clauses, RHA-cited |
-| Statute extracts | 30–50 sections | RHA full text, CPA s14 + s51, POPIA s11 / s14 / s23–25, PIE Act, STSMA |
+| Statute extracts | 30–50 sections | RHA full text, CPA s14 + s51, POPIA s11 / s14 / s16 / s23 / s24, PIE Act, STSMA |
 | Case law decisions | 30–50 | Curated RHT decisions (Western Cape, Gauteng, KZN), grouped by topic |
 | Pitfall patterns | ~50 | Abstracted lessons ("auto-renewal without CPA notice has been struck down") |
+
+#### P0 corpus chunks (must exist at corpus-launch — audit-flagged gaps)
+
+Identified by the second audit as material-omission risks that the lease AI must have ready before any external customer can rely on the audit output:
+
+1. **Joint-and-several liability for multi-tenant leases.** A clause stating each tenant is severally and jointly liable for the full rent and obligations — without this, a landlord can recover only a pro-rata share from a single co-tenant when others default. Common SA convention; rarely written explicitly. Topic tag: `multi_tenant`, `liability`. Citation: common law of suretyship + s5(3)(a) parties recital.
+2. **Self-help disguised as consent pitfall.** Pitfall pattern: clauses that purport to "consent to lockout, disconnection, or removal of possessions on default" are **void** as contrary to s4A and the Spoliation remedy under common law. Reviewer must flag any clause attempting this. Topic tag: `eviction`, `self_help`, `unfair_practice`. Citation: RHA s4A; PIE s4–s5; common law mandament van spolie.
+3. **Property-type-specific section ordering.** Sectional-title leases must include CSOS / body-corporate conduct-rules acknowledgement before house rules. Freehold leases must include municipal-services responsibility before utility allocation. The Drafter assembles in different orders by `property_type`. Topic tag: `property_type`, `structure`. Citation: STSMA 8/2011; CSOS Act 9/2011.
+4. **POPIA per-purpose lawful basis table.** Standalone reference chunk mapping each tenant-data processing purpose (lease admin, credit check, RHT referral, marketing, sharing with managing agent) to its lawful basis under POPIA s11(1)(a)–(f) + retention period. Drafter cites the per-purpose row; Reviewer audits the consent clause against this table. Topic tag: `popia`, `consent`. Citation: POPIA s11(1)(a)–(f), s13 (purpose), s14 (retention), s17–18 (notification).
 
 ### 6.2 Chunk schema
 
@@ -310,7 +322,22 @@ Each result carries `corpus_version` for audit trail.
 - **Event-driven patches** — when a known amendment lands, immediate patch + version bump
 - **Pre-external review** — SA-qualified lawyer reviews + signs off corpus before any external customer can rely on the audit-grade signal
 - **Confidence levels bubble up to UI** — when Auditor's finding is backed by `ai_curated` content only, surface that uncertainty to the user
-- **Citation verification gate (audit P0)** — every `case_law` chunk is verified against SAFLII (or Jutastat / authoritative SA legal source) before its `confidence_level` advances past `ai_curated`. `manage.py verify_caselaw_citations` runs on every PR touching `lease_law_corpus/case_law/` (CI gate) and quarterly as part of the review cycle. Unverified case-law chunks are **excluded from Reviewer's `query_case_law` results** — the Reviewer sees only verified citations. Rationale: Claude has fabricated tribunal references in past Klikk runs; a fabricated `WC RHT 1234/2019` cited to a customer is a POPIA s23 accuracy violation. The verifier closes that gap before any human review ever sees the chunk.
+- **Citation verification gate (audit P0)** — every `case_law` chunk must carry a lawyer-attested `verification_status: verified` field before its `confidence_level` advances past `ai_curated`. `manage.py verify_caselaw_citations` runs on every PR touching `lease_law_corpus/case_law/` (CI gate, `--strict` mode) and quarterly as part of the review cycle. The CLI cannot fetch SAFLII directly (Cloudflare blocks programmatic access), so it relies on the lawyer-attestation field as a proxy for external verification — combined with the static drift check against the canonical map for statute citations. Unverified case-law chunks are **excluded from Reviewer's `query_case_law` results** — the Reviewer sees only verified citations. Rationale: Claude has fabricated tribunal references in past Klikk runs; a fabricated `WC RHT 1234/2019` cited to a customer is a POPIA s16 information-quality violation (the accuracy condition). The verifier closes that gap before any human review ever sees the chunk.
+
+### 6.5.1 Citation grounding and legal interpretation
+
+This is a separate gate from the chunk-confidence gate above. It governs **which statute sub-section the corpus is allowed to assert** in the first place.
+
+The canonical citation map lives at **`content/cto/rha-citation-canonical-map.md`**. It is the single source of truth for which RHA / POPIA / CPA / PIE section we cite for each rental-law concept. The map identifies HIGH / MEDIUM / LOW citation confidence and flags rows that require SA-admitted-attorney sign-off before any externally-facing lease text relies on them.
+
+Rules baked into v1:
+
+- Every corpus chunk carries a `citation_confidence: high | medium | low` field, populated from the canonical map.
+- Drafter retrieves HIGH + MEDIUM by default. LOW chunks are retrieved only when the Reviewer explicitly asks for "all possibly-relevant citations" during an audit pass.
+- LOW chunks carry `legal_provisional: true`. The Reviewer refuses to greenlight outward-facing release of any clause that depends on a LOW citation unless an explicit override token is present in the agent run (manual escalation).
+- The `verify_caselaw_citations` CLI also validates **every citation in every corpus chunk** against the canonical map's "Working canonical" column. Drift in either direction fails CI.
+- The Drafter system prompt is hard-coded with: *"For low-confidence citations, cite the concept without the sub-section letter and stamp the clause `legal_provisional: true`. Do not invent sub-section letters."*
+- Skill files (`klikk-legal-POPIA-RHA`, `klikk-rental-master`, `klikk-leases-rental-agreement`) are aligned to the canonical map as part of the same cutover. Until alignment is complete, skills must defer to the map on any conflict.
 
 ### 6.6 Prompt caching layout
 
@@ -534,7 +561,15 @@ USER MESSAGE
 - **Worst case with retry** (Drafter takes max 3 internal turns each pass + Formatter + Reviewer + retry): 3 + 1 + 1 + 3 + 1 = **9 calls**
 - **Hard cap** (decision 10): **8 total LLM calls per request**, **90s wall-clock budget**. On cap-hit: ship partial result with `terminated_reason=cap` and a user-visible banner.
 
-Cost ceiling (Sonnet at ~$3/MTok input + $15/MTok output): worst-case 9 calls × ~25k input cached + 1k output uncached ≈ **$0.40 per worst-case request**. With caching: ~**$0.08**. Without caching: ~**$0.50**. Hard cap per request: `LEASE_AI_MAX_COST_USD_PER_REQUEST=0.50` (decision 20).
+Cost ceiling (pricing snapshot 2026-05; per decision 23 Drafter=Sonnet, Reviewer+Formatter=Haiku):
+
+| Scenario | Sonnet calls | Haiku calls | With caching | Without caching |
+|---|---|---|---|---|
+| Best case (3 calls) | 1 (Drafter) | 2 (Reviewer + Formatter) | **~$0.03** | ~$0.18 |
+| Realistic / P95 (4 calls) | 2 (Drafter ×2 internal) | 2 | **~$0.05** | ~$0.25 |
+| Worst case with retry (9 calls) | 6 (Drafter retries + internal turns) | 3 (Formatter ×2 + Reviewer) | **~$0.12** | ~$0.50 |
+
+Previous all-Sonnet projection was ~$0.08 (cached) for realistic and ~$0.40 (cached) for worst case. Decision 23 cuts cost ~40-70% with no measurable quality drop on the regression battery. Hard cap per request remains: `LEASE_AI_MAX_COST_USD_PER_REQUEST=0.50` (decision 20).
 
 ### 8.2 Other intents (short paths)
 
@@ -626,7 +661,7 @@ The assistant's text replies are rendered as Markdown (bold, lists, headings, co
 
 | Phase | Scope | LOC est | Calendar |
 |---|---|---|---|
-| **0 — Design** | This document. Locks 22 architectural decisions. | 0 | done |
+| **0 — Design** | This document. Locks 25 architectural decisions (22 from initial design + 3 added in 2026-05-12 speed/cost pass). | 0 | done |
 | **0.5 — Prerequisites** *(audit-mandated, before Phase 1 LOC counts)* | (a) 50-line cache-hit spike: 5 sequential `messages.create` calls with `cache_control` markers; assert `cache_read_input_tokens > 0` from call #2; (b) decide ASGI strategy (whole-app vs per-endpoint vs drop SSE for v1); (c) build `LeaseAgentRunner` coordinator class first — owns budget caps, telemetry, cost tracking; (d) build `manage.py verify_caselaw_citations` BEFORE any case-law YAML lands; (e) spike `tool_choice: tool + strict: true + additionalProperties: false` against the `submit_audit_report` schema to confirm the model supports it. | ~250 | 1-2 days |
 | **1 — Front Door + RAG infra** | New Django module `apps.leases.lease_law_corpus/`; YAML loader; content-hash-based indexer (`manage.py reindex_lease_corpus`); pg_advisory_lock for safety; 4 query functions; `LeaseContext` dataclass; Front Door intent classifier (heuristic); clarifying-question return path; `LeaseLawCorpusVersion` model. | ~400 | days |
 | **2 — Drafter + Reviewer** | New `LeaseTemplateAIChatV2View` wired through `LeaseAgentRunner`; Drafter system prompt + tool config WITH `cache_control` markers; Reviewer system prompt + `submit_audit_report` tool WITH `tool_choice: tool + strict: true`; gate flow with 1-retry loop; `AILeaseAgentRun` model + persistence (incl. `corpus_version`, `terminated_reason`, `total_cost_usd`); SSE skeleton on the ASGI endpoint chosen in Phase 0.5. | ~600 | days |
@@ -645,7 +680,7 @@ Before any Phase 1 LOC counts begin, verify or build these:
 1. **Cache-hit spike (50 LOC throwaway).** Sequential `messages.create` calls with the breakpoint layout from §6.6. Assert `cache_read_input_tokens > 0` from call #2 onward. If it doesn't hit, FIX the breakpoint structure before scaling up. The 5-min TTL bites if multi-agent calls span >5 min — measure real p50/p95 first.
 2. **ASGI decision locked.** Don't ship "SSE works on my machine". Either commit to ASGI deployment, or drop SSE for v1 and document it.
 3. **`LeaseAgentRunner` built first.** All agent dispatches go through it. Cap-checking (total LLM calls, wall-clock via `time.monotonic()`, retry counter, running cost), telemetry, cache-hit assertion all live here. The view becomes thin.
-4. **Case-law verifier built BEFORE the corpus.** No `case_law` YAML lands without `manage.py verify_caselaw_citations` confirming on SAFLII / Jutastat. Pipeline: Claude proposes → MC sketches a 5-case batch → verifier confirms 5/5 → only then commit.
+4. **Citation verifier built BEFORE the corpus.** `manage.py verify_caselaw_citations` is implemented and tested (138 PASS, 15 WARN, 0 FAIL across 26 repo files as of 2026-05-12). No `case_law` YAML lands without it confirming both (a) statute-citation drift check against the canonical map, and (b) lawyer-attested `verification_status: verified` per chunk. Pipeline: Claude proposes → MC sketches a 5-case batch → lawyer attests → verifier confirms 5/5 → only then commit.
 5. **Spike `tool_choice: tool + strict: true + additionalProperties: false`** against the actual `submit_audit_report` schema. Strict has JSON Schema dialect limitations (no `oneOf`, no discriminated unions, no conditionals). Pin the schema shape before designing the audit-report contract.
 6. **Test multi-turn-inside-multi-agent with full history preservation.** The existing v1 code drops `tool_use`/`tool_result` blocks at persistence time (template_views.py:2452-2467). For v2: PRESERVE them, because the Drafter retry reads the critique. Means the persisted `api_history` will be larger; also means the v1 frontend's localStorage shape will break — version the API contract explicitly.
 7. **Confirm model snapshot supports `strict` and prompt caching.** `claude-sonnet-4-5` does — verify in your account before locking; future snapshots inherit but pin the model in `settings.ANTHROPIC_MODEL_LEASE_CHAT`.
@@ -689,7 +724,7 @@ When extraction becomes valuable (likely when ≥2 consumers want the RAG, or wh
 
 ### Audit-surfaced risk register (track, don't ignore)
 
-- **R1 — POPIA s23 accuracy violation via wrong corpus.** When the Reviewer asserts "this clause violates RHA s5(3)(h)" and is wrong, the customer relies on it. Mitigations baked into v1: (a) `confidence_level` chip on every finding, (b) "this is not legal advice" disclaimer on the audit-report expander, (c) external customers gated behind `is_legal_advice_eligible` flag pending lawyer sign-off on the corpus.
+- **R1 — POPIA s16 information-quality violation via wrong corpus.** When the Reviewer asserts "this clause violates RHA s5(3)" with a wrong sub-section letter and the customer relies on it, that is a POPIA s16 accuracy breach (information must be complete, accurate, not misleading, updated where necessary). Mitigations baked into v1: (a) `confidence_level` chip on every finding, (b) "this is not legal advice" disclaimer on the audit-report expander, (c) external customers gated behind `is_legal_advice_eligible` flag pending lawyer sign-off on the corpus, (d) per `content/cto/rha-citation-canonical-map.md`, LOW-confidence sub-section letters are flagged `legal_provisional: true` and Reviewer refuses to greenlight outward-facing release without explicit override.
 - **R2 — `tool_choice` invalidates messages cache.** Reviewer's forced-tool-choice is fine — it has its own cache lane. Drafter MUST NOT change `tool_choice` mid-session. Documented in §6.6.
 - **R3 — Signature/layout token round-trip across multi-agent.** Existing v1 already tokenises `⟪SIG#N⟫`. For v2, page-breaks / running-header / per-page-initials elements emitted by Formatter MUST receive the same tokenisation treatment (`⟪LAYOUT#N⟫` sidecar) so the Drafter retry pass doesn't rewrite them. Alternative: enforce ordering — Drafter always before Formatter, retry restarts from Drafter, Formatter never re-runs in a session. Lock in Phase 3.
 - **R4 — Corpus growth past 200 chunks risks Sonnet's 200k context.** Tier C is ~210 chunks (~105k tokens). Drafter inlines 15-25 chunks per call (7-12k after caching). Cap inlined chunks at **20 hard** in `query_clauses(...)`. Track corpus chunk count as a Plausible metric. If corpus exceeds 500 chunks (Tier D agency variants), re-evaluate push-vs-pull for Drafter.
@@ -709,7 +744,7 @@ When extraction becomes valuable (likely when ≥2 consumers want the RAG, or wh
 
 - **RAG** — Retrieval-Augmented Generation. Pattern where an LLM is given relevant retrieved context (from a vector or keyed store) before generating, rather than relying on its training-time knowledge.
 - **MCP** — Model Context Protocol. Anthropic's protocol for exposing tools / resources / prompts to LLMs via a standard interface. Lets the same RAG be consumed by Klikk's Django backend, Claude.ai, Cursor, future SaaS clients.
-- **RHT** — Rental Housing Tribunal. Provincial bodies established by RHA s13 to resolve landlord-tenant disputes outside court.
+- **RHT** — Rental Housing Tribunal. Provincial bodies **established under RHA s7**; powers (investigation, mediation, binding rulings with effect of a Magistrate's Court order) are set out in **RHA s13**.
 - **RHA** — Rental Housing Act 50/1999 (as amended by Act 35/2014). Primary SA residential rental statute.
 - **CPA** — Consumer Protection Act 68/2008. Applies to fixed-term lease agreements as consumer contracts.
 - **POPIA** — Protection of Personal Information Act 4/2013. Governs processing of tenant/landlord personal data.
