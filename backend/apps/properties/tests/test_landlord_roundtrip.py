@@ -54,3 +54,54 @@ class LandlordCreateRetrieveRoundtripTest(TremlyAPITestCase):
         assert resp.data.get("properties") == []
         assert resp.data.get("address") in ({}, None)
         assert resp.data.get("classification_data") is None
+
+
+class LandlordOrphanRetrieveAsAgencyAdminTest(TremlyAPITestCase):
+    """Regression: a freshly-registered agency_admin must be able to fetch
+    the detail view of a landlord they just created — BEFORE any property
+    has been linked to it.
+
+    Bug class: LandlordViewSet.get_queryset() restricted non-admin users to
+    landlords that had `ownerships__property_id__in=accessible_property_ids`.
+    Newly-created landlords have zero ownerships, so the filter returned
+    nothing → DRF's get_object() raised Http404 with the message
+    "No Landlord matches the given query." MC hit this on the first run
+    through a fresh agency during the multi-tenant E2E walkthrough.
+
+    Admin users never tripped on this because the admin branch already
+    included Q(ownerships__isnull=True). The fix unifies the two branches.
+    """
+
+    def setUp(self):
+        self.agency = Agency.objects.create(name="Fresh Agency")
+        self.user = self.create_user(
+            email="boss@fresh.test",
+            role="agency_admin",
+            agency=self.agency,
+        )
+        self.authenticate(self.user)
+
+    def test_orphan_landlord_is_retrievable_immediately_after_create(self):
+        # Create — no properties exist, no ownership will be linked.
+        resp = self.client.post(
+            "/api/v1/properties/landlords/",
+            {
+                "name": "Brand-new Owner (Pty) Ltd",
+                "landlord_type": "company",
+                "email": "brand@new.test",
+            },
+            format="json",
+        )
+        assert resp.status_code == 201, resp.content
+        ll_id = resp.data["id"]
+
+        # Retrieve — must succeed despite zero ownerships.
+        resp = self.client.get(f"/api/v1/properties/landlords/{ll_id}/")
+        assert resp.status_code == 200, (
+            f"Expected 200, got {resp.status_code}. "
+            f"Body: {resp.content!r}. This regression means an agency_admin "
+            f"can't see a landlord they just created before attaching a property."
+        )
+        assert resp.data["name"] == "Brand-new Owner (Pty) Ltd"
+        assert resp.data.get("properties") == []
+        assert resp.data.get("property_count") == 0

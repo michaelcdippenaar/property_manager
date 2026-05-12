@@ -245,17 +245,23 @@ class LandlordViewSet(AgencyScopedQuerysetMixin, AgencyStampedCreateMixin, views
 
     def get_queryset(self):
         base = super().get_queryset()
+        # `base` is already agency-scoped by AgencyScopedQuerysetMixin for
+        # non-admin users; admin sees the full table. Within that scope we
+        # show landlords that EITHER (a) have an ownership linked to a
+        # property the user can access, OR (b) have no ownerships yet —
+        # i.e. just-created, not yet attached to a property.
+        #
+        # The (b) branch was previously gated to admin only; on a non-admin
+        # agency_admin account a brand-new landlord would 404 on its detail
+        # fetch the instant after create, because `ownerships` was empty
+        # and the property-id filter rejected it. Reproduced during the
+        # first-run E2E test on a freshly-registered agency. The multi-
+        # tenant agency scope already isolates the orphan, so unifying the
+        # admin + non-admin branches is safe.
         prop_ids = get_accessible_property_ids(self.request.user)
-        # Admin sees all landlords (including orphans with no ownerships).
-        # Non-admin users only see landlords linked to their accessible properties.
-        if self.request.user.role == 'admin':
-            qs = base.filter(
-                Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
-            ).distinct()
-        else:
-            qs = base.filter(
-                ownerships__property_id__in=prop_ids
-            ).distinct()
+        qs = base.filter(
+            Q(ownerships__property_id__in=prop_ids) | Q(ownerships__isnull=True)
+        ).distinct()
         qs = qs.prefetch_related('bank_accounts', 'ownerships__property')
         search = self.request.query_params.get('search')
         if search:
