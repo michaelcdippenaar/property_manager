@@ -1823,7 +1823,8 @@ class LeaseTemplateAIChatView(APIView):
             "- For formatting requests (bold, font size, color, alignment): use apply_formatting with line indices\n"
             "- For tables use tag='table', text = pipe-delimited markdown rows\n"
             "- Prefer edit_lines over update_all unless moving/adding/removing many sections\n"
-            "- Keep conversational replies ≤ 3 sentences\n"
+            "- Strongly prefer the format_sa_standard skill tool over update_all for full restructures — it's cheaper and avoids max_tokens issues on large templates\n"
+            "- Keep conversational replies short and direct (1–3 sentences for routine edits, up to 5 sentences when explaining a decision, a refusal, or a recommendation)\n"
             "- When mentioning which tools you used, be specific about what each tool did"
         )
 
@@ -1867,8 +1868,12 @@ class LeaseTemplateAIChatView(APIView):
             MAX_TURNS = 4
             response = None
             for turn in range(MAX_TURNS):
+                # AI #11: model pinned via Django setting (defaults to a
+                # current Sonnet snapshot that supports tool_use). Override
+                # via env: ANTHROPIC_MODEL_LEASE_CHAT=claude-sonnet-4-5.
+                model = getattr(settings, "ANTHROPIC_MODEL_LEASE_CHAT", None) or "claude-sonnet-4-5"
                 response = client.messages.create(
-                    model=getattr(__import__('django.conf', fromlist=['settings']).settings, 'ANTHROPIC_MODEL_LEASE_CHAT', None) or "claude-sonnet-4-5",
+                    model=model,
                     max_tokens=32000,
                     system=system,
                     tools=_TEMPLATE_TOOLS,

@@ -200,8 +200,15 @@
             <!-- Thinking indicator -->
             <div v-if="chatThinking" class="flex gap-2">
               <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center font-bold bg-navy/10 text-navy mt-0.5" style="font-size: 9px;">AI</div>
-              <div class="bg-gray-100 rounded-2xl rounded-tl-sm px-3 py-2.5 flex gap-1">
-                <span v-for="j in 3" :key="j" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" :style="`animation-delay:${(j-1)*0.15}s`" />
+              <div class="bg-gray-100 rounded-2xl rounded-tl-sm px-3 py-2.5 flex flex-col gap-1.5">
+                <div class="flex gap-1">
+                  <span v-for="j in 3" :key="j" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" :style="`animation-delay:${(j-1)*0.15}s`" />
+                </div>
+                <!-- AI #6: "still working" hint that fades in after 15s so the
+                     user knows the request is alive during long restructures
+                     (Claude can take 30-60s for a full SA-format restructure
+                     with multi-turn tool calls). -->
+                <span v-if="chatProgressMsg" class="text-[10px] text-gray-500 italic">{{ chatProgressMsg }}</span>
               </div>
             </div>
           </div>
@@ -727,6 +734,10 @@ const showCapabilities = ref(false)
 const chatMessages = ref<{ role: 'user' | 'assistant'; content: string; tools_used?: { name: string; detail: string }[] }[]>([])
 const chatInput = ref('')
 const chatThinking = ref(false)
+// AI #6: progressive hint shown beneath the bouncing dots after the
+// request has been in flight for a while. Cleared on response.
+const chatProgressMsg = ref('')
+let chatProgressTimers: ReturnType<typeof setTimeout>[] = []
 const chatScrollEl = ref<HTMLDivElement | null>(null)
 const apiHistory = ref<{ role: string; content: string }[]>([])
 
@@ -768,13 +779,29 @@ async function sendMessage() {
   chatInput.value = ''
   chatMessages.value.push({ role: 'user', content: msg })
   chatThinking.value = true
+  chatProgressMsg.value = ''
+  // AI #6: stage the "still working" hints so the user sees the request
+  // is alive during long multi-turn restructures. Backend timeout is 120s;
+  // cap our client-side wait at 110s so we beat it cleanly.
+  chatProgressTimers.forEach(clearTimeout)
+  chatProgressTimers = [
+    setTimeout(() => { chatProgressMsg.value = 'Still working…' }, 15_000),
+    setTimeout(() => { chatProgressMsg.value = 'Restructuring the document — this can take 30-60s.' }, 30_000),
+    setTimeout(() => { chatProgressMsg.value = 'Almost there — finalising changes…' }, 60_000),
+  ]
   scrollChat()
+
+  // AI #6: client-side abort if the request hangs past 110s. Anthropic SDK
+  // timeout is 120s on the backend, but a network stall could keep the
+  // browser fetch open longer; AbortController catches that path cleanly.
+  const ctrl = new AbortController()
+  const abortTimer = setTimeout(() => ctrl.abort(), 110_000)
 
   try {
     const { data } = await api.post(`/leases/templates/${templateId.value}/ai-chat/`, {
       api_history: apiHistory.value,
       message: msg,
-    })
+    }, { signal: ctrl.signal })
 
     if (data.api_history) apiHistory.value = data.api_history
     chatMessages.value.push({
@@ -792,10 +819,23 @@ async function sendMessage() {
       showToast(`Document updated: ${data.document_update.summary}`)
     }
   } catch (err: any) {
-    const detail = err?.response?.data?.error || err?.response?.data?.detail || err?.message || 'Unknown error'
+    // AI #6 + #5 fallout: surface what actually went wrong. AbortController
+    // aborts (timeout) produce CanceledError; backend 500s produce
+    // err.response with our JSON error body; network failures fall through
+    // to err.message.
+    let detail: string
+    if (err?.name === 'CanceledError' || err?.code === 'ERR_CANCELED') {
+      detail = 'The request took longer than expected and was cancelled. The document may still have been updated on the server — refresh to check.'
+    } else {
+      detail = err?.response?.data?.error || err?.response?.data?.detail || err?.message || 'Unknown error'
+    }
     console.error('[AI chat error]', err?.response?.status, detail)
     chatMessages.value.push({ role: 'assistant', content: `Sorry, something went wrong: ${detail}` })
   } finally {
+    clearTimeout(abortTimer)
+    chatProgressTimers.forEach(clearTimeout)
+    chatProgressTimers = []
+    chatProgressMsg.value = ''
     chatThinking.value = false
     scrollChat()
   }

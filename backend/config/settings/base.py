@@ -258,6 +258,15 @@ GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
 _env_data = _env_repo.data if _env_path.is_file() else {}
 ANTHROPIC_API_KEY = _env_data.get("ANTHROPIC_API_KEY", os.environ.get("ANTHROPIC_API_KEY", ""))
 
+# Pinned model snapshot for the lease-template AI chat. Override per
+# environment to upgrade without code changes. Default is current snapshot
+# that supports tool_use + 200k context. (Audit #11 — was a hard-coded
+# `claude-sonnet-4-6` string scattered in template_views.py.)
+ANTHROPIC_MODEL_LEASE_CHAT = _env_data.get(
+    "ANTHROPIC_MODEL_LEASE_CHAT",
+    os.environ.get("ANTHROPIC_MODEL_LEASE_CHAT", "claude-sonnet-4-5"),
+)
+
 # AI Guide widget — set ENABLE_AI_GUIDE=false to disable the /api/v1/ai/guide/ endpoint.
 # Defaults to True so the widget works out-of-the-box in dev/staging.
 ENABLE_AI_GUIDE = config("ENABLE_AI_GUIDE", default=True, cast=bool)
