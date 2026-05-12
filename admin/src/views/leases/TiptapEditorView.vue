@@ -180,8 +180,18 @@
                 {{ msg.role === 'assistant' ? 'AI' : 'Me' }}
               </div>
               <div class="max-w-[85%]">
-                <div class="rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap"
-                  :class="msg.role === 'user' ? 'bg-navy text-white rounded-tr-sm' : 'bg-gray-100 text-gray-800 rounded-tl-sm'">
+                <!-- Assistant: render as markdown (bold, lists, headings, code).
+                     User: plain text with line-breaks preserved.
+                     The .ai-chat-md scope below adds tight typography overrides
+                     so markdown elements fit the bubble visually. -->
+                <div
+                  v-if="msg.role === 'assistant'"
+                  class="rounded-2xl px-3 py-2 text-xs leading-relaxed bg-gray-100 text-gray-800 rounded-tl-sm ai-chat-md"
+                  v-html="renderMarkdown(msg.content)"
+                />
+                <div
+                  v-else
+                  class="rounded-2xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap bg-navy text-white rounded-tr-sm">
                   {{ msg.content }}
                 </div>
                 <!-- Tools used -->
@@ -371,6 +381,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { EditorContent } from '@tiptap/vue-3'
 import { useTemplateStore } from '../../stores/template'
 import { useTiptapEditor } from '../../composables/useTiptapEditor'
+import { useMarkdown } from '../../composables/useMarkdown'
 import {
   ChevronLeft, ChevronRight, FileSignature, Save, Loader2, RotateCcw, RotateCw,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, AlignLeft, AlignCenter, AlignRight,
@@ -381,6 +392,7 @@ import {
 import api from '../../api'
 
 // ── Setup ─────────────────────────────────────────────────────────────────
+const { renderMarkdown } = useMarkdown()
 const route = useRoute()
 const router = useRouter()
 const store = useTemplateStore()
@@ -898,4 +910,85 @@ export default {}
 .toast-enter-active { transition: all 0.3s ease; }
 .toast-leave-active { transition: all 0.2s ease; }
 .toast-enter-from, .toast-leave-to { opacity: 0; transform: translate(-50%, 10px); }
+
+/* ── AI chat markdown bubble typography ─────────────────────────────────
+   Tight overrides for assistant-bubble markdown output so headings, lists,
+   tables, and code fit visually inside the constrained chat width. Without
+   these the default browser styles produce too much vertical space and
+   the bubbles look broken. */
+.ai-chat-md { font-size: 0.75rem; line-height: 1.55; }
+.ai-chat-md p { margin: 0; }
+.ai-chat-md p + p { margin-top: 0.5em; }
+.ai-chat-md h1,
+.ai-chat-md h2,
+.ai-chat-md h3,
+.ai-chat-md h4 {
+  margin: 0.6em 0 0.25em 0;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1f2937;
+}
+.ai-chat-md h1 { font-size: 0.95rem; }
+.ai-chat-md h2 { font-size: 0.85rem; }
+.ai-chat-md h3, .ai-chat-md h4 { font-size: 0.78rem; }
+.ai-chat-md ul,
+.ai-chat-md ol { padding-left: 1.1em; margin: 0.25em 0; }
+.ai-chat-md ul li,
+.ai-chat-md ol li { margin: 0.15em 0; }
+.ai-chat-md ul { list-style: disc; }
+.ai-chat-md ol { list-style: decimal; }
+.ai-chat-md strong { font-weight: 600; color: #111827; }
+.ai-chat-md em { font-style: italic; }
+.ai-chat-md a {
+  color: #2B2D6E;   /* Klikk navy */
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ai-chat-md a:hover { color: #FF3D7F; }
+.ai-chat-md code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.05em 0.35em;
+  border-radius: 3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+.ai-chat-md pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 0.6em 0.8em;
+  border-radius: 8px;
+  margin: 0.4em 0;
+  overflow-x: auto;
+}
+.ai-chat-md pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+.ai-chat-md blockquote {
+  border-left: 3px solid rgba(0, 0, 0, 0.15);
+  padding: 0.1em 0.8em;
+  margin: 0.4em 0;
+  color: #4b5563;
+}
+.ai-chat-md hr {
+  border: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  margin: 0.6em 0;
+}
+.ai-chat-md table {
+  border-collapse: collapse;
+  margin: 0.4em 0;
+  font-size: 0.72rem;
+}
+.ai-chat-md th,
+.ai-chat-md td {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.25em 0.5em;
+  text-align: left;
+}
+.ai-chat-md th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+}
 </style>
