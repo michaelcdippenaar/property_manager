@@ -482,6 +482,94 @@
       </template>
     </BaseModal>
 
+    <!-- ── Compliance gate dialog ────────────────────────────────────────── -->
+    <!-- Pops up instead of the signer-config modal when the user clicks
+         "Send for Signing" while the lease has blocking RHA flags and no
+         override has been recorded. Lists every blocking flag and offers
+         the authorised override path inline so the user can resolve and
+         continue in one go. Cancel returns them to the lease so they can
+         edit the source data. -->
+    <BaseModal :open="showComplianceDialog" size="md" @close="closeComplianceDialog">
+      <template #header>
+        <div class="flex items-center gap-2">
+          <ShieldAlert :size="18" class="text-danger-600 flex-shrink-0" />
+          <div>
+            <div class="text-sm font-semibold text-gray-900">Cannot send for signing</div>
+            <div class="text-xs text-gray-500 mt-0.5">RHA compliance issues must be resolved first</div>
+          </div>
+        </div>
+      </template>
+
+      <div class="space-y-4">
+        <p class="text-sm text-gray-700">
+          This lease has
+          <span class="font-semibold text-danger-700">{{ rhaBlockingFlags.length }} blocking issue{{ rhaBlockingFlags.length !== 1 ? 's' : '' }}</span>
+          that must be resolved before it can go out to signers.
+        </p>
+
+        <ul class="space-y-2 bg-danger-50 border border-danger-200 rounded-xl p-3">
+          <li
+            v-for="flag in rhaBlockingFlags"
+            :key="flag.code"
+            class="flex items-start gap-2 text-xs text-danger-700"
+          >
+            <XCircle :size="13" class="text-danger-500 mt-0.5 flex-shrink-0" />
+            <div class="min-w-0">
+              <span class="font-medium">{{ flag.section }}:</span> {{ flag.message }}
+              <span v-if="flag.field" class="ml-1 text-danger-400">(field: {{ flag.field }})</span>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Path A: instructions for non-override users -->
+        <div v-if="!canRecordOverride" class="text-xs text-gray-600 leading-relaxed">
+          Edit the lease to fill in the flagged fields, then return here to send for signing.
+        </div>
+
+        <!-- Path B: authorised override prompt -->
+        <div v-if="canRecordOverride && !showOverrideInDialog" class="bg-gray-50 border border-gray-200 rounded-xl p-3 space-y-1.5">
+          <div class="text-xs font-semibold text-gray-700">How to proceed</div>
+          <ul class="text-xs text-gray-600 space-y-0.5 list-disc list-inside">
+            <li>Edit the lease and resolve the flagged fields, <span class="text-gray-400">or</span></li>
+            <li>Record an authorised override (reason required, logged in the audit trail)</li>
+          </ul>
+        </div>
+
+        <!-- Path C: override form (expanded) -->
+        <div v-if="canRecordOverride && showOverrideInDialog" class="border-t border-gray-200 pt-3 space-y-2">
+          <label class="label text-danger-700 text-xs">Override reason <span class="text-danger-500">*</span></label>
+          <textarea
+            v-model="overrideReason"
+            class="input text-xs resize-none h-20"
+            placeholder="Explain why this lease may proceed despite the compliance issues…"
+          />
+          <p v-if="errorMsg" class="text-xs text-danger-600">{{ errorMsg }}</p>
+        </div>
+      </div>
+
+      <template #footer>
+        <button class="btn-ghost text-xs" @click="closeComplianceDialog">Cancel</button>
+        <button
+          v-if="canRecordOverride && !showOverrideInDialog"
+          class="btn-secondary text-xs flex items-center gap-1.5"
+          @click="showOverrideInDialog = true"
+        >
+          <ShieldAlert :size="13" />
+          Record override instead
+        </button>
+        <button
+          v-else-if="canRecordOverride && showOverrideInDialog"
+          class="btn-primary bg-danger-600 hover:bg-danger-700 text-xs flex items-center gap-1.5"
+          :disabled="!overrideReason.trim() || overrideLoading"
+          @click="submitOverrideAndContinue"
+        >
+          <Loader2 v-if="overrideLoading" :size="13" class="animate-spin" />
+          <ShieldAlert v-else :size="13" />
+          Override &amp; continue
+        </button>
+      </template>
+    </BaseModal>
+
   </div>
 </template>
 
@@ -549,6 +637,12 @@ const rhaOverride  = ref<any | null>(null)
 const showOverrideForm = ref(false)
 const overrideReason   = ref('')
 const overrideLoading  = ref(false)
+// Compliance gate dialog (shown when "Send for Signing" is clicked while the
+// lease has blocking RHA flags and no override). Separate from the inline
+// banner-style override form (showOverrideForm) so both entry-points can be
+// open independently without leaking state into each other.
+const showComplianceDialog = ref(false)
+const showOverrideInDialog = ref(false)
 
 interface DraftSigner {
   name: string
@@ -978,7 +1072,30 @@ function buildDefaultSigners(): DraftSigner[] {
   return signers
 }
 
-function openModal() {
+async function openModal() {
+  // Refresh compliance check before deciding. The in-row "Send for signing"
+  // pill on LeasesView calls openModal() immediately after the panel mounts,
+  // and loadRhaFlags() runs in parallel with loadSubmissions() in onMounted
+  // (it does NOT block the panel's `loading` flag). Without this re-fetch
+  // the very first click would race past the gate while rhaFlags is still
+  // [], drop the user into the signer modal, and they'd only learn the
+  // lease is blocked when the POST 4xx'd with rha_override_required.
+  // Refetching here is also correct on subsequent clicks — the user may
+  // have just edited the lease drawer to fix flagged fields.
+  await loadRhaFlags()
+
+  // Compliance gate: if blocking flags exist and no override is recorded,
+  // intercept the click and show an explanatory dialog instead of the
+  // signer-config modal. Surfaces the issues and (for authorised users) the
+  // override path in-context, rather than dumping the user into a signer
+  // modal that will fail on submit.
+  if (rhaBlockingFlags.value.length > 0 && !rhaOverride.value) {
+    showOverrideInDialog.value = false
+    overrideReason.value = ''
+    errorMsg.value = ''
+    showComplianceDialog.value = true
+    return
+  }
   draftSigners.value = buildDefaultSigners()
   showModal.value = true
 }
@@ -988,6 +1105,25 @@ function closeModal() {
   draftSigners.value = []
   errorMsg.value = ''
   linkHint.value = ''
+}
+
+function closeComplianceDialog() {
+  showComplianceDialog.value = false
+  showOverrideInDialog.value = false
+  overrideReason.value = ''
+}
+
+/** Record the RHA override, then transition straight into the signer modal so
+ *  the user doesn't have to click "Send for Signing" a second time. */
+async function submitOverrideAndContinue() {
+  await submitOverride()
+  // submitOverride() sets rhaOverride.value on success and errorMsg on failure.
+  // Only proceed to the signer modal if the override actually took.
+  if (rhaOverride.value) {
+    closeComplianceDialog()
+    draftSigners.value = buildDefaultSigners()
+    showModal.value = true
+  }
 }
 
 function addSigner() {
@@ -1025,7 +1161,7 @@ async function openModalWhenReady() {
   if (!_mounted) return
   // Only open if there's no existing submission — don't interrupt an in-progress signing.
   if (!submissions.value.length) {
-    openModal()
+    await openModal()
   }
 }
 defineExpose({ openModal, openModalWhenReady })
