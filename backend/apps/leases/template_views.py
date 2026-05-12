@@ -2040,7 +2040,8 @@ class LeaseTemplateAIChatView(APIView):
             "- **highlight_fields** — flag specific merge field variables\n\n"
             "### Skill Tools\n"
             "- **check_rha_compliance** — audit this template against SA Rental Housing Act requirements (13 standard sections + 7 mandatory clauses)\n"
-            "- **format_sa_standard** — restructure the entire template to the standard 13-section SA lease format\n\n"
+            "- **format_sa_standard** — restructure the template to the standard 13-section SA lease format. **Missing sections are populated with REAL clause prose (RHA/CPA/POPIA-compliant language with canonical merge fields)** — NOT empty placeholders. ALWAYS prefer this over update_all when the user says 'write me a proper lease', 'draft a sectional title contract', 'restructure', or anything that implies producing a full lease structure. Do not handcraft section bodies with update_all when this tool is available — your handcrafted output is necessarily inferior to the curated SA-law-aware boilerplate this skill ships.\n\n"
+            "**HARD RULE — placeholder text is BANNED.** You may NEVER write the literal strings `[This section needs to be completed]`, `[needs completion]`, `[TBD]`, `[fill in]`, or any other TODO-style placeholder into a section body. If a section needs content you cannot generate, EITHER call `format_sa_standard` to populate it, OR tell the user honestly that you'd recommend they fill that section based on their specific arrangement. Lying about doing the work (writing 13 'completed' headings with empty bodies) is far worse than admitting you didn't.\n\n"
             "### External Skills (mention to user when relevant)\n"
             "- **Parse Lease Contract** — import a PDF/DOCX contract as a template. Direct user to the Import wizard on the Templates page.\n"
             "- **E-Signing (native)** — send for signing, manage signers, track status. Klikk uses NATIVE e-signing (the legacy DocuSeal integration was removed in April 2026). The signing wizard lives on the lease detail page; signers receive an emailed link, sign in the browser, and the signed PDF is generated server-side.\n\n"
@@ -2399,8 +2400,28 @@ class LeaseTemplateAIChatView(APIView):
                 if getattr(response, 'stop_reason', None) == 'end_turn' or not turn_tool_uses:
                     break
                 # Continue conversation: append assistant turn + tool_result blocks.
-                # Anthropic SDK accepts the response.content blocks verbatim.
-                api_messages.append({"role": "assistant", "content": list(response.content)})
+                # Each ContentBlock must be serialised to a plain dict — when
+                # api_history round-trips through the frontend (localStorage +
+                # JSON) the SDK can't re-hydrate ContentBlock instances, so we
+                # normalise to dicts now and keep the API shape stable.
+                # The MC 400 error "messages.N.content.0: Input should be an
+                # object" was this exact mismatch.
+                assistant_content = []
+                for b in response.content:
+                    if hasattr(b, "model_dump"):
+                        assistant_content.append(b.model_dump(exclude_none=True))
+                    elif hasattr(b, "dict"):
+                        assistant_content.append(b.dict(exclude_none=True))
+                    elif isinstance(b, dict):
+                        assistant_content.append(b)
+                    else:
+                        # Last-ditch: stringify into a text block so we at
+                        # least don't fail with a TypeError. Logged so we
+                        # can investigate any new SDK version that surfaces
+                        # an unexpected block type.
+                        logger.warning("AI chat: unrecognised content block type %s", type(b).__name__)
+                        assistant_content.append({"type": "text", "text": str(b)})
+                api_messages.append({"role": "assistant", "content": assistant_content})
                 api_messages.append({"role": "user", "content": turn_tool_results})
 
             # AI #4: if the only thing Claude did was call unknown tools,
@@ -2427,16 +2448,28 @@ class LeaseTemplateAIChatView(APIView):
             # `tool_use`/`tool_result` blocks from any iterations. Those are
             # fine to keep in history — they're informative context for the
             # next turn ("you ran format_sa_standard and got this result").
-            # The frontend stores it opaquely and sends it back on the next
-            # request; we don't render them to the user.
-            updated_history = [dict(m) for m in api_messages]  # shallow copy
+            # We DROP the in-loop tool exchanges (assistant tool_use + user
+            # tool_result blocks added during multi-turn iterations) before
+            # persisting back to the frontend — they were useful WITHIN
+            # this request to let Claude chain reasoning, but they (a) bloat
+            # the persisted history, and (b) caused the
+            # "messages.N.content.0: Input should be an object" 400 when the
+            # next request re-sent them with subtly different block shapes.
+            # The fresh document text in message[0] still carries the
+            # latest state.
+            updated_history: list[dict] = []
+            for m in api_messages:
+                content = m.get("content")
+                # Keep only plain-string content messages (the human-facing
+                # turns). Skip messages whose content is a list of blocks
+                # (those are the intermediate tool_use / tool_result pairs).
+                if isinstance(content, str):
+                    updated_history.append({"role": m["role"], "content": content})
             if document_update and updated_history:
                 fresh_lines = html_to_plain_lines(current_html) if current_html else []
                 fresh_doc   = plain_lines_to_text(fresh_lines) if fresh_lines else "(empty document)"
                 # Replace the FIRST user message (which carried the original
                 # doc context) so subsequent turns work from up-to-date HTML.
-                # All later messages stay intact, including the user's
-                # original request and any tool exchanges.
                 for i, m in enumerate(updated_history):
                     if m.get("role") == "user":
                         updated_history[i] = {
