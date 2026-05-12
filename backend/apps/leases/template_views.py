@@ -571,6 +571,73 @@ def _strip_tags(s: str) -> str:
     return ' '.join(s.split())
 
 
+# ── Signature / initials / date / signedat block tokenisation ──────────────
+#
+# CTO audit (2026-05-12) found that every AI edit silently destroyed any
+# existing SignatureBlock / InitialsBlock / DateBlock / SignedAtBlock TipTap
+# nodes. Root cause: ``_strip_tags`` removes them on the way in (Claude never
+# sees them) and ``_rebuild_html_from_lines`` / ``merge_lines_into_html``
+# only emit ``<h*>/<p>/<li>/<hr>/<table>`` — the signature tags evaporate.
+#
+# Fix: before showing the document to Claude we replace each such tag with
+# an opaque token (``⟪SIG#N⟫`` using non-HTML unicode brackets so it survives
+# ``_strip_tags`` untouched). Claude sees the token as a magic string in the
+# line text. After Claude returns, the round-trip helpers preserve tokens
+# verbatim (they aren't HTML, don't match the merge-field mustache regex,
+# and aren't recognised as anything else), and the view restores tokens to
+# their original tag-with-attributes from the sidecar dict.
+#
+# Implicit-delete: if Claude omits a token from its output (intentionally
+# removed the line, or restructured the doc), the corresponding signature
+# block is dropped. That's the only way the AI can delete a signature block
+# today — explicit insertion is the ``insert_signature_field`` tool below.
+_SIG_TAGS = ("signature-field", "initials-field", "date-field", "signedat-field")
+_SIG_BLOCK_RE = re.compile(
+    r"<(" + "|".join(_SIG_TAGS) + r")\b[^>]*(?:/>|>.*?</\1>)",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def _extract_signature_tokens(html: str) -> tuple[str, dict]:
+    """Replace each signature/initials/date/signedat-field tag with a
+    positional opaque token. Returns ``(tokenised_html, sidecar)``.
+
+    The sidecar maps each token to the verbatim original tag (with all
+    attributes preserved — ``name``, ``role``, ``required``, ``style``,
+    etc.). Token format ``⟪SIG#N⟫`` is deliberately non-HTML, so it
+    travels through ``_strip_tags`` unchanged and Claude sees it as an
+    opaque marker in the document text.
+    """
+    sidecar: dict[str, str] = {}
+    counter = [0]
+
+    def _stash(m: "re.Match[str]") -> str:
+        token = f"⟪SIG#{counter[0]}⟫"
+        sidecar[token] = m.group(0)
+        counter[0] += 1
+        return token
+
+    new_html = _SIG_BLOCK_RE.sub(_stash, html)
+    return new_html, sidecar
+
+
+def _restore_signature_tokens(html: str, sidecar: dict) -> str:
+    """Replace each ``⟪SIG#N⟫`` token with its original tag.
+
+    Tokens still present in ``html`` are expanded back. Tokens missing
+    from ``html`` (i.e. Claude removed them) are silently dropped — that's
+    the intentional implicit-delete path. Tokens in ``html`` that aren't
+    in the sidecar (shouldn't happen, but defensive) are stripped to keep
+    the rendered output clean.
+    """
+    for token, original in (sidecar or {}).items():
+        html = html.replace(token, original)
+    # Defensive: any token-shaped artefact not in sidecar gets cleaned.
+    # Runs even when sidecar is empty so stray tokens don't render to users.
+    html = re.sub(r"⟪SIG#\d+⟫", "", html)
+    return html
+
+
 _STYLE_ATTR_RE = re.compile(r'\bstyle="([^"]*)"', re.IGNORECASE)
 
 def _extract_style_props(attrs_str: str) -> dict:
@@ -1563,6 +1630,13 @@ class LeaseTemplateAIChatView(APIView):
         from apps.leases.merge_fields import build_merge_fields_prompt_block, CANONICAL_FIELD_NAMES
 
         current_html = _extract_html(tmpl.content_html)
+        # Tokenise signature/initials/date/signedat blocks BEFORE Claude sees
+        # the document. Claude can preserve them by keeping ⟪SIG#N⟫ tokens in
+        # its output, or implicitly delete them by omitting the token. The
+        # round-trip helpers (html_to_plain_lines / merge_lines_into_html /
+        # _rebuild_html_from_lines) would otherwise strip the tags silently —
+        # destroying every signature block on every AI edit (CTO audit P0).
+        current_html, sig_sidecar = _extract_signature_tokens(current_html)
         detected = _detect_fields_from_html(current_html)
         detected_valid   = [f for f in detected if f in CANONICAL_FIELD_NAMES]
         detected_invalid = [f for f in detected if f not in CANONICAL_FIELD_NAMES]
@@ -1586,6 +1660,11 @@ class LeaseTemplateAIChatView(APIView):
             "## CRITICAL FIELD RULES\n"
             "- ONLY use merge field names from the 'Available Merge Fields' list above. "
             "NEVER invent, pluralise, rename, or extend field names.\n"
+            "- **DEFAULT TO ONE TENANT.** Use `tenant_name`, `tenant_id`, `tenant_email`, "
+            "`tenant_phone` only — do NOT auto-populate `tenant_2_*`/`tenant_3_*` "
+            "or `occupant_2/3/4_*` when restructuring. Only add the second/third tenant slots "
+            "when the user explicitly says 'co-tenant', 'second tenant', or names additional "
+            "tenants. If unsure, ASK the user how many tenants this lease has.\n"
             "- Common mistakes to AVOID: `landlord_full_name` (use `landlord_name`), "
             "`tenant_full_name` (use `tenant_name`), `monthly_rental` (use `monthly_rent`), "
             "`property_suburb`/`property_postal_code` (not available — use `property_address` "
@@ -1627,23 +1706,18 @@ class LeaseTemplateAIChatView(APIView):
             "- **Parse Lease Contract** — import a PDF/DOCX contract as a template. Direct user to the Import wizard on the Templates page.\n"
             "- **E-Signing (native)** — send for signing, manage signers, track status. Klikk uses NATIVE e-signing (the legacy DocuSeal integration was removed in April 2026). The signing wizard lives on the lease detail page; signers receive an emailed link, sign in the browser, and the signed PDF is generated server-side.\n\n"
 
-            "## Signature, Initials, and Date Fields in the Template\n"
-            "Signature blocks ARE part of the template — they're stored as TipTap atomic nodes and rendered as `<signature-field>` / `<initials-field>` / `<date-field>` tags in the final PDF. They become interactive, fillable widgets when the lease is sent to signers.\n"
+            "## Signature, Initials, Date, and Signed-At Fields\n"
+            "Signature blocks are TipTap atomic nodes that render as fillable widgets in the final PDF.\n"
             "\n"
-            "However, **you (the AI assistant) cannot insert these nodes directly** — your edit tools operate on plain text + `{{ merge_field }}` mustaches only, not TipTap atomic nodes. If the user asks for signature fields, do NOT try to write them as text (e.g. `{{ landlord_signature }}`, `[Signature: ___]`, `<signature-field>` in update_all) — those won't render and may corrupt the template.\n"
+            "**In your text view they appear as `⟪SIG#0⟫`, `⟪SIG#1⟫`, etc. — opaque tokens you must treat as magic strings.**\n"
             "\n"
-            "Instead, direct the user to the editor's toolbar:\n"
-            "  1. In the right-hand side panel, select the actor (Landlord / Tenant / Occupant / Witness)\n"
-            "  2. Under 'Signing fields', click the appropriate button:\n"
-            "     - **Signature** — full signature pad (drawn or typed)\n"
-            "     - **Initials** — initials pad\n"
-            "     - **Date Signed** — auto-filled date when the signer signs\n"
-            "     - **Signed At** — location/place where the signing happened\n"
-            "  3. Each click inserts a fillable field at the cursor, bound to the selected actor\n"
+            "Rules:\n"
+            "  • To **preserve** a signature block when editing its line: keep the `⟪SIG#N⟫` token in your new text, in the same approximate position. Don't rewrite, renumber, or reformat the tokens.\n"
+            "  • To **remove** a signature block (e.g. user says 'no need for witnesses to sign'): simply omit that token from your new line text. The block is dropped silently and cleanly.\n"
+            "  • To **insert a new** signature block: call the `insert_signature_field` tool with the line index and signer role. You CANNOT invent a new token (`⟪SIG#99⟫`) inside text — only `insert_signature_field` can create them.\n"
+            "  • NEVER write signature fields as merge-field mustaches (`{{ landlord_signature }}`) or as bracketed placeholders (`[Signature: ___]`) — these won't render as fillable widgets.\n"
             "\n"
-            "To OMIT a signer (e.g. user says 'no need for witnesses to sign'): simply don't insert any signature fields for that actor. You can also remove existing witness signature blocks via the template editor — clicking the block selects it; Backspace deletes it. You can do this for the user by directing them through it, but you CANNOT delete the blocks yourself via edit_lines because the blocks aren't represented in the line-text view.\n"
-            "\n"
-            "If the user asks you to add signature fields, your honest reply is: 'I can't insert signature blocks directly — they're interactive TipTap nodes outside my text editing tools. Use the toolbar: select the signer in the right panel, then click Signature / Initials / Date Signed / Signed At. Witnesses can be omitted by not inserting any of these fields for them.'\n\n"
+            "If the user says 'this lease only needs landlord and tenant to sign, no witnesses', identify the witness `⟪SIG#N⟫` tokens in the document (their owning paragraphs usually have witness labels nearby) and omit those tokens in your edit_lines / update_all replacement text. Then use `insert_signature_field` for any missing landlord/tenant blocks.\n\n"
             "## SA Rental Law Quick Reference\n"
             "Mandatory clauses per RHA 50/1999, CPA 68/2008, POPIA 4/2013:\n"
             "- Deposit in interest-bearing account (s5(3)(f) RHA)\n"
@@ -1706,6 +1780,9 @@ class LeaseTemplateAIChatView(APIView):
             document_update = None
             field_highlight = None
             tools_used = []
+            # AI #4 fix — track unknown tool names so the final reply tells
+            # the user something concrete instead of silently saying "Done."
+            unknown_tool_attempts: list[str] = []
 
             for block in response.content:
                 if block.type == "text" and block.text.strip():
@@ -1714,6 +1791,17 @@ class LeaseTemplateAIChatView(APIView):
                 elif block.type == "tool_use":
                     name = block.name
                     inp  = block.input
+
+                    # Helper: save edited (tokenised) HTML to DB after
+                    # restoring signature blocks, and emit the restored form
+                    # to the frontend. Keeps `current_html` tokenised for
+                    # downstream tools (if Claude chains multiple in one
+                    # turn, which is rare today but cheap to support).
+                    def _persist(new_html_tokenised: str, summary: str) -> str:
+                        restored = _restore_signature_tokens(new_html_tokenised, sig_sidecar)
+                        tmpl.content_html = restored
+                        tmpl.save(update_fields=["content_html"])
+                        return restored
 
                     if name == "edit_lines":
                         from_i    = int(inp.get("from_index", 0))
@@ -1735,9 +1823,8 @@ class LeaseTemplateAIChatView(APIView):
                                 l['i'] += delta
                             rebuilt = before + indexed + after_lines
                             new_html = _rebuild_html_from_lines(current_html, rebuilt)
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": summary}
+                        restored = _persist(new_html, summary)
+                        document_update = {"html": restored, "summary": summary}
                         current_html = new_html
                         tools_used.append({"name": "edit_lines", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
                         if not reply_parts:
@@ -1749,9 +1836,8 @@ class LeaseTemplateAIChatView(APIView):
                         indexed = [{'i': j, 'tag': ln.get('tag', 'p'), 'text': ln.get('text', '')}
                                    for j, ln in enumerate(lines)]
                         new_html = _rebuild_html_from_lines(current_html, indexed)
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": summary}
+                        restored = _persist(new_html, summary)
+                        document_update = {"html": restored, "summary": summary}
                         current_html = new_html
                         tools_used.append({"name": "update_all", "detail": f"{len(lines)} lines", "type": "tool"})
                         if not reply_parts:
@@ -1764,9 +1850,8 @@ class LeaseTemplateAIChatView(APIView):
                             inp.get("position", "end"),
                             inp.get("after_heading", ""),
                         )
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": f"Comment added."}
+                        restored = _persist(new_html, "Comment added.")
+                        document_update = {"html": restored, "summary": "Comment added."}
                         current_html = new_html
                         tools_used.append({"name": "add_comment", "detail": inp.get("position", "end"), "type": "tool"})
                         if not reply_parts:
@@ -1776,9 +1861,8 @@ class LeaseTemplateAIChatView(APIView):
                         toc = _build_toc_html(current_html, inp.get("title", "TABLE OF CONTENTS"))
                         if toc:
                             new_html = toc + current_html
-                            tmpl.content_html = new_html
-                            tmpl.save(update_fields=["content_html"])
-                            document_update = {"html": new_html, "summary": "Table of contents inserted."}
+                            restored = _persist(new_html, "Table of contents inserted.")
+                            document_update = {"html": restored, "summary": "Table of contents inserted."}
                             current_html = new_html
                         tools_used.append({"name": "insert_toc", "detail": "Table of contents", "type": "tool"})
                         if not reply_parts:
@@ -1789,9 +1873,8 @@ class LeaseTemplateAIChatView(APIView):
                         style = inp.get("style", "number_dot")
                         renum_p = inp.get("renumber_paragraphs", True)
                         new_html = _renumber_headings(current_html, style=style, levels=levels, renumber_paragraphs=renum_p)
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": f"Headings renumbered ({levels})."}
+                        restored = _persist(new_html, f"Headings renumbered ({levels}).")
+                        document_update = {"html": restored, "summary": f"Headings renumbered ({levels})."}
                         current_html = new_html
                         tools_used.append({"name": "renumber_sections", "detail": f"{levels} / {style}", "type": "tool"})
                         if not reply_parts:
@@ -1803,9 +1886,8 @@ class LeaseTemplateAIChatView(APIView):
                         fmt      = inp.get("style") or {}
                         summary  = inp.get("summary", "Formatting applied.")
                         new_html = _apply_formatting_to_html(current_html, from_i, to_i, fmt)
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": summary}
+                        restored = _persist(new_html, summary)
+                        document_update = {"html": restored, "summary": summary}
                         current_html = new_html
                         tools_used.append({"name": "apply_formatting", "detail": f"Lines {from_i}–{to_i}", "type": "tool"})
                         if not reply_parts:
@@ -1833,14 +1915,30 @@ class LeaseTemplateAIChatView(APIView):
                         add_missing = inp.get("add_missing_sections", True)
                         preserve_custom = inp.get("preserve_custom_sections", True)
                         new_html = _format_sa_standard(current_html, add_missing, preserve_custom)
-                        tmpl.content_html = new_html
-                        tmpl.save(update_fields=["content_html"])
-                        document_update = {"html": new_html, "summary": "Template restructured to standard SA lease format."}
+                        restored = _persist(new_html, "Template restructured to standard SA lease format.")
+                        document_update = {"html": restored, "summary": "Template restructured to standard SA lease format."}
                         current_html = new_html
                         tools_used.append({"name": "format_sa_standard", "detail": "13-section format", "type": "skill"})
                         if not reply_parts:
                             reply_parts.append("Template restructured to standard SA lease format.")
 
+                    else:
+                        # AI #4 fix — unknown tool fallthrough. Before this,
+                        # an unrecognised tool name (e.g. Claude hallucinated
+                        # "insert_signature" before the tool existed) silently
+                        # completed with `reply = "Done."` and nothing changed.
+                        # Surface it instead so the user sees what happened.
+                        unknown_tool_attempts.append(name)
+                        tools_used.append({"name": name, "detail": "(unknown tool — skipped)", "type": "warn"})
+
+            # AI #4: if the only thing Claude did was call unknown tools,
+            # tell the user — don't lie with "Done."
+            if unknown_tool_attempts and not reply_parts and not document_update and not field_highlight:
+                tried = ", ".join(sorted(set(unknown_tool_attempts)))
+                reply_parts.append(
+                    f"I tried to use a tool that doesn't exist ({tried}). "
+                    "Please rephrase what you'd like me to do."
+                )
             reply = " ".join(reply_parts) or "Done."
 
             # Build updated api_history for the frontend to store.
@@ -1868,8 +1966,15 @@ class LeaseTemplateAIChatView(APIView):
             return Response(result)
 
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            # AI #5: log via the standard logger (so Sentry / log shippers
+            # pick it up) instead of `traceback.print_exc()` to stdout.
+            # Without this, every chat failure in prod was invisible.
+            logger.exception(
+                "Lease template AI chat failed: template_id=%s user_id=%s message=%r",
+                pk,
+                getattr(getattr(request, "user", None), "pk", None),
+                user_message[:200] if user_message else None,
+            )
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

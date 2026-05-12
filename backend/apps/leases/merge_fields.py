@@ -165,9 +165,28 @@ def build_merge_fields_prompt_block() -> str:
         "For COMPANY landlords use: landlord_entity_name, landlord_registration_no, landlord_vat_no, landlord_representative.",
         "For INDIVIDUAL landlords use: landlord_name, landlord_id.",
         "",
+        "**Multi-tenant fields are OPT-IN.** Default to a SINGLE tenant (`tenant_name`, `tenant_id`,"
+        " `tenant_email`, …) unless the user explicitly says 'co-tenant', 'second tenant', or names"
+        " additional tenants. The `tenant_2_*` and `tenant_3_*` fields exist for households with"
+        " multiple legal renters — using them when the user didn't ask creates extra empty signing"
+        " lines and confuses signers. Same rule for `occupant_2/3/4` — only add a slot when the"
+        " user describes a non-tenant occupant (e.g. a child, partner, or sub-tenant).",
+        "",
     ]
     for cat, fields in groups.items():
         label = _CATEGORY_LABELS.get(cat, cat)
+        # Annotate the optional multi-tenant/occupant slots so the AI doesn't
+        # auto-populate them from the list.
+        if cat == "tenant_2":
+            label = "Tenant 2 (OPT-IN — only when user explicitly names a co-tenant)"
+        elif cat == "tenant_3":
+            label = "Tenant 3 (OPT-IN — only when user explicitly names a third tenant)"
+        elif cat == "occupant_2":
+            label = "Occupant 2 (OPT-IN — only when user names a second non-tenant occupant)"
+        elif cat == "occupant_3":
+            label = "Occupant 3 (OPT-IN — only when user names a third non-tenant occupant)"
+        elif cat == "occupant_4":
+            label = "Occupant 4 (OPT-IN — only when user names a fourth non-tenant occupant)"
         lines.append(f"{label}: {', '.join(fields)}")
 
     return "\n".join(lines)
