@@ -44,7 +44,7 @@ jobs:
 
       # ── backend ──────────────────────────────────────────────────────────────
       - name: Build & push backend
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./backend
           file: ./backend/Dockerfile
@@ -57,7 +57,7 @@ jobs:
 
       # ── admin SPA ─────────────────────────────────────────────────────────────
       - name: Build & push admin
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./admin
           file: ./admin/Dockerfile
@@ -71,7 +71,7 @@ jobs:
 
       # ── agent app ─────────────────────────────────────────────────────────────
       - name: Build & push agent-app
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ./agent-app
           file: ./agent-app/Dockerfile
@@ -85,7 +85,7 @@ jobs:
 
       # ── marketing website ─────────────────────────────────────────────────────
       - name: Build & push website
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./website/Dockerfile
