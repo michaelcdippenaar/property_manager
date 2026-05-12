@@ -26,7 +26,7 @@ jobs:
       image_tag: ${{ steps.meta.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set image tag (short SHA)
         id: meta
