@@ -140,6 +140,26 @@ api.klikk.co.za {
     }
   }
 
+  # Lease AI v2 streaming endpoint — disable Caddy buffering so SSE
+  # events flush to the browser as the pipeline emits them. Matches the
+  # Volt MCP pattern above. Per docs/system/lease-ai-asgi-decision.md
+  # Option D. Must come BEFORE the unscoped default proxy so `handle`
+  # short-circuits the trailing block.
+  handle /api/v1/leases/templates/*/ai-chat-v2/* {
+    reverse_proxy backend:8000 {
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+
+      flush_interval -1
+
+      transport http {
+        read_timeout 180s
+        write_timeout 180s
+      }
+    }
+  }
+
   # Main Django API proxy — generous timeouts for AI endpoints
   # (parse-document, ai-chat, builder sessions can take 60-120s)
   reverse_proxy backend:8000 {
@@ -200,6 +220,25 @@ staging-mobile-agent.klikk.co.za {
 staging-api.klikk.co.za {
   import hsts_header
   import no_index_headers
+
+  # Lease AI v2 streaming endpoint — disable Caddy buffering so SSE
+  # events flush to the browser as the pipeline emits them. Mirrors the
+  # api.klikk.co.za block. Per docs/system/lease-ai-asgi-decision.md
+  # Option D. Must come BEFORE the unscoped default proxy.
+  handle /api/v1/leases/templates/*/ai-chat-v2/* {
+    reverse_proxy staging_backend:8000 {
+      header_up X-Real-IP {remote_host}
+      header_up X-Forwarded-For {remote_host}
+      header_up X-Forwarded-Proto {scheme}
+
+      flush_interval -1
+
+      transport http {
+        read_timeout 180s
+        write_timeout 180s
+      }
+    }
+  }
 
   reverse_proxy staging_backend:8000 {
     transport http {
