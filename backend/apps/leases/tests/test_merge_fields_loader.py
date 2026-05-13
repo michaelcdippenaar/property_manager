@@ -285,24 +285,96 @@ class TestFilterByContext(TestCase):
 
 
 class TestRenderForDrafterSystemBlock(TestCase):
+    # The Drafter's cached merge-fields system block sits under
+    # ``cache_control: ephemeral`` (architecture doc §6.6). The plan budget
+    # is 4000 chars; we hold the loader to 3900 to leave ≥100 chars of
+    # headroom for future field additions before the cache miss bites.
+    DRAFTER_BLOCK_BUDGET = 3900
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         load_all_fields.cache_clear()
 
     def test_render_for_drafter_system_block_is_compact(self):
-        """The rendered block must fit comfortably in the Drafter's cached
-        system block budget for the typical 1-tenant freehold scenario."""
+        """The 1-tenant freehold scenario MUST render well under the
+        budget (sanity floor — Day 3 G.3)."""
         fields = filter_by_context(
             tenant_count=1, property_type="freehold", lease_type="fixed_term"
         )
         rendered = render_for_drafter_system_block(fields)
         self.assertLess(
             len(rendered),
-            4000,
-            f"Rendered block is {len(rendered)} chars; must stay under 4000 "
-            "to fit the cached system block (architecture doc §6.6).",
+            self.DRAFTER_BLOCK_BUDGET,
+            f"Rendered block is {len(rendered)} chars; must stay under "
+            f"{self.DRAFTER_BLOCK_BUDGET} to fit the cached system block "
+            "(architecture doc §6.6).",
         )
+
+    def test_render_for_drafter_system_block_worst_case_under_budget(self):
+        """Day 3 G.3: the 3-tenant + sectional-title worst-case path MUST
+        stay under the budget. Previously this scenario rendered at 4086
+        chars and busted the §6.6 cache-block ceiling."""
+        fields = filter_by_context(
+            tenant_count=3,
+            property_type="sectional_title",
+            lease_type="fixed_term",
+        )
+        rendered = render_for_drafter_system_block(fields)
+        self.assertLess(
+            len(rendered),
+            self.DRAFTER_BLOCK_BUDGET,
+            f"3-tenant + sectional-title block is {len(rendered)} chars; "
+            f"must stay under {self.DRAFTER_BLOCK_BUDGET}. This is the "
+            "regression Day 3 G.3 fixes (was 4086 on 2026-05-13).",
+        )
+
+    def test_render_for_drafter_system_block_one_tenant_freehold_under_budget(
+        self,
+    ):
+        """Day 3 G.3 regression guard: the previously-passing 1-tenant
+        freehold path stays under the tightened 3900-char budget."""
+        fields = filter_by_context(
+            tenant_count=1, property_type="freehold", lease_type="fixed_term"
+        )
+        rendered = render_for_drafter_system_block(fields)
+        self.assertLess(
+            len(rendered),
+            self.DRAFTER_BLOCK_BUDGET,
+            f"1-tenant freehold block regressed to {len(rendered)} chars; "
+            f"budget is {self.DRAFTER_BLOCK_BUDGET}.",
+        )
+
+    def test_render_for_drafter_system_block_all_combos_under_budget(self):
+        """Every supported (tenant_count, property_type, lease_type) combo
+        renders under the budget. Belt-and-braces for Day 3 G.3."""
+        combos = [
+            (1, "freehold", "fixed_term"),
+            (1, "sectional_title", "fixed_term"),
+            (1, "apartment", "fixed_term"),
+            (2, "freehold", "fixed_term"),
+            (2, "sectional_title", "fixed_term"),
+            (3, "freehold", "fixed_term"),
+            (3, "sectional_title", "fixed_term"),
+            (3, "townhouse", "fixed_term"),
+            (3, "student", "fixed_term"),
+            (3, "holiday_let", "fixed_term"),
+            (1, "freehold", "month_to_month"),
+            (3, "sectional_title", "month_to_month"),
+            (3, "freehold", "month_to_month"),
+        ]
+        for tc, pt, lt in combos:
+            with self.subTest(tenant_count=tc, property_type=pt, lease_type=lt):
+                fields = filter_by_context(
+                    tenant_count=tc, property_type=pt, lease_type=lt
+                )
+                rendered = render_for_drafter_system_block(fields)
+                self.assertLess(
+                    len(rendered),
+                    self.DRAFTER_BLOCK_BUDGET,
+                    f"({tc}, {pt}, {lt}) renders at {len(rendered)} chars "
+                    f"— exceeds {self.DRAFTER_BLOCK_BUDGET}.",
+                )
 
     def test_render_is_deterministic(self):
         """Same context → same string. The block must be fully cacheable."""
@@ -326,6 +398,29 @@ class TestRenderForDrafterSystemBlock(TestCase):
         self.assertIn("* `property_address`", rendered)
         self.assertIn("* `monthly_rent`", rendered)
         self.assertIn("* `deposit`", rendered)
+
+    def test_render_omits_example_for_required_fields(self):
+        """Day 3 G.3: required-field lines no longer include
+        ``, e.g. <example>`` — the gloss carries the meaning and the
+        concrete value flows via the structured Context Object."""
+        fields = filter_by_context(
+            tenant_count=1, property_type="freehold", lease_type="fixed_term"
+        )
+        rendered = render_for_drafter_system_block(fields)
+        self.assertNotIn(", e.g. ", rendered)
+
+    def test_render_omits_default_type_for_non_required_fields(self):
+        """Day 3 G.3: non-required ``string``-typed fields render
+        as ``- `name``` without the redundant ``(string)`` annotation."""
+        fields = filter_by_context(
+            tenant_count=1, property_type="freehold", lease_type="fixed_term"
+        )
+        rendered = render_for_drafter_system_block(fields)
+        # landlord_entity_name is non-required string-typed.
+        self.assertIn("- `landlord_entity_name`\n", rendered)
+        # Non-default types are still annotated.
+        self.assertIn("- `landlord_email` (email)\n", rendered)
+        self.assertIn("- `landlord_phone` (phone)\n", rendered)
 
 
 class TestValidationRegex(TestCase):

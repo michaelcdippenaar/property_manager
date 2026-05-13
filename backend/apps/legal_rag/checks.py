@@ -115,6 +115,8 @@ def check_legal_facts_schema(app_configs, **kwargs) -> list[CheckWarning]:
         import yaml  # type: ignore[import-untyped]
         from jsonschema import Draft202012Validator
         from jsonschema.exceptions import SchemaError
+
+        from apps.legal_rag.yaml_loader import StringDateLoader
     except ImportError as exc:
         warnings.append(
             CheckWarning(
@@ -125,7 +127,7 @@ def check_legal_facts_schema(app_configs, **kwargs) -> list[CheckWarning]:
         )
         return warnings
 
-    string_date_loader = _build_string_date_loader(yaml)
+    string_date_loader = StringDateLoader
 
     # ── Pass 1: legal_fact schema → statutes/ ──────────────────────── #
     schema = _load_schema()
@@ -193,27 +195,6 @@ def check_legal_facts_schema(app_configs, **kwargs) -> list[CheckWarning]:
             )
 
     return warnings
-
-
-def _build_string_date_loader(yaml_mod):
-    """Build a SafeLoader subclass that keeps ISO date strings as strings.
-
-    Extracted so both the legal_fact + merge_field passes can reuse one
-    loader (shared with ``apps.leases.merge_fields_loader``).
-    """
-
-    class _StringDateLoader(yaml_mod.SafeLoader):
-        pass
-
-    _StringDateLoader.yaml_implicit_resolvers = {
-        first_char: [
-            (tag, regex)
-            for tag, regex in resolvers
-            if tag != "tag:yaml.org,2002:timestamp"
-        ]
-        for first_char, resolvers in yaml_mod.SafeLoader.yaml_implicit_resolvers.items()
-    }
-    return _StringDateLoader
 
 
 def _validate_yaml_files(

@@ -165,6 +165,14 @@ class Command(BaseCommand):
                 "content/cto/training/runs/<iso8601>__<scenario>.json"
             ),
         )
+        parser.add_argument(
+            "--corpus-hash", default=None,
+            help=(
+                "Override the corpus hash used to resolve the cassette path "
+                "(cassettes/<scenario>__<corpus_hash>.jsonl). Default: "
+                "'day-1-2-stub' until the legal_rag indexer lands."
+            ),
+        )
 
     def handle(self, *args, **options):
         scenario_id: str = options["scenario"]
@@ -184,6 +192,7 @@ class Command(BaseCommand):
             scenario_path,
             mode=mode,  # type: ignore[arg-type]
             anthropic_client=live_client,
+            corpus_hash=options.get("corpus_hash"),
         )
 
         try:

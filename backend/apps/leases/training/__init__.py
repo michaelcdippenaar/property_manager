@@ -22,7 +22,7 @@ from apps.leases.training.cassette import (
     CassetteAnthropicClient,
     CassetteMissError,
 )
-from apps.leases.training.harness import LeaseTrainingHarness
+from apps.leases.training.harness import LeaseTrainingHarness, ScenarioConfigError
 from apps.leases.training.result import ScenarioResult
 
 __all__ = [
@@ -30,5 +30,6 @@ __all__ = [
     "CassetteAnthropicClient",
     "CassetteMissError",
     "LeaseTrainingHarness",
+    "ScenarioConfigError",
     "ScenarioResult",
 ]

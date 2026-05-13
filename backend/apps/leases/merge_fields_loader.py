@@ -293,16 +293,41 @@ def filter_by_context(
     ]
 
 
+# ``string`` is the default merge-field type. Omitting it for non-required
+# fields shaves the rendered Drafter system block by ~10 chars per line
+# without losing semantic content (the field name already implies the
+# shape, and the structured Context Object carries the typed value).
+_DEFAULT_FIELD_TYPE = "string"
+
+
 def render_for_drafter_system_block(fields: list[MergeField]) -> str:
     """Render a compact list of fields for the Drafter system block.
 
     Output shape per the architecture doc §6.6 — grouped by category, one
     line per field, with required fields tagged ``*`` and rendered with a
-    short gloss; non-required fields render in a denser one-liner (name
-    only with a tiny type hint and example) to fit comfortably inside the
-    cached system block budget.
+    short gloss; non-required fields render in a denser one-liner (name +
+    optional type) to fit comfortably inside the cached system block
+    budget.
 
     Same Context Object produces the same string — fully cacheable.
+
+    **Budget invariant** (Day 3 G.3): the rendered block stays under
+    3900 chars across every supported ``(tenant_count, property_type,
+    lease_type)`` combination — leaving ≥100 chars of headroom under the
+    plan §6.6 ``cache_control: ephemeral`` 4000-char ceiling so future
+    field additions cannot silently bust the budget. The 4086-char
+    over-run on the worst-case (3-tenant + sectional-title + fixed-term)
+    path observed on 2026-05-13 is the regression this rendering avoids.
+
+    Line shapes:
+
+      * ``* `name` (type) — <gloss>`` for required fields. The example
+        value is intentionally omitted; the gloss carries the meaning and
+        the Drafter receives the concrete example via the structured
+        Context Object, not this catalogue.
+      * ``- `name` (type)`` for non-default-typed non-required fields.
+      * ``- `name``` for non-required fields whose type is ``string``
+        (the default; type label adds no information).
     """
     if not fields:
         return "## Available merge fields\n\n_(none applicable for this context)_"
@@ -340,16 +365,21 @@ def render_for_drafter_system_block(fields: list[MergeField]) -> str:
         cat_fields_sorted = sorted(cat_fields, key=lambda f: f.name)
         lines.append(f"### {cat}")
         for field in cat_fields_sorted:
-            star = "*" if field.required else "-"
             if field.required:
-                # Required fields earn a one-clause gloss.
-                gloss = _short_gloss(field.plain_english, max_chars=60)
+                # Required fields earn a one-clause gloss; the example is
+                # omitted on purpose (G.3 budget tightening — the gloss
+                # already conveys intent and the concrete value is in the
+                # request Context Object).
+                gloss = _short_gloss(field.plain_english, max_chars=50)
                 lines.append(
-                    f"{star} `{field.name}` ({field.type}, e.g. {field.example}) — {gloss}"
+                    f"* `{field.name}` ({field.type}) — {gloss}"
                 )
+            elif field.type != _DEFAULT_FIELD_TYPE:
+                # Non-default type: keep the annotation for AI clarity.
+                lines.append(f"- `{field.name}` ({field.type})")
             else:
-                # Non-required fields render as name + type only.
-                lines.append(f"{star} `{field.name}` ({field.type})")
+                # Default ``string`` type: name alone is enough.
+                lines.append(f"- `{field.name}`")
 
     return "\n".join(lines) + "\n"
 

@@ -36,12 +36,87 @@ from apps.leases.training.cassette import (
     DAY_1_2_CORPUS_HASH,
     CassetteAnthropicClient,
 )
+from apps.leases.training.corpus_hash import compute_combined_corpus_hash
 from apps.leases.training.result import ScenarioResult, ScenarioTotals
 
 if TYPE_CHECKING:
     import anthropic
 
 logger = logging.getLogger(__name__)
+
+
+# ── Exceptions ───────────────────────────────────────────────────────── #
+
+
+class ScenarioConfigError(ValueError):
+    """A scenario YAML failed structural / key validation.
+
+    Raised at scenario-load time when:
+      - a required field is missing;
+      - an assertion key under a non-stub category does not match any
+        public assertion function in :mod:`apps.leases.training.assertions`.
+
+    The message lists the offending key plus the sorted set of valid
+    assertion names so scenario authors can fix typos without diving into
+    the source.
+    """
+
+
+# ── Known assertion catalogue ────────────────────────────────────────── #
+
+
+# Categories whose assertions are fully implemented as of Day 1-2. Keys
+# under these categories MUST match a known assertion function name.
+_REAL_CATEGORIES: frozenset[str] = frozenset({"structural", "citation_correctness"})
+
+# Categories whose assertions are stubbed (Phase 2 wires them). Keys under
+# these categories are accepted as-is and emit a logger.warning instead of
+# raising — they describe Phase-2 contracts the scenario authors are
+# free to declare before the implementation lands.
+_STUB_CATEGORIES: frozenset[str] = frozenset(
+    {"reviewer_pipeline", "cost_and_latency", "semantic"}
+)
+
+
+def _known_assertion_names() -> dict[str, frozenset[str]]:
+    """Return the canonical set of valid assertion names per category.
+
+    Derived from :mod:`apps.leases.training.assertions` so the lint stays
+    in lockstep with the implementation. The non-stub categories list
+    every public assertion function whose ``AssertionResult.category``
+    matches the category; the stub categories return an empty set (any
+    key accepted with a warning).
+    """
+    catalogue: dict[str, set[str]] = {cat: set() for cat in _REAL_CATEGORIES}
+
+    # Each real assertion is identified by introspecting the module:
+    # we call every public ``def`` with a probe payload, read the
+    # resulting ``AssertionResult.category`` + ``.name``, and register it
+    # under the matching category. Probing is preferred over hard-coding
+    # because the assertion module is the single source of truth.
+    structural_probes: tuple[tuple[str, tuple[Any, ...]], ...] = (
+        ("no_placeholder_text", ("",)),
+        ("merge_field_absent", ("", [])),
+        ("merge_field_present", ("", [])),
+        ("has_section", ("", [])),
+    )
+    for fn_name, args in structural_probes:
+        fn = getattr(A, fn_name, None)
+        if callable(fn):
+            res = fn(*args)
+            catalogue.setdefault(res.category, set()).add(res.name)
+
+    citation_probes: tuple[str, ...] = (
+        "all_citations_resolve_in_canonical_map",
+        "known_wrong_citations_zero",
+    )
+    for fn_name in citation_probes:
+        fn = getattr(A, fn_name, None)
+        if callable(fn):
+            res = fn("")
+            catalogue.setdefault(res.category, set()).add(res.name)
+
+    return {cat: frozenset(names) for cat, names in catalogue.items()}
 
 
 # ── Scenario container ───────────────────────────────────────────────── #
@@ -71,13 +146,19 @@ class Scenario:
 
     @classmethod
     def load(cls, path: Path) -> "Scenario":
-        """Parse a scenario YAML file. Raises ``ValueError`` on bad shape."""
+        """Parse a scenario YAML file. Raises ``ScenarioConfigError`` on bad shape.
+
+        After parsing, validates every ``assertions.<category>.<key>`` against
+        the known-assertion catalogue (Day 3 G.2). Misspelled keys under real
+        categories raise ``ScenarioConfigError``; keys under stub categories
+        emit a ``logger.warning`` but are accepted (Phase 2 lights them up).
+        """
         with open(path, "r", encoding="utf-8") as f:
             payload = yaml.safe_load(f) or {}
         if not isinstance(payload, dict):
-            raise ValueError(f"Scenario {path} did not parse to a mapping")
+            raise ScenarioConfigError(f"Scenario {path} did not parse to a mapping")
         try:
-            return cls(
+            scenario = cls(
                 id=str(payload["id"]),
                 title=str(payload["title"]),
                 category=str(payload["category"]),
@@ -92,9 +173,51 @@ class Scenario:
                 raw=payload,
             )
         except KeyError as exc:
-            raise ValueError(
+            raise ScenarioConfigError(
                 f"Scenario {path} missing required field {exc}"
             ) from exc
+
+        scenario._validate_assertion_keys()
+        return scenario
+
+    def _validate_assertion_keys(self) -> None:
+        """Lint ``assertions_block`` against the known-assertion catalogue.
+
+        Real categories (structural, citation_correctness): every key MUST
+        match a public assertion function name. Misspelled keys raise
+        ``ScenarioConfigError``.
+
+        Stub categories (reviewer_pipeline, cost_and_latency, semantic):
+        keys are not yet implemented; emit a ``logger.warning`` rather than
+        raising so Phase-2 contracts can be declared in advance.
+        """
+        catalogue = _known_assertion_names()
+        for category, items in self.assertions_block.items():
+            if not isinstance(items, list):
+                continue
+            for raw in items:
+                if not isinstance(raw, dict) or len(raw) != 1:
+                    continue
+                key = next(iter(raw.keys()))
+                key_str = str(key)
+                if category in _REAL_CATEGORIES:
+                    valid_names = catalogue.get(category, frozenset())
+                    if key_str not in valid_names:
+                        valid_sorted = sorted(valid_names)
+                        raise ScenarioConfigError(
+                            f"Unknown assertion '{key_str}' under category "
+                            f"'{category}' in scenario '{self.id}'. "
+                            f"Known assertions: {valid_sorted}"
+                        )
+                elif category in _STUB_CATEGORIES:
+                    logger.warning(
+                        "LeaseTrainingHarness: scenario '%s' declares "
+                        "assertion '%s' under stub category '%s'; key not "
+                        "validated until Phase 2 implements this category.",
+                        self.id,
+                        key_str,
+                        category,
+                    )
 
 
 # ── Harness ──────────────────────────────────────────────────────────── #
@@ -137,10 +260,18 @@ class LeaseTrainingHarness:
         self.mode = mode
         self.judge_enabled = judge_enabled
         self._anthropic_client = anthropic_client
-        # Day 1-2: corpus hash is a placeholder. Phase A of the legal
-        # RAG plan replaces this with the real
-        # ``LeaseLawCorpusVersion.fingerprint`` (architecture doc §6.3).
-        self.corpus_hash = corpus_hash or DAY_1_2_CORPUS_HASH
+        # Resolution order for the corpus fingerprint stamped on the
+        # AILeaseAgentRun row + used as the cassette filename suffix:
+        #   1. Explicit kwarg (test fixtures, --corpus-hash override)
+        #   2. Combined real fingerprint from both indexers'
+        #      .last_index.json files (B.3 — see corpus_hash module)
+        #   3. Day-1-2 stub (no indexer has ever run — typical test env)
+        if corpus_hash is not None:
+            self.corpus_hash = corpus_hash
+        else:
+            self.corpus_hash = (
+                compute_combined_corpus_hash() or DAY_1_2_CORPUS_HASH
+            )
 
         if judge_enabled:
             logger.info(
@@ -203,20 +334,59 @@ class LeaseTrainingHarness:
         return f"{stamp}__{scenario_id}__{uuid.uuid4().hex[:8]}"
 
     def _build_cassette_client(self, scenario_id: str) -> CassetteAnthropicClient:
-        """Resolve cassette path + construct the wrapper."""
-        cassette_dir = (
-            Path(__file__).resolve().parent / "fixtures" / "happy"
+        """Resolve cassette path + construct the wrapper.
+
+        Canonical path (plan §6.2):
+            ``backend/apps/leases/training/cassettes/<scenario_id>__<corpus_hash>.jsonl``.
+
+        Day 3 cleanup (G.1): Day-1-2 co-located the hand-crafted cassette next to its
+        scenario YAML under ``fixtures/<category>/``. The canonical path is now the
+        primary lookup. If the canonical path is missing AND exactly one cassette file
+        matching the scenario_id prefix exists in the scenario YAML's fixtures directory,
+        we fall back to that legacy location and log a deprecation warning. The fallback
+        will be dropped in Phase 2.
+        """
+        training_dir = Path(__file__).resolve().parent
+        canonical_path = (
+            training_dir / "cassettes" / f"{scenario_id}__{self.corpus_hash}.jsonl"
         )
-        # Day 1-2 keeps cassette adjacent to its scenario fixture for
-        # easy discovery; Phase 2 standardises on cassettes/<id>__<hash>.jsonl
-        # per plan §6.2.
-        cassette_path = cassette_dir / f"{scenario_id}__{self.corpus_hash}.jsonl"
+
+        cassette_path = canonical_path
+        if not canonical_path.exists():
+            legacy_path = self._find_legacy_cassette(scenario_id)
+            if legacy_path is not None:
+                logger.warning(
+                    "LeaseTrainingHarness: cassette fallback for scenario=%s "
+                    "from legacy path %s. Phase 2 drops this fallback — move "
+                    "the cassette to the canonical path %s.",
+                    scenario_id,
+                    legacy_path,
+                    canonical_path,
+                )
+                cassette_path = legacy_path
+
         return CassetteAnthropicClient(
             scenario_id=scenario_id,
             cassette_path=cassette_path,
             mode=self.mode,  # type: ignore[arg-type]
             live_client=self._anthropic_client,
         )
+
+    def _find_legacy_cassette(self, scenario_id: str) -> Path | None:
+        """Backwards-compat lookup for the Day-1-2 cassette layout.
+
+        Returns the legacy fixture-adjacent cassette path iff exactly one
+        ``<scenario_id>__*.jsonl`` exists alongside the scenario YAML. Any
+        other count (zero or many) returns ``None`` — we never guess which
+        cassette to use.
+        """
+        fixture_dir = self.scenario_path.parent
+        if not fixture_dir.is_dir():
+            return None
+        matches = sorted(fixture_dir.glob(f"{scenario_id}__*.jsonl"))
+        if len(matches) == 1:
+            return matches[0]
+        return None
 
     def _run_pipeline(
         self, *, runner: LeaseAgentRunner, scenario: Scenario
@@ -431,4 +601,5 @@ __all__ = [
     "HarnessMode",
     "LeaseTrainingHarness",
     "Scenario",
+    "ScenarioConfigError",
 ]

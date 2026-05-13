@@ -283,6 +283,12 @@ RAG_CHROMA_PATH = Path(config("RAG_CHROMA_PATH", default=str(BASE_DIR / "rag_chr
 LEASE_AI_CHROMA_PATH = Path(
     config("LEASE_AI_CHROMA_PATH", default=str(BASE_DIR / "lease_ai_chroma"))
 )
+# Centralised legal-fact corpus (apps.legal_rag). Indexed by
+# `manage.py reindex_legal_corpus`; NOT on startup. See
+# content/cto/centralised-legal-rag-store-plan.md §3.
+LEGAL_RAG_CHROMA_PATH = Path(
+    config("LEGAL_RAG_CHROMA_PATH", default=str(BASE_DIR / "legal_rag_chroma"))
+)
 RAG_PDF_MAX_PAGES = config("RAG_PDF_MAX_PAGES", default=120, cast=int)
 RAG_MAX_FILE_BYTES = config("RAG_MAX_FILE_BYTES", default=40 * 1024 * 1024, cast=int)
 RAG_QUERY_CHUNKS = config("RAG_QUERY_CHUNKS", default=8, cast=int)

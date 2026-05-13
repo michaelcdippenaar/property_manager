@@ -5,7 +5,8 @@
 # entries are present so the schema matches future phases but are
 # stubbed as "skipped — Phase 1 Day 1-2 stub" by the harness.
 #
-# Cassette: fixtures/happy/generate-sectional-title-1-tenant-fixed__day-1-2-stub.jsonl
+# Cassette: cassettes/generate-sectional-title-1-tenant-fixed__day-1-2-stub.jsonl
+# (canonical path per plan §6.2; relocated from fixtures/happy/ on Day 3).
 # Re-record on Day 3+ with the real corpus hash once the legal_rag
 # indexer lands.
 id: generate-sectional-title-1-tenant-fixed
