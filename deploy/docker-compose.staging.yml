@@ -61,6 +61,13 @@ services:
     networks: [internal, edge]
     volumes:
       - ./media:/app/media    # Persist uploaded files (photos, documents, etc.)
+      # Centralised legal RAG store + skill render targets — repo-root paths
+      # the legal_rag code reads via _repo_root() = Path(BASE_DIR).parent.
+      # BASE_DIR is /app inside the container, so the parent is /, and the
+      # code looks at /content/legal/... and /.claude/skills/... — bind those
+      # in read-only so sync_legal_facts + render_legal_skills work.
+      - ../content:/content:ro
+      - ../.claude:/.claude:ro
     deploy:
       resources:
         limits:
