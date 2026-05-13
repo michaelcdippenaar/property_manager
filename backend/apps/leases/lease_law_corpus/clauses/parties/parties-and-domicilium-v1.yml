@@ -1,0 +1,59 @@
+id: clause-parties-and-domicilium-v1
+type: clause
+version: 1
+clause_title: Parties and Domicilium
+clause_body: |
+  This Residential Lease Agreement is entered into between:
+
+  THE LANDLORD: {{ landlord_name }}, ID/Registration number
+  {{ landlord_id }}, of {{ landlord_physical_address }} (hereinafter
+  referred to as the "Landlord");
+
+  and
+
+  THE TENANT: {{ tenant_name }}, ID number {{ tenant_id }}, currently
+  residing at {{ tenant_address }} (hereinafter referred to as the
+  "Tenant").
+
+  The parties choose the addresses set out above as their respective
+  domicilia citandi et executandi (addresses for service of legal
+  notices). Either party may change their address by written notice
+  delivered to the other; the new address must be a physical address
+  in the Republic of South Africa.
+topic_tags:
+  - parties
+  - domicilium
+  - mandatory_clause
+related_citations:
+  - rha-s5-3-a-parties
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - 1
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - landlord_name
+  - landlord_id
+  - landlord_physical_address
+  - tenant_name
+  - tenant_id
+  - tenant_address
+disclaimers:
+  - "Standard SA residential lease parties clause. Verify with a SA-admitted attorney before any externally-facing release."
+citation_confidence: high
+legal_provisional: false
+effective_from: "2014-08-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Maps directly to RHA s5(3)(a) — names + addresses for service.
+  Domicilium-citandi-et-executandi language is common law (Roman-Dutch)
+  practice and survives both RHA and CPA. For 2+ tenant variants see
+  clause-parties-multi-tenant-joint-and-several (Phase 2 Wave 2C).

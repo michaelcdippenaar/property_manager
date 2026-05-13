@@ -1,0 +1,67 @@
+id: clause-rent-amount-and-escalation-v1
+type: clause
+version: 1
+clause_title: Rental Amount, Payment, and Escalation
+clause_body: |
+  The Tenant shall pay to the Landlord monthly rental of
+  R{{ monthly_rent }} ({{ monthly_rent }} Rand) per month, payable
+  monthly in advance on or before the first (1st) day of each month.
+
+  Payment shall be made by electronic funds transfer to the Landlord's
+  account at {{ landlord_bank_name }}, account number
+  {{ landlord_bank_account_no }}, branch code
+  {{ landlord_bank_branch_code }}, account holder
+  {{ landlord_bank_account_holder }}, using payment reference
+  "{{ primary_tenant_payment_reference }}". Proof of payment is the
+  Tenant's responsibility.
+
+  The monthly rental shall escalate annually on the anniversary of the
+  lease commencement date by a fixed rate (the parties to agree, but
+  typically 6%–10% per annum in line with prevailing SA market
+  practice). No escalation may be imposed unilaterally during the
+  Initial Term.
+
+  Failure to pay rental on the due date constitutes a material breach
+  of this lease, remedied by the breach and default clause below.
+topic_tags:
+  - rent
+  - escalation
+  - payment_reference
+  - mandatory_clause
+related_citations:
+  - rha-s5-3-c-rental-amount-escalation
+  - rha-s5-3-g-rent-due-date
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - monthly_rent
+  - landlord_bank_name
+  - landlord_bank_account_no
+  - landlord_bank_branch_code
+  - landlord_bank_account_holder
+  - primary_tenant_payment_reference
+disclaimers:
+  - "Standard SA residential lease rent + escalation clause. Verify with a SA-admitted attorney before any externally-facing release."
+  - "Escalation rate must be agreed in writing; unilateral mid-term escalation is an unfair practice under RHA s4A."
+citation_confidence: medium
+legal_provisional: false
+effective_from: "2014-08-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Maps to RHA s5(3)(c) (rental amount + reasonable escalation) and
+  s5(3)(g) (rent due date). EFT details are mandatory for the modern
+  rental relationship. The payment-reference field disambiguates
+  payments from multiple tenants on the same property — wire to the
+  per-tenant-payment-reference merge field per the existing v1 fix
+  (commit 580fb500-era).

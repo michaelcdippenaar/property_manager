@@ -1,0 +1,55 @@
+id: clause-property-description-v1
+type: clause
+version: 1
+clause_title: Description of the Dwelling
+clause_body: |
+  The Landlord lets to the Tenant, and the Tenant hires from the
+  Landlord, the following dwelling:
+
+  {{ property_address }}{% if unit_number %}, Unit {{ unit_number }}{% endif %},
+  {{ city }}, {{ province }} (hereinafter the "Property").
+
+  {% if property_name %}The Property forms part of the {{ property_name }}
+  scheme.{% endif %} The Property is let together with all fixtures,
+  fittings and improvements present at the date of occupation, as
+  recorded in the ingoing inspection report.
+
+  The Tenant acknowledges that the Property has been inspected and is
+  accepted in the condition recorded in the ingoing inspection report,
+  fair wear and tear excepted.
+topic_tags:
+  - property
+  - description
+  - mandatory_clause
+related_citations:
+  - rha-s5-3-b-dwelling
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - property_address
+  - unit_number
+  - city
+  - province
+  - property_name
+disclaimers:
+  - "Standard SA residential lease property-description clause. Verify with a SA-admitted attorney before any externally-facing release."
+citation_confidence: high
+legal_provisional: false
+effective_from: "2014-08-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Maps to RHA s5(3)(b) — description of the dwelling. Inspection-report
+  reference satisfies s5(3)(k) joint-inspection requirement. Sectional
+  title schemes should additionally annex the body-corporate conduct
+  rules — see clause-sectional-title-csos-acknowledgement (Phase 2 Wave 2C).

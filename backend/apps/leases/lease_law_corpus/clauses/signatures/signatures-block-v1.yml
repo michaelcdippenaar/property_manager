@@ -1,0 +1,65 @@
+id: clause-signatures-block-v1
+type: clause
+version: 1
+clause_title: Signatures
+clause_body: |
+  SIGNED at __________________ on this _____ day of _____________ 20___.
+
+  AS LANDLORD: ⟪SIG#0⟫
+
+  Full name: {{ landlord_name }}
+  Identity / Registration No: {{ landlord_id }}
+
+  As witnessed by:
+
+    1. ____________________________________
+
+    2. ____________________________________
+
+  SIGNED at __________________ on this _____ day of _____________ 20___.
+
+  AS TENANT: ⟪SIG#1⟫
+
+  Full name: {{ tenant_name }}
+  Identity Number: {{ tenant_id }}
+
+  As witnessed by:
+
+    1. ____________________________________
+
+    2. ____________________________________
+topic_tags:
+  - signatures
+  - mandatory_clause
+related_citations: []
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - 1
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - landlord_name
+  - landlord_id
+  - tenant_name
+  - tenant_id
+disclaimers:
+  - "Standard SA residential lease signature block for single-tenant leases. Verify with a SA-admitted attorney before any externally-facing release."
+  - "The ⟪SIG#N⟫ tokens are opaque placeholders consumed by the e-signing pipeline (commit a5c170df). They MUST NOT be edited or removed by the Drafter."
+citation_confidence: high
+legal_provisional: false
+effective_from: "2014-08-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Common law (Roman-Dutch + ECTA s13) requires signed writing for
+  enduring property transactions. The ⟪SIG#N⟫ tokens are preserved
+  end-to-end through Drafter → Formatter → PDF render → e-signing
+  per architecture doc decision 22 + commit a5c170df. Multi-tenant
+  variants (2-tenant / 3-tenant) live in their own clause IDs.

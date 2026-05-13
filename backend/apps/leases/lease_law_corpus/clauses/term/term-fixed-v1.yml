@@ -1,0 +1,57 @@
+id: clause-term-fixed-v1
+type: clause
+version: 1
+clause_title: Term of Lease — Fixed Term
+clause_body: |
+  This lease shall commence on {{ lease_start_date }} and shall expire
+  on {{ lease_end_date }} (the "Initial Term").
+
+  Should the Tenant remain in occupation of the Property after the
+  Initial Term with the express or tacit consent of the Landlord, the
+  lease shall continue on a month-to-month basis on the same terms and
+  conditions, terminable on not less than one (1) calendar month's
+  written notice by either party.
+
+  Where the Tenant is a natural person and the Landlord is in the
+  business of letting residential property, the Tenant has the right
+  under section 14 of the Consumer Protection Act 68 of 2008 to cancel
+  this fixed-term lease on twenty (20) business days' written notice.
+  The Landlord may, in such a case, impose a reasonable cancellation
+  penalty proportionate to actual losses sustained — never the full
+  outstanding rental for the remainder of the term.
+topic_tags:
+  - term
+  - notice_period
+  - cpa_s14
+  - mandatory_clause
+related_citations:
+  - rha-s5-3-d-term-notice
+  - rha-s5-6-renewal-tacit-consent
+  - cpa-s14
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+merge_fields_used:
+  - lease_start_date
+  - lease_end_date
+disclaimers:
+  - "Standard SA residential lease fixed-term clause. Verify with a SA-admitted attorney before any externally-facing release."
+  - "CPA s14 only applies where the Tenant is a natural person AND the Landlord is in the business of letting. For private one-off lets between individuals, CPA s14 does not apply."
+citation_confidence: medium
+legal_provisional: false
+effective_from: "2014-08-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Maps to RHA s5(3)(d) — term / notice period. The s5(5) one-month
+  default and the s5(6) tacit-consent continuation are baked in.
+  CPA s14 penalty must be "reasonable" — Tribunal jurisprudence has
+  struck down "remaining-rent" penalties as oppressive.
