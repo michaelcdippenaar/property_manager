@@ -64,9 +64,14 @@ services:
       # Centralised legal RAG store + skill render targets — repo-root paths
       # the legal_rag code reads via _repo_root() = Path(BASE_DIR).parent.
       # BASE_DIR is /app inside the container, so the parent is /, and the
-      # code looks at /content/legal/... and /.claude/skills/... — bind those
-      # in read-only so sync_legal_facts + render_legal_skills work.
-      - ../content:/content:ro
+      # code looks at /content/legal/... and /.claude/skills/... .
+      #
+      # content/ is rw because the training harness writes ScenarioResult
+      # JSON to content/cto/training/runs/ per testing-plan §5.3 — those
+      # are committed-to-git audit artefacts of every run.
+      # .claude/ stays ro: skill .md files are never mutated at runtime
+      # (they're rendered offline by `manage.py render_legal_skills --write`).
+      - ../content:/content
       - ../.claude:/.claude:ro
     deploy:
       resources:
