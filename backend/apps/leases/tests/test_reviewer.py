@@ -1,15 +1,28 @@
-"""Reviewer agent tests — Phase 2 Day 1-2.
+"""Reviewer agent tests — Wave 2A multi-turn shape.
 
-Three regression checks per the build brief:
+Day 1-2 shipped a single forced ``submit_audit_report`` dispatch. Wave
+2A extends the Reviewer into a multi-turn pull-tool loop (decision 10
+analogue): turns ``1..MAX-1`` allow pull tools with ``tool_choice='auto'``
+and the final turn forces ``submit_audit_report``.
 
-  * ``test_reviewer_uses_force_tool_choice`` — every Reviewer dispatch
-    sets ``tool_choice={"type":"tool","name":"submit_audit_report"}``
-    (decision 22 invariant).
+Checks:
+
+  * ``test_reviewer_final_dispatch_forces_submit_audit_report`` — the
+    LAST dispatch (when no submission has been seen yet) forces
+    ``tool_choice={"type":"tool","name":"submit_audit_report"}``.
   * ``test_reviewer_validates_tool_use_against_schema`` — a malformed
     payload raises :class:`ReviewerSchemaError`.
-  * ``test_reviewer_raises_on_truncated_tool_use`` — when the response's
-    ``stop_reason='max_tokens'`` with a forced tool_choice the handler
-    raises :class:`ReviewerTruncatedError`.
+  * ``test_reviewer_raises_on_truncated_tool_use`` — when the FORCED
+    dispatch's ``stop_reason='max_tokens'`` the handler raises
+    :class:`ReviewerTruncatedError`.
+  * ``test_reviewer_can_use_query_statute_pull_tool`` — the model emits
+    a pull-tool ``tool_use``, the handler executes it + feeds the result
+    back, and the next turn returns ``submit_audit_report``.
+  * ``test_reviewer_force_submits_when_3_internal_turns_exceeded`` —
+    after MAX_INTERNAL_TURNS pull-tool dispatches the final turn forces
+    submit and the loop ends.
+  * ``test_reviewer_handles_unknown_tool_name_gracefully`` — an unknown
+    tool name raises :class:`ReviewerInvalidToolError` with the offender.
 """
 from __future__ import annotations
 
@@ -22,6 +35,7 @@ from apps.leases.agents import LeaseContext
 from apps.leases.agents.context import IntentEnum
 from apps.leases.agents.reviewer import (
     ReviewerHandler,
+    ReviewerInvalidToolError,
     ReviewerSchemaError,
     ReviewerTruncatedError,
 )
@@ -121,13 +135,19 @@ def _audit_tool_use_block(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 class ReviewerForceToolChoiceTests(unittest.TestCase):
-    """Decision 22 — Reviewer call MUST set ``tool_choice``."""
+    """Decision 22 — the FINAL Reviewer dispatch MUST force tool_choice."""
 
-    def test_reviewer_uses_force_tool_choice(self):
-        """Inspect dispatch kwargs to verify tool_choice is forced."""
-        client = _ScriptedAnthropic(
-            [_fake_response([_audit_tool_use_block(_valid_audit_input())])]
+    def test_reviewer_final_dispatch_forces_submit_audit_report(self):
+        """When the first turn yields only text, the next dispatch
+        MUST be ``tool_choice={"type":"tool","name":"submit_audit_report"}``.
+        """
+        text_only = _fake_response(
+            [{"type": "text", "text": "thinking..."}], stop_reason="end_turn"
         )
+        submit = _fake_response(
+            [_audit_tool_use_block(_valid_audit_input())]
+        )
+        client = _ScriptedAnthropic([text_only, submit])
         runner = _runner(client)
 
         handler = ReviewerHandler()
@@ -138,15 +158,20 @@ class ReviewerForceToolChoiceTests(unittest.TestCase):
             system_blocks=[{"type": "text", "text": "stub"}],
         )
 
-        self.assertEqual(len(client.calls), 1, "Reviewer must dispatch exactly once.")
-        tool_choice = client.calls[0].get("tool_choice")
-        self.assertIsNotNone(tool_choice, "tool_choice must be set.")
-        self.assertEqual(tool_choice["type"], "tool")
-        self.assertEqual(tool_choice["name"], "submit_audit_report")
+        # 2 dispatches; the second was forced.
+        self.assertEqual(len(client.calls), 2)
+        self.assertEqual(client.calls[0]["tool_choice"], {"type": "auto"})
+        final_tool_choice = client.calls[-1].get("tool_choice")
+        self.assertIsNotNone(final_tool_choice, "Final tool_choice must be set.")
+        self.assertEqual(final_tool_choice["type"], "tool")
+        self.assertEqual(final_tool_choice["name"], "submit_audit_report")
 
         # Sanity — the result reflects the audit input.
         self.assertEqual(result.verdict, "pass")
         self.assertEqual(result.summary, "All compliant.")
+        # terminated_reason was set to stale_progress when text-only
+        # forced the next turn, then submit landed via that forced turn.
+        self.assertEqual(result.terminated_reason, "stale_progress")
 
 
 class ReviewerSchemaValidationTests(unittest.TestCase):
@@ -197,17 +222,20 @@ class ReviewerTruncationTests(unittest.TestCase):
     """Edge case: forced tool_choice + max_tokens → truncated partial-JSON."""
 
     def test_reviewer_raises_on_truncated_tool_use(self):
-        """``stop_reason='max_tokens'`` with forced tool_choice MUST
-        surface as :class:`ReviewerTruncatedError`."""
-        # The tool_use is shaped fine but the response signals truncation.
-        client = _ScriptedAnthropic(
-            [
-                _fake_response(
-                    [_audit_tool_use_block(_valid_audit_input())],
-                    stop_reason="max_tokens",
-                )
-            ]
+        """``stop_reason='max_tokens'`` on the FORCED dispatch MUST
+        surface as :class:`ReviewerTruncatedError`.
+
+        Scripts a text-only first turn so the second (forced) turn is
+        the truncated one we want the handler to detect.
+        """
+        text_only = _fake_response(
+            [{"type": "text", "text": "considering..."}], stop_reason="end_turn"
         )
+        truncated = _fake_response(
+            [_audit_tool_use_block(_valid_audit_input())],
+            stop_reason="max_tokens",
+        )
+        client = _ScriptedAnthropic([text_only, truncated])
         runner = _runner(client)
 
         handler = ReviewerHandler()
@@ -218,6 +246,157 @@ class ReviewerTruncationTests(unittest.TestCase):
                 document_html="<section />",
                 system_blocks=[{"type": "text", "text": "stub"}],
             )
+
+
+def _pull_tool_use_block(
+    *,
+    block_id: str,
+    name: str,
+    inp: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a SimpleNamespace-friendly tool_use dict for a pull tool."""
+    return {"type": "tool_use", "id": block_id, "name": name, "input": inp}
+
+
+class ReviewerPullToolLoopTests(unittest.TestCase):
+    """Multi-turn pull-tool loop — Wave 2A."""
+
+    def test_reviewer_can_use_query_statute_pull_tool(self):
+        """The Reviewer emits ``query_statute``, the handler executes it
+        via :func:`apps.legal_rag.queries.query_statute`, feeds the
+        result back, and the next turn returns ``submit_audit_report``.
+        """
+        # Patch query_statute so the handler doesn't hit the DB.
+        from apps.legal_rag import queries as legal_rag_queries
+
+        class _FakeFact:
+            concept_id = "rha-s7"
+            citation_string = "RHA s7"
+            plain_english_summary = "Tribunal is established."
+            citation_confidence = "high"
+            legal_provisional = False
+            topic_tags = ("tribunal",)
+
+        original = legal_rag_queries.query_statute
+        legal_rag_queries.query_statute = lambda *args, **kwargs: _FakeFact()
+
+        try:
+            turn1 = _fake_response(
+                [
+                    _pull_tool_use_block(
+                        block_id="toolu_qs_1",
+                        name="query_statute",
+                        inp={"citation": "RHA s7"},
+                    )
+                ],
+                stop_reason="tool_use",
+            )
+            turn2 = _fake_response(
+                [_audit_tool_use_block(_valid_audit_input())]
+            )
+            client = _ScriptedAnthropic([turn1, turn2])
+            runner = _runner(client)
+
+            handler = ReviewerHandler()
+            result = handler.run(
+                runner=runner,
+                context=_ctx(),
+                document_html="<section><h1>LEASE</h1></section>",
+                system_blocks=[{"type": "text", "text": "stub"}],
+            )
+        finally:
+            legal_rag_queries.query_statute = original
+
+        # 2 dispatches: pull tool + submit_audit_report.
+        self.assertEqual(len(client.calls), 2)
+        # First dispatch: tool_choice='auto'.
+        self.assertEqual(client.calls[0].get("tool_choice"), {"type": "auto"})
+        # Pull-tool call recorded.
+        self.assertEqual(len(result.pull_tool_calls), 1)
+        self.assertEqual(result.pull_tool_calls[0]["name"], "query_statute")
+        self.assertIn("RHA s7", result.pull_tool_calls[0]["result_summary"])
+        self.assertEqual(result.internal_turns, 2)
+        self.assertEqual(result.verdict, "pass")
+
+    def test_reviewer_force_submits_when_3_internal_turns_exceeded(self):
+        """If the model never emits ``submit_audit_report`` on its own
+        within MAX_INTERNAL_TURNS, the loop's final turn forces submit
+        and the test verifies that the dispatched tool_choice was forced.
+        """
+        # Stub query_clauses since the model will call it on pull turns.
+        from apps.leases import lease_law_corpus_queries
+
+        original = lease_law_corpus_queries.query_clauses
+        lease_law_corpus_queries.query_clauses = lambda **kwargs: []
+
+        try:
+            # Turns 1 + 2: model keeps calling query_clauses with no
+            # progress. Turn 3 (forced): model finally submits.
+            pull_turn = _fake_response(
+                [
+                    _pull_tool_use_block(
+                        block_id="toolu_qc_x",
+                        name="query_clauses",
+                        inp={"topic_tags": ["deposit"]},
+                    )
+                ],
+                stop_reason="tool_use",
+            )
+            submit = _fake_response(
+                [_audit_tool_use_block(_valid_audit_input())]
+            )
+            client = _ScriptedAnthropic([pull_turn, pull_turn, submit])
+            runner = _runner(client)
+
+            handler = ReviewerHandler()
+            result = handler.run(
+                runner=runner,
+                context=_ctx(),
+                document_html="<section />",
+                system_blocks=[{"type": "text", "text": "stub"}],
+            )
+        finally:
+            lease_law_corpus_queries.query_clauses = original
+
+        self.assertEqual(len(client.calls), ReviewerHandler.MAX_INTERNAL_TURNS)
+        # First two dispatches: tool_choice='auto'.
+        self.assertEqual(client.calls[0]["tool_choice"], {"type": "auto"})
+        self.assertEqual(client.calls[1]["tool_choice"], {"type": "auto"})
+        # Final dispatch: forced submit_audit_report.
+        self.assertEqual(
+            client.calls[2]["tool_choice"],
+            {"type": "tool", "name": "submit_audit_report"},
+        )
+        # 2 pull tool calls recorded.
+        self.assertEqual(len(result.pull_tool_calls), 2)
+        self.assertEqual(result.internal_turns, ReviewerHandler.MAX_INTERNAL_TURNS)
+
+    def test_reviewer_handles_unknown_tool_name_gracefully(self):
+        """An unknown tool name MUST raise :class:`ReviewerInvalidToolError`
+        with the offending name on the exception."""
+        bogus = _fake_response(
+            [
+                _pull_tool_use_block(
+                    block_id="toolu_bogus",
+                    name="hallucinated_tool",
+                    inp={"foo": "bar"},
+                )
+            ],
+            stop_reason="tool_use",
+        )
+        client = _ScriptedAnthropic([bogus])
+        runner = _runner(client)
+
+        handler = ReviewerHandler()
+        with self.assertRaises(ReviewerInvalidToolError) as ctx:
+            handler.run(
+                runner=runner,
+                context=_ctx(),
+                document_html="<section />",
+                system_blocks=[{"type": "text", "text": "stub"}],
+            )
+        self.assertEqual(ctx.exception.tool_name, "hallucinated_tool")
+        self.assertIn("hallucinated_tool", str(ctx.exception))
 
 
 if __name__ == "__main__":

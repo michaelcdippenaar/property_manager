@@ -31,6 +31,11 @@ from apps.leases.agents.drafter import (
 from apps.leases.agents.drafter import (
     DrafterHandler,
     _apply_add_clause,
+    _apply_check_rha_compliance,
+    _apply_edit_lines,
+    _apply_format_sa_standard,
+    _apply_highlight_fields,
+    _apply_insert_signature_field,
 )
 
 
@@ -230,6 +235,172 @@ class DrafterPersonaTests(unittest.TestCase):
         self.assertIn("[needs completion]", DRAFTER_PERSONA)
         self.assertIn("MUST NOT emit", DRAFTER_PERSONA)
         self.assertIn("canonical merge fields", DRAFTER_PERSONA.lower())
+
+
+class DrafterEditLinesTests(unittest.TestCase):
+    """Wave 2A — ``edit_lines`` tool implementation."""
+
+    def test_apply_edit_lines_preserves_signature_tokens(self):
+        """Edit a range that contains a ``⟪SIG#0⟫`` token; assert the
+        token is still in the document after the edit."""
+        # ⟪SIG#1⟫ inside the range that gets replaced. Note: signature
+        # tokens are 1-indexed per _apply_insert_signature_field, so we
+        # plant ⟪SIG#1⟫ which is the canonical first token.
+        html = (
+            "<p>Pre</p>"
+            "<p>⟪SIG#1⟫</p>"
+            "<p>Post</p>"
+        )
+        new_html, summary = _apply_edit_lines(
+            {
+                "from_index": 1,
+                "to_index": 2,
+                "new_lines": [{"tag": "p", "text": "replacement body"}],
+                "summary": "replace line 1",
+            },
+            document_html=html,
+        )
+        self.assertIn("⟪SIG#1⟫", new_html)
+        self.assertIn("replacement body", new_html)
+        self.assertIn("Pre", new_html)
+        self.assertIn("Post", new_html)
+        self.assertIn("Preserved 1", summary)
+
+    def test_apply_edit_lines_replaces_range(self):
+        """Replacing 2 elements with 1 reduces the block count by 1."""
+        html = "<p>A</p><p>B</p><p>C</p><p>D</p>"
+        new_html, summary = _apply_edit_lines(
+            {
+                "from_index": 1,
+                "to_index": 3,
+                "new_lines": [{"tag": "p", "text": "merged BC"}],
+            },
+            document_html=html,
+        )
+        self.assertIn("merged BC", new_html)
+        self.assertNotIn(">B<", new_html)
+        self.assertNotIn(">C<", new_html)
+        self.assertIn(">A<", new_html)
+        self.assertIn(">D<", new_html)
+        self.assertIn("[1:3]", summary)
+
+
+class DrafterFormatSAStandardTests(unittest.TestCase):
+    """Wave 2A — ``format_sa_standard`` tool implementation."""
+
+    def test_apply_format_sa_standard_adds_missing_sections(self):
+        """A document missing several standard sections gets placeholders
+        appended when ``add_missing=True``."""
+        html = "<section><h2>PARTIES</h2><p>...</p></section>"
+        new_html, summary = _apply_format_sa_standard(
+            {"add_missing": True, "preserve_custom": True},
+            document_html=html,
+        )
+        # PARTIES already present — won't be added.
+        # Everything else should appear as a placeholder.
+        self.assertIn("PROPERTY", new_html)
+        self.assertIn("RENT", new_html)
+        self.assertIn("DEPOSIT", new_html)
+        self.assertIn("SIGNATURES", new_html)
+        # The placeholder MUST NOT use the banned phrases.
+        self.assertNotIn("[needs completion]", new_html)
+        self.assertNotIn("[TBD]", new_html)
+        self.assertIn("Section to be drafted", new_html)
+        self.assertIn("inserted", summary)
+
+    def test_apply_format_sa_standard_preserves_custom_when_flagged(self):
+        """``preserve_custom=True`` keeps non-standard sections in place
+        (today: all non-standard sections stay in place regardless, but
+        the flag is exercised so the contract is locked)."""
+        html = (
+            "<section><h2>PARTIES</h2><p>X</p></section>"
+            "<section><h2>HOUSE RULES</h2><p>No loud music.</p></section>"
+        )
+        new_html, summary = _apply_format_sa_standard(
+            {"add_missing": True, "preserve_custom": True},
+            document_html=html,
+        )
+        self.assertIn("HOUSE RULES", new_html)
+        self.assertIn("No loud music.", new_html)
+        self.assertIn("preserve_custom=True", summary)
+
+
+class DrafterInsertSignatureFieldTests(unittest.TestCase):
+    """Wave 2A — ``insert_signature_field`` tool implementation."""
+
+    def test_apply_insert_signature_field_allocates_next_token(self):
+        """A document with ⟪SIG#1⟫ already present gets ⟪SIG#2⟫ next."""
+        html = "<p>⟪SIG#1⟫</p>"
+        new_html, summary = _apply_insert_signature_field(
+            {
+                "after_line_index": -1,
+                "field_type": "signature",
+                "signer_role": "tenant",
+                "field_name": "tenant_1_signature",
+            },
+            document_html=html,
+        )
+        self.assertIn("⟪SIG#1⟫", new_html)
+        self.assertIn("⟪SIG#2⟫", new_html)
+        self.assertIn("⟪SIG#2⟫", summary)
+        self.assertIn("data-signature-role=\"tenant\"", new_html)
+
+
+class DrafterHighlightFieldsTests(unittest.TestCase):
+    """Wave 2A — ``highlight_fields`` is conversational, doesn't mutate."""
+
+    def test_apply_highlight_fields_does_not_mutate_html(self):
+        """The returned HTML is byte-identical and the payload carries
+        the field list + message."""
+        html = "<p>some body</p>"
+        new_html, summary, payload = _apply_highlight_fields(
+            {
+                "field_names": ["deposit_account_bank_name", "deposit_account_no"],
+                "message": "These deposit fields are blank — please fill them.",
+            },
+            document_html=html,
+        )
+        self.assertEqual(new_html, html, "highlight_fields MUST NOT mutate HTML.")
+        self.assertEqual(
+            payload["field_names"],
+            ["deposit_account_bank_name", "deposit_account_no"],
+        )
+        self.assertIn("blank", payload["message"])
+        self.assertIn("2 field(s)", summary)
+
+
+class DrafterCheckRHAComplianceTests(unittest.TestCase):
+    """Wave 2A — ``check_rha_compliance`` is a read-only diagnostic."""
+
+    def test_apply_check_rha_compliance_flags_known_wrong_citation(self):
+        """Planting a known-wrong citation (RHA s13 claim about Tribunal
+        establishment) MUST be flagged ``wrong``."""
+        # "RHA:s13|tribunal_established" is in KNOWN_WRONG_CITATIONS.
+        # The detector keys off RHA:s13 (any sub-section) when no other
+        # context disambiguates — Day 1-2 behaviour is to flag every
+        # RHA s13 occurrence as wrong because the only KNOWN_WRONG entry
+        # for that section points to the tribunal-established mis-cite.
+        html = (
+            "<p>The Tribunal is established under RHA s13.</p>"
+            "<p>Deposit per RHA s5(3)(e).</p>"
+        )
+        new_html, summary, findings = _apply_check_rha_compliance(
+            {}, document_html=html
+        )
+        # Read-only: HTML is byte-identical.
+        self.assertEqual(new_html, html)
+        # Wrong citation flagged.
+        wrong = [f for f in findings if f["status"] == "wrong"]
+        self.assertEqual(
+            len(wrong),
+            1,
+            f"Expected 1 wrong finding for RHA s13. Got: {findings}",
+        )
+        self.assertIn("Tribunal", wrong[0]["message"])
+        # Right citation passes.
+        ok = [f for f in findings if f["status"] == "ok"]
+        self.assertGreaterEqual(len(ok), 1)
+        self.assertIn("wrong=1", summary)
 
 
 if __name__ == "__main__":

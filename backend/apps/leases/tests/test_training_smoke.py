@@ -64,13 +64,14 @@ class SmokeBatteryTests(unittest.TestCase):
             "pass",
             f"Smoke scenario failed. Failures: {[f.__dict__ for f in failed]}",
         )
-        # Phase 2 Day 1-2: the harness pipeline is now Front Door →
-        # Drafter → Reviewer for ``generate`` intent. Two LLM calls
-        # (the Front Door is pure Python so doesn't count).
+        # Wave 2A: the Reviewer now multi-turns with pull tools. The S1
+        # cassette records 1 Drafter call + 2 Reviewer turns (auto →
+        # query_statute pull tool → auto → submit_audit_report).
+        # Front Door is pure Python so doesn't count.
         self.assertEqual(
             result.totals.llm_call_count,
-            2,
-            "Phase 2 Day 1-2 generate scenario should dispatch Drafter + Reviewer.",
+            3,
+            "Wave 2A generate scenario should dispatch Drafter + 2 Reviewer turns.",
         )
 
 

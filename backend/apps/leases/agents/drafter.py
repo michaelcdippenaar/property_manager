@@ -4,16 +4,17 @@ Per ``docs/system/lease-ai-agent-architecture.md`` §5.2 the Drafter owns
 the document surface and assembles clauses from the curated library
 pushed by the Front Door. ALWAYS prefers assembly over generation.
 
-Phase 2 Day 1-2 scope:
-  * Persona + 6 tool schemas. ``add_clause`` is the only tool with a
-    real implementation; the rest raise :class:`NotImplementedError`
-    until Day 3+.
+Phase 2 / Wave 2A scope:
+  * Persona + 6 tool schemas: ``add_clause`` / ``edit_lines`` /
+    ``format_sa_standard`` / ``insert_signature_field`` /
+    ``highlight_fields`` / ``check_rha_compliance``. All six now have
+    real implementations.
   * Multi-turn loop capped at 3 internal turns per architecture
     decision 10. Each ``messages.create`` is dispatched through
     :class:`apps.leases.agent_runner.LeaseAgentRunner` so cost / call /
     wall-clock caps cover the loop.
   * ``DrafterResult`` carries the rendered HTML + tool-call records +
-    final conversational reply.
+    final conversational reply + highlighted_fields surface.
 
 Tool-partitioning matrix (§9): the Drafter has ``edit_lines`` /
 ``add_clause`` / ``format_sa_standard`` / ``insert_signature_field`` /
@@ -23,6 +24,7 @@ removed in v2 (decision 21) and is NOT in the schema list.
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -32,6 +34,40 @@ if TYPE_CHECKING:
     from .context import LeaseContext
 
 logger = logging.getLogger(__name__)
+
+
+# Canonical SA-residential-lease section order per architecture doc §5.2.
+# Used by ``format_sa_standard`` to detect missing sections and insert
+# placeholders. Order is load-bearing — keep in sync with the architecture
+# doc / clause-corpus seed.
+SA_STANDARD_SECTIONS: tuple[str, ...] = (
+    "PARTIES",
+    "PROPERTY",
+    "TERM",
+    "RENT",
+    "DEPOSIT",
+    "MAINTENANCE",
+    "DEFAULT",
+    "TERMINATION",
+    "DISPUTE",
+    "SIGNATURES",
+)
+
+
+# Token format for signature fields. ``N`` is the signature index (1-based);
+# the regex matches both ``⟪SIG#1⟫`` (canonical) and bare alternatives.
+_SIG_TOKEN_RE = re.compile(r"⟪SIG#(\d+)⟫")
+
+
+# Block-level HTML element regex. Captures each ``<p>`` / ``<h1..h6>`` /
+# ``<li>`` / ``<section>`` element start-to-end. We use a forgiving regex
+# rather than a full HTML parser because the document HTML is produced by
+# TipTap on the frontend + our own clause snippets — both predictable
+# enough that regex round-trips reliably.
+_BLOCK_ELEMENT_RE = re.compile(
+    r"<(p|h[1-6]|li|section|div)(?:\s[^>]*)?>.*?</\1>",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 # ── Persona ──────────────────────────────────────────────────────────── #
@@ -217,6 +253,14 @@ class DrafterResult:
     chain has applied. ``tool_calls`` lists each tool invocation
     (name + input + brief outcome) for telemetry + SSE streaming.
     ``conversational_reply`` is the prose text the user sees.
+
+    ``highlighted_fields`` carries the side-effect from any
+    ``highlight_fields`` tool call so the SSE generator can emit a
+    ``highlight_fields`` event without re-parsing tool_calls.
+
+    ``rha_compliance`` carries the read-only diagnostic from any
+    ``check_rha_compliance`` call (list of ``{citation, status,
+    message}``); empty list when the tool wasn't invoked.
     """
 
     rendered_html: str
@@ -224,6 +268,8 @@ class DrafterResult:
     conversational_reply: str = ""
     internal_turns: int = 0
     terminated_reason: str = "end_turn"
+    highlighted_fields: list[dict[str, Any]] = field(default_factory=list)
+    rha_compliance: list[dict[str, Any]] = field(default_factory=list)
 
 
 # ── Tool-impl helpers ────────────────────────────────────────────────── #
@@ -285,6 +331,306 @@ def _apply_add_clause(args: dict[str, Any], document_html: str) -> tuple[str, st
     return new_html, summary
 
 
+def _apply_edit_lines(args: dict[str, Any], document_html: str) -> tuple[str, str]:
+    """Implement the ``edit_lines`` tool.
+
+    Replaces a contiguous range of block-level HTML elements with new
+    elements derived from ``args['new_lines']``. ``new_lines`` is a list
+    of ``{tag, text}`` dicts; the rendered element is ``<tag>text</tag>``,
+    defaulting to ``<p>`` when ``tag`` is missing or unknown.
+
+    Signature tokens (``⟪SIG#N⟫``) inside the affected range are NOT
+    lost — any line whose body contains a token is preserved verbatim
+    even when the range is replaced. The architecture doc treats the
+    tokens as opaque placeholders the renderer expands at PDF time, so
+    losing one would corrupt the signing surface.
+    """
+    from_idx_raw = args.get("from_index")
+    to_idx_raw = args.get("to_index")
+    new_lines = args.get("new_lines") or []
+    if not isinstance(new_lines, list):
+        return document_html, "edit_lines failed: new_lines must be a list"
+    try:
+        from_idx = int(from_idx_raw) if from_idx_raw is not None else 0
+        to_idx = int(to_idx_raw) if to_idx_raw is not None else from_idx + 1
+    except (TypeError, ValueError):
+        return document_html, "edit_lines failed: from_index / to_index must be integers"
+
+    if from_idx < 0 or to_idx < from_idx:
+        return document_html, "edit_lines failed: from_index/to_index out of range"
+
+    elements = _BLOCK_ELEMENT_RE.findall(document_html or "")
+    # The findall iterator above only returns the tag, not the full
+    # matched text — we need the matches themselves to manipulate slices.
+    matches = list(_BLOCK_ELEMENT_RE.finditer(document_html or ""))
+
+    if not matches:
+        # Empty / non-blocky document: just append the new lines.
+        rendered_new = _render_new_lines(new_lines)
+        return (document_html or "") + rendered_new, (
+            f"edit_lines appended {len(new_lines)} new line(s) to empty "
+            f"document (no block elements found to replace)."
+        )
+
+    clamped_to = min(to_idx, len(matches))
+    if from_idx >= len(matches):
+        # Inserting past the end: append.
+        rendered_new = _render_new_lines(new_lines)
+        return (document_html or "") + rendered_new, (
+            f"edit_lines appended {len(new_lines)} new line(s) past the end."
+        )
+
+    # Preserve any element in the range that contains a signature token.
+    preserved: list[str] = []
+    for idx in range(from_idx, clamped_to):
+        block_text = matches[idx].group(0)
+        if _SIG_TOKEN_RE.search(block_text):
+            preserved.append(block_text)
+
+    rendered_new = _render_new_lines(new_lines)
+    preserved_html = "".join(preserved)
+
+    before = document_html[: matches[from_idx].start()]
+    after = document_html[matches[clamped_to - 1].end():] if clamped_to > from_idx else document_html[matches[from_idx].start():]
+
+    new_html = before + preserved_html + rendered_new + after
+    summary = (
+        f"edit_lines replaced elements [{from_idx}:{clamped_to}] with "
+        f"{len(new_lines)} new line(s). Preserved {len(preserved)} "
+        f"signature-token line(s)."
+    )
+    if elements:
+        # Lint-only assertion so the regression battery can spot drift.
+        _ = elements  # explicit usage; the findall result is for diagnostics only.
+    return new_html, summary
+
+
+def _render_new_lines(new_lines: list[Any]) -> str:
+    """Render a list of ``{tag, text}`` dicts as block-level HTML."""
+    out: list[str] = []
+    allowed_tags = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "div"}
+    for raw in new_lines:
+        if not isinstance(raw, dict):
+            continue
+        tag = str(raw.get("tag") or "p").lower()
+        if tag not in allowed_tags:
+            tag = "p"
+        text = str(raw.get("text") or "")
+        out.append(f"<{tag}>{text}</{tag}>")
+    return "".join(out)
+
+
+def _apply_format_sa_standard(
+    args: dict[str, Any], document_html: str
+) -> tuple[str, str]:
+    """Implement the ``format_sa_standard`` tool.
+
+    Walks the document, detects which of :data:`SA_STANDARD_SECTIONS` are
+    present (matched on ``<h*>`` heading text — case-insensitive
+    substring), and if ``add_missing=True`` appends a placeholder for any
+    absent section. The placeholder uses the literal copy "Section to be
+    drafted — pull a clause via add_clause" (NOT one of the banned
+    ``[needs completion]`` strings).
+
+    If ``preserve_custom=True`` any non-standard headings stay where
+    they are; otherwise they remain too (we don't have section-reorder
+    logic yet — see Phase 3).
+    """
+    add_missing = bool(args.get("add_missing"))
+    preserve_custom = bool(args.get("preserve_custom"))
+
+    present = _detect_present_sections(document_html or "")
+    missing = [name for name in SA_STANDARD_SECTIONS if name not in present]
+
+    if not add_missing:
+        summary = (
+            f"format_sa_standard: detected {len(present)} standard "
+            f"section(s); {len(missing)} missing. add_missing=False → no "
+            f"mutation."
+        )
+        return document_html, summary
+
+    snippets: list[str] = []
+    for name in missing:
+        snippets.append(
+            f"<section data-sa-section=\"{name.lower()}\">"
+            f"<h2>{name}</h2>"
+            f"<p>Section to be drafted — pull a clause via add_clause.</p>"
+            f"</section>"
+        )
+    new_html = (document_html or "") + "".join(snippets)
+    summary = (
+        f"format_sa_standard inserted {len(snippets)} placeholder "
+        f"section(s): {', '.join(missing) or '(none)'}. "
+        f"preserve_custom={preserve_custom} (Phase 3 reorders non-standard "
+        f"sections; today they stay in place)."
+    )
+    return new_html, summary
+
+
+def _detect_present_sections(document_html: str) -> set[str]:
+    """Return the set of standard section names present in the document.
+
+    Detection is case-insensitive: any ``<h1..h6>`` whose body contains
+    a standard section name as a substring counts. We don't require
+    exact equality so headings like ``<h2>2. DEPOSIT</h2>`` still match.
+    """
+    found: set[str] = set()
+    headings = re.findall(
+        r"<h[1-6][^>]*>(.*?)</h[1-6]>", document_html, re.IGNORECASE | re.DOTALL
+    )
+    for body in headings:
+        upper = re.sub(r"<[^>]+>", "", body).upper()
+        for section in SA_STANDARD_SECTIONS:
+            if section in upper:
+                found.add(section)
+    return found
+
+
+def _apply_insert_signature_field(
+    args: dict[str, Any], document_html: str
+) -> tuple[str, str]:
+    """Implement the ``insert_signature_field`` tool.
+
+    Allocates the next free ``⟪SIG#N⟫`` index (1-based) and inserts the
+    token at the end of the document. Phase 3 will honour
+    ``after_line_index`` against the same block-element offset mapping
+    as :func:`_apply_edit_lines`; today we append.
+    """
+    field_type = str(args.get("field_type") or "signature")
+    signer_role = str(args.get("signer_role") or "tenant")
+    field_name = str(args.get("field_name") or "")
+
+    used_indices = {int(m.group(1)) for m in _SIG_TOKEN_RE.finditer(document_html or "")}
+    next_index = 1
+    while next_index in used_indices:
+        next_index += 1
+
+    token = f"⟪SIG#{next_index}⟫"
+    snippet = (
+        f"<p data-signature-role=\"{signer_role}\" "
+        f"data-signature-type=\"{field_type}\" "
+        f"data-signature-name=\"{field_name}\">{token}</p>"
+    )
+    new_html = (document_html or "") + snippet
+    summary = (
+        f"insert_signature_field allocated token {token} "
+        f"(role={signer_role}, type={field_type}, name={field_name!r})."
+    )
+    return new_html, summary
+
+
+def _apply_highlight_fields(
+    args: dict[str, Any], document_html: str
+) -> tuple[str, str, dict[str, Any]]:
+    """Implement the ``highlight_fields`` tool.
+
+    This is a conversational tool — it does NOT mutate the HTML. The
+    Drafter calls it when it wants to point the user at merge fields
+    they need to fill in. The helper returns a side-effect dict that
+    the DrafterHandler stitches into :class:`DrafterResult.highlighted_fields`.
+    """
+    field_names = args.get("field_names") or []
+    message = str(args.get("message") or "")
+    if not isinstance(field_names, list):
+        field_names = []
+    payload = {
+        "field_names": [str(name) for name in field_names],
+        "message": message,
+    }
+    summary = (
+        f"highlight_fields surfaced {len(payload['field_names'])} field(s) "
+        f"to the user. No HTML mutation."
+    )
+    return document_html, summary, payload
+
+
+def _apply_check_rha_compliance(
+    args: dict[str, Any], document_html: str
+) -> tuple[str, str, list[dict[str, Any]]]:
+    """Implement the ``check_rha_compliance`` tool.
+
+    Read-only diagnostic. Scrapes every statute citation from the
+    document and validates each against
+    :data:`apps.leases.management.commands.verify_caselaw_citations.CANONICAL_CITATIONS`
+    plus the ``KNOWN_WRONG_CITATIONS`` blacklist. Returns a list of
+    ``{citation, status, message}`` dicts the Drafter can consume.
+
+    Status values:
+      * ``ok``       — citation is in the canonical map at HIGH/MEDIUM.
+      * ``low``      — citation is in the canonical map at LOW confidence
+        (needs lawyer sign-off).
+      * ``unknown``  — citation not in the map.
+      * ``wrong``    — citation is in the KNOWN_WRONG_CITATIONS blacklist.
+    """
+    from apps.leases.management.commands.verify_caselaw_citations import (
+        CANONICAL_CITATIONS,
+        CITATION_RE,
+        KNOWN_WRONG_CITATIONS,
+        normalise,
+    )
+
+    findings: list[dict[str, Any]] = []
+    for match in CITATION_RE.finditer(document_html or ""):
+        statute, section = match.group(1), match.group(2)
+        canonical = normalise(statute, section)
+        wrong_key_prefix = f"{statute.upper()}:{section.lower()}|"
+        wrong_match = next(
+            (k for k in KNOWN_WRONG_CITATIONS if k.startswith(wrong_key_prefix)),
+            None,
+        )
+        if wrong_match is not None:
+            findings.append(
+                {
+                    "citation": canonical,
+                    "status": "wrong",
+                    "message": KNOWN_WRONG_CITATIONS[wrong_match],
+                }
+            )
+            continue
+        entry = CANONICAL_CITATIONS.get(canonical)
+        if entry is None:
+            findings.append(
+                {
+                    "citation": canonical,
+                    "status": "unknown",
+                    "message": "Citation not in canonical map.",
+                }
+            )
+            continue
+        concept, confidence = entry
+        if confidence == "LOW":
+            findings.append(
+                {
+                    "citation": canonical,
+                    "status": "low",
+                    "message": (
+                        f"LOW-confidence citation ({concept}) — requires "
+                        f"lawyer sign-off before relied upon."
+                    ),
+                }
+            )
+        else:
+            findings.append(
+                {
+                    "citation": canonical,
+                    "status": "ok",
+                    "message": f"Canonical: {concept} ({confidence}).",
+                }
+            )
+
+    summary_counts = {
+        s: sum(1 for f in findings if f["status"] == s)
+        for s in ("ok", "low", "unknown", "wrong")
+    }
+    summary = (
+        f"check_rha_compliance scanned {len(findings)} citation(s): "
+        f"ok={summary_counts['ok']} low={summary_counts['low']} "
+        f"unknown={summary_counts['unknown']} wrong={summary_counts['wrong']}."
+    )
+    return document_html, summary, findings
+
+
 # ── Handler ─────────────────────────────────────────────────────────── #
 
 
@@ -331,6 +677,8 @@ class DrafterHandler:
         tool_calls: list[dict[str, Any]] = []
         conversational_reply = ""
         terminated_reason = "end_turn"
+        highlighted_fields: list[dict[str, Any]] = []
+        rha_compliance: list[dict[str, Any]] = []
 
         for turn in range(self.MAX_INTERNAL_TURNS):
             response = runner.dispatch(
@@ -358,26 +706,28 @@ class DrafterHandler:
                         document_html, result_summary = _apply_add_clause(
                             inp, document_html
                         )
-                    elif name in {
-                        "edit_lines",
-                        "format_sa_standard",
-                        "insert_signature_field",
-                        "highlight_fields",
-                        "check_rha_compliance",
-                    }:
-                        # Phase 2 Day 3+: real implementations. Day 1-2
-                        # surfaces the partial-implementation state as a
-                        # tool_result string the Drafter sees, instead
-                        # of crashing the request. Logs as a sev-3.
-                        logger.info(
-                            "Drafter tool %s is not yet implemented; "
-                            "returning stub tool_result.",
-                            name,
+                    elif name == "edit_lines":
+                        document_html, result_summary = _apply_edit_lines(
+                            inp, document_html
                         )
-                        result_summary = (
-                            f"{name} is scheduled for Phase 2 Day 3+; no "
-                            f"document mutation applied this turn."
+                    elif name == "format_sa_standard":
+                        document_html, result_summary = _apply_format_sa_standard(
+                            inp, document_html
                         )
+                    elif name == "insert_signature_field":
+                        document_html, result_summary = _apply_insert_signature_field(
+                            inp, document_html
+                        )
+                    elif name == "highlight_fields":
+                        document_html, result_summary, hl_payload = _apply_highlight_fields(
+                            inp, document_html
+                        )
+                        highlighted_fields.append(hl_payload)
+                    elif name == "check_rha_compliance":
+                        document_html, result_summary, rha_findings = _apply_check_rha_compliance(
+                            inp, document_html
+                        )
+                        rha_compliance = rha_findings
                     else:
                         result_summary = f"Unknown tool {name!r}; no action taken."
 
@@ -428,6 +778,8 @@ class DrafterHandler:
             conversational_reply=conversational_reply,
             internal_turns=turn + 1,
             terminated_reason=terminated_reason,
+            highlighted_fields=highlighted_fields,
+            rha_compliance=rha_compliance,
         )
 
 

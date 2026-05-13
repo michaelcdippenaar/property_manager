@@ -120,5 +120,58 @@ class CacheControlMarkerTests(unittest.TestCase):
                 self.assertGreater(len(block.get("text", "")), 0)
 
 
+class FrontDoorRAGFallbackTests(unittest.TestCase):
+    """Wave 2A — RAG corpus missing → placeholder + warning, not silence."""
+
+    def test_front_door_rag_fallback_when_corpus_missing(self):
+        """When ``query_clauses`` raises ``RuntimeError`` (corpus not
+        indexed / Chroma down), the Front Door MUST:
+
+          * Log a ``logger.warning("RAG corpus not indexed; ...")``.
+          * Render the
+            :data:`RAG_CORPUS_UNAVAILABLE_PLACEHOLDER` string into the
+            RAG block so the 3-block cache layout (decision 18) is
+            preserved.
+        """
+        from apps.leases import lease_law_corpus_queries
+        from apps.leases.agents.front_door import (
+            RAG_CORPUS_UNAVAILABLE_PLACEHOLDER,
+        )
+
+        original_clauses = lease_law_corpus_queries.query_clauses
+
+        def _raise(**kwargs):
+            raise RuntimeError("ChromaDB collection not initialised.")
+
+        lease_law_corpus_queries.query_clauses = _raise
+
+        try:
+            from apps.leases.agents.front_door import build_dispatch
+
+            ctx = LeaseContext(
+                intent=IntentEnum.GENERATE,
+                user_message="draft me a sectional title lease",
+                property_type="sectional_title",
+                tenant_count=1,
+                lease_type="fixed_term",
+            )
+            with self.assertLogs(
+                "apps.leases.agents.front_door", level="WARNING"
+            ) as captured:
+                dispatch = build_dispatch(ctx)
+
+            self.assertEqual(len(dispatch.system_blocks), 3)
+            rag_block = dispatch.system_blocks[2]["text"]
+            self.assertIn(RAG_CORPUS_UNAVAILABLE_PLACEHOLDER, rag_block)
+            # The warning was actually emitted.
+            self.assertTrue(
+                any("RAG corpus not indexed" in msg for msg in captured.output),
+                f"Expected a 'RAG corpus not indexed' warning; got: "
+                f"{captured.output}",
+            )
+        finally:
+            lease_law_corpus_queries.query_clauses = original_clauses
+
+
 if __name__ == "__main__":
     unittest.main()

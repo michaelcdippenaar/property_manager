@@ -250,3 +250,62 @@ class LeaseAIV2EndpointTests(V2EndpointTestBase):
         self.assertIn("event: status", body)
         self.assertIn("event: agent_started", body)
         self.assertIn("event: agent_finished", body)
+
+    def test_v2_endpoint_persists_ailease_agent_run(self):
+        """After the SSE stream closes the ``AILeaseAgentRun`` row MUST
+        exist with the right ``request_id`` and budget counters.
+
+        Sends a deterministic ``request_id`` so we can ``.get()`` the
+        row by primary key after the stream finishes.
+        """
+        from apps.leases.models import AILeaseAgentRun
+
+        scripted = _ScriptedClient()
+        self._install_scripted_anthropic(scripted)
+        deterministic_id = "test-wave-2a-finalize-uuid"
+
+        payload = json.dumps(
+            {
+                "message": "draft me a sectional title lease",
+                "intent": "generate",
+                "property_type": "sectional_title",
+                "tenant_count": 1,
+                "lease_type": "fixed_term",
+                "request_id": deterministic_id,
+            }
+        )
+
+        async def _drive_and_drain() -> str:
+            resp = await self.async_client.post(
+                self.URL_TPL.format(tid=self.template.pk),
+                data=payload,
+                content_type="application/json",
+                headers=self.auth_headers,
+            )
+            parts: list[str] = []
+            async for chunk in resp.streaming_content:
+                if isinstance(chunk, bytes):
+                    parts.append(chunk.decode("utf-8", errors="replace"))
+                else:
+                    parts.append(str(chunk))
+            return "".join(parts)
+
+        body = asyncio.run(_drive_and_drain())
+        # The audit_persisted event MUST appear after the done event.
+        done_idx = body.find("event: done")
+        persisted_idx = body.find("event: audit_persisted")
+        self.assertGreater(done_idx, 0, "done event must be in the stream")
+        self.assertGreater(
+            persisted_idx,
+            done_idx,
+            "audit_persisted MUST follow done in the SSE order.",
+        )
+
+        # The row exists with the expected fields populated.
+        run = AILeaseAgentRun.objects.get(request_id=deterministic_id)
+        self.assertEqual(run.intent, "generate")
+        self.assertGreaterEqual(run.llm_call_count, 1)
+        self.assertEqual(run.terminated_reason, "completed")
+        self.assertIsNotNone(run.completed_at)
+        # call_log carries one entry per dispatch.
+        self.assertGreaterEqual(len(run.call_log), 1)

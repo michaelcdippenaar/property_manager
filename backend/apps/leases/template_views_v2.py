@@ -525,6 +525,16 @@ async def _sse_pipeline(
             },
         )
 
+        # Persist AILeaseAgentRun row BEFORE the stream closes so a
+        # frontend that listens for ``audit_persisted`` can query the
+        # audit trail by request_id immediately after ``done``.
+        async for frame in _finalize_and_emit(
+            runner=runner,
+            request_id=request_id,
+            terminated_reason="completed",
+        ):
+            yield frame
+
     except LeaseAgentBudgetExceeded as exc:
         logger.warning(
             "Lease AI v2: budget exceeded — reason=%s request_id=%s",
@@ -539,6 +549,12 @@ async def _sse_pipeline(
                 "terminated_reason": exc.terminated_reason,
             },
         )
+        async for frame in _finalize_and_emit(
+            runner=runner,
+            request_id=request_id,
+            terminated_reason=exc.terminated_reason,
+        ):
+            yield frame
     except ReviewerTruncatedError as exc:
         _capture_exception(exc)
         yield _sse(
@@ -549,6 +565,12 @@ async def _sse_pipeline(
                 "terminated_reason": "reviewer_truncated",
             },
         )
+        async for frame in _finalize_and_emit(
+            runner=runner,
+            request_id=request_id,
+            terminated_reason="error",
+        ):
+            yield frame
     except Exception as exc:  # noqa: BLE001 — last-resort SSE error
         logger.exception(
             "Lease AI v2 unhandled error request_id=%s", request_id
@@ -561,6 +583,44 @@ async def _sse_pipeline(
                 "recoverable": False,
             },
         )
+        async for frame in _finalize_and_emit(
+            runner=runner,
+            request_id=request_id,
+            terminated_reason="error",
+        ):
+            yield frame
+
+
+async def _finalize_and_emit(
+    *,
+    runner: LeaseAgentRunner,
+    request_id: str,
+    terminated_reason: str,
+) -> AsyncIterator[bytes]:
+    """Persist the ``AILeaseAgentRun`` row and emit ``audit_persisted``.
+
+    Wrapped in try/except so a persistence failure never breaks the SSE
+    stream — we log + skip the event but still close the stream cleanly.
+    """
+    try:
+        run = await sync_to_async(runner.finalize, thread_sensitive=False)(
+            terminated_reason=terminated_reason
+        )
+    except Exception as exc:  # noqa: BLE001 — never raise out of SSE
+        logger.exception(
+            "Lease AI v2: runner.finalize failed request_id=%s", request_id
+        )
+        _capture_exception(exc)
+        return
+
+    yield _sse(
+        "audit_persisted",
+        {
+            "run_id": str(getattr(run, "pk", "") or ""),
+            "request_id": getattr(run, "request_id", request_id),
+            "terminated_reason": getattr(run, "terminated_reason", terminated_reason),
+        },
+    )
 
 
 def _run_drafter(

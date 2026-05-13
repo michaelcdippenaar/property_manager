@@ -352,17 +352,35 @@ def _build_clarifying_question(context: LeaseContext, gaps: list[str]) -> str:
     )
 
 
+# Placeholder shipped in the RAG block when neither indexer has produced
+# results. Keeps the 3-block cache layout uniform (decision 18) so a
+# cassette recorded against an unindexed corpus still cache-hits when
+# the corpus lands later.
+RAG_CORPUS_UNAVAILABLE_PLACEHOLDER: str = (
+    "[No corpus chunks retrieved — corpus may not be indexed. "
+    "Run manage.py reindex_lease_corpus + manage.py reindex_legal_corpus.]"
+)
+
+
 def _pull_clauses(context: LeaseContext) -> list[dict[str, Any]]:
     """Pull clause chunks from ``lease_law_corpus_queries.query_clauses``.
 
-    Defensive: if Chroma isn't installed / indexed / reachable, return
-    an empty list. The harness's cassette replay path uses a stable
-    system block (deterministic) — Phase 2 Day 3+ will reshape this once
-    the corpus is real.
+    Defensive: if Chroma isn't installed / indexed / reachable, log a
+    sev-3 warning and return an empty list. The downstream RAG-block
+    builder swaps in the
+    :data:`RAG_CORPUS_UNAVAILABLE_PLACEHOLDER` so the system block is
+    never empty (decision 18 — preserve cache layout).
     """
     try:
         from apps.leases.lease_law_corpus_queries import query_clauses
+    except ImportError:
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(lease_law_corpus_queries import failed)."
+        )
+        return []
 
+    try:
         chunks = query_clauses(
             topic_tags=list(context.conditions) or None,
             property_type=context.property_type,
@@ -370,8 +388,21 @@ def _pull_clauses(context: LeaseContext) -> list[dict[str, Any]]:
             lease_type=context.lease_type,
             k=20,
         )
+    except (ImportError, RuntimeError):
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(query_clauses raised)."
+        )
+        return []
     except Exception:  # noqa: BLE001
         logger.exception("Front Door: query_clauses failed; using empty push.")
+        return []
+
+    if not chunks:
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(query_clauses returned no chunks)."
+        )
         return []
 
     out: list[dict[str, Any]] = []
@@ -392,11 +423,20 @@ def _pull_clauses(context: LeaseContext) -> list[dict[str, Any]]:
 def _pull_statutes(context: LeaseContext) -> list[dict[str, Any]]:
     """Pull statute facts from ``apps.legal_rag.queries.query_facts_by_topic``.
 
-    Same defensive shape as :func:`_pull_clauses`.
+    Same defensive shape as :func:`_pull_clauses`. ``ImportError`` and
+    ``RuntimeError`` are downgraded to warnings; any other unexpected
+    error is logged as an exception but still returns an empty list.
     """
     try:
         from apps.legal_rag.queries import query_facts_by_topic
+    except ImportError:
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(apps.legal_rag.queries import failed)."
+        )
+        return []
 
+    try:
         topics = list(context.conditions) or ["deposit"]
         facts = query_facts_by_topic(
             topic_tags=topics,
@@ -405,8 +445,23 @@ def _pull_statutes(context: LeaseContext) -> list[dict[str, Any]]:
             include_provisional=False,
             k=10,
         )
+    except (ImportError, RuntimeError):
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(query_facts_by_topic raised)."
+        )
+        return []
     except Exception:  # noqa: BLE001
-        logger.exception("Front Door: query_facts_by_topic failed; using empty push.")
+        logger.exception(
+            "Front Door: query_facts_by_topic failed; using empty push."
+        )
+        return []
+
+    if not facts:
+        logger.warning(
+            "RAG corpus not indexed; rendering empty system block "
+            "(query_facts_by_topic returned no facts)."
+        )
         return []
 
     out: list[dict[str, Any]] = []
@@ -461,9 +516,17 @@ def _build_rag_chunks_block(
 
     Compact, deterministic format. Same Context Object always produces
     the same string so the block is cacheable.
+
+    When neither retrieval returned chunks (corpus not indexed, ChromaDB
+    missing, etc.) we ship the
+    :data:`RAG_CORPUS_UNAVAILABLE_PLACEHOLDER` text so the system block
+    is never empty — preserves the 3-block cache layout per decision 18.
     """
     if not clauses and not statutes:
-        return "## Pushed legal corpus\n\n_(no chunks retrieved for this context)_\n"
+        return (
+            "## Pushed legal corpus\n\n"
+            f"{RAG_CORPUS_UNAVAILABLE_PLACEHOLDER}\n"
+        )
 
     lines: list[str] = ["## Pushed legal corpus", ""]
     if statutes:
@@ -488,6 +551,7 @@ def _build_rag_chunks_block(
 
 __all__ = [
     "FrontDoorDispatch",
+    "RAG_CORPUS_UNAVAILABLE_PLACEHOLDER",
     "build_dispatch",
     "classify_intent",
 ]

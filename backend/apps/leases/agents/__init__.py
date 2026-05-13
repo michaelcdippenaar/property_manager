@@ -49,6 +49,7 @@ from .reviewer import (
 )
 from .reviewer import (
     ReviewerHandler,
+    ReviewerInvalidToolError,
     ReviewerResult,
     ReviewerTruncatedError,
 )
@@ -64,6 +65,7 @@ __all__ = [
     "REVIEWER_PERSONA",
     "REVIEWER_TOOLS",
     "ReviewerHandler",
+    "ReviewerInvalidToolError",
     "ReviewerResult",
     "ReviewerTruncatedError",
     "SUBMIT_AUDIT_REPORT_SCHEMA",
