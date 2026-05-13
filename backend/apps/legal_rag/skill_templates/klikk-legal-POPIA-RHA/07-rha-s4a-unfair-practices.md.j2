@@ -1,0 +1,50 @@
+
+> Source: `content/legal/` (corpus_version: `{{ corpus_version }}`, generated {{ now }})
+> Do not edit this section directly. Edit YAML under `content/legal/statutes/rha/`
+> and re-run `manage.py render_legal_skills --write`.
+
+### s4A — Unfair-practices framework
+
+{{ fact("rha-s4-a-unfair-practices").plain_english_summary | trim }}
+
+- **Citation:** `{{ fact("rha-s4-a-unfair-practices").citation_string }}`
+- **Confidence:** {{ fact("rha-s4-a-unfair-practices").citation_confidence }}
+- **Verification:** {{ verification_label(fact("rha-s4-a-unfair-practices")) }}
+{% if fact("rha-s4-a-unfair-practices").legal_provisional %}
+> **Provisional:** {{ fact("rha-s4-a-unfair-practices").provisional_reason | trim }}
+{% endif %}
+
+### s7 — Tribunal establishment
+
+The Tribunal cited throughout this reference is the body established under
+`{{ fact("rha-s7-tribunal-establishment").citation_string }}`
+(not s13 — see canonical citation map row #1).
+
+{{ fact("rha-s7-tribunal-establishment").plain_english_summary | trim }}
+
+- **Citation:** `{{ fact("rha-s7-tribunal-establishment").citation_string }}`
+- **Confidence:** {{ fact("rha-s7-tribunal-establishment").citation_confidence }}
+- **Verification:** {{ verification_label(fact("rha-s7-tribunal-establishment")) }}
+
+### s13 — Tribunal powers and rulings
+
+{{ fact("rha-s13-tribunal-powers").plain_english_summary | trim }}
+
+- **Citation:** `{{ fact("rha-s13-tribunal-powers").citation_string }}`
+- **Confidence:** {{ fact("rha-s13-tribunal-powers").citation_confidence }}
+- **Verification:** {{ verification_label(fact("rha-s13-tribunal-powers")) }}
+{% if fact("rha-s13-tribunal-powers").legal_provisional %}
+> **Provisional:** {{ fact("rha-s13-tribunal-powers").provisional_reason | trim }}
+{% endif %}
+
+### Cross-reference table — s4A / s7 / s13
+
+| Concept | Citation | Confidence | Verification |
+|---|---|---|---|
+{% for fid in ["rha-s4-a-unfair-practices", "rha-s7-tribunal-establishment", "rha-s13-tribunal-powers"] %}
+| {{ fact(fid).citation_string }} | `{{ fact(fid).citation_string }}` | {{ fact(fid).citation_confidence }}{% if fact(fid).legal_provisional %} (provisional){% endif %} | {{ verification_label(fact(fid)) }} |
+{% endfor %}
+
+> **Canonical citation reference:** `content/cto/rha-citation-canonical-map.md`
+> records the historic skill drift where s13 was previously cited as the
+> establishment section. s7 establishes the Tribunal; s13 grants powers.

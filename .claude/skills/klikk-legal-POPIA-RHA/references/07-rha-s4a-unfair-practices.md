@@ -2,6 +2,10 @@
 
 Section 4A was introduced by the **Rental Housing Amendment Act 35 of 2014** and lists practices **deemed unfair** in the landlord–tenant relationship. Most of s4A is in force; some provisions awaited regulations from the Minister. Provincial Tribunals apply s4A robustly as the primary tenant-protection lever.
 
+<!-- BEGIN AUTO-GENERATED legal-facts -->
+<!-- Content rendered by manage.py render_legal_skills — edit YAML in content/legal/statutes/rha/ -->
+<!-- END AUTO-GENERATED legal-facts -->
+
 ## 1. Unfair practices — list
 
 Section 4A (read with the Unfair Practice Regulations, published province by province) covers:

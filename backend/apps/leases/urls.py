@@ -6,6 +6,7 @@ from .views import LeaseViewSet, LeaseCalendarAPIView, InventoryTemplateViewSet
 from .parse_view import ParseLeaseDocumentView
 from .import_view import ImportLeaseView
 from .template_views import LeaseTemplateListView, LeaseTemplateDetailView, GenerateLeaseDocumentView, LeaseTemplatePreviewView, LeaseTemplateAIChatView, ExportTemplatePDFView, PdfRenderJobListView, PdfRenderJobRetryView
+from .template_views_v2 import LeaseTemplateAIChatV2View
 from .builder_views import LeaseBuilderSessionCreateView, LeaseBuilderChatView, LeaseBuilderFinalizeView, LeaseBuilderDraftListView, LeaseBuilderDraftSaveView
 from .clause_views import ReusableClauseListCreateView, ReusableClauseDestroyView, ReusableClauseUseView, GenerateClauseView, ExtractClausesView
 from .models import LeaseTenant, LeaseOccupant, LeaseGuarantor
@@ -48,6 +49,13 @@ urlpatterns = [
     path("templates/<int:pk>/", LeaseTemplateDetailView.as_view(), name="lease-template-detail"),
     path("templates/<int:pk>/preview/", LeaseTemplatePreviewView.as_view(), name="lease-template-preview"),
     path("templates/<int:pk>/ai-chat/", LeaseTemplateAIChatView.as_view(), name="lease-template-ai-chat"),
+    # Lease AI v2 (multi-agent, SSE). Parallel to v1 during rollout per
+    # docs/system/lease-ai-agent-architecture.md decision 16.
+    path(
+        "templates/<int:template_id>/ai-chat-v2/",
+        LeaseTemplateAIChatV2View.as_view(),
+        name="lease_template_ai_chat_v2",
+    ),
     path("templates/<int:pk>/export.pdf/", ExportTemplatePDFView.as_view(), name="lease-template-export-pdf"),
     path("generate/", GenerateLeaseDocumentView.as_view(), name="lease-generate"),
     # PDF render job queue (async retry for Gotenberg failures)

@@ -64,12 +64,13 @@ class SmokeBatteryTests(unittest.TestCase):
             "pass",
             f"Smoke scenario failed. Failures: {[f.__dict__ for f in failed]}",
         )
-        # Sanity: at least one LLM dispatch happened (i.e. the cassette
-        # actually fed a response back to the runner).
+        # Phase 2 Day 1-2: the harness pipeline is now Front Door →
+        # Drafter → Reviewer for ``generate`` intent. Two LLM calls
+        # (the Front Door is pure Python so doesn't count).
         self.assertEqual(
             result.totals.llm_call_count,
-            1,
-            "Day 1-2 scenario should dispatch exactly one Drafter call.",
+            2,
+            "Phase 2 Day 1-2 generate scenario should dispatch Drafter + Reviewer.",
         )
 
 

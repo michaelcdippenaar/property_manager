@@ -1,0 +1,37 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Lease AI v2 — SSE handler snippet (paste into deploy/Caddyfile)
+#
+# Per docs/system/lease-ai-asgi-decision.md Option D step 2, paste this
+# block INSIDE the `api.klikk.co.za { ... }` site block (around line 142,
+# IMMEDIATELY BEFORE the unscoped `reverse_proxy backend:8000 { ... }` line
+# at the bottom of the block).
+#
+# The block uses Caddy's `handle` directive so it short-circuits the trailing
+# default reverse_proxy for matching paths. `flush_interval -1` tells Caddy
+# to flush every response chunk to the client immediately — without it,
+# Caddy buffers the SSE bytes until the response closes and the client
+# sees nothing for 12-25s while the lease-AI pipeline runs.
+#
+# The same block needs to be added to the STAGING site at
+# `staging-api.klikk.co.za` (around line 200). Pattern is identical.
+#
+# Mirrors the existing Volt MCP block at lines 132-141 — same shape, same
+# `flush_interval -1` rationale.
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Lease AI v2 streaming endpoint — disable Caddy buffering so SSE
+# events flush to the browser as the pipeline emits them.
+handle /api/v1/leases/templates/*/ai-chat-v2/* {
+  reverse_proxy backend:8000 {
+    header_up X-Real-IP {remote_host}
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+
+    flush_interval -1
+
+    transport http {
+      read_timeout 180s
+      write_timeout 180s
+    }
+  }
+}

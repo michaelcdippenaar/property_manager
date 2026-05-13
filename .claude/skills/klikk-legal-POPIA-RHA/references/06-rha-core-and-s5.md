@@ -32,10 +32,11 @@ See `07-rha-s4a-unfair-practices.md` for detail. Section 4A lists practices deem
 ### s5(1) — Freedom of contract
 Parties may agree to any terms not inconsistent with the Act.
 
-### s5(2) — Right to written lease
-A lease **must** be in writing if the tenant so requests. The landlord must reduce the lease to writing at no cost to the tenant.
+<!-- BEGIN AUTO-GENERATED legal-facts -->
+<!-- Content rendered by manage.py render_legal_skills — edit YAML in content/legal/statutes/rha/ -->
+<!-- END AUTO-GENERATED legal-facts -->
 
-### s5(3) — Mandatory contents of a written lease
+### s5(3) — Mandatory contents of a written lease (full list)
 
 | Item | Detail |
 |---|---|

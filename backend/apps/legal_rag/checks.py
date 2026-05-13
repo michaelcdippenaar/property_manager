@@ -194,7 +194,107 @@ def check_legal_facts_schema(app_configs, **kwargs) -> list[CheckWarning]:
                 )
             )
 
+    # ── Pass 3: skill-render drift (fail-soft) ─────────────────────── #
+    warnings.extend(_check_skill_render_drift())
+
     return warnings
+
+
+def _check_skill_render_drift() -> list[CheckWarning]:
+    """Emit a fail-soft warning when ``render_legal_skills --check`` would fail.
+
+    Lives in the system-checks pipeline so CI (or a developer running
+    ``manage.py check``) gets an early ping when a skill ``.md`` has
+    drifted from the canonical YAML. Fail-soft: returns ``CheckWarning``
+    only — the hard gate is ``manage.py render_legal_skills --check``
+    invoked explicitly in CI.
+
+    Conservative on import failures (Jinja2 missing, ORM not ready):
+    those scenarios return an empty list rather than raising.
+    """
+    warnings_out: list[CheckWarning] = []
+
+    try:
+        from apps.legal_rag.management.commands.render_legal_skills import (
+            DEFAULT_TARGETS,
+        )
+        from apps.legal_rag.models import LegalCorpusVersion
+        from apps.legal_rag.skill_rendering import (
+            BEGIN_MARKER,
+            END_MARKER,
+            build_environment,
+            render_target,
+            replace_section,
+        )
+    except Exception:  # noqa: BLE001 — never fail the check pipeline
+        return warnings_out
+
+    # Skip the DB read if the table doesn't exist yet (early migrations).
+    try:
+        active = LegalCorpusVersion.objects.filter(is_active=True).first()
+    except Exception:  # noqa: BLE001
+        return warnings_out
+    corpus_version = active.version if active is not None else "unsynced"
+
+    try:
+        env = build_environment()
+    except Exception as exc:  # noqa: BLE001
+        warnings_out.append(
+            CheckWarning(
+                f"legal_rag: could not build Jinja2 environment for skill "
+                f"render check: {exc}",
+                id="legal_rag.W010",
+            )
+        )
+        return warnings_out
+
+    repo_root = _repo_root()
+    for rel_path, template_name in DEFAULT_TARGETS.items():
+        target_path = repo_root / rel_path
+        if not target_path.is_file():
+            warnings_out.append(
+                CheckWarning(
+                    f"legal_rag: skill target missing — {rel_path}. "
+                    "Run `manage.py render_legal_skills --write` after "
+                    "creating the .md file with BEGIN/END markers.",
+                    id="legal_rag.W011",
+                )
+            )
+            continue
+        on_disk = target_path.read_text(encoding="utf-8")
+        if BEGIN_MARKER not in on_disk or END_MARKER not in on_disk:
+            warnings_out.append(
+                CheckWarning(
+                    f"legal_rag: skill target {rel_path} missing auto-generated "
+                    f"markers. Insert {BEGIN_MARKER}/{END_MARKER} pair.",
+                    id="legal_rag.W012",
+                )
+            )
+            continue
+        try:
+            result = render_target(
+                template_name, corpus_version=corpus_version, env=env
+            )
+            new_content = replace_section(on_disk, result.rendered_section)
+        except Exception as exc:  # noqa: BLE001
+            warnings_out.append(
+                CheckWarning(
+                    f"legal_rag: skill render failed for {rel_path}: {exc}",
+                    id="legal_rag.W013",
+                )
+            )
+            continue
+        if new_content != on_disk:
+            warnings_out.append(
+                CheckWarning(
+                    f"legal_rag: skill target {rel_path} has drifted from "
+                    f"canonical YAML. Run `manage.py render_legal_skills "
+                    "--write` to refresh.",
+                    id="legal_rag.W014",
+                )
+            )
+
+    return warnings_out
 
 
 def _validate_yaml_files(
