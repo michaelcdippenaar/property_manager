@@ -208,3 +208,50 @@ staging-api.klikk.co.za {
     }
   }
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# VAULT33 — staging (separate codebase, same host)
+# Backend: vault33-staging-backend:8000  Frontend (Vite): vault33-staging-frontend:5180
+# Caddy must be attached to network `vault33-staging_default` for names to resolve.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Vault33 owner SPA
+app.vault33.co.za {
+  import hsts_header
+  import no_index_headers
+
+  handle /api/* {
+    reverse_proxy vault33-staging-backend:8000 {
+      transport http {
+        read_timeout 180s
+        write_timeout 180s
+      }
+    }
+  }
+  handle /admin/* {
+    reverse_proxy vault33-staging-backend:8000
+  }
+  handle /media/* {
+    reverse_proxy vault33-staging-backend:8000
+  }
+  handle /static/* {
+    reverse_proxy vault33-staging-backend:8000
+  }
+
+  reverse_proxy vault33-staging-frontend:5180
+}
+
+# Vault33 public share endpoint (outbound share recipients + inbound upload pages)
+share.vault33.co.za {
+  import hsts_header
+  import no_index_headers
+
+  handle /api/* {
+    reverse_proxy vault33-staging-backend:8000
+  }
+  handle /media/* {
+    reverse_proxy vault33-staging-backend:8000
+  }
+
+  reverse_proxy vault33-staging-frontend:5180
+}
