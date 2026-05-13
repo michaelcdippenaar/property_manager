@@ -139,10 +139,46 @@
               </div>
             </div>
           </div>
+          <!-- Agent progress strip (visible while streaming) -->
+          <div
+            v-if="v2Chat.isStreaming.value || v2Chat.agentSteps.value.some(s => s.status !== 'idle')"
+            class="px-3 py-2 border-b border-gray-100 flex-shrink-0"
+          >
+            <div class="flex items-center gap-1.5">
+              <template v-for="(step, si) in v2Chat.agentSteps.value" :key="step.agent">
+                <!-- Separator arrow -->
+                <ChevronRight v-if="si > 0" :size="10" class="text-gray-300 flex-shrink-0" />
+                <!-- Step pill -->
+                <span
+                  class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-micro font-medium transition-all"
+                  :class="{
+                    'bg-gray-100 text-gray-400': step.status === 'idle',
+                    'bg-navy/10 text-navy': step.status === 'running',
+                    'bg-success-50 text-success-700': step.status === 'done',
+                    'bg-danger-50 text-danger-700': step.status === 'error',
+                  }"
+                >
+                  <Loader2 v-if="step.status === 'running'" :size="8" class="animate-spin" />
+                  <CheckCircle2 v-else-if="step.status === 'done'" :size="8" />
+                  <AlertTriangle v-else-if="step.status === 'error'" :size="8" />
+                  {{ step.label }}
+                </span>
+              </template>
+            </div>
+            <!-- Subtle status line -->
+            <p
+              v-if="v2Chat.statusLine.value"
+              class="mt-1 text-gray-400 leading-snug truncate"
+              style="font-size: 9px;"
+            >
+              {{ v2Chat.statusLine.value }}
+            </p>
+          </div>
+
           <!-- Messages -->
           <div ref="chatScrollEl" class="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
             <div
-              v-for="(msg, i) in chatMessages" :key="i"
+              v-for="(msg, i) in v2Chat.messages.value" :key="i"
               class="flex gap-2"
               :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
             >
@@ -171,13 +207,32 @@
                 </div>
               </div>
             </div>
-            <div v-if="chatThinking" class="flex gap-2">
+            <div v-if="chatThinking || v2Chat.isStreaming.value" class="flex gap-2">
               <div class="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-micro font-bold bg-navy/10 text-navy mt-0.5">AI</div>
               <div class="bg-gray-100 rounded-2xl rounded-tl-sm px-3 py-2.5 flex gap-1">
                 <span v-for="j in 3" :key="j" class="w-1.5 h-1.5 rounded-full bg-gray-400 animate-bounce" :style="`animation-delay:${(j-1)*0.15}s`" />
               </div>
             </div>
           </div>
+
+          <!-- Inline error with Retry -->
+          <div
+            v-if="v2Chat.streamError.value"
+            class="mx-2.5 mb-2 px-3 py-2 rounded-lg bg-danger-50 border border-danger-100 flex items-start gap-2 flex-shrink-0"
+          >
+            <AlertTriangle :size="12" class="text-danger-500 flex-shrink-0 mt-0.5" />
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-danger-700 leading-snug">{{ v2Chat.streamError.value }}</p>
+            </div>
+            <button
+              class="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-micro font-medium bg-white border border-danger-200 text-danger-600 rounded hover:bg-danger-50 transition-colors"
+              @click="retryLastMessage()"
+              title="Retry last message"
+            >
+              <RefreshCw :size="9" /> Retry
+            </button>
+          </div>
+
           <!-- Input -->
           <div class="border-t border-gray-200 p-2.5 flex gap-2 flex-shrink-0">
             <textarea
@@ -186,11 +241,11 @@
               placeholder="Ask about this template…"
               class="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-navy/30"
               @keydown.enter.exact.prevent="sendMessage"
-              :disabled="chatThinking"
+              :disabled="v2Chat.isStreaming.value"
             />
             <button
               class="px-3 py-2 bg-navy text-white rounded-xl self-end hover:bg-navy/90 disabled:opacity-50 transition-colors"
-              :disabled="!chatInput.trim() || chatThinking"
+              :disabled="!chatInput.trim() || v2Chat.isStreaming.value"
               @click="sendMessage"
             >
               <Send :size="13" />
@@ -820,6 +875,13 @@
               @keydown="onEditorKeydown"
               v-html="editorHtml"
             />
+            <!-- Audit report panel (appears after reviewer agent finishes) -->
+            <div v-if="v2Chat.auditReport.value" class="mt-4 mb-2">
+              <LeaseAuditReportPanel
+                :report="v2Chat.auditReport.value"
+                @dismiss="v2Chat.dismissAuditReport()"
+              />
+            </div>
             <!-- Last-page footer overlay (auto-break divs handle intermediate page footers) -->
             <div
               v-if="showFooter"
@@ -961,7 +1023,7 @@ import {
   Braces, ChevronLeft, ChevronDown, Loader2, Bookmark, Plus,
   Bold, Italic, Underline, List, ListOrdered, AlignLeft, AlignCenter, AlignRight,
   IndentDecrease, IndentIncrease, Palette, PaintBucket, Table,
-  RotateCcw, RotateCw,
+  RotateCcw, RotateCw, AlertTriangle, RefreshCw,
   Users, User, UserCheck, Building2,
   Hash, Calendar, CheckSquare, Phone, Mail, Type, Pen, StickyNote,
   Scissors, FileDigit, LayoutTemplate, Hammer, Copy,
@@ -971,6 +1033,8 @@ import api from '../../api'
 import { useTemplateStore } from '../../stores/template'
 import type { DocJson, DocField } from '../../stores/template'
 import { usePageBreaks } from '../../composables/usePageBreaks'
+import { useLeaseAIChatV2 } from '../../composables/useLeaseAIChatV2'
+import LeaseAuditReportPanel from '../../components/lease/LeaseAuditReportPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -1202,6 +1266,9 @@ const chatScrollEl = ref<HTMLDivElement | null>(null)
 // so Claude doesn't need to re-read the document. Persisted to localStorage per template.
 const apiHistory   = ref<{ role: string; content: string }[]>([])
 
+// ── v2 multi-agent SSE chat ───────────────────────────────────────────────
+const v2Chat = useLeaseAIChatV2(() => templateId.value)
+
 function _chatStorageKey() { return `tmpl_chat_${templateId.value}` }
 
 function _loadChatHistory() {
@@ -1219,7 +1286,7 @@ function _saveChatHistory() {
   try {
     localStorage.setItem(_chatStorageKey(), JSON.stringify({
       apiHistory: apiHistory.value,
-      messages:   chatMessages.value,
+      messages:   v2Chat.messages.value,
     }))
   } catch { /* ignore */ }
 }
@@ -1512,13 +1579,16 @@ onMounted(async () => {
   await loadPreview()
   // Restore persisted chat history; if none, show greeting
   _loadChatHistory()
-  if (!chatMessages.value.length) {
-    chatMessages.value = [{
-      role: 'assistant',
-      content: template.value
-        ? `Hi! I can help you work on "${template.value.name}".\n\nI can: edit clauses, format text, check RHA compliance, restructure to standard SA format, manage merge fields, and more.\n\nTap "Show capabilities" above to see all my tools and skills.`
-        : 'Hi! I can help you improve this lease template. Tap "Show capabilities" above to see what I can do.',
-    }]
+  const greeting = template.value
+    ? `Hi! I can help you work on "${template.value.name}".\n\nI can: edit clauses, format text, check RHA compliance, restructure to standard SA format, manage merge fields, and more.\n\nTap "Show capabilities" above to see all my tools and skills.`
+    : 'Hi! I can help you improve this lease template. Tap "Show capabilities" above to see what I can do.'
+  if (!v2Chat.messages.value.length) {
+    if (chatMessages.value.length) {
+      // Migrate persisted messages into v2 composable
+      v2Chat.messages.value.push(...chatMessages.value)
+    } else {
+      v2Chat.messages.value.push({ role: 'assistant', content: greeting })
+    }
   }
 })
 
@@ -2570,53 +2640,87 @@ function groupChipClass(key: string): string {
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────
+
+/**
+ * Send a message via the v2 multi-agent SSE endpoint.
+ * The old single-agent endpoint (/ai-chat/) is no longer called from the UI
+ * but remains in the backend for backwards compatibility.
+ */
 async function sendMessage() {
   const msg = chatInput.value.trim()
-  if (!msg || chatThinking.value) return
+  if (!msg || v2Chat.isStreaming.value) return
 
   chatInput.value = ''
-  chatMessages.value.push({ role: 'user', content: msg })
   chatThinking.value = true
   scrollChat()
 
-  try {
-    const { data } = await api.post(`/leases/templates/${templateId.value}/ai-chat/`, {
-      api_history: apiHistory.value,   // empty on first message; full history thereafter
-      message: msg,
-    })
-    // Store updated history so next call skips re-sending the document
-    if (data.api_history) apiHistory.value = data.api_history
-    chatMessages.value.push({ role: 'assistant', content: data.reply, tools_used: data.tools_used || undefined })
-    _saveChatHistory()   // persist chat + api_history to localStorage
+  // _trackingDrafterContent becomes true when the drafter's text_chunk
+  // events start, so we replace editorHtml once at first chunk then append.
+  let draftingStarted = false
 
-    // Handle document_update (update_document / add_comment / insert_toc / renumber_sections)
-    if (data.document_update?.html && editorEl.value) {
-      editorEl.value.innerHTML = data.document_update.html
-      editorHtml.value = data.document_update.html
-      savedHtml.value  = data.document_update.html
-      isDirty.value    = false
-      store.updateHtml(data.document_update.html)
-      showToast(`Document updated: ${data.document_update.summary}`)
-      nextTick(() => { _hydrateFieldChips(); schedulePageBreaks() })
-      // Refresh template so detected_variables reflect new content
-      await loadTemplate()
-    }
-
-    // Handle field_highlight (highlight_fields tool)
-    if (data.field_highlight?.field_names?.length) {
-      flashFields(data.field_highlight.field_names)
-      if (data.field_highlight.message) {
-        showToast(data.field_highlight.message)
+  await v2Chat.send(
+    msg,
+    // onTextChunk: stream drafter output directly into the editor
+    (text: string, agent: string) => {
+      if (agent === 'drafter') {
+        if (!draftingStarted) {
+          // Clear the editor for fresh drafter content
+          draftingStarted = true
+          if (editorEl.value) {
+            editorEl.value.innerHTML = ''
+            editorHtml.value = ''
+          }
+        }
+        // Append raw text into the editor div
+        if (editorEl.value) {
+          // Append as a text node inside the last paragraph, or create a new one
+          const current = editorEl.value.innerHTML
+          editorEl.value.innerHTML = current + text
+          editorHtml.value = editorEl.value.innerHTML
+          isDirty.value = true
+          store.updateHtml(editorEl.value.innerHTML)
+        }
+        scrollChat()
       }
+    },
+  )
+
+  // Sync messages from composable into local chatMessages (for persistence)
+  chatMessages.value = v2Chat.messages.value as typeof chatMessages.value
+  _saveChatHistory()
+
+  // Post-stream: re-hydrate field chips and schedule page breaks
+  nextTick(() => {
+    _hydrateFieldChips()
+    schedulePageBreaks()
+    if (draftingStarted) {
+      savedHtml.value = getCleanHtml()
+      isDirty.value = true
     }
-  } catch (err: any) {
-    const detail = err?.response?.data?.error || err?.response?.data?.detail || err?.message || 'Unknown error'
-    console.error('[AI chat error]', err?.response?.status, detail)
-    chatMessages.value.push({ role: 'assistant', content: `Sorry, something went wrong: ${detail}` })
-  } finally {
-    chatThinking.value = false
-    scrollChat()
+  })
+
+  chatThinking.value = false
+  scrollChat()
+}
+
+/**
+ * Retry the last user message after an error.
+ * Removes the failed assistant error message and the original user message,
+ * then re-sends.
+ */
+function retryLastMessage() {
+  v2Chat.clearError()
+  // Find the last user message in v2 messages and re-populate chatInput
+  const msgs = v2Chat.messages.value
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    if (msgs[i].role === 'user') {
+      chatInput.value = msgs[i].content
+      // Remove the user message and any trailing assistant error messages
+      v2Chat.messages.value.splice(i)
+      break
+    }
   }
+  if (chatInput.value) sendMessage()
 }
 
 function scrollChat() {
