@@ -1,0 +1,9 @@
+{
+  "chunk_count": 3,
+  "collection_name": "klikk_lease_clauses_v1",
+  "corpus_hash": "3ff4b159359473f77e7ed4a854407bf0e5f5b2e332e45d359b9e8eb2e58ce71c",
+  "embedding_model": "klikk-mock-deterministic-v1",
+  "indexed": 0,
+  "run_at": "2026-05-13T07:35:17.172524+00:00",
+  "skipped": 3
+}

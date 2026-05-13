@@ -1,0 +1,55 @@
+id: clause-lease-must-be-written-recital-v1
+type: clause
+version: 1
+clause_title: Recital — Lease Reduced to Writing
+clause_body: |
+  WHEREAS the Landlord, {{ landlord_name }}, has agreed to let, and the
+  Tenant, {{ tenant_name }}, has agreed to hire the residential
+  dwelling situated at {{ property_address }} (hereinafter "the
+  dwelling"), the parties have reduced their agreement to writing in
+  accordance with section 5(2) of the Rental Housing Act 50 of 1999
+  (as amended).
+
+  This written lease, together with any annexures referenced herein,
+  constitutes the entire agreement between the parties. No variation,
+  amendment, or waiver of any term shall be of force or effect unless
+  reduced to writing and signed by both parties or their duly
+  authorised representatives.
+
+  The parties acknowledge that the Tenant has received a copy of this
+  lease before signature and has had a reasonable opportunity to read
+  and seek advice on its contents.
+topic_tags:
+  - parties
+  - recital
+related_citations:
+  - rha-s5-2-right-to-written-lease
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - landlord_name
+  - tenant_name
+  - property_address
+disclaimers:
+  - "Opening recital establishing the written-lease requirement. Section 5(2) right to written lease is HIGH confidence per the canonical citation map."
+citation_confidence: high
+legal_provisional: false
+effective_from: "2024-01-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Section 5(2) of the RHA gives the tenant the right to a written
+  lease on request. Many SA residential leases ship without an
+  explicit recital — this clause makes the basis explicit and
+  invokes the entire-agreement protection commonly relied upon
+  before the Rental Housing Tribunal.

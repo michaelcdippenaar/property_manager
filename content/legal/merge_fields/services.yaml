@@ -1,0 +1,171 @@
+---
+# Klikk lease merge fields — property-services bucket (Feature 3).
+# Structured arrangement flags + their human-readable label counterparts.
+
+- name: water_arrangement
+  label: 'Water arrangement key: included | not_included'
+  category: services
+  type: enum
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: not_included
+  plain_english: >-
+    Machine key for the water arrangement — `included` (water is part of
+    rent) or `not_included` (tenant arranges separately).
+  enum_values:
+    - included
+    - not_included
+  related_legal_facts: []
+
+- name: water_arrangement_label
+  label: Water arrangement (human-readable)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Tenant arranges separately
+  plain_english: >-
+    Human-readable rendering of `water_arrangement` — what gets written
+    into the lease body. Derived from the key by the Front Door.
+  related_legal_facts: []
+
+- name: electricity_arrangement
+  label: 'Electricity arrangement key: prepaid | eskom_direct | included | not_included'
+  category: services
+  type: enum
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: prepaid
+  plain_english: >-
+    Machine key for electricity arrangement — `prepaid`, `eskom_direct`,
+    `included`, or `not_included`. Drives the utilities clause.
+  enum_values:
+    - prepaid
+    - eskom_direct
+    - included
+    - not_included
+  related_legal_facts: []
+
+- name: electricity_arrangement_label
+  label: Electricity arrangement (human-readable)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Prepaid meter
+  plain_english: >-
+    Human-readable rendering of `electricity_arrangement`. Derived by the
+    Front Door from the key.
+  related_legal_facts: []
+
+- name: gardening_service_included
+  label: Gardening service included (boolean)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: [freehold, townhouse, holiday_let]
+    lease_types: any
+  validation_regex: null
+  example: 'true'
+  plain_english: >-
+    Boolean-as-string indicating whether the landlord supplies a gardening
+    service. Typically only applicable where the property has a garden
+    (freehold / townhouse / holiday let).
+  related_legal_facts: []
+
+- name: gardening_service_included_label
+  label: Gardening service included (Yes/No)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: [freehold, townhouse, holiday_let]
+    lease_types: any
+  validation_regex: null
+  example: 'Yes'
+  plain_english: >-
+    Yes/No rendering of `gardening_service_included` for lease body
+    rendering.
+  related_legal_facts: []
+
+- name: wifi_included
+  label: Wifi included (boolean)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'false'
+  plain_english: >-
+    Boolean-as-string indicating whether wifi is included in the rent
+    (typically furnished / short-let units).
+  related_legal_facts: []
+
+- name: wifi_included_label
+  label: Wifi included (Yes/No)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'No'
+  plain_english: >-
+    Yes/No rendering of `wifi_included` for lease body rendering.
+  related_legal_facts: []
+
+- name: security_service_included
+  label: Armed response / security service included (boolean)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'true'
+  plain_english: >-
+    Boolean-as-string indicating whether armed-response / security
+    service is included in rent.
+  related_legal_facts: []
+
+- name: security_service_included_label
+  label: Armed response / security service included (Yes/No)
+  category: services
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'Yes'
+  plain_english: >-
+    Yes/No rendering of `security_service_included` for lease body
+    rendering.
+  related_legal_facts: []

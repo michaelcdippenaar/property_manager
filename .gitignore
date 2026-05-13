@@ -48,6 +48,7 @@ backend/staticfiles/
 backend/media/
 backend/documents/
 backend/rag_chroma/
+backend/lease_ai_chroma/
 backend/logs/*.jsonl
 *.sqlite3
 

@@ -1,0 +1,218 @@
+---
+# Klikk lease merge fields — landlord identity bucket.
+# Source of truth for the AI Drafter's cached merge-fields system block
+# (see docs/system/lease-ai-agent-architecture.md §6.6).
+#
+# Conventions:
+#   - applicability.tenant_counts: "any" means the field is independent of tenant count.
+#   - related_legal_facts: forward FKs to apps.legal_rag.LegalFact.concept_id.
+#   - example: clearly-fictional ("Alex Tester", "1 Test Way", structurally-valid pseudo-ID).
+#   - plain_english: aimed at the Drafter, not the end user — explains when to use the field.
+#
+# Entity-only fields (landlord_entity_*, landlord_vat_no, landlord_representative*)
+# are intentionally non-required at the schema level — they apply only when the
+# landlord is a company / CC / trust. The Drafter learns this from `plain_english`.
+
+- name: landlord_name
+  label: Full name (individual) or trading name (company)
+  category: landlord
+  type: string
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Alex Tester
+  plain_english: >-
+    Full legal name of the landlord — for individuals, given names + surname;
+    for entities, the registered trading name. Always required; RHA s5(3)(a)
+    mandates the lease state the parties.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: landlord_entity_name
+  label: Registered company / CC / trust name
+  category: landlord
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Tester Holdings (Pty) Ltd
+  plain_english: >-
+    Only for company / CC / trust landlords — the registered entity name as
+    it appears on CIPC / Master of the High Court records. Skip for
+    individual landlords.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: landlord_registration_no
+  label: Company / CC / trust registration number
+  category: landlord
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 2018/123456/07
+  plain_english: >-
+    Only for company / CC / trust landlords — the CIPC or Master's
+    registration number. Skip for individual landlords.
+  related_legal_facts: []
+
+- name: landlord_vat_no
+  label: VAT registration number
+  category: landlord
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^4\d{9}$'
+  example: '4123456789'
+  plain_english: >-
+    Only for VAT-registered landlords (usually companies, occasionally
+    individuals trading over the threshold). Format is 10 digits starting
+    with 4. Skip for non-vendors.
+  related_legal_facts: []
+
+- name: landlord_representative
+  label: Authorised representative name (companies)
+  category: landlord
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Alex Tester
+  plain_english: >-
+    Only for company / CC / trust landlords — the natural person signing
+    the lease on the entity's behalf, typically a director or trustee. Skip
+    for individual landlords (the landlord IS the signatory).
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: landlord_representative_id
+  label: ID number of authorised representative
+  category: landlord
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9203124567083'
+  plain_english: >-
+    Only for company / CC / trust landlords — the South African ID number
+    of the natural person signing for the entity. Skip for individual
+    landlords.
+  related_legal_facts: []
+
+- name: landlord_title
+  label: Title (Mr / Ms / Dr / Pty Ltd / etc.)
+  category: landlord
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Mr
+  plain_english: >-
+    Salutation or entity-form descriptor (Mr, Ms, Dr, (Pty) Ltd, CC, Trust).
+    Optional — populated where the lease uses it in addressed clauses.
+  related_legal_facts: []
+
+- name: landlord_id
+  label: SA ID number (individual landlord)
+  category: landlord
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9203124567083'
+  plain_english: >-
+    13-digit South African ID number for an individual landlord. Skip if
+    the landlord is a company / CC / trust — use
+    `landlord_representative_id` for the signing person instead.
+  related_legal_facts: []
+
+- name: landlord_contact
+  label: Primary contact / phone
+  category: landlord
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0100'
+  plain_english: >-
+    Primary phone number for landlord communication. Alias of
+    `landlord_phone`; legacy templates use one or the other.
+  related_legal_facts: []
+
+- name: landlord_phone
+  label: Phone number (alias for landlord_contact)
+  category: landlord
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0100'
+  plain_english: >-
+    Phone number for the landlord. Same data as `landlord_contact`; both
+    are exposed because templates predating the alias still reference
+    `landlord_phone`.
+  related_legal_facts: []
+
+- name: landlord_email
+  label: Email address
+  category: landlord
+  type: email
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: alex@tester.example
+  plain_english: >-
+    Landlord email address — used for notifications, lease delivery, and
+    domicilium where the lease elects email service.
+  related_legal_facts: []
+
+- name: landlord_physical_address
+  label: Physical / postal address
+  category: landlord
+  type: address
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 1 Test Way, Stellenbosch, 7600
+  plain_english: >-
+    Landlord physical address — required as the domicilium citandi et
+    executandi under RHA s5(3)(a) for service of legal notices. Use a real
+    physical address (not a PO Box) where notices can be left.
+  related_legal_facts:
+    - rha-s5-3-a-parties

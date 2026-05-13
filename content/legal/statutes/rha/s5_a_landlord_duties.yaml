@@ -1,0 +1,79 @@
+---
+# RHA s5A — Landlord duties (habitability, fair dealing).
+# Canonical map row #21: HIGH confidence, universal source agreement.
+concept_id: rha-s5-a-landlord-duties
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s5A"
+subsection_letter: null
+parent_section: "s5A"
+citation_string: "RHA s5A"
+
+statute_text: |
+  The landlord must during the period of the lease maintain the existing structure
+  of the dwelling in a state of repair so as to remain habitable, must give the
+  tenant the necessary receipts in respect of all payments received from the tenant,
+  and must not unfairly interfere with the tenant's right to privacy.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md`
+  (2026-04-17 vintage).
+
+plain_english_summary: |
+  Landlords must keep the dwelling habitable during the lease, supply
+  receipts for every payment received, and respect the tenant's right
+  to privacy. Failure on any of these grounds may be referred to the
+  Rental Housing Tribunal as an unfair practice.
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [landlord_duty, habitability, maintenance, privacy, receipts]
+
+related_concepts:
+  - rha-s5-b-tenant-duties
+  - rha-s4-a-unfair-practices
+  - rha-s13-tribunal-powers
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+    notes: "s5A inserted by Act 35 of 2014."
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 21
+    confidence: high
+
+non_compliance:
+  - actor: landlord
+    consequence: "Tenant may refer the practice to the Tribunal under s4A; remedies may include rent abatement or order to perform."
+    cited_via: "RHA s4A + s13"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

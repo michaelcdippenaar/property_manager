@@ -1,0 +1,185 @@
+---
+# Klikk lease merge fields — primary-tenant bucket (legacy unsuffixed).
+# These are the canonical names for a single-tenant lease — they alias the
+# `tenant_1_*` fields. RHA s5(3)(a) requires the tenant's name + address.
+
+- name: tenant_name
+  label: Full name of primary tenant
+  category: tenant
+  type: string
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Sam Tester
+  plain_english: >-
+    Full legal name of the primary tenant — given names + surname as on
+    their SA ID. Always required; this is the lease's named lessee under
+    RHA s5(3)(a).
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_id
+  label: SA ID number of primary tenant
+  category: tenant
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9203124567083'
+  plain_english: >-
+    13-digit SA ID number of the primary tenant. Required to satisfy FICA
+    customer due diligence when the lease is also a financial-services
+    accountable transaction. Use a passport number in the same field for
+    foreign tenants (validation falls back to free-string).
+  related_legal_facts: []
+
+- name: tenant_phone
+  label: Phone number
+  category: tenant
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0101'
+  plain_english: >-
+    Primary tenant phone number — used for notifications and emergency
+    contact. SA international format preferred.
+  related_legal_facts: []
+
+- name: tenant_contact
+  label: Contact number (alias for tenant_phone)
+  category: tenant
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0101'
+  plain_english: >-
+    Alias of `tenant_phone` retained for legacy templates. Same data.
+  related_legal_facts: []
+
+- name: tenant_email
+  label: Email address
+  category: tenant
+  type: email
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: sam@tester.example
+  plain_english: >-
+    Primary tenant email address. Used for e-signing invitations and
+    domicilium where the lease elects email service.
+  related_legal_facts: []
+
+- name: tenant_address
+  label: Current residential address
+  category: tenant
+  type: address
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 99 Old Place, Stellenbosch, 7600
+  plain_english: >-
+    Tenant's current address at signing — the address before they move
+    into the rented property. Used as the tenant's domicilium until the
+    lease commences.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_employer
+  label: Employer name
+  category: tenant
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Corp
+  plain_english: >-
+    Tenant employer name — included for affordability / verification, not
+    legally required. Skip if the tenant is self-employed or retired.
+  related_legal_facts: []
+
+- name: tenant_occupation
+  label: Occupation / job title
+  category: tenant
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Engineer
+  plain_english: >-
+    Tenant occupation or job title. Optional context; not legally
+    required.
+  related_legal_facts: []
+
+- name: tenant_dob
+  label: Date of birth
+  category: tenant
+  type: date
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '1992-03-12'
+  plain_english: >-
+    Tenant date of birth (ISO 8601 YYYY-MM-DD). Used for FICA + KYC where
+    SA ID is missing (e.g. foreign tenants on passport).
+  related_legal_facts: []
+
+- name: tenant_emergency_contact
+  label: Emergency contact person name
+  category: tenant
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Robin Tester
+  plain_english: >-
+    Name of a person Klikk / landlord can contact in an emergency — not
+    the tenant themselves. Typically a partner, parent, or close friend.
+  related_legal_facts: []
+
+- name: tenant_emergency_phone
+  label: Emergency contact phone number
+  category: tenant
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0199'
+  plain_english: >-
+    Phone number for the emergency contact named in
+    `tenant_emergency_contact`.
+  related_legal_facts: []

@@ -1,0 +1,94 @@
+---
+# RHA s7 — Rental Housing Tribunal establishment.
+# Canonical map row #1: HIGH confidence. This is the row that drove the audit —
+# SKILL-A and DESIGN doc previously cited s13 in error; s7 is the establishment
+# section. s13 governs powers / referral (see rha-s13-tribunal-powers).
+concept_id: rha-s7-tribunal-establishment
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s7"
+subsection_letter: null
+parent_section: "s7"
+citation_string: "RHA s7"
+
+statute_text: |
+  The MEC for housing in each province must, by notice in the Provincial Gazette,
+  establish a Rental Housing Tribunal for that province. The Tribunal consists of
+  members appointed by the MEC and exercises jurisdiction over the rental housing
+  matters set out in this Act.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md`
+  and `klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md`
+  (both 2026-04-17 vintage).
+
+plain_english_summary: |
+  Each provincial MEC for housing establishes a Rental Housing Tribunal
+  under s7. The Tribunal is the cheap, accessible forum where rental
+  disputes are resolved — separate from the Magistrate's Court. s7 is
+  the ESTABLISHMENT section; the Tribunal's powers and procedure are
+  in s13, which is a frequent source of citation confusion.
+
+# Citation map flagged this as the most-frequently-mis-cited row in the
+# pre-canonical era. Record the historic disagreement so the lint can
+# detect any future regression.
+alternative_citations:
+  - source: ".claude/skills/klikk-leases-rental-agreement/references/sa-rental-law.md"
+    cite: "RHA s13"
+    status: historical
+    note: "Pre-2026-05-12 the skill cited s13 in error. Corrected via canonical map."
+  - source: "docs/system/lease-ai-agent-architecture.md (pre-2026-05-12)"
+    cite: "RHA s13"
+    status: historical
+    note: "Same error inherited from skill."
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [tribunal, enforcement, dispute_resolution, provincial]
+
+related_concepts:
+  - rha-s13-tribunal-powers
+  - rha-s4-a-unfair-practices
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 1
+    confidence: high
+
+non_compliance: []
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

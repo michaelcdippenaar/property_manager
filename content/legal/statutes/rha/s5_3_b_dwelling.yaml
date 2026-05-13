@@ -1,0 +1,74 @@
+---
+# RHA s5(3)(b) — Description of dwelling.
+# Canonical map row #7: HIGH confidence, universal source agreement.
+concept_id: rha-s5-3-b-dwelling
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s5(3)(b)"
+subsection_letter: "b"
+parent_section: "s5(3)"
+citation_string: "RHA s5(3)(b)"
+
+statute_text: |
+  A written lease must describe the dwelling let to the tenant, sufficiently to identify it.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md`
+  and `klikk-leases-rental-agreement/references/sa-rental-law.md`.
+
+plain_english_summary: |
+  The lease must contain a description of the property being rented that is
+  detailed enough to identify it without ambiguity. Typically this is the
+  street address plus unit / flat / room number; for sectional title it
+  should also reference the scheme and unit number.
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [mandatory_clause, dwelling, identification, lease_formation]
+
+related_concepts:
+  - rha-s5-2-right-to-written-lease
+  - rha-s5-3-a-parties
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 7
+    confidence: high
+
+non_compliance:
+  - actor: landlord
+    consequence: "Lease may fail mandatory-contents test; disputes over which dwelling is governed by the lease arise."
+    cited_via: "RHA s5(3)"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

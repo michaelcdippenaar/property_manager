@@ -1,0 +1,213 @@
+---
+# Klikk lease merge fields — lease-terms bucket.
+# Spans dates, rent, deposit, notice, services, and reference fields.
+# Some entries map to the design-doc's `deposit` / `dates` categories but
+# the existing tuple list groups them under `lease_terms`; preserved for
+# backwards-compat round-trip.
+
+- name: lease_start
+  label: Lease commencement date
+  category: lease_terms
+  type: date
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '2026-06-01'
+  plain_english: >-
+    Date the lease begins (tenant takes occupation). ISO YYYY-MM-DD.
+    Required by RHA s5(3)(d) — the lease must state its term.
+  related_legal_facts:
+    - rha-s5-3-d-term-notice
+
+- name: lease_end
+  label: Lease expiry / end date
+  category: lease_terms
+  type: date
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: [fixed_term, lease_renewal]
+  validation_regex: null
+  example: '2027-05-31'
+  plain_english: >-
+    Date the lease ends (tenant must vacate, unless renewed). ISO
+    YYYY-MM-DD. Required for fixed-term + renewal leases; not applicable
+    to month-to-month (which uses notice-driven termination).
+  related_legal_facts:
+    - rha-s5-3-d-term-notice
+
+- name: monthly_rent
+  label: Monthly rental amount (numeric)
+  category: lease_terms
+  type: currency
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '12000.00'
+  plain_english: >-
+    Monthly rental amount in ZAR (numeric). Drives recurring invoicing.
+    Required — RHA s5(3) mandates the rental amount in the lease.
+  related_legal_facts:
+    - rha-s5-3-c-rental-amount-escalation
+    - rha-s5-3-g-rent-due-date
+
+- name: monthly_rent_words
+  label: Monthly rental amount in words
+  category: lease_terms
+  type: text
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Twelve thousand rand
+  plain_english: >-
+    Monthly rental amount written out in words — a belt-and-braces
+    convention in SA leases, helpful where the numeric value might be
+    altered or mis-keyed.
+  related_legal_facts:
+    - rha-s5-3-c-rental-amount-escalation
+
+- name: deposit
+  label: Deposit amount (numeric)
+  category: lease_terms
+  type: currency
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '12000.00'
+  plain_english: >-
+    Refundable deposit amount in ZAR (numeric). Required. By industry
+    convention 1-2 months' rent; legally capped only by what is
+    reasonable. Must be held in an interest-bearing account per
+    RHA s5(3)(f).
+  related_legal_facts:
+    - rha-s5-3-f-deposit-interest-bearing-account
+
+- name: deposit_words
+  label: Deposit amount in words
+  category: lease_terms
+  type: text
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Twelve thousand rand
+  plain_english: >-
+    Deposit amount written out in words — companion to the numeric
+    `deposit` field, mirroring the rent convention.
+  related_legal_facts:
+    - rha-s5-3-f-deposit-interest-bearing-account
+
+- name: notice_period_days
+  label: Notice period in days (minimum 20 business days per RHA)
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '20'
+  plain_english: >-
+    Notice period in days for either party to terminate. RHA s5(5) sets
+    the floor at 20 business days; longer periods (e.g. one calendar
+    month) are common.
+  related_legal_facts:
+    - rha-s5-3-d-term-notice
+
+- name: water_included
+  label: Whether water is included (Yes/No)
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'No'
+  plain_english: >-
+    Legacy free-text Yes/No flag for water inclusion. Prefer the
+    structured `water_arrangement` services field for new templates.
+  related_legal_facts: []
+
+- name: electricity_prepaid
+  label: Whether electricity is prepaid (Yes/No)
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 'Yes'
+  plain_english: >-
+    Legacy free-text Yes/No flag for prepaid electricity. Prefer
+    `electricity_arrangement` from the services bucket for new templates.
+  related_legal_facts: []
+
+- name: max_occupants
+  label: Maximum number of authorised occupants
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '4'
+  plain_english: >-
+    Cap on the total number of people (tenants + occupants) authorised to
+    live at the property. Used in the occupancy clause to prevent
+    sub-letting bloat.
+  related_legal_facts: []
+
+- name: payment_reference
+  label: Payment reference for EFT (legacy alias for primary_tenant_payment_reference)
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001
+  plain_english: >-
+    Legacy EFT reference field. Identical data to
+    `primary_tenant_payment_reference`; retained because older templates
+    still use this name.
+  related_legal_facts: []
+
+- name: lease_number
+  label: Unique lease reference number
+  category: lease_terms
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001
+  plain_english: >-
+    Klikk-generated unique reference for the lease. Used in the document
+    header and as an audit-trail identifier across the e-signing journey.
+  related_legal_facts: []

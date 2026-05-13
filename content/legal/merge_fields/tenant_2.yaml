@@ -1,0 +1,177 @@
+---
+# Klikk lease merge fields — tenant_2 bucket.
+# CRITICAL APPLICABILITY: tenant_counts: [2, 3] only — NEVER [1, 2, 3].
+# This is the literal fix for `docs/system/lease-ai-agent-architecture.md`
+# §2 failure mode 2 ("AI pulls `tenant_2_*` even with one tenant"). The
+# Front Door's `filter_by_context()` MUST drop these when tenant_count == 1.
+
+- name: tenant_2_name
+  label: Tenant 2 full name
+  category: tenant_2
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Jordan Tester
+  plain_english: >-
+    Full legal name of the second co-tenant. Use ONLY when the user has
+    explicitly named a second tenant — never auto-populate this for a
+    single-tenant lease.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_2_id
+  label: Tenant 2 SA ID number
+  category: tenant_2
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9408214567084'
+  plain_english: >-
+    13-digit SA ID number for the second co-tenant. Required for FICA only
+    when tenant 2 is a separate accountable party.
+  related_legal_facts: []
+
+- name: tenant_2_phone
+  label: Tenant 2 phone
+  category: tenant_2
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0102'
+  plain_english: >-
+    Phone number for the second co-tenant.
+  related_legal_facts: []
+
+- name: tenant_2_email
+  label: Tenant 2 email
+  category: tenant_2
+  type: email
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: jordan@tester.example
+  plain_english: >-
+    Email for the second co-tenant — used for their e-signing invitation.
+  related_legal_facts: []
+
+- name: tenant_2_address
+  label: Tenant 2 address
+  category: tenant_2
+  type: address
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 99 Old Place, Stellenbosch, 7600
+  plain_english: >-
+    Current address for the second co-tenant before move-in. Used for
+    domicilium.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_2_employer
+  label: Tenant 2 employer
+  category: tenant_2
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Corp
+  plain_english: >-
+    Employer for the second co-tenant.
+  related_legal_facts: []
+
+- name: tenant_2_occupation
+  label: Tenant 2 occupation
+  category: tenant_2
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Analyst
+  plain_english: >-
+    Occupation / job title for the second co-tenant.
+  related_legal_facts: []
+
+- name: tenant_2_dob
+  label: Tenant 2 date of birth
+  category: tenant_2
+  type: date
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '1994-08-21'
+  plain_english: >-
+    Date of birth for tenant 2 (ISO YYYY-MM-DD).
+  related_legal_facts: []
+
+- name: tenant_2_emergency_contact
+  label: Tenant 2 emergency contact
+  category: tenant_2
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Lee Tester
+  plain_english: >-
+    Emergency-contact person name for tenant 2.
+  related_legal_facts: []
+
+- name: tenant_2_emergency_phone
+  label: Tenant 2 emergency phone
+  category: tenant_2
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0298'
+  plain_english: >-
+    Emergency-contact phone number for tenant 2.
+  related_legal_facts: []
+
+- name: cotenant_2_payment_reference
+  label: Co-tenant 2 payment reference (EFT)
+  category: tenant_2
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001-T2
+  plain_english: >-
+    Unique EFT reference for the second co-tenant's rental payment share.
+  related_legal_facts: []

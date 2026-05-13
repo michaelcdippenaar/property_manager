@@ -67,6 +67,7 @@ LOCAL_APPS = [
     "apps.integrations",
     "apps.contact",
     "apps.legal",
+    "apps.legal_rag",
     "apps.payments",
     "apps.audit",
     "apps.popia",
@@ -277,6 +278,11 @@ CONTRACT_DOCUMENTS_ROOT = Path(
     config("CONTRACT_DOCUMENTS_ROOT", default=str(BASE_DIR / "documents"))
 )
 RAG_CHROMA_PATH = Path(config("RAG_CHROMA_PATH", default=str(BASE_DIR / "rag_chroma")))
+# Lease-AI clauses corpus (apps.leases.lease_law_corpus). Indexed by
+# `manage.py reindex_lease_corpus`; NOT on startup. See architecture doc §6.3.
+LEASE_AI_CHROMA_PATH = Path(
+    config("LEASE_AI_CHROMA_PATH", default=str(BASE_DIR / "lease_ai_chroma"))
+)
 RAG_PDF_MAX_PAGES = config("RAG_PDF_MAX_PAGES", default=120, cast=int)
 RAG_MAX_FILE_BYTES = config("RAG_MAX_FILE_BYTES", default=40 * 1024 * 1024, cast=int)
 RAG_QUERY_CHUNKS = config("RAG_QUERY_CHUNKS", default=8, cast=int)

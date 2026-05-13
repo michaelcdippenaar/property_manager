@@ -1,0 +1,92 @@
+---
+# POPIA s16 — Information quality / accuracy condition.
+# Canonical map row P4: MEDIUM-HIGH confidence, treated as HIGH in canonical
+# CLI dict. This is the row that fixed the lease-AI design doc's s11(2) error.
+concept_id: popia-s16-information-quality
+type: statute_provision
+version: 1
+effective_from: 2021-07-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: POPIA
+statute_full_title: "Protection of Personal Information Act 4 of 2013"
+section: "s16"
+subsection_letter: null
+parent_section: "s16"
+citation_string: "POPIA s16"
+
+statute_text: |
+  A responsible party must take reasonably practicable steps to ensure that the personal
+  information is complete, accurate, not misleading and updated where necessary. In taking
+  the steps referred to, the responsible party must have regard to the purpose for which
+  personal information is collected or further processed.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/01-popia-core.md`
+  (2026-04-17 vintage) and the Information Regulator's POPIA guidance notes.
+
+plain_english_summary: |
+  POPIA's accuracy condition. Any business that holds personal information
+  must take reasonable steps to keep it complete, accurate, not misleading,
+  and up to date — measured against the purpose for which the information
+  was collected. This is the condition Klikk relies on when it gives a
+  tenant the right to correct their own records, and the same condition
+  that requires Klikk to maintain a tamper-evident audit trail of legal
+  facts that are asserted in customer-facing output.
+
+# Historic disagreement: lease-AI design doc previously cited s11(2) for
+# the accuracy condition. The auditor flagged this as wrong; s11 is the
+# top-level lawful-processing conditions and (2) is the consent-withdrawal
+# clause. s16 is the substantive accuracy condition.
+alternative_citations:
+  - source: "docs/system/lease-ai-agent-architecture.md (pre-2026-05-12)"
+    cite: "POPIA s11(2)"
+    status: historical
+    note: "Pre-canonical-map error. s11(2) is consent withdrawal; accuracy is s16."
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [popia, data_protection, accuracy, data_subject_right, responsible_party]
+
+related_concepts:
+  - popia-s24-correction-deletion
+  - rha-s4-a-unfair-practices
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Protection of Personal Information Act 4 of 2013"
+    url_archive: "https://www.justice.gov.za/legislation/acts/2013-004.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/01-popia-core.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 4
+    confidence: high
+    notes: "Row P4 in the POPIA matrix; canonical CLI dict tags this HIGH."
+
+non_compliance:
+  - actor: landlord
+    consequence: "Information Regulator may issue an enforcement notice; persistent breach attracts fines up to R10m or 10 years imprisonment."
+    cited_via: "POPIA Chapter 11 (Offences and Penalties)"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

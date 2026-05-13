@@ -1,0 +1,78 @@
+---
+# RHA s5B — Tenant duties.
+# Canonical map row #22: HIGH confidence, universal source agreement.
+concept_id: rha-s5-b-tenant-duties
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s5B"
+subsection_letter: null
+parent_section: "s5B"
+citation_string: "RHA s5B"
+
+statute_text: |
+  The tenant must pay the rent timeously, must not damage the dwelling beyond
+  fair wear and tear, must not sublet without the landlord's written consent
+  unless the lease permits, and must comply with house rules forming part of
+  the lease.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md`
+  (2026-04-17 vintage).
+
+plain_english_summary: |
+  Tenants must pay rent on time, must not damage the dwelling beyond
+  reasonable wear and tear, must obtain written consent before
+  subletting (unless the lease itself permits subletting), and must
+  follow any house rules attached to the lease.
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [tenant_duty, rent, damage, subletting, house_rules]
+
+related_concepts:
+  - rha-s5-a-landlord-duties
+  - rha-s4-a-unfair-practices
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+    notes: "s5B inserted by Act 35 of 2014."
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 22
+    confidence: high
+
+non_compliance:
+  - actor: tenant
+    consequence: "Landlord may refer late rent / damage / unauthorised subletting to the Tribunal or pursue eviction under PIE."
+    cited_via: "RHA s4A + s13; PIE Act 19/1998"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

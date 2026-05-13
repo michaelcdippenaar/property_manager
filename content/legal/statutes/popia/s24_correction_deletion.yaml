@@ -1,0 +1,91 @@
+---
+# POPIA s24 — Data subject right to correction / deletion.
+# Canonical map row P8 + P9: HIGH confidence on correction; MEDIUM-HIGH on
+# deletion (canonical CLI dict tags HIGH). Fixed an earlier design-doc
+# error that put deletion under s25 — s25 is procedural (manner of access).
+concept_id: popia-s24-correction-deletion
+type: statute_provision
+version: 1
+effective_from: 2021-07-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: POPIA
+statute_full_title: "Protection of Personal Information Act 4 of 2013"
+section: "s24"
+subsection_letter: null
+parent_section: "s24"
+citation_string: "POPIA s24"
+
+statute_text: |
+  A data subject may, in the prescribed manner, request a responsible party to correct or
+  delete personal information about the data subject in its possession or under its control
+  that is inaccurate, irrelevant, excessive, out of date, incomplete, misleading or obtained
+  unlawfully, or to destroy or delete a record of personal information that the responsible
+  party is no longer authorised to retain.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/01-popia-core.md`
+  (2026-04-17 vintage).
+
+plain_english_summary: |
+  Tenants and other data subjects have a statutory right under POPIA s24
+  to ask Klikk to correct or delete personal information that is wrong,
+  out of date, no-longer-relevant, excessive, misleading, or unlawfully
+  obtained — and to destroy records the operator is no longer authorised
+  to retain. Klikk must respond in the prescribed manner and within the
+  prescribed time (Regulations to POPIA: 21 working days).
+
+# Historic disagreement: lease-AI design doc previously cited s25 for
+# deletion. The auditor flagged this as wrong; s25 governs the manner of
+# access, not the substantive deletion right. s24 is correct.
+alternative_citations:
+  - source: "docs/system/lease-ai-agent-architecture.md (pre-2026-05-12)"
+    cite: "POPIA s25"
+    status: historical
+    note: "Pre-canonical-map error. s25 is manner-of-access procedure; deletion is s24."
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [popia, data_protection, correction, deletion, data_subject_right, dsar]
+
+related_concepts:
+  - popia-s16-information-quality
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Protection of Personal Information Act 4 of 2013"
+    url_archive: "https://www.justice.gov.za/legislation/acts/2013-004.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/01-popia-core.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 9
+    confidence: high
+    notes: "Row P9 in the POPIA matrix; canonical CLI dict tags this HIGH."
+
+non_compliance:
+  - actor: landlord
+    consequence: "Failure to honour a s24 request may be referred to the Information Regulator; remedies include enforcement notice and fine."
+    cited_via: "POPIA Chapter 10 (Enforcement) + Chapter 11 (Penalties)"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

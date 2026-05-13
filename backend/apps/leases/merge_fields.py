@@ -1,160 +1,131 @@
 """
 Canonical merge field registry for Klikk lease templates.
 
-This is the single source of truth for all merge field names that are
-guaranteed to be populated at e-signing time (see esigning/services.py →
-get_merge_field_context).  The AI template chat agent, field widget, and
-any future validation code should import from here.
+.. deprecated:: 2026-05
+   Source of truth has moved to ``content/legal/merge_fields/``. This
+   module is a compatibility shim and will be retired in lease-AI
+   Phase 2. New code should use ``apps.leases.merge_fields_loader``
+   directly — in particular ``filter_by_context()`` for per-request
+   field subsets and ``render_for_drafter_system_block()`` for the
+   AI Drafter's cached system block (architecture doc §6.6).
+
+Legacy contract preserved:
+    - ``CANONICAL_MERGE_FIELDS`` — ``list[tuple[str, str, str]]`` of
+      ``(category, name, label)``. Imported by ``esigning/services.py``,
+      ``leases/template_views.py`` (build_merge_fields_prompt_block
+      consumer), the field widget, and a handful of regression tests.
+    - ``CANONICAL_FIELD_NAMES`` — ``frozenset[str]`` of every field
+      name.
+    - ``build_merge_fields_prompt_block()`` — string for the legacy AI
+      template chat system prompt. The lease-AI v2 Drafter uses
+      ``render_for_drafter_system_block(filter_by_context(...))``
+      instead.
+
+If YAML loading fails (missing files, schema violation), this module
+falls back to a hard-coded minimal safety set (landlord_name,
+tenant_name, property_address, lease_start, lease_end, monthly_rent,
+deposit) so importers never crash — but a ``CRITICAL`` log line fires
+so the failure is visible in alerts.
 """
 from __future__ import annotations
 
-# (category_key, field_name, short_description)
-CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = [
-    # ── Landlord ──────────────────────────────────────────────────────────
-    ("landlord",      "landlord_name",              "Full name (individual) or trading name (company)"),
-    ("landlord",      "landlord_entity_name",        "Registered company / CC / trust name"),
-    ("landlord",      "landlord_registration_no",    "Company / CC / trust registration number"),
-    ("landlord",      "landlord_vat_no",             "VAT registration number"),
-    ("landlord",      "landlord_representative",     "Authorised representative name (companies)"),
-    ("landlord",      "landlord_representative_id",  "ID number of authorised representative"),
-    ("landlord",      "landlord_title",              "Title (Mr / Ms / Dr / Pty Ltd / etc.)"),
-    ("landlord",      "landlord_id",                 "SA ID number (individual landlord)"),
-    ("landlord",      "landlord_contact",            "Primary contact / phone"),
-    ("landlord",      "landlord_phone",              "Phone number (alias for landlord_contact)"),
-    ("landlord",      "landlord_email",              "Email address"),
-    ("landlord",      "landlord_physical_address",   "Physical / postal address"),
-    # ── Landlord bank ─────────────────────────────────────────────────────
-    ("landlord_bank", "landlord_bank_name",          "Bank name (e.g. FNB, Standard Bank)"),
-    ("landlord_bank", "landlord_bank_branch_code",   "Branch / universal branch code"),
-    ("landlord_bank", "landlord_bank_account_no",    "Bank account number"),
-    ("landlord_bank", "landlord_bank_account_holder","Account holder name"),
-    ("landlord_bank", "landlord_bank_account_type",  "Account type (cheque / savings / current)"),
-    # ── Property ──────────────────────────────────────────────────────────
-    ("property",      "property_address",            "Full street address of the property"),
-    ("property",      "property_name",               "Estate / building / complex name"),
-    ("property",      "property_description",        "Full legal or erf description"),
-    ("property",      "unit_number",                 "Unit / flat / door number"),
-    ("property",      "city",                        "City or town"),
-    ("property",      "province",                    "Province (e.g. Western Cape)"),
-    # ── Primary tenant ────────────────────────────────────────────────────
-    ("tenant",        "tenant_name",                 "Full name of primary tenant"),
-    ("tenant",        "tenant_id",                   "SA ID number of primary tenant"),
-    ("tenant",        "tenant_phone",                "Phone number"),
-    ("tenant",        "tenant_contact",              "Contact number (alias for tenant_phone)"),
-    ("tenant",        "tenant_email",                "Email address"),
-    ("tenant",        "tenant_address",              "Current residential address"),
-    ("tenant",        "tenant_employer",             "Employer name"),
-    ("tenant",        "tenant_occupation",           "Occupation / job title"),
-    ("tenant",        "tenant_dob",                  "Date of birth"),
-    ("tenant",        "tenant_emergency_contact",    "Emergency contact person name"),
-    ("tenant",        "tenant_emergency_phone",      "Emergency contact phone number"),
-    # ── Tenant 1 (numbered alias — same person as primary tenant) ─────────
-    ("tenant_1",      "tenant_1_name",               "Tenant 1 full name (alias for tenant_name)"),
-    ("tenant_1",      "tenant_1_id",                 "Tenant 1 SA ID number"),
-    ("tenant_1",      "tenant_1_phone",              "Tenant 1 phone"),
-    ("tenant_1",      "tenant_1_email",              "Tenant 1 email"),
-    ("tenant_1",      "tenant_1_address",            "Tenant 1 address"),
-    ("tenant_1",      "tenant_1_employer",           "Tenant 1 employer"),
-    ("tenant_1",      "tenant_1_occupation",         "Tenant 1 occupation"),
-    ("tenant_1",      "tenant_1_dob",                "Tenant 1 date of birth"),
-    ("tenant_1",      "tenant_1_emergency_contact",  "Tenant 1 emergency contact"),
-    ("tenant_1",      "tenant_1_emergency_phone",    "Tenant 1 emergency phone"),
-    ("tenant_1",      "primary_tenant_payment_reference", "Primary tenant payment reference (EFT)"),
-    ("tenant_1",      "cotenant_1_payment_reference", "Co-tenant 1 payment reference (EFT)"),
-    # ── Tenant 2 ──────────────────────────────────────────────────────────
-    ("tenant_2",      "tenant_2_name",               "Tenant 2 full name"),
-    ("tenant_2",      "tenant_2_id",                 "Tenant 2 SA ID number"),
-    ("tenant_2",      "tenant_2_phone",              "Tenant 2 phone"),
-    ("tenant_2",      "tenant_2_email",              "Tenant 2 email"),
-    ("tenant_2",      "tenant_2_address",            "Tenant 2 address"),
-    ("tenant_2",      "tenant_2_employer",           "Tenant 2 employer"),
-    ("tenant_2",      "tenant_2_occupation",         "Tenant 2 occupation"),
-    ("tenant_2",      "tenant_2_dob",                "Tenant 2 date of birth"),
-    ("tenant_2",      "tenant_2_emergency_contact",  "Tenant 2 emergency contact"),
-    ("tenant_2",      "tenant_2_emergency_phone",    "Tenant 2 emergency phone"),
-    ("tenant_2",      "cotenant_2_payment_reference", "Co-tenant 2 payment reference (EFT)"),
-    # ── Tenant 3 ──────────────────────────────────────────────────────────
-    ("tenant_3",      "tenant_3_name",               "Tenant 3 full name"),
-    ("tenant_3",      "tenant_3_id",                 "Tenant 3 SA ID number"),
-    ("tenant_3",      "tenant_3_phone",              "Tenant 3 phone"),
-    ("tenant_3",      "tenant_3_email",              "Tenant 3 email"),
-    ("tenant_3",      "tenant_3_address",            "Tenant 3 address"),
-    ("tenant_3",      "tenant_3_employer",           "Tenant 3 employer"),
-    ("tenant_3",      "tenant_3_occupation",         "Tenant 3 occupation"),
-    ("tenant_3",      "tenant_3_dob",                "Tenant 3 date of birth"),
-    ("tenant_3",      "tenant_3_emergency_contact",  "Tenant 3 emergency contact"),
-    ("tenant_3",      "tenant_3_emergency_phone",    "Tenant 3 emergency phone"),
-    ("tenant_3",      "cotenant_3_payment_reference", "Co-tenant 3 payment reference (EFT)"),
-    # ── Co-tenants summary ────────────────────────────────────────────────
-    ("co_tenants",    "co_tenants",                  "Comma-separated list of all co-tenant names"),
-    # ── Occupants 1–4 ─────────────────────────────────────────────────────
-    ("occupant_1",    "occupant_1_name",             "Occupant 1 full name"),
-    ("occupant_1",    "occupant_1_id",               "Occupant 1 SA ID number"),
-    ("occupant_1",    "occupant_1_relationship",     "Occupant 1 relationship to tenant"),
-    ("occupant_2",    "occupant_2_name",             "Occupant 2 full name"),
-    ("occupant_2",    "occupant_2_id",               "Occupant 2 SA ID number"),
-    ("occupant_2",    "occupant_2_relationship",     "Occupant 2 relationship to tenant"),
-    ("occupant_3",    "occupant_3_name",             "Occupant 3 full name"),
-    ("occupant_3",    "occupant_3_id",               "Occupant 3 SA ID number"),
-    ("occupant_3",    "occupant_3_relationship",     "Occupant 3 relationship to tenant"),
-    ("occupant_4",    "occupant_4_name",             "Occupant 4 full name"),
-    ("occupant_4",    "occupant_4_id",               "Occupant 4 SA ID number"),
-    ("occupant_4",    "occupant_4_relationship",     "Occupant 4 relationship to tenant"),
-    # ── Lease terms ───────────────────────────────────────────────────────
-    ("lease_terms",   "lease_start",                 "Lease commencement date"),
-    ("lease_terms",   "lease_end",                   "Lease expiry / end date"),
-    ("lease_terms",   "monthly_rent",                "Monthly rental amount (numeric)"),
-    ("lease_terms",   "monthly_rent_words",          "Monthly rental amount in words"),
-    ("lease_terms",   "deposit",                     "Deposit amount (numeric)"),
-    ("lease_terms",   "deposit_words",               "Deposit amount in words"),
-    ("lease_terms",   "notice_period_days",          "Notice period in days (minimum 20 business days per RHA)"),
-    ("lease_terms",   "water_included",              "Whether water is included (Yes/No)"),
-    ("lease_terms",   "electricity_prepaid",         "Whether electricity is prepaid (Yes/No)"),
-    # ── Property services & facilities (Feature 3) ─────────────────────────
-    ("services",      "water_arrangement",           "Water arrangement key: included | not_included"),
-    ("services",      "water_arrangement_label",     "Water arrangement (human-readable)"),
-    ("services",      "electricity_arrangement",     "Electricity arrangement key: prepaid | eskom_direct | included | not_included"),
-    ("services",      "electricity_arrangement_label", "Electricity arrangement (human-readable)"),
-    ("services",      "gardening_service_included",  "Gardening service included (boolean)"),
-    ("services",      "gardening_service_included_label", "Gardening service included (Yes/No)"),
-    ("services",      "wifi_included",               "Wifi included (boolean)"),
-    ("services",      "wifi_included_label",         "Wifi included (Yes/No)"),
-    ("services",      "security_service_included",   "Armed response / security service included (boolean)"),
-    ("services",      "security_service_included_label", "Armed response / security service included (Yes/No)"),
-    ("lease_terms",   "max_occupants",               "Maximum number of authorised occupants"),
-    ("lease_terms",   "payment_reference",           "Payment reference for EFT (legacy alias for primary_tenant_payment_reference)"),
-    ("lease_terms",   "lease_number",                "Unique lease reference number"),
+import logging
+from collections import OrderedDict
+from functools import cache
+
+logger = logging.getLogger(__name__)
+
+
+# ── Safety fallback ──────────────────────────────────────────────────── #
+
+
+# Minimal set the lease pipeline cannot function without. Used only when
+# the YAML loader raises during import. Keeps imports green; the CRITICAL
+# log line is the alerting surface.
+_FALLBACK_MERGE_FIELDS: list[tuple[str, str, str]] = [
+    ("landlord", "landlord_name", "Full name (individual) or trading name (company)"),
+    ("property", "property_address", "Full street address of the property"),
+    ("tenant", "tenant_name", "Full name of primary tenant"),
+    ("lease_terms", "lease_start", "Lease commencement date"),
+    ("lease_terms", "lease_end", "Lease expiry / end date"),
+    ("lease_terms", "monthly_rent", "Monthly rental amount (numeric)"),
+    ("lease_terms", "deposit", "Deposit amount (numeric)"),
 ]
 
-# Fast O(1) lookup set — use this for field name validation
-CANONICAL_FIELD_NAMES: frozenset[str] = frozenset(f for _, f, _ in CANONICAL_MERGE_FIELDS)
 
-# Human-readable category labels
+# ── Lazy load + cache ────────────────────────────────────────────────── #
+
+
+@cache
+def _load_canonical_merge_fields() -> list[tuple[str, str, str]]:
+    """Read the YAML catalogue via the loader and return tuple form.
+
+    On any loader failure we log CRITICAL and return the fallback. We
+    NEVER re-raise — importers (esigning, AI chat, the field widget,
+    Django startup) must keep working.
+    """
+    try:
+        from apps.leases.merge_fields_loader import load_all_fields
+
+        fields = load_all_fields()
+    except Exception:
+        logger.critical(
+            "merge_fields: YAML loader failed; falling back to minimal safety "
+            "set (%d fields). Check content/legal/merge_fields/ and "
+            "content/legal/_schema/merge_field.schema.json.",
+            len(_FALLBACK_MERGE_FIELDS),
+            exc_info=True,
+        )
+        return list(_FALLBACK_MERGE_FIELDS)
+
+    return [(f.category, f.name, f.label) for f in fields]
+
+
+# Module-level constants — computed lazily on first access.
+# We materialise them at import time so the legacy contract holds
+# (importers expect a plain list / frozenset).
+CANONICAL_MERGE_FIELDS: list[tuple[str, str, str]] = _load_canonical_merge_fields()
+"""Legacy tuple-form catalogue of every merge field. Read-only.
+
+Each element is ``(category, name, label)``. Sourced from the YAML
+catalogue at ``content/legal/merge_fields/`` via
+``apps.leases.merge_fields_loader``.
+"""
+
+CANONICAL_FIELD_NAMES: frozenset[str] = frozenset(
+    f for _, f, _ in CANONICAL_MERGE_FIELDS
+)
+"""O(1) lookup set of every canonical field name."""
+
+
+# ── Category labels for the legacy AI prompt block ──────────────────── #
+
+
 _CATEGORY_LABELS: dict[str, str] = {
-    "landlord":      "Landlord",
+    "landlord": "Landlord",
     "landlord_bank": "Landlord Bank",
-    "property":      "Property",
-    "tenant":        "Tenant (primary)",
-    "tenant_1":      "Tenant 1 (numbered alias for primary)",
-    "tenant_2":      "Tenant 2",
-    "tenant_3":      "Tenant 3",
-    "co_tenants":    "Co-Tenants",
-    "occupant_1":    "Occupant 1",
-    "occupant_2":    "Occupant 2",
-    "occupant_3":    "Occupant 3",
-    "occupant_4":    "Occupant 4",
-    "lease_terms":   "Lease Terms",
-    "services":      "Property Services",
+    "property": "Property",
+    "tenant": "Tenant (primary)",
+    "tenant_1": "Tenant 1 (numbered alias for primary)",
+    "tenant_2": "Tenant 2",
+    "tenant_3": "Tenant 3",
+    "co_tenants": "Co-Tenants",
+    "occupant_1": "Occupant 1",
+    "occupant_2": "Occupant 2",
+    "occupant_3": "Occupant 3",
+    "occupant_4": "Occupant 4",
+    "lease_terms": "Lease Terms",
+    "services": "Property Services",
 }
 
 
 def build_merge_fields_prompt_block() -> str:
-    """
-    Return the 'Available Merge Fields' section for the AI system prompt.
+    """Return the 'Available Merge Fields' section for the legacy AI prompt.
+
     Groups fields by category in a compact multi-line format (~550 tokens).
+    Retained for the v1 lease-template-AI chat endpoint; the v2 Drafter
+    uses ``merge_fields_loader.render_for_drafter_system_block()`` instead.
     """
-    # Group field names by category (preserving insertion order)
-    from collections import OrderedDict
     groups: OrderedDict[str, list[str]] = OrderedDict()
     for cat, field, _ in CANONICAL_MERGE_FIELDS:
         groups.setdefault(cat, []).append(field)
@@ -162,21 +133,21 @@ def build_merge_fields_prompt_block() -> str:
     lines = [
         "## Available Merge Fields",
         "Use {{ field_name }} syntax. All fields below are populated at signing time.",
-        "For COMPANY landlords use: landlord_entity_name, landlord_registration_no, landlord_vat_no, landlord_representative.",
+        "For COMPANY landlords use: landlord_entity_name, landlord_registration_no, "
+        "landlord_vat_no, landlord_representative.",
         "For INDIVIDUAL landlords use: landlord_name, landlord_id.",
         "",
-        "**Multi-tenant fields are OPT-IN.** Default to a SINGLE tenant (`tenant_name`, `tenant_id`,"
-        " `tenant_email`, …) unless the user explicitly says 'co-tenant', 'second tenant', or names"
-        " additional tenants. The `tenant_2_*` and `tenant_3_*` fields exist for households with"
-        " multiple legal renters — using them when the user didn't ask creates extra empty signing"
-        " lines and confuses signers. Same rule for `occupant_2/3/4` — only add a slot when the"
-        " user describes a non-tenant occupant (e.g. a child, partner, or sub-tenant).",
+        "**Multi-tenant fields are OPT-IN.** Default to a SINGLE tenant (`tenant_name`,"
+        " `tenant_id`, `tenant_email`, …) unless the user explicitly says 'co-tenant',"
+        " 'second tenant', or names additional tenants. The `tenant_2_*` and `tenant_3_*`"
+        " fields exist for households with multiple legal renters — using them when the"
+        " user didn't ask creates extra empty signing lines and confuses signers. Same"
+        " rule for `occupant_2/3/4` — only add a slot when the user describes a"
+        " non-tenant occupant (e.g. a child, partner, or sub-tenant).",
         "",
     ]
     for cat, fields in groups.items():
         label = _CATEGORY_LABELS.get(cat, cat)
-        # Annotate the optional multi-tenant/occupant slots so the AI doesn't
-        # auto-populate them from the list.
         if cat == "tenant_2":
             label = "Tenant 2 (OPT-IN — only when user explicitly names a co-tenant)"
         elif cat == "tenant_3":

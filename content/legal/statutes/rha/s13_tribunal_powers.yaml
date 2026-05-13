@@ -1,0 +1,80 @@
+---
+# RHA s13 — Rental Housing Tribunal powers + referral.
+# Canonical map row #2: HIGH confidence, three-source agreement.
+# Pairs with s7 (establishment). See rha-s7-tribunal-establishment for
+# the historic confusion between the two sections.
+concept_id: rha-s13-tribunal-powers
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s13"
+subsection_letter: null
+parent_section: "s13"
+citation_string: "RHA s13"
+
+statute_text: |
+  A complaint relating to an unfair practice may be lodged with the Rental Housing
+  Tribunal. The Tribunal may, after hearing the matter, make a ruling that has the
+  effect of an order of the Magistrate's Court and may impose a fine or order
+  specific performance.
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md`
+  (2026-04-17 vintage).
+
+plain_english_summary: |
+  Tenants and landlords lodge unfair-practice complaints under s13 with
+  the Rental Housing Tribunal established by s7. The Tribunal hears the
+  matter and issues a ruling that has the same legal force as a
+  Magistrate's Court order — it may impose a fine, order the practice
+  to stop, or order specific performance (e.g. return the deposit).
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [tribunal, enforcement, dispute_resolution, unfair_practices, ruling]
+
+related_concepts:
+  - rha-s7-tribunal-establishment
+  - rha-s4-a-unfair-practices
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 2
+    confidence: high
+
+non_compliance:
+  - actor: either
+    consequence: "Tribunal ruling has the effect of a Magistrate's Court order; non-compliance is contempt."
+    cited_via: "RHA s13(12)"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

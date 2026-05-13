@@ -1,0 +1,21 @@
+---
+# Klikk lease merge fields — co-tenants summary bucket.
+# Single aggregate field, rendered into clauses that need a CSV of co-tenants.
+
+- name: co_tenants
+  label: Comma-separated list of all co-tenant names
+  category: co_tenants
+  type: text
+  required: false
+  applicability:
+    tenant_counts: [2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Sam Tester, Jordan Tester
+  plain_english: >-
+    Aggregate string listing every co-tenant by name, separated by commas.
+    Useful for joint-and-several-liability clauses. Empty / not used for
+    single-tenant leases.
+  related_legal_facts:
+    - rha-s5-3-a-parties

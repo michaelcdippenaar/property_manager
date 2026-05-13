@@ -1,0 +1,75 @@
+---
+# RHA s5(3)(a) — Lease must name parties + addresses for service.
+# Canonical map row #6: HIGH confidence, universal source agreement.
+concept_id: rha-s5-3-a-parties
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s5(3)(a)"
+subsection_letter: "a"
+parent_section: "s5(3)"
+citation_string: "RHA s5(3)(a)"
+
+statute_text: |
+  A written lease must state the names of the tenant and the landlord and their addresses
+  for purposes of formal communication (domicilium citandi et executandi).
+  [PARAPHRASED — verbatim text pending lawyer verification.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md`
+  and `klikk-leases-rental-agreement/references/sa-rental-law.md`.
+
+plain_english_summary: |
+  Every written lease must list the full names of the landlord and the tenant,
+  along with a physical address for each party where legal notices can be
+  served. Without these, the lease fails the mandatory-contents test of
+  s5(3) and any notice served may be challenged for invalidity.
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [mandatory_clause, parties, domicilium, lease_formation, notice]
+
+related_concepts:
+  - rha-s5-2-right-to-written-lease
+  - rha-s5-3-b-dwelling
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/06-rha-core-and-s5.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 6
+    confidence: high
+
+non_compliance:
+  - actor: landlord
+    consequence: "Lease may be unenforceable in mandatory-contents respects; notice service may be challenged."
+    cited_via: "RHA s5(3) + s4A unfair practice"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

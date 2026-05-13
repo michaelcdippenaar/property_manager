@@ -1,0 +1,173 @@
+---
+# Klikk lease merge fields — tenant_3 bucket.
+# CRITICAL APPLICABILITY: tenant_counts: [3] only — NEVER 1 or 2.
+# Front Door's `filter_by_context()` MUST drop these except when tenant_count == 3.
+
+- name: tenant_3_name
+  label: Tenant 3 full name
+  category: tenant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Casey Tester
+  plain_english: >-
+    Full legal name of the third co-tenant. Use ONLY when the user has
+    explicitly named three tenants — never auto-populate this from the
+    available-fields list.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_3_id
+  label: Tenant 3 SA ID number
+  category: tenant_3
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9608054567085'
+  plain_english: >-
+    13-digit SA ID number for the third co-tenant.
+  related_legal_facts: []
+
+- name: tenant_3_phone
+  label: Tenant 3 phone
+  category: tenant_3
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0103'
+  plain_english: >-
+    Phone number for the third co-tenant.
+  related_legal_facts: []
+
+- name: tenant_3_email
+  label: Tenant 3 email
+  category: tenant_3
+  type: email
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: casey@tester.example
+  plain_english: >-
+    Email for the third co-tenant — used for their e-signing invitation.
+  related_legal_facts: []
+
+- name: tenant_3_address
+  label: Tenant 3 address
+  category: tenant_3
+  type: address
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 99 Old Place, Stellenbosch, 7600
+  plain_english: >-
+    Current address for the third co-tenant before move-in.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_3_employer
+  label: Tenant 3 employer
+  category: tenant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Corp
+  plain_english: >-
+    Employer for the third co-tenant.
+  related_legal_facts: []
+
+- name: tenant_3_occupation
+  label: Tenant 3 occupation
+  category: tenant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Designer
+  plain_english: >-
+    Occupation / job title for the third co-tenant.
+  related_legal_facts: []
+
+- name: tenant_3_dob
+  label: Tenant 3 date of birth
+  category: tenant_3
+  type: date
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '1996-08-05'
+  plain_english: >-
+    Date of birth for tenant 3 (ISO YYYY-MM-DD).
+  related_legal_facts: []
+
+- name: tenant_3_emergency_contact
+  label: Tenant 3 emergency contact
+  category: tenant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Robin Tester
+  plain_english: >-
+    Emergency-contact person name for tenant 3.
+  related_legal_facts: []
+
+- name: tenant_3_emergency_phone
+  label: Tenant 3 emergency phone
+  category: tenant_3
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0397'
+  plain_english: >-
+    Emergency-contact phone number for tenant 3.
+  related_legal_facts: []
+
+- name: cotenant_3_payment_reference
+  label: Co-tenant 3 payment reference (EFT)
+  category: tenant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001-T3
+  plain_english: >-
+    Unique EFT reference for the third co-tenant's rental payment share.
+  related_legal_facts: []

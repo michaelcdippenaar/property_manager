@@ -1,0 +1,109 @@
+---
+# Klikk lease merge fields — property identity bucket.
+# RHA s5(3)(b) requires the lease describe the dwelling unambiguously.
+
+- name: property_address
+  label: Full street address of the property
+  category: property
+  type: address
+  required: true
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 1 Test Way, Stellenbosch, 7600
+  plain_english: >-
+    Full street address of the rented property — number, street, suburb,
+    city, postal code. Required by RHA s5(3)(b) (mandatory description of
+    the dwelling).
+  related_legal_facts:
+    - rha-s5-3-b-dwelling
+
+- name: property_name
+  label: Estate / building / complex name
+  category: property
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Estate
+  plain_english: >-
+    Estate, building, or complex name where the property sits. Optional
+    where a stand-alone freehold has no scheme name; required for
+    sectional-title or HOA properties for unambiguous identification.
+  related_legal_facts:
+    - rha-s5-3-b-dwelling
+
+- name: property_description
+  label: Full legal or erf description
+  category: property
+  type: text
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Erf 1234, Stellenbosch, Western Cape
+  plain_english: >-
+    Formal legal description from the title deed — erf number, portion,
+    township. Adds rigor where postal address is ambiguous; not legally
+    required but reduces dispute risk.
+  related_legal_facts:
+    - rha-s5-3-b-dwelling
+
+- name: unit_number
+  label: Unit / flat / door number
+  category: property
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: [sectional_title, apartment, townhouse, student, holiday_let]
+    lease_types: any
+  validation_regex: null
+  example: A12
+  plain_english: >-
+    Unit or door number within a complex / building / scheme. Required for
+    sectional-title, apartments, townhouses, and student / short-let units;
+    not applicable to freehold.
+  related_legal_facts:
+    - rha-s5-3-b-dwelling
+
+- name: city
+  label: City or town
+  category: property
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Stellenbosch
+  plain_english: >-
+    City or town. Usually redundant with `property_address` but exposed
+    separately for templates that render parts of the address in different
+    places.
+  related_legal_facts: []
+
+- name: province
+  label: Province (e.g. Western Cape)
+  category: property
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Western Cape
+  plain_english: >-
+    SA province — Western Cape, Gauteng, KwaZulu-Natal, Eastern Cape,
+    Mpumalanga, Limpopo, North West, Free State, Northern Cape. Affects
+    which Rental Housing Tribunal has jurisdiction.
+  related_legal_facts: []

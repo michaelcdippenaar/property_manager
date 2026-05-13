@@ -1,0 +1,85 @@
+---
+# RHA s4A — Unfair practices framework.
+# Canonical map row #23: HIGH confidence, universal source agreement.
+concept_id: rha-s4-a-unfair-practices
+type: statute_provision
+version: 1
+effective_from: 2014-08-01
+last_verified_at: 2026-05-12
+last_changed_at: 2026-05-12
+
+statute: RHA
+statute_full_title: "Rental Housing Act 50 of 1999, as amended by Act 35 of 2014"
+section: "s4A"
+subsection_letter: null
+parent_section: "s4A"
+citation_string: "RHA s4A"
+
+statute_text: |
+  The Minister may, after consultation with the Provincial Ministers responsible for housing
+  and by notice in the Gazette, prescribe unfair practices in relation to rental housing.
+  Practices declared unfair under this section bind landlords and tenants, and a contravention
+  may be referred to the Rental Housing Tribunal for relief, including financial penalty.
+  [PARAPHRASED — verbatim text pending lawyer verification against current consolidated Act.]
+statute_text_verbatim: false
+statute_text_source: |
+  Paraphrased from `klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md`
+  (2026-04-17 vintage) and the canonical citation map. Awaiting lawyer-supplied
+  verbatim text from the in-force consolidated Act.
+
+plain_english_summary: |
+  The Minister can publish a list of "unfair practices" landlords and tenants
+  may not do. Anything on that list — and a number of common abuses such as
+  excessive deposits, locking out a tenant, or arbitrary eviction — can be
+  taken to the Rental Housing Tribunal, which can order the practice stopped
+  and impose financial penalties.
+
+citation_confidence: high
+legal_provisional: false
+
+verification_status: mc_reviewed
+attestation_id: null
+attested_by: null
+attested_at: null
+attestation_method: null
+
+applicability:
+  property_types: [sectional_title, freehold, apartment, townhouse, room]
+  tenant_counts: [any]
+  lease_types: [fixed_term, month_to_month]
+  jurisdictions: [za-national]
+
+topic_tags: [unfair_practices, tribunal, enforcement, landlord_duty, tenant_right]
+
+related_concepts:
+  - rha-s7-tribunal-establishment
+  - rha-s13-tribunal-powers
+  - rha-s5-a-landlord-duties
+  - rha-s5-b-tenant-duties
+related_clauses: []
+
+sources:
+  - type: statute
+    title: "Rental Housing Act 50 of 1999"
+    url_archive: "https://www.gov.za/sites/default/files/gcis_document/201409/a50-99.pdf"
+    accessed_at: 2026-05-12
+    notes: "Original 1999 Gazette; s4A inserted by Act 35 of 2014."
+  - type: skill
+    path: ".claude/skills/klikk-legal-POPIA-RHA/references/07-rha-s4a-unfair-practices.md"
+    accessed_at: 2026-05-12
+  - type: canonical_map
+    path: "content/cto/rha-citation-canonical-map.md"
+    row: 23
+    confidence: high
+
+non_compliance:
+  - actor: landlord
+    consequence: "Tribunal may order practice to cease and impose financial penalty."
+    cited_via: "RHA s13 (Tribunal powers)"
+  - actor: tenant
+    consequence: "Tribunal may order tenant practice to cease (e.g. unauthorised subletting)."
+    cited_via: "RHA s13"
+
+disclaimers:
+  - "Not legal advice. Verify with admitted attorney before reliance."
+  - "Statute text paraphrased pending lawyer verification."

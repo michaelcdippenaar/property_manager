@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klikk.co.za/schemas/legal/merge_field.schema.json",
+  "title": "Lease Merge Field",
+  "description": "Canonical shape of a single Klikk lease merge-field record. Source of truth is `content/legal/merge_fields/<category>.yaml`; the Django app `apps.leases.merge_fields_loader` reads + validates against this schema. See `docs/system/lease-ai-agent-architecture.md` §2 failure mode 2 + §6.6 for the design driver (per-field applicability for the cached merge-fields system block).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "label",
+    "category",
+    "type",
+    "required",
+    "applicability",
+    "example",
+    "plain_english",
+    "related_legal_facts"
+  ],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 50,
+      "description": "Canonical machine name of the merge field, e.g. `tenant_2_id`."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "Human-readable short label, e.g. `Tenant 2 SA ID number`."
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "landlord",
+        "landlord_bank",
+        "property",
+        "tenant",
+        "tenant_1",
+        "tenant_2",
+        "tenant_3",
+        "deposit",
+        "dates",
+        "co_tenants",
+        "occupant_1",
+        "occupant_2",
+        "occupant_3",
+        "occupant_4",
+        "lease_terms",
+        "services"
+      ],
+      "description": "Bucket the field belongs to. Drives grouping in the cached merge-fields block. The first nine (landlord through dates) are the design-doc canonical buckets; the remaining are legacy buckets carried forward for backwards-compat with the Phase-1 tuple list."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "string",
+        "sa_id_number",
+        "email",
+        "phone",
+        "currency",
+        "date",
+        "address",
+        "enum",
+        "uuid",
+        "text"
+      ],
+      "description": "Value semantics. Drives validation + casting in the Front Door."
+    },
+    "required": {
+      "type": "boolean",
+      "description": "Whether the field must be populated for the lease to be valid. Opinionated per the migration spec — see status doc for the always-required set."
+    },
+    "applicability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_counts", "property_types", "lease_types"],
+      "properties": {
+        "tenant_counts": {
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              }
+            },
+            { "const": "any" }
+          ]
+        },
+        "property_types": {
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "sectional_title",
+                  "freehold",
+                  "apartment",
+                  "townhouse",
+                  "commercial",
+                  "student",
+                  "holiday_let"
+                ]
+              }
+            },
+            { "const": "any" }
+          ]
+        },
+        "lease_types": {
+          "oneOf": [
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "enum": ["fixed_term", "month_to_month", "lease_renewal"]
+              }
+            },
+            { "const": "any" }
+          ]
+        }
+      }
+    },
+    "validation_regex": {
+      "type": ["string", "null"],
+      "description": "Optional regex enforced at field-set time. Null if the type self-validates."
+    },
+    "example": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Clearly-fictional sample value for AI prompts + docs. NEVER a real person, real bank account, real SA ID."
+    },
+    "plain_english": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 500,
+      "description": "One-sentence explanation aimed at the AI Drafter persona, not the end user."
+    },
+    "related_legal_facts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      },
+      "description": "Forward references to `apps.legal_rag.LegalFact.concept_id`. Not currently FK-validated by JSON Schema; the loader logs unknown ids."
+    },
+    "enum_values": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Allowed values when `type == enum`."
+    },
+    "deprecation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deprecated_in"],
+      "properties": {
+        "deprecated_in": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}$",
+          "description": "YYYY-MM the field was deprecated."
+        },
+        "replacement": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 50,
+          "description": "Canonical name of the replacement field, if any."
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "description": "tenant_1_* fields must be applicable when tenant_count is 1, 2, or 3.",
+      "if": {
+        "properties": { "category": { "const": "tenant_1" } },
+        "required": ["category"]
+      },
+      "then": {
+        "properties": {
+          "applicability": {
+            "properties": {
+              "tenant_counts": {
+                "oneOf": [
+                  {
+                    "type": "array",
+                    "contains": { "const": 1 }
+                  },
+                  { "const": "any" }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "tenant_2_* fields must only be applicable when tenant_count is 2 or 3 (NEVER 1 — the failure-mode-2 invariant).",
+      "if": {
+        "properties": { "category": { "const": "tenant_2" } },
+        "required": ["category"]
+      },
+      "then": {
+        "properties": {
+          "applicability": {
+            "properties": {
+              "tenant_counts": {
+                "type": "array",
+                "contains": { "const": 2 },
+                "not": { "contains": { "const": 1 } }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "tenant_3_* fields must only be applicable when tenant_count is 3 (NEVER 1 or 2).",
+      "if": {
+        "properties": { "category": { "const": "tenant_3" } },
+        "required": ["category"]
+      },
+      "then": {
+        "properties": {
+          "applicability": {
+            "properties": {
+              "tenant_counts": {
+                "type": "array",
+                "contains": { "const": 3 },
+                "not": {
+                  "anyOf": [
+                    { "contains": { "const": 1 } },
+                    { "contains": { "const": 2 } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "type=enum requires enum_values to be set.",
+      "if": {
+        "properties": { "type": { "const": "enum" } },
+        "required": ["type"]
+      },
+      "then": {
+        "required": ["enum_values"]
+      }
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+id: clause-deposit-amount-and-purpose-v1
+type: clause
+version: 1
+clause_title: Deposit — Amount and Purpose
+clause_body: |
+  The Tenant shall pay to the Landlord a deposit of R{{ deposit }}
+  ({{ deposit_words }}), being the equivalent of approximately one
+  month's rent at the agreed monthly rental of R{{ monthly_rent }},
+  payable on or before the commencement date of this lease and as a
+  precondition to occupation.
+
+  The deposit is held as security for:
+
+    (a) the Tenant's punctual performance of all obligations under
+        this lease, including the payment of rent, utility charges,
+        and any other amounts due;
+    (b) the reasonable cost of repairing any damage to the dwelling
+        caused by the Tenant or any person occupying the dwelling
+        with the Tenant's consent, save for fair wear and tear; and
+    (c) the cost of replacing lost keys, access devices, or remotes
+        issued to the Tenant.
+
+  The deposit is NOT to be used as payment of the final month's rent.
+  Any deduction from the deposit shall be itemised in writing and
+  supported by receipts or quotations, in accordance with the Rental
+  Housing Act and the move-out inspection clause of this lease.
+topic_tags:
+  - deposit
+  - mandatory_clause
+related_citations:
+  - rha-s5-3-e-deposit-amount
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - deposit
+  - deposit_words
+  - monthly_rent
+disclaimers:
+  - "Standard SA residential lease clause. The Rental Housing Act does not impose a statutory cap on deposit amount; convention is one to two months' rent. Amounts above 2× monthly rent may be challenged as an unfair practice under RHA s4A."
+citation_confidence: high
+legal_provisional: false
+effective_from: "2024-01-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Pair with clause-deposit-interest-bearing-account-v1 for the holding
+  account requirement and with the (forthcoming) refund-window clause
+  for RHA s5(3)(h) timing.

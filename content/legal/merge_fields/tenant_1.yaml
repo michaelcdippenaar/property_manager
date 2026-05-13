@@ -1,0 +1,195 @@
+---
+# Klikk lease merge fields — tenant_1 (numbered alias for the primary tenant).
+# These coexist with the unsuffixed tenant_* fields so templates can use either
+# naming convention. Always applicable for tenant counts 1, 2, 3.
+
+- name: tenant_1_name
+  label: Tenant 1 full name (alias for tenant_name)
+  category: tenant_1
+  type: string
+  required: true
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Sam Tester
+  plain_english: >-
+    Numbered alias for the primary tenant. Use this naming convention in
+    templates that explicitly enumerate multiple co-tenants. Same data as
+    `tenant_name`.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_1_id
+  label: Tenant 1 SA ID number
+  category: tenant_1
+  type: sa_id_number
+  required: true
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '9203124567083'
+  plain_english: >-
+    Tenant 1's 13-digit SA ID number. Required for FICA — without it the
+    lease cannot satisfy customer due diligence for accountable
+    institutions.
+  related_legal_facts: []
+
+- name: tenant_1_phone
+  label: Tenant 1 phone
+  category: tenant_1
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0101'
+  plain_english: >-
+    Phone number for tenant 1. Same data as `tenant_phone`.
+  related_legal_facts: []
+
+- name: tenant_1_email
+  label: Tenant 1 email
+  category: tenant_1
+  type: email
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: sam@tester.example
+  plain_english: >-
+    Email for tenant 1 — used for e-signing invitations. Same data as
+    `tenant_email`.
+  related_legal_facts: []
+
+- name: tenant_1_address
+  label: Tenant 1 address
+  category: tenant_1
+  type: address
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: 99 Old Place, Stellenbosch, 7600
+  plain_english: >-
+    Current address for tenant 1 (before move-in). Same data as
+    `tenant_address`. Used for domicilium.
+  related_legal_facts:
+    - rha-s5-3-a-parties
+
+- name: tenant_1_employer
+  label: Tenant 1 employer
+  category: tenant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Corp
+  plain_english: >-
+    Employer name for tenant 1. Same data as `tenant_employer`.
+  related_legal_facts: []
+
+- name: tenant_1_occupation
+  label: Tenant 1 occupation
+  category: tenant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Test Engineer
+  plain_english: >-
+    Occupation / job title for tenant 1.
+  related_legal_facts: []
+
+- name: tenant_1_dob
+  label: Tenant 1 date of birth
+  category: tenant_1
+  type: date
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '1992-03-12'
+  plain_english: >-
+    Date of birth for tenant 1 (ISO YYYY-MM-DD).
+  related_legal_facts: []
+
+- name: tenant_1_emergency_contact
+  label: Tenant 1 emergency contact
+  category: tenant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Robin Tester
+  plain_english: >-
+    Emergency-contact person name for tenant 1.
+  related_legal_facts: []
+
+- name: tenant_1_emergency_phone
+  label: Tenant 1 emergency phone
+  category: tenant_1
+  type: phone
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: '+27 82 555 0199'
+  plain_english: >-
+    Emergency-contact phone number for tenant 1.
+  related_legal_facts: []
+
+- name: primary_tenant_payment_reference
+  label: Primary tenant payment reference (EFT)
+  category: tenant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001-T1
+  plain_english: >-
+    Unique EFT reference for the primary tenant's rental payments. Drives
+    auto-reconciliation against the landlord bank account.
+  related_legal_facts: []
+
+- name: cotenant_1_payment_reference
+  label: Co-tenant 1 payment reference (EFT)
+  category: tenant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: [1, 2, 3]
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: LEASE-0001-T1
+  plain_english: >-
+    EFT reference for co-tenant 1 (the primary tenant). Exposed alongside
+    `primary_tenant_payment_reference` for templates that use the
+    `cotenant_N_*` naming throughout.
+  related_legal_facts: []

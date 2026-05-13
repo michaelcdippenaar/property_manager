@@ -1,0 +1,93 @@
+---
+# Klikk lease merge fields — landlord bank-account bucket.
+# Used by deposit + rent clauses to tell the tenant where to pay.
+# Mandatory whenever rent or deposit is collected by EFT (the default).
+
+- name: landlord_bank_name
+  label: Bank name (e.g. FNB, Standard Bank)
+  category: landlord_bank
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: First National Bank
+  plain_english: >-
+    Name of the SA financial institution holding the landlord's
+    rent-collection account. One of the recognised SA bank names (FNB,
+    Standard Bank, Absa, Nedbank, Capitec, Investec, TymeBank, African
+    Bank, Bidvest, Bank Zero).
+  related_legal_facts: []
+
+- name: landlord_bank_branch_code
+  label: Branch / universal branch code
+  category: landlord_bank
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{6}$'
+  example: '250655'
+  plain_english: >-
+    Six-digit universal branch code for the landlord's bank account
+    (preferred over the historical branch-specific code). Drives EFT
+    routing.
+  related_legal_facts: []
+
+- name: landlord_bank_account_no
+  label: Bank account number
+  category: landlord_bank
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{6,12}$'
+  example: '62000000000'
+  plain_english: >-
+    Bank account number — 6 to 12 digits depending on bank. Must match the
+    `landlord_bank_account_holder` and `landlord_bank_name` records or
+    deposits will bounce.
+  related_legal_facts: []
+
+- name: landlord_bank_account_holder
+  label: Account holder name
+  category: landlord_bank
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Tester Holdings (Pty) Ltd
+  plain_english: >-
+    Registered account holder name — must match exactly what the bank
+    holds. EFTs to a mismatched holder name may be rejected by the
+    receiving bank.
+  related_legal_facts: []
+
+- name: landlord_bank_account_type
+  label: Account type (cheque / savings / current)
+  category: landlord_bank
+  type: enum
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: cheque
+  plain_english: >-
+    Type of bank account — affects EFT settlement timing. Cheque (current)
+    accounts are the SA default for rent collection.
+  enum_values:
+    - cheque
+    - savings
+    - current
+  related_legal_facts: []

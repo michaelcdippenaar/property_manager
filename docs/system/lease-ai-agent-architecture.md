@@ -34,7 +34,7 @@ The RAG ships as ChromaDB-in-app for v1, with the corpus as portable YAML; v2 ca
 Before designing the system, the failures we're solving:
 
 1. **AI confidently describes work it didn't do.** Claude says "I've added 13 sections to your lease" while emitting 13 `[needs completion]` placeholders. The model is asked to draft AND quality-control in one head; quality control loses.
-2. **AI assembles from "what's available" without checking applicability.** Claude pulls `tenant_2_*` / `tenant_3_*` merge fields because they're advertised, even when the user has one tenant.
+2. **AI assembles from "what's available" without checking applicability.** Claude pulls `tenant_2_*` / `tenant_3_*` merge fields because they're advertised, even when the user has one tenant. **Resolved 2026-05-13:** merge-fields catalogue migrated to `content/legal/merge_fields/` YAML with per-field `applicability.tenant_counts`. Front Door's `merge_fields_loader.filter_by_context()` returns only applicable fields; Drafter never sees `tenant_2_*` for a 1-tenant request. See `backend/apps/leases/merge_fields_loader.py` + `content/legal/merge_fields/`.
 3. **AI handcrafts content where a curated library would be better.** Lease clauses are well-established law — the model regenerating them every time introduces variability the law doesn't have.
 4. **AI has no awareness of formatting concerns.** Same Claude reasons about clause content AND heading hierarchy AND page breaks; can't do all three well.
 5. **AI's legal knowledge is whatever was in training, not what's current.** No way to update it; no audit trail of "what law was the AI working from when it generated this lease".
@@ -231,12 +231,14 @@ Identified by the second audit as material-omission risks that the lease AI must
     property_types: [sectional_title, freehold, apartment, townhouse]
     tenant_counts: [any]
     lease_types: [fixed_term, month_to_month]
-  text: |
+  clause_title: "Deposit — Interest-Bearing Account"
+  clause_body: |
     The deposit, totalling R{{ deposit }} ({{ deposit_words }}),
     will be held in an interest-bearing account with a registered
     financial institution. The interest accrued, less any reasonable
     account fees, accrues to the Tenant.
-  merge_fields: [deposit, deposit_words]
+  merge_fields_used: [deposit, deposit_words]
+  related_citations: [rha-s5-3-f-deposit-interest-bearing-account]   # FK to apps.legal_rag concept_id
   version: 1
   effective_from: 2024-01-01
   last_reviewed_at: 2026-05-12
@@ -360,6 +362,8 @@ client.messages.create(
 ```
 
 **Cache lanes are per-agent.** Drafter and Reviewer have different system prompts (personas) — they don't share cache. But within one user request, the Drafter's *retry* call hits the cache from the Drafter's *initial* call (assuming <5 min between them, which the wall-clock budget of 90s guarantees).
+
+**Merge-fields block construction (2026-05-13):** the merge-fields block is built per-request by `merge_fields_loader.render_for_drafter_system_block(merge_fields_loader.filter_by_context(...))`; same Context Object always produces the same string (deterministic), so the block is fully cacheable. The block size for a typical 1-tenant freehold scenario is ~3.4 kB; capped at <4 kB by the loader test `test_render_for_drafter_system_block_is_compact`.
 
 **Telemetry assertion:** the second Drafter call of any session MUST report `cache_read_input_tokens > 0`. Failure raises a sev-2 alert and a Plausible event `lease_ai_cache_miss`. Three reasons it could miss: (a) breakpoints are wrong, (b) `tool_choice` changed mid-session and invalidated the messages cache (acceptable for Reviewer; not for Drafter), (c) >5 min elapsed.
 
@@ -694,6 +698,7 @@ Before any Phase 1 LOC counts begin, verify or build these:
 8. **Set `LEASE_AI_MAX_COST_USD_PER_REQUEST=0.50`** in `.env`. Coordinator computes running cost from each `usage` payload and aborts if exceeded. Insurance against runaway loops before observability catches them.
 9. **Drop `update_all` from Drafter v2** (decision 21).
 10. **Regression battery as cutover gate.** Three fixtures: (a) original Stellenbosch v1 lease scenario, (b) sectional-title 2-tenant fixed-term, (c) freehold 1-tenant month-to-month. Each runs through v1 and v2; outputs diffed by a human-readable assertion suite (clause-count, citation density, no-placeholder, RHA s5(3)(f) present, etc.). Cutover blocked until all three pass.
+11. **Merge-fields catalogue YAML upgrade landed (2026-05-13).** Per-field `applicability`, `required`, `validation_regex`, and `related_legal_facts` (FK to `apps.legal_rag.LegalFact.concept_id`) now live in `content/legal/merge_fields/*.yaml`. The Front Door uses `merge_fields_loader.filter_by_context()` to produce the per-request subset, which `render_for_drafter_system_block()` serialises into the cached merge-fields system block (§6.6). Legacy `apps.leases.merge_fields.CANONICAL_MERGE_FIELDS` is now a compatibility shim sourced from the same YAML, scheduled for retirement in lease-AI Phase 2.
 
 ---
 

@@ -1,0 +1,54 @@
+---
+# Klikk lease merge fields — occupant 1 bucket.
+# Occupants are non-tenant residents (children, partners, sub-tenants).
+# Always non-required; tenant_counts is unconstrained because occupancy
+# is independent of how many people SIGN the lease.
+
+- name: occupant_1_name
+  label: Occupant 1 full name
+  category: occupant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Robin Tester
+  plain_english: >-
+    Full name of the first non-tenant occupant — typically a child,
+    partner, or sub-tenant who lives at the property but is not a signing
+    lessee. Optional.
+  related_legal_facts: []
+
+- name: occupant_1_id
+  label: Occupant 1 SA ID number
+  category: occupant_1
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '0501016567086'
+  plain_english: >-
+    13-digit SA ID number for occupant 1, where the lease records it for
+    identification (e.g. body-corporate access lists).
+  related_legal_facts: []
+
+- name: occupant_1_relationship
+  label: Occupant 1 relationship to tenant
+  category: occupant_1
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: child
+  plain_english: >-
+    Relationship of occupant 1 to the primary tenant — e.g. child,
+    partner, parent, sub-tenant. Plain text; no enum constraint.
+  related_legal_facts: []

@@ -1,0 +1,85 @@
+---
+# S1 in plan §3.3 — the canonical smoke-battery happy-path scenario.
+# Day 1-2 Phase 1: only structural + citation_correctness assertions are
+# enforced for real. reviewer_pipeline / cost_and_latency / semantic
+# entries are present so the schema matches future phases but are
+# stubbed as "skipped — Phase 1 Day 1-2 stub" by the harness.
+#
+# Cassette: fixtures/happy/generate-sectional-title-1-tenant-fixed__day-1-2-stub.jsonl
+# Re-record on Day 3+ with the real corpus hash once the legal_rag
+# indexer lands.
+id: generate-sectional-title-1-tenant-fixed
+title: Generate sectional-title 12-month fixed-term lease, single tenant
+category: happy
+priority: smoke
+intent: generate
+
+context:
+  property_type: sectional_title
+  scheme_type: body_corporate
+  tenant_count: 1
+  lease_type: fixed_term
+  lease_term_months: 12
+  deposit_amount: 12500.00
+  monthly_rent: 12500.00
+  conditions: [no_pets]
+  with_case_law: false
+  fast_mode: false
+
+# Fictional, clearly-not-real test data — POPIA-safe.
+parties:
+  landlord_name: "Alex Tester"
+  landlord_id_number: "8001015009087"
+  landlord_address: "1 Test Way, Stellenbosch, 7600"
+  tenant_name: "Sam Sample"
+  tenant_id_number: "9203124567083"
+  tenant_address: "45 Fixture Street, Mowbray, 7700"
+
+property:
+  property_address: "1 Test Way"
+  property_suburb: "Stellenbosch"
+  property_city: "Stellenbosch"
+  property_province: "Western Cape"
+  property_postal_code: "7600"
+  unit_number: "12"
+  scheme_name: "Test Scheme"
+  body_corporate_name: "Test Scheme Body Corporate"
+
+dates:
+  lease_start_date: "2026-06-01"
+  lease_end_date: "2027-05-31"
+  signing_date: "2026-05-15"
+
+chat:
+  - role: user
+    content: |
+      Please generate a sectional-title lease for the property at 1 Test Way,
+      Stellenbosch. Single tenant, 12-month fixed-term, R12,500/month, deposit
+      R12,500. No pets.
+
+# Day 1-2 enforces only structural + citation_correctness. The other
+# three categories are present for schema continuity but stubbed at the
+# harness layer.
+assertions:
+  structural:
+    - merge_field_present: ["tenant_name", "deposit", "monthly_rent"]
+    - merge_field_absent: ["tenant_2_name", "tenant_3_name", "co_tenant_name", "guarantor_name"]
+    - no_placeholder_text: true
+    - has_section: ["DEPOSIT", "PARTIES", "PROPERTY", "RENT", "TERM", "SIGNATURES"]
+  citation_correctness:
+    - all_citations_resolve_in_canonical_map: true
+    - known_wrong_citations_zero: true
+  reviewer_pipeline:
+    - reviewer_ran: true
+    - reviewer_emitted_blocking_findings_max: 0
+    - tool_use_blocks_exactly: 1
+    - text_blocks_exactly: 0
+  cost_and_latency:
+    - llm_call_count_max: 5
+    - wall_clock_seconds_max: 30.0
+    - cost_usd_max: 0.08
+    - cache_hit_after_first_call: true
+  semantic:
+    - judge_rubric: lease_generation_quality_v1
+    - judge_score_min: 4.0
+    - judge_reliability_check: false

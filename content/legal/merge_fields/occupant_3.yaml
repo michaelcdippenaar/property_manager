@@ -1,0 +1,47 @@
+---
+# Klikk lease merge fields — occupant 3 bucket.
+
+- name: occupant_3_name
+  label: Occupant 3 full name
+  category: occupant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Dakota Tester
+  plain_english: >-
+    Full name of the third non-tenant occupant. Optional.
+  related_legal_facts: []
+
+- name: occupant_3_id
+  label: Occupant 3 SA ID number
+  category: occupant_3
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '0901046567088'
+  plain_english: >-
+    13-digit SA ID number for occupant 3.
+  related_legal_facts: []
+
+- name: occupant_3_relationship
+  label: Occupant 3 relationship to tenant
+  category: occupant_3
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: child
+  plain_english: >-
+    Relationship of occupant 3 to the primary tenant.
+  related_legal_facts: []

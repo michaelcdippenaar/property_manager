@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "klikk:lease_law_corpus/_schema/clause_chunk.schema.json",
+  "title": "Klikk lease-AI clause chunk",
+  "description": "Schema for a single clause-corpus YAML file under backend/apps/leases/lease_law_corpus/clauses/**/*.yml. The clauses corpus is owned by the lease-AI workstream; statutes / case_law / pitfalls live in apps.legal_rag (see content/cto/centralised-legal-rag-store-plan.md §8 step 6). See lease-ai-agent-architecture.md §6.2.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "version",
+    "clause_title",
+    "clause_body",
+    "topic_tags",
+    "applicability",
+    "merge_fields_used"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Canonical chunk id. Form: clause-<kebab-slug>-v<version>.",
+      "pattern": "^clause-[a-z0-9-]+-v\\d+$"
+    },
+    "type": {
+      "type": "string",
+      "description": "Always 'clause' in this corpus. statutes / case_law / pitfalls live in apps.legal_rag.",
+      "const": "clause"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Schema-content version. Bump on substantive edits; the id suffix must match.",
+      "minimum": 1
+    },
+    "content_hash": {
+      "type": "string",
+      "description": "sha256 of the canonical YAML at index time. Set by the indexer (manage.py reindex_lease_corpus). Authors do NOT hand-edit this; it is checked but tolerated as absent in source YAML.",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "clause_title": {
+      "type": "string",
+      "description": "Human-readable title shown in the Drafter's clause-picker.",
+      "minLength": 3,
+      "maxLength": 200
+    },
+    "clause_body": {
+      "type": "string",
+      "description": "The clause text. May contain {{ merge_field }} placeholders; every placeholder name must appear in merge_fields_used.",
+      "minLength": 10
+    },
+    "topic_tags": {
+      "type": "array",
+      "description": "Topic tags used by the Drafter's Front Door push pattern. Lower-snake-case.",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
+    },
+    "related_citations": {
+      "type": "array",
+      "description": "FK strings to apps.legal_rag concept_ids (e.g. 'rha-s5-3-f-deposit-interest-bearing-account'). Validation here is structural only; cross-reference resolution lives in apps.legal_rag.",
+      "items": {
+        "type": "string",
+        "pattern": "^(rha|popia|cpa|pie|stsma|csos)-[a-z0-9-]+$"
+      },
+      "default": []
+    },
+    "applicability": {
+      "type": "object",
+      "description": "Filters used by query_clauses() metadata search.",
+      "additionalProperties": false,
+      "required": ["property_types", "tenant_counts", "lease_types"],
+      "properties": {
+        "property_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "sectional_title",
+              "freehold",
+              "apartment",
+              "townhouse",
+              "estate",
+              "commercial",
+              "any"
+            ]
+          }
+        },
+        "tenant_counts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {"type": "string", "enum": ["any", "single", "multi"]},
+              {"type": "integer", "minimum": 1}
+            ]
+          }
+        },
+        "lease_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["fixed_term", "month_to_month", "any"]
+          }
+        }
+      }
+    },
+    "merge_fields_used": {
+      "type": "array",
+      "description": "Every {{ name }} placeholder inside clause_body must appear here. Empty list is legal for a static clause with no merge fields.",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "default": []
+    },
+    "disclaimers": {
+      "type": "array",
+      "description": "Free-text disclaimers shown next to the clause in admin UI / surfaced to Reviewer.",
+      "items": {"type": "string", "minLength": 1},
+      "default": []
+    },
+    "citation_confidence": {
+      "type": "string",
+      "description": "Mirrors the canonical citation map's HIGH/MEDIUM/LOW. LOW chunks set legal_provisional true and are excluded from Drafter default retrieval (see architecture §6.5.1).",
+      "enum": ["high", "medium", "low"]
+    },
+    "legal_provisional": {
+      "type": "boolean",
+      "description": "True when the underlying statute citation is LOW confidence in the canonical map; Reviewer refuses external release without override.",
+      "default": false
+    },
+    "effective_from": {
+      "type": "string",
+      "description": "ISO date the clause text became effective.",
+      "format": "date"
+    },
+    "last_reviewed_at": {
+      "type": "string",
+      "description": "ISO date of the last human review.",
+      "format": "date"
+    },
+    "curator": {
+      "type": "string",
+      "description": "Who curated this chunk (e.g. 'claude+mc', 'mc', 'attorney:firm/name').",
+      "minLength": 1
+    },
+    "confidence_level": {
+      "type": "string",
+      "description": "Chunk confidence ladder (architecture §6.2).",
+      "enum": ["ai_curated", "mc_reviewed", "lawyer_reviewed"]
+    },
+    "notes": {
+      "type": "string",
+      "description": "Free-text curator notes."
+    }
+  }
+}

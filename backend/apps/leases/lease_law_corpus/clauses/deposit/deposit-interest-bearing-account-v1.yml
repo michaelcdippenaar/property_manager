@@ -1,0 +1,61 @@
+id: clause-deposit-interest-bearing-account-v1
+type: clause
+version: 1
+clause_title: Deposit — Interest-Bearing Account
+clause_body: |
+  The deposit referred to above (R{{ deposit }} —
+  {{ deposit_words }}) shall be invested by the Landlord in an
+  interest-bearing account with a registered South African financial
+  institution. The account shall be held with {{ deposit_account_bank_name }}
+  in the name of {{ deposit_account_holder }}. The interest accrued on
+  the deposit, less any reasonable bank charges, accrues to the Tenant
+  and may not be retained by the Landlord.
+
+  The Tenant may, at any time during the lease and on reasonable
+  written notice, request:
+
+    (a) written proof from the financial institution that the deposit
+        is held in the interest-bearing account contemplated above; and
+    (b) a statement reflecting interest accrued to date.
+
+  On termination of the lease, the deposit, together with the interest
+  accrued, less any amounts lawfully deducted in terms of this lease and
+  the Rental Housing Act, shall be paid to the Tenant in accordance
+  with the refund-window clause.
+topic_tags:
+  - deposit
+  - mandatory_clause
+  - interest
+related_citations:
+  - rha-s5-3-f-deposit-interest-bearing-account
+applicability:
+  property_types:
+    - sectional_title
+    - freehold
+    - apartment
+    - townhouse
+  tenant_counts:
+    - any
+  lease_types:
+    - fixed_term
+    - month_to_month
+merge_fields_used:
+  - deposit
+  - deposit_words
+  - deposit_account_bank_name
+  - deposit_account_holder
+disclaimers:
+  - "Standard SA residential lease clause. Verify with a SA-admitted attorney before any externally-facing release."
+  - "Statute citation rha-s5-3-f is LOW confidence in the canonical map — the deposit interest-bearing-account sub-section letter is pending lawyer arbitration (1999 original vs 2014 amendment renumbering)."
+citation_confidence: low
+legal_provisional: true
+effective_from: "2024-01-01"
+last_reviewed_at: "2026-05-13"
+curator: claude+mc
+confidence_level: ai_curated
+notes: |
+  Mandatory clause per RHA s5(3). The interest-bearing-account sub-section
+  is recorded as (f) in three internal skills but the 1999 Gazette PDF
+  suggests (d) — see content/cto/rha-citation-canonical-map.md row 11.
+  Lawyer attestation pending; until then this chunk is flagged
+  legal_provisional. Pair with clause-deposit-refund-window when authored.

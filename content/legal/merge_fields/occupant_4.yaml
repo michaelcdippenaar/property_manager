@@ -1,0 +1,47 @@
+---
+# Klikk lease merge fields — occupant 4 bucket.
+
+- name: occupant_4_name
+  label: Occupant 4 full name
+  category: occupant_4
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: Sage Tester
+  plain_english: >-
+    Full name of the fourth non-tenant occupant. Optional.
+  related_legal_facts: []
+
+- name: occupant_4_id
+  label: Occupant 4 SA ID number
+  category: occupant_4
+  type: sa_id_number
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: '^\d{13}$'
+  example: '1102036567089'
+  plain_english: >-
+    13-digit SA ID number for occupant 4.
+  related_legal_facts: []
+
+- name: occupant_4_relationship
+  label: Occupant 4 relationship to tenant
+  category: occupant_4
+  type: string
+  required: false
+  applicability:
+    tenant_counts: any
+    property_types: any
+    lease_types: any
+  validation_regex: null
+  example: child
+  plain_english: >-
+    Relationship of occupant 4 to the primary tenant.
+  related_legal_facts: []

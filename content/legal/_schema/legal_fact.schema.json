@@ -1,0 +1,297 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://klikk.co.za/schemas/legal/legal_fact.schema.json",
+  "title": "Legal Fact",
+  "description": "Canonical shape of a single legal fact in content/legal/. Validated in CI and at app startup. See content/cto/centralised-legal-rag-store-plan.md §4 for the locked design.",
+  "type": "object",
+  "required": [
+    "concept_id",
+    "type",
+    "version",
+    "effective_from",
+    "last_verified_at",
+    "last_changed_at",
+    "citation_string",
+    "plain_english_summary",
+    "citation_confidence",
+    "legal_provisional",
+    "verification_status",
+    "applicability",
+    "topic_tags",
+    "sources",
+    "disclaimers"
+  ],
+  "additionalProperties": true,
+  "properties": {
+    "concept_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+      "maxLength": 80,
+      "description": "Globally unique kebab-case slug."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["statute_provision", "case_law", "pitfall", "concept"]
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic fact version counter."
+    },
+    "effective_from": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO 8601 date — when the Act version this asserts about took effect."
+    },
+    "last_verified_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "last_changed_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "statute": {
+      "type": "string",
+      "enum": ["RHA", "POPIA", "CPA", "PIE", "STSMA", "CSOS"]
+    },
+    "statute_full_title": {
+      "type": "string"
+    },
+    "section": {
+      "type": "string"
+    },
+    "subsection_letter": {
+      "type": ["string", "null"]
+    },
+    "parent_section": {
+      "type": ["string", "null"]
+    },
+    "citation_string": {
+      "type": "string",
+      "pattern": "^(RHA|POPIA|CPA|PIE|STSMA|CSOS) s\\d+[A-Z]?(\\(\\d+\\))?(\\([a-z]\\))?(\\(\\d+\\))?$",
+      "description": "Canonical render of the citation. For statute_provision facts only — case_law and pitfall facts may relax this but still must be string."
+    },
+    "alternative_citations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "cite", "status"],
+        "additionalProperties": true,
+        "properties": {
+          "source": { "type": "string" },
+          "cite": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["agrees", "disputes", "historical"]
+          },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "statute_text": {
+      "type": "string"
+    },
+    "statute_text_verbatim": {
+      "type": "boolean",
+      "default": false
+    },
+    "statute_text_source": {
+      "type": "string"
+    },
+    "plain_english_summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "citation_confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "legal_provisional": {
+      "type": "boolean"
+    },
+    "provisional_reason": {
+      "type": ["string", "null"]
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": ["ai_curated", "mc_reviewed", "lawyer_reviewed"]
+    },
+    "attestation_id": {
+      "type": ["string", "null"]
+    },
+    "attested_by": {
+      "type": ["string", "null"]
+    },
+    "attested_at": {
+      "type": ["string", "null"],
+      "format": "date"
+    },
+    "attestation_method": {
+      "type": ["string", "null"],
+      "enum": [
+        null,
+        "email_pdf_signed",
+        "in_person_review",
+        "counsel_opinion_letter"
+      ]
+    },
+    "applicability": {
+      "type": "object",
+      "required": ["property_types", "tenant_counts", "lease_types", "jurisdictions"],
+      "additionalProperties": false,
+      "properties": {
+        "property_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "tenant_counts": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "lease_types": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "jurisdictions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "topic_tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+$"
+      },
+      "minItems": 1
+    },
+    "related_concepts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+      }
+    },
+    "related_clauses": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "additionalProperties": true,
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["statute", "skill", "canonical_map", "case", "gazette", "regulation", "secondary"]
+          },
+          "title": { "type": "string" },
+          "url_archive": { "type": "string" },
+          "path": { "type": "string" },
+          "accessed_at": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": { "type": "string" },
+          "row": { "type": "integer" },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          }
+        }
+      }
+    },
+    "non_compliance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["actor", "consequence"],
+        "additionalProperties": true,
+        "properties": {
+          "actor": {
+            "type": "string",
+            "enum": ["landlord", "tenant", "agent", "either"]
+          },
+          "consequence": { "type": "string" },
+          "cited_via": { "type": "string" }
+        }
+      }
+    },
+    "disclaimers": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    }
+  },
+  "allOf": [
+    {
+      "description": "verification_status=lawyer_reviewed requires attested_at + attested_by + attestation_id.",
+      "if": {
+        "properties": { "verification_status": { "const": "lawyer_reviewed" } },
+        "required": ["verification_status"]
+      },
+      "then": {
+        "required": ["attested_at", "attested_by", "attestation_id"],
+        "properties": {
+          "attested_at": { "type": "string", "format": "date" },
+          "attested_by": { "type": "string", "minLength": 1 },
+          "attestation_id": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    {
+      "description": "legal_provisional=true requires provisional_reason and confidence in {medium, low}.",
+      "if": {
+        "properties": { "legal_provisional": { "const": true } },
+        "required": ["legal_provisional"]
+      },
+      "then": {
+        "required": ["provisional_reason"],
+        "properties": {
+          "provisional_reason": { "type": "string", "minLength": 1 },
+          "citation_confidence": {
+            "type": "string",
+            "enum": ["medium", "low"]
+          }
+        }
+      }
+    },
+    {
+      "description": "statute_text_verbatim=true requires lawyer attestation.",
+      "if": {
+        "properties": { "statute_text_verbatim": { "const": true } },
+        "required": ["statute_text_verbatim"]
+      },
+      "then": {
+        "properties": {
+          "verification_status": { "const": "lawyer_reviewed" }
+        },
+        "required": ["verification_status"]
+      }
+    },
+    {
+      "description": "statute_provision facts must have at least one source of type 'statute'.",
+      "if": {
+        "properties": { "type": { "const": "statute_provision" } },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "sources": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "type": { "const": "statute" } },
+              "required": ["type"]
+            }
+          }
+        }
+      }
+    }
+  ]
+}
