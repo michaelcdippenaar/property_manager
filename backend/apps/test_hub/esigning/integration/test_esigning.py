@@ -432,6 +432,80 @@ class ESigningPublicLinkTests(TremlyAPITestCase):
         resp = self.client.get(reverse("esigning-public-sign", kwargs={"link_id": link.pk}))
         self.assertEqual(resp.status_code, 410)
 
+    def test_public_sign_expired_returns_reason_link_expired(self):
+        """Genuine expiry returns reason='link_expired' while preserving the detail string."""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        link = self._ESigningPublicLink.objects.create(
+            submission=self.submission,
+            signer_role="tenant_1",
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        resp = self.client.get(reverse("esigning-public-sign", kwargs={"link_id": link.pk}))
+        self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp.data["reason"], "link_expired")
+        self.assertEqual(resp.data["detail"], "This signing link has expired.")
+
+    def test_public_sign_submission_completed_returns_reason_and_pdf_url(self):
+        """When the submission is completed and has a signed PDF, reason and signed_pdf_url are present."""
+        from datetime import timedelta
+        from unittest.mock import PropertyMock, patch
+        from django.utils import timezone
+
+        self.submission.status = "completed"
+        self.submission.save(update_fields=["status"])
+
+        link = self._ESigningPublicLink.objects.create(
+            submission=self.submission,
+            signer_role="tenant_1",
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+
+        fake_url = "/media/esigning/signed_pdfs/test.pdf"
+        # Patch signed_pdf_file so it appears truthy and returns a URL
+        with patch(
+            "apps.esigning.models.ESigningSubmission.signed_pdf_file",
+            new_callable=PropertyMock,
+            return_value=type("F", (), {"url": fake_url, "__bool__": lambda self: True})(),
+        ):
+            resp = self.client.get(reverse("esigning-public-sign", kwargs={"link_id": link.pk}))
+
+        self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp.data["reason"], "submission_completed")
+        self.assertEqual(resp.data["detail"], "This signing request is no longer active.")
+        self.assertEqual(resp.data["signed_pdf_url"], fake_url)
+
+    def test_public_sign_signer_completed_multi_signer_submission_returns_reason(self):
+        """When one signer is done but the submission is still pending, reason='signer_completed'."""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        # Mark the signer as completed but leave the submission as pending
+        self.submission.signers = [
+            {
+                "id": 99,
+                "name": "Tenant",
+                "email": "t@test.com",
+                "role": "tenant_1",
+                "status": "completed",
+                "order": 0,
+            },
+        ]
+        self.submission.save(update_fields=["signers"])
+
+        link = self._ESigningPublicLink.objects.create(
+            submission=self.submission,
+            signer_role="tenant_1",
+            expires_at=timezone.now() + timedelta(days=7),
+        )
+        resp = self.client.get(reverse("esigning-public-sign", kwargs={"link_id": link.pk}))
+        self.assertEqual(resp.status_code, 410)
+        self.assertEqual(resp.data["reason"], "signer_completed")
+        self.assertEqual(resp.data["detail"], "You have already completed or declined this document.")
+        # submission is still pending so no signed_pdf_url
+        self.assertNotIn("signed_pdf_url", resp.data)
+
     def test_tenant_cannot_create_public_link(self):
         tenant = self.create_tenant()
         self.authenticate(tenant)

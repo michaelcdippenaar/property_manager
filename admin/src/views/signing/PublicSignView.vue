@@ -58,12 +58,38 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 class="text-xl font-semibold text-gray-900 mb-2">Signed Successfully</h2>
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">
+          {{ successKind === 'already_signed' ? 'This has been signed' : 'Signed Successfully' }}
+        </h2>
         <p class="text-gray-500 text-sm leading-relaxed mb-6">
-          Your signature has been submitted. You will receive a copy of the signed document by email once all parties have signed.
+          <template v-if="successKind === 'already_signed'">
+            This document has already been signed. You will receive a copy by email once all parties have completed signing.
+          </template>
+          <template v-else>
+            Your signature has been submitted. You will receive a copy of the signed document by email once all parties have signed.
+          </template>
         </p>
         <div class="space-y-3">
-          <div class="flex items-center gap-3 text-left bg-white rounded-xl border border-gray-200 p-4">
+          <!-- Signed PDF download — shown when the full document is ready -->
+          <a
+            v-if="signedPdfUrl"
+            :href="signedPdfUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-3 text-left bg-white rounded-xl border border-gray-200 p-4 hover:bg-gray-50 transition-colors"
+          >
+            <div class="w-9 h-9 rounded-full bg-navy/5 flex items-center justify-center flex-shrink-0">
+              <svg class="w-4.5 h-4.5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+                  d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h4a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <div class="text-sm font-medium text-gray-800">Download signed document</div>
+              <p class="text-xs text-gray-400">All parties have signed — tap to download your copy</p>
+            </div>
+          </a>
+          <div v-else class="flex items-center gap-3 text-left bg-white rounded-xl border border-gray-200 p-4">
             <div class="w-9 h-9 rounded-full bg-navy/5 flex items-center justify-center flex-shrink-0">
               <svg class="w-4.5 h-4.5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
@@ -456,6 +482,8 @@ const returnUrl = computed<string | null>(() => {
 const loading = ref(true)
 const errorMsg = ref('')
 const completed = ref(false)
+const successKind = ref<'just_signed' | 'already_signed' | null>(null)
+const signedPdfUrl = ref<string | null>(null)
 const showForm = ref(false)
 const consentGiven = ref(false)
 const submitting = ref(false)
@@ -692,10 +720,28 @@ onMounted(async () => {
     }
   } catch (e: any) {
     const d = e?.response?.data
-    errorMsg.value =
-      (typeof d?.detail === 'string' && d.detail) ||
-      e?.message ||
-      'Could not load this signing link.'
+    if (e?.response?.status === 410 && d?.reason) {
+      const reason: string = d.reason
+      if (reason === 'signer_completed' || reason === 'submission_completed') {
+        completed.value = true
+        successKind.value = 'already_signed'
+        if (d.signed_pdf_url) signedPdfUrl.value = d.signed_pdf_url
+      } else if (reason === 'signer_declined' || reason === 'submission_declined') {
+        errorMsg.value = 'This signing has been declined and is no longer active.'
+      } else if (reason === 'link_expired') {
+        errorMsg.value = 'This signing link has expired. Please contact the sender to request a new link.'
+      } else {
+        errorMsg.value =
+          (typeof d?.detail === 'string' && d.detail) ||
+          e?.message ||
+          'Could not load this signing link.'
+      }
+    } else {
+      errorMsg.value =
+        (typeof d?.detail === 'string' && d.detail) ||
+        e?.message ||
+        'Could not load this signing link.'
+    }
   } finally {
     loading.value = false
   }
@@ -845,6 +891,7 @@ async function submitSignatures() {
       { headers: { Accept: 'application/json' } },
     )
     completed.value = true
+    successKind.value = 'just_signed'
 
     // Notify the opener (tenant app polling via postMessage)
     try {
@@ -861,11 +908,30 @@ async function submitSignatures() {
     }
   } catch (e: any) {
     const d = e?.response?.data
-    errorMsg.value =
-      (typeof d?.error === 'string' && d.error) ||
-      (typeof d?.detail === 'string' && d.detail) ||
-      e?.message ||
-      'Failed to submit your signature. Please try again.'
+    if (e?.response?.status === 410 && d?.reason) {
+      const reason: string = d.reason
+      if (reason === 'signer_completed' || reason === 'submission_completed') {
+        completed.value = true
+        successKind.value = 'already_signed'
+        if (d.signed_pdf_url) signedPdfUrl.value = d.signed_pdf_url
+      } else if (reason === 'signer_declined' || reason === 'submission_declined') {
+        errorMsg.value = 'This signing has been declined and is no longer active.'
+      } else if (reason === 'link_expired') {
+        errorMsg.value = 'This signing link has expired. Please contact the sender to request a new link.'
+      } else {
+        errorMsg.value =
+          (typeof d?.error === 'string' && d.error) ||
+          (typeof d?.detail === 'string' && d.detail) ||
+          e?.message ||
+          'Failed to submit your signature. Please try again.'
+      }
+    } else {
+      errorMsg.value =
+        (typeof d?.error === 'string' && d.error) ||
+        (typeof d?.detail === 'string' && d.detail) ||
+        e?.message ||
+        'Failed to submit your signature. Please try again.'
+    }
   } finally {
     submitting.value = false
   }

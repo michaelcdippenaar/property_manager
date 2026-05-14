@@ -581,15 +581,22 @@ class ESigningPublicSignDetailView(APIView):
             )
         if link.is_expired():
             return None, None, None, Response(
-                {"detail": "This signing link has expired."}, status=status.HTTP_410_GONE
+                {
+                    "detail": "This signing link has expired.",
+                    "reason": "link_expired",
+                },
+                status=status.HTTP_410_GONE,
             )
 
         sub = link.submission
         if sub.status in ("completed", "declined"):
-            return None, None, None, Response(
-                {"detail": "This signing request is no longer active."},
-                status=status.HTTP_410_GONE,
-            )
+            payload = {
+                "detail": "This signing request is no longer active.",
+                "reason": "submission_completed" if sub.status == "completed" else "submission_declined",
+            }
+            if sub.status == "completed" and sub.signed_pdf_file:
+                payload["signed_pdf_url"] = sub.signed_pdf_file.url
+            return None, None, None, Response(payload, status=status.HTTP_410_GONE)
 
         # Find signer by role
         signer = None
@@ -606,10 +613,13 @@ class ESigningPublicSignDetailView(APIView):
 
         st = (signer.get("status") or "").lower()
         if st in ("completed", "signed", "declined"):
-            return None, None, None, Response(
-                {"detail": "You have already completed or declined this document."},
-                status=status.HTTP_410_GONE,
-            )
+            payload = {
+                "detail": "You have already completed or declined this document.",
+                "reason": "signer_declined" if st == "declined" else "signer_completed",
+            }
+            if sub.status == "completed" and sub.signed_pdf_file:
+                payload["signed_pdf_url"] = sub.signed_pdf_file.url
+            return None, None, None, Response(payload, status=status.HTTP_410_GONE)
 
         return link, sub, signer, None
 
@@ -1012,7 +1022,7 @@ class ESigningPublicDraftView(APIView):
     def post(self, request, link_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
         if link.is_expired():
-            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This signing link has expired.", "reason": "link_expired"}, status=status.HTTP_410_GONE)
 
         signed_fields = request.data.get("signed_fields", {})
         captured_fields = request.data.get("captured_fields", {})
@@ -1076,7 +1086,7 @@ class ESigningPublicDocumentsView(APIView):
     def get(self, request, link_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
         if link.is_expired():
-            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This signing link has expired.", "reason": "link_expired"}, status=status.HTTP_410_GONE)
         docs = link.supporting_documents.select_related().all()
         # Resolve required_documents from the signer's configuration
         _all_doc_types = ["bank_statement", "id_copy", "proof_of_address"]
@@ -1093,7 +1103,7 @@ class ESigningPublicDocumentsView(APIView):
     def post(self, request, link_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
         if link.is_expired():
-            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This signing link has expired.", "reason": "link_expired"}, status=status.HTTP_410_GONE)
 
         file_obj = request.FILES.get("file")
         if not file_obj:
@@ -1160,7 +1170,7 @@ class ESigningPublicDocumentDeleteView(APIView):
     def delete(self, request, link_id, doc_id):
         link = get_object_or_404(ESigningPublicLink, pk=link_id)
         if link.is_expired():
-            return Response({"detail": "This signing link has expired."}, status=status.HTTP_410_GONE)
+            return Response({"detail": "This signing link has expired.", "reason": "link_expired"}, status=status.HTTP_410_GONE)
         if link.submission.status == ESigningSubmission.Status.COMPLETED:
             return Response(
                 {"detail": "Cannot delete supporting documents for a completed submission."},
