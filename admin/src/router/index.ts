@@ -142,7 +142,10 @@ const router = createRouter({
         {
           path: 'leases/templates/:id/edit',
           name: 'lease-template-edit',
-          component: () => import('../views/leases/TiptapEditorView.vue'),
+          // v2 multi-agent SSE chat (Front Door → Drafter → Reviewer → Formatter).
+          // Old TiptapEditorView still imported by the browser-integrity test;
+          // its v1 /ai-chat/ endpoint stays live as a fallback but no route mounts it.
+          component: () => import('../views/leases/TemplateEditorView.vue'),
           meta: { title: 'Edit Template' },
         },
         {
