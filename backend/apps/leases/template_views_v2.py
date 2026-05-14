@@ -143,12 +143,20 @@ class LeaseTemplateAIChatV2View(View):
         corpus_version = compute_combined_corpus_hash() or DAY_1_2_CORPUS_HASH
         anthropic_client = _build_anthropic_client()
 
+        # P0-7: pass POPIA accountability fields into the runner so finalize()
+        # can persist them. agency_id is read from the authenticated user.
+        _agency_id = getattr(request.user, "agency_id", None)
         runner = LeaseAgentRunner(
             request_id=str(request_id),
             intent=dispatch.intent_label,
             anthropic_client=anthropic_client,
             lease_id=None,
             corpus_version=corpus_version,
+            template_id=template.pk,
+            user_id=request.user.pk,
+            agency_id=_agency_id,
+            user_message=user_message,
+            document_html_before=context.template_html or "",
         )
 
         # ── 8. SSE response ─────────────────────────────────────── #
@@ -582,6 +590,9 @@ async def _sse_pipeline(
                 else context.template_html
             )
         )
+
+        # P0-7: record the post-pipeline HTML so finalize() can persist it.
+        runner.document_html_after = final_html or ""
 
         # Final done frame
         yield _sse(

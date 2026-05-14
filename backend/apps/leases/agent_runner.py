@@ -150,12 +150,26 @@ class LeaseAgentRunner:
         max_wallclock_seconds: float | None = None,
         max_retries: int | None = None,
         max_cost_usd: float | None = None,
+        # P0-7 POPIA accountability fields — passed from the authenticated view.
+        template_id: int | None = None,
+        user_id: int | None = None,
+        agency_id: int | None = None,
+        user_message: str = "",
+        document_html_before: str = "",
     ):
         self.request_id = request_id
         self.intent = intent
         self.anthropic_client = anthropic_client
         self.lease_id = lease_id
         self.corpus_version = corpus_version
+        # P0-7 accountability
+        self.template_id = template_id
+        self.user_id = user_id
+        self.agency_id = agency_id
+        self.user_message = user_message
+        self.document_html_before = document_html_before
+        # Mutable — set by the view after pipeline completion so finalize() can persist it.
+        self.document_html_after: str = ""
 
         self.max_calls = max_calls if max_calls is not None else self.DEFAULT_MAX_CALLS
         self.max_wallclock_seconds = (
@@ -305,6 +319,13 @@ class LeaseAgentRunner:
             terminated_reason=reason,
             corpus_version=self.corpus_version,
             call_log=[record.__dict__ for record in self._call_log],
+            # P0-7 POPIA accountability fields
+            template_id=self.template_id,
+            created_by_id=self.user_id,
+            agency_id=self.agency_id,
+            user_message=self.user_message or "",
+            document_html_before=self.document_html_before or "",
+            document_html_after=self.document_html_after or "",
         )
         return run
 

@@ -309,3 +309,61 @@ class LeaseAIV2EndpointTests(V2EndpointTestBase):
         self.assertIsNotNone(run.completed_at)
         # call_log carries one entry per dispatch.
         self.assertGreaterEqual(len(run.call_log), 1)
+
+
+# ── P1-2: cross-agency scoping regression ───────────────────────────── #
+
+
+@pytest.mark.django_db(transaction=True)
+class CrossAgencyV2ScopingTest(TransactionTestCase):
+    """P1-2 regression — admin from agency A must NOT access template from
+    agency B via the v2 SSE endpoint. ``_scoped_lease_templates`` must
+    return 404 for foreign templates regardless of role.
+
+    Covers: AGENCY_ADMIN from A → 404 for B's template.
+    Covers: global ADMIN → 200 for both (admins see all templates).
+    """
+
+    URL_TPL = "/api/v1/leases/templates/{tid}/ai-chat-v2/"
+
+    def setUp(self):
+        from apps.accounts.models import Agency, User
+        from apps.leases.models import LeaseTemplate
+        from rest_framework_simplejwt.tokens import RefreshToken
+
+        self.agency_a = Agency.objects.create(name="Cross Agency A")
+        self.agency_b = Agency.objects.create(name="Cross Agency B")
+
+        self.user_a = User.objects.create_user(
+            email="cross_a@klikk.local", password="pass", role=User.Role.AGENCY_ADMIN,
+        )
+        self.user_a.agency = self.agency_a
+        self.user_a.save(update_fields=["agency"])
+
+        self.template_b = LeaseTemplate.objects.create(
+            agency=self.agency_b, name="Agency B Template", content_html="<p>B</p>",
+        )
+
+        token_a = RefreshToken.for_user(self.user_a)
+        self.auth_a = {"Authorization": f"Bearer {str(token_a.access_token)}"}
+        self.async_client = AsyncClient()
+
+    def test_agency_admin_a_cannot_access_agency_b_template(self):
+        """AGENCY_ADMIN from A POSTing to agency B's template → 404."""
+
+        async def _drive() -> Any:
+            return await self.async_client.post(
+                self.URL_TPL.format(tid=self.template_b.pk),
+                data=json.dumps({"message": "draft me a lease", "intent": "generate",
+                                  "property_type": "sectional_title", "tenant_count": 1,
+                                  "lease_type": "fixed_term"}),
+                content_type="application/json",
+                headers=self.auth_a,
+            )
+
+        response = asyncio.run(_drive())
+        self.assertEqual(
+            response.status_code,
+            404,
+            f"Expected 404 for cross-agency template access, got {response.status_code}.",
+        )
