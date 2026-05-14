@@ -50,6 +50,7 @@ from apps.leases.agents import (
     build_dispatch,
     classify_intent,
 )
+from apps.leases.agents.front_door import CorpusIndexingRequired
 from apps.leases.training.cassette import DAY_1_2_CORPUS_HASH
 from apps.leases.training.corpus_hash import compute_combined_corpus_hash
 
@@ -117,6 +118,10 @@ class LeaseTemplateAIChatV2View(View):
                 {"error": "Template not found."}, status=404
             )
 
+        # Extract request_id early so it is available for error logging before
+        # the runner is constructed (e.g. P1-1 corpus check below).
+        request_id = body.get("request_id") or str(uuid.uuid4())
+
         # ── 4. Build LeaseContext from request + template ───────── #
         context = _build_context(
             template=template,
@@ -125,7 +130,18 @@ class LeaseTemplateAIChatV2View(View):
         )
 
         # ── 5. Front Door dispatch (pure Python) ────────────────── #
-        dispatch = build_dispatch(context)
+        try:
+            dispatch = build_dispatch(context)
+        except CorpusIndexingRequired as exc:
+            # P1-1: corpus empty for RAG-required intent → 503.
+            logger.warning("Lease AI v2: corpus_indexing_required request_id=%s", request_id)
+            return JsonResponse(
+                {
+                    "error": "corpus_indexing_required",
+                    "detail": str(exc),
+                },
+                status=503,
+            )
 
         # ── 6. Clarifying question path → JSON, not SSE ──────────── #
         if dispatch.clarifying_question is not None:
@@ -139,7 +155,6 @@ class LeaseTemplateAIChatV2View(View):
             )
 
         # ── 7. Build the runner (with corpus version) ────────────── #
-        request_id = body.get("request_id") or str(uuid.uuid4())
         corpus_version = compute_combined_corpus_hash() or DAY_1_2_CORPUS_HASH
         anthropic_client = _build_anthropic_client()
 
@@ -390,7 +405,18 @@ def _build_anthropic_client():
     api_key = _get_anthropic_api_key()
     if not api_key:
         return None
-    return anthropic.Anthropic(api_key=api_key, timeout=120.0)
+    # P0-9: set the Anthropic client timeout to match the runner's wall-clock
+    # cap. The runner cap (90s default) + asyncio.wait_for wrapping each
+    # dispatch means the client never needs more than the remaining budget.
+    # Set to the full cap here as a reasonable upper bound; the per-dispatch
+    # asyncio.wait_for enforces the tighter remaining-budget timeout.
+    from apps.leases.agent_runner import LeaseAgentRunner as _Runner
+    _timeout = getattr(
+        __import__("django.conf", fromlist=["settings"]).settings,
+        "LEASE_AI_MAX_WALLCLOCK_SECONDS",
+        _Runner.DEFAULT_MAX_WALLCLOCK_SECONDS,
+    )
+    return anthropic.Anthropic(api_key=api_key, timeout=float(_timeout))
 
 
 # ── SSE generator ───────────────────────────────────────────────────── #
@@ -422,11 +448,63 @@ async def _sse_pipeline(
 
     Wrapped end-to-end in a try/except so any exception emits a final
     ``event: error`` frame + Sentry capture before the stream closes.
+
+    P0-3: after the Reviewer returns ``revise_required``, if
+    ``runner.should_retry()`` is True, re-dispatch the Drafter with the
+    Reviewer critique as feedback and re-run the Reviewer (max 1 retry).
+
+    P0-9: each sync_to_async agent dispatch is wrapped in
+    ``asyncio.wait_for`` with ``remaining_budget`` = wall-clock cap minus
+    elapsed so a single long Anthropic call can never blow the budget cap.
+
+    P1-8: a keepalive background task emits ``: ping`` comment frames every
+    ``SSE_KEEPALIVE_SECONDS`` while any agent dispatch is in flight.
     """
     t0 = time.monotonic()
     drafter_result: DrafterResult | None = None
     reviewer_result: ReviewerResult | None = None
     formatter_result: FormatterResult | None = None
+
+    # P1-8: keepalive infrastructure — shared queue funnels pings + SSE
+    # frames from the main coroutine so the generator never blocks on pings.
+    # We only use it when dispatching long-running agents.
+    keepalive_queue: asyncio.Queue[bytes] = asyncio.Queue()
+    keepalive_stop = asyncio.Event()
+
+    async def _start_keepalive() -> asyncio.Task[None]:
+        return asyncio.ensure_future(_keepalive(keepalive_queue, keepalive_stop))
+
+    async def _flush_keepalive() -> AsyncIterator[bytes]:
+        """Drain any queued ping frames."""
+        try:
+            while True:
+                yield keepalive_queue.get_nowait()
+        except asyncio.QueueEmpty:
+            pass
+
+    async def _dispatch_with_timeout(coro_fn, **kwargs) -> Any:
+        """Wrap a sync_to_async agent dispatch in asyncio.wait_for.
+
+        ``remaining_budget`` = configured cap minus elapsed so a single long
+        Anthropic call cannot exceed the wall-clock cap. (P0-9)
+        """
+        elapsed = time.monotonic() - t0
+        remaining = runner.max_wallclock_seconds - elapsed
+        if remaining <= 0:
+            raise LeaseAgentBudgetExceeded(
+                "cap_walltime",
+                "No time budget remaining before dispatch.",
+            )
+        awaitable = sync_to_async(coro_fn, thread_sensitive=False)(**kwargs)
+        try:
+            return await asyncio.wait_for(awaitable, timeout=remaining)
+        except asyncio.TimeoutError:
+            runner.terminated_reason = "cap_walltime"
+            raise LeaseAgentBudgetExceeded(
+                "cap_walltime",
+                f"Agent dispatch exceeded wall-clock budget of "
+                f"{runner.max_wallclock_seconds}s.",
+            )
 
     yield _sse(
         "status",
@@ -439,18 +517,26 @@ async def _sse_pipeline(
         },
     )
 
+    keepalive_task: asyncio.Task[None] | None = None
     try:
-        # Drafter pass
+        # ── Drafter pass (with possible retry) ─────────────────────── #
+
         if "drafter" in dispatch.route:
+            # P1-8: start keepalive before first long-running dispatch.
+            keepalive_task = await _start_keepalive()
+
             yield _sse(
                 "agent_started",
                 {"agent": "drafter", "phase": "drafting", "request_id": request_id},
             )
-            drafter_result = await sync_to_async(_run_drafter, thread_sensitive=False)(
+            drafter_result = await _dispatch_with_timeout(
+                _run_drafter,
                 runner=runner,
                 context=context,
                 system_blocks=dispatch.system_blocks,
             )
+            async for ping in _flush_keepalive():
+                yield ping
             for tc in drafter_result.tool_calls:
                 yield _sse(
                     "tool_use",
@@ -477,8 +563,12 @@ async def _sse_pipeline(
                 },
             )
 
-        # Hand-off
+        # ── Reviewer pass ────────────────────────────────────────────── #
+
         if "reviewer" in dispatch.route:
+            if keepalive_task is None:
+                keepalive_task = await _start_keepalive()
+
             yield _sse(
                 "agent_handoff",
                 {
@@ -494,12 +584,15 @@ async def _sse_pipeline(
             document_html = (
                 drafter_result.rendered_html if drafter_result else context.template_html
             )
-            reviewer_result = await sync_to_async(_run_reviewer, thread_sensitive=False)(
+            reviewer_result = await _dispatch_with_timeout(
+                _run_reviewer,
                 runner=runner,
                 context=context,
                 document_html=document_html,
                 system_blocks=dispatch.system_blocks,
             )
+            async for ping in _flush_keepalive():
+                yield ping
             yield _sse(
                 "audit_report",
                 {
@@ -518,9 +611,121 @@ async def _sse_pipeline(
                 },
             )
 
-        # Formatter pass — runs after Reviewer for generate + format intents;
-        # skipped for audit (read-only, no reformatting).
+            # ── P0-3: Reviewer-gate retry loop (max 1 retry) ─────────── #
+            # If the Reviewer found blocking issues AND the retry budget
+            # allows, re-dispatch Drafter with critique feedback, then
+            # re-run Reviewer. On revise_recommended or pass we skip.
+            if (
+                "drafter" in dispatch.route
+                and runner.should_retry(reviewer_result.raw_input)
+            ):
+                runner.increment_retry()
+                yield _sse(
+                    "status",
+                    {
+                        "phase": "retry",
+                        "message": (
+                            "Reviewer flagged blocking issues — Drafter revising."
+                        ),
+                        "request_id": request_id,
+                    },
+                )
+                yield _sse(
+                    "agent_started",
+                    {
+                        "agent": "drafter",
+                        "phase": "revision",
+                        "request_id": request_id,
+                    },
+                )
+                # Build a revised context whose user_message appends the
+                # critique so the Drafter understands what to fix.
+                critique_text = reviewer_result.summary or "Reviewer flagged issues."
+                from dataclasses import replace as _dc_replace
+                retry_context = _dc_replace(
+                    context,
+                    user_message=(
+                        f"{context.user_message}\n\n"
+                        f"[REVIEWER CRITIQUE — fix before re-submitting]:\n{critique_text}"
+                    ),
+                    template_html=drafter_result.rendered_html if drafter_result else context.template_html,
+                )
+                drafter_result = await _dispatch_with_timeout(
+                    _run_drafter,
+                    runner=runner,
+                    context=retry_context,
+                    system_blocks=dispatch.system_blocks,
+                )
+                async for ping in _flush_keepalive():
+                    yield ping
+                for tc in drafter_result.tool_calls:
+                    yield _sse(
+                        "tool_use",
+                        {
+                            "agent": "drafter",
+                            "tool_name": tc.get("name"),
+                            "input_summary": _summarise_tool_input(tc.get("input")),
+                        },
+                    )
+                yield _sse(
+                    "agent_finished",
+                    {
+                        "agent": "drafter",
+                        "llm_calls": drafter_result.internal_turns,
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                    },
+                )
+                # Re-run Reviewer against the revised document.
+                yield _sse(
+                    "agent_handoff",
+                    {
+                        "from_agent": "drafter",
+                        "to_agent": "reviewer",
+                        "reason": "retry_gate",
+                    },
+                )
+                yield _sse(
+                    "agent_started",
+                    {
+                        "agent": "reviewer",
+                        "phase": "audit_retry",
+                        "request_id": request_id,
+                    },
+                )
+                reviewer_result = await _dispatch_with_timeout(
+                    _run_reviewer,
+                    runner=runner,
+                    context=context,
+                    document_html=drafter_result.rendered_html,
+                    system_blocks=dispatch.system_blocks,
+                )
+                async for ping in _flush_keepalive():
+                    yield ping
+                yield _sse(
+                    "audit_report",
+                    {
+                        "agent": "reviewer",
+                        "verdict": reviewer_result.verdict,
+                        "summary": reviewer_result.summary,
+                        "report": reviewer_result.raw_input,
+                        "is_retry": True,
+                    },
+                )
+                yield _sse(
+                    "agent_finished",
+                    {
+                        "agent": "reviewer",
+                        "llm_calls": reviewer_result.internal_turns,
+                        "duration_ms": int((time.monotonic() - t0) * 1000),
+                    },
+                )
+
+        # ── Formatter pass ───────────────────────────────────────────── #
+
         if "formatter" in dispatch.route:
+            if keepalive_task is None:
+                keepalive_task = await _start_keepalive()
+
             yield _sse(
                 "agent_handoff",
                 {
@@ -535,20 +740,20 @@ async def _sse_pipeline(
                 "agent_started",
                 {"agent": "formatter", "phase": "formatting", "request_id": request_id},
             )
-            # Use the most up-to-date HTML (post-Reviewer if it ran, else post-Drafter).
             document_for_formatter = (
                 drafter_result.rendered_html
                 if drafter_result
                 else context.template_html
             )
-            formatter_result = await sync_to_async(
-                _run_formatter, thread_sensitive=False
-            )(
+            formatter_result = await _dispatch_with_timeout(
+                _run_formatter,
                 runner=runner,
                 context=context,
                 document_html=document_for_formatter,
                 system_blocks=dispatch.system_blocks,
             )
+            async for ping in _flush_keepalive():
+                yield ping
             for tc in formatter_result.tool_calls:
                 yield _sse(
                     "tool_use",
@@ -558,7 +763,6 @@ async def _sse_pipeline(
                         "input_summary": _summarise_tool_input(tc.get("input")),
                     },
                 )
-            # text_chunk carries the change summary (not the document body)
             if formatter_result.applied_changes:
                 summary_text = "; ".join(formatter_result.applied_changes)
                 yield _sse(
@@ -580,7 +784,8 @@ async def _sse_pipeline(
                 },
             )
 
-        # Resolve final document HTML (post-Formatter if it ran, else post-Drafter).
+        # ── Resolve final HTML ─────────────────────────────────────── #
+
         final_html = (
             formatter_result.html
             if formatter_result is not None
@@ -677,6 +882,15 @@ async def _sse_pipeline(
             terminated_reason="error",
         ):
             yield frame
+    finally:
+        # P1-8: stop the keepalive background task cleanly.
+        keepalive_stop.set()
+        if keepalive_task is not None and not keepalive_task.done():
+            keepalive_task.cancel()
+            try:
+                await keepalive_task
+            except (asyncio.CancelledError, Exception):  # noqa: BLE001
+                pass
 
 
 async def _finalize_and_emit(
@@ -778,12 +992,18 @@ def _capture_exception(exc: Exception) -> None:
 
 
 async def _keepalive(queue: asyncio.Queue[bytes], stop: asyncio.Event) -> None:
-    """Background coroutine for the keepalive pings.
+    """Background coroutine for the keepalive pings (P1-8).
 
-    Currently unused: the Day 1-2 pipeline finishes well inside the
-    SSE_KEEPALIVE_SECONDS interval, so the simple sequential generator
-    never goes idle. The hook is here so Phase 3 can wire a long-running
-    Formatter / RAG path without rewriting the SSE surface.
+    Started by ``_sse_pipeline`` before the first long-running agent dispatch.
+    Emits ``: ping`` comment frames into ``queue`` every
+    ``SSE_KEEPALIVE_SECONDS`` while the main pipeline is running. The pipeline
+    drains the queue between dispatches via ``_flush_keepalive``. Stopped via
+    ``stop.set()`` in the pipeline's ``finally`` block.
+
+    Caddy / CDN / browser proxies garbage-collect idle SSE connections after
+    30-60s silence; 25s pings keep the connection warm without polluting the
+    consumer's event stream (comment frames are ignored by EventSource and the
+    Vue 3 fetch + ReadableStream consumer).
     """
     while not stop.is_set():
         try:

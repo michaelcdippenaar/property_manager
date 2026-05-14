@@ -198,6 +198,9 @@ class LeaseAgentRunner:
         self.wall_clock_start: float = time.monotonic()
         self.terminated_reason: str | None = None
         self._call_log: list[_CallRecord] = []
+        # P1-10: track per-agent call count for cache miss detection.
+        # {agent_name: call_count_for_that_agent}
+        self._agent_call_counts: dict[str, int] = {}
 
     # ── Public surface ───────────────────────────────────────────────── #
 
@@ -400,6 +403,23 @@ class LeaseAgentRunner:
 
         self.llm_call_count += 1
         self.running_cost_usd += cost
+
+        # P1-10: on the 2nd+ dispatch for the same agent in this session,
+        # warn if cache_read is 0 — indicates the prompt-cache prefix was not
+        # hit (telemetry decision 18 sev-2 alert path).
+        self._agent_call_counts[agent] = self._agent_call_counts.get(agent, 0) + 1
+        if self._agent_call_counts[agent] >= 2 and cache_read == 0:
+            logger.warning(
+                "LeaseAgentRunner P1-10: agent=%r call #%d in session has "
+                "cache_read=0 — system-block cache miss. "
+                "request_id=%s model=%s input_tokens=%d",
+                agent,
+                self._agent_call_counts[agent],
+                self.request_id,
+                model,
+                input_tokens,
+            )
+
         self._call_log.append(
             _CallRecord(
                 agent=agent,

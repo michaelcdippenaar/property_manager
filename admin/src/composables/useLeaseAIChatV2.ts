@@ -21,6 +21,7 @@
  */
 
 import { ref, readonly } from 'vue'
+import DOMPurify from 'dompurify'
 import { apiBaseURL } from '../lib/backendUrls'
 
 // ── Types ──────────────────────────────────────────────────────────────── //
@@ -85,11 +86,21 @@ export function useLeaseAIChatV2(templateId: () => number) {
   // Error state
   const streamError = ref<string | null>(null)
 
+  // P1-7: connection-lost flag distinct from hard errors
+  const connectionLost = ref(false)
+
   // Current status line (subtle, shown while agents run)
   const statusLine = ref('')
 
   // Abort controller for the current fetch
   let abortController: AbortController | null = null
+
+  // P1-7: stash the last request body so the retry CTA can re-POST it
+  let _lastSendArgs: {
+    message: string
+    onTextChunk: (text: string, agent: string) => void
+    onDocumentUpdate?: (html: string) => void
+  } | null = null
 
   // ── Internal helpers ──────────────────────────────────────────────────── //
 
@@ -104,6 +115,7 @@ export function useLeaseAIChatV2(templateId: () => number) {
     auditReport.value = null
     runId.value = null
     streamError.value = null
+    connectionLost.value = false
     statusLine.value = ''
   }
 
@@ -157,6 +169,9 @@ export function useLeaseAIChatV2(templateId: () => number) {
     onDocumentUpdate?: (html: string) => void,
   ) {
     if (isStreaming.value) return
+
+    // P1-7: stash args for the reconnect/retry CTA.
+    _lastSendArgs = { message, onTextChunk, onDocumentUpdate }
 
     // Add user message immediately
     messages.value.push({ role: 'user', content: message })
@@ -261,10 +276,17 @@ export function useLeaseAIChatV2(templateId: () => number) {
               break
 
             case 'text_chunk': {
-              const chunkText = String(d.text ?? '')
+              // P0-1: text_chunk carries the Drafter's CONVERSATIONAL REPLY —
+              // plain prose, not document HTML. Route it to the chat pane only.
+              // Document HTML arrives via done.html (P0-2).
+              // We sanitize with DOMPurify as a belt-and-suspenders measure
+              // even though the reply should be plain text.
+              const rawText = String(d.text ?? '')
+              const chunkText = DOMPurify.sanitize(rawText, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] })
               const chunkAgent = String(d.agent ?? 'drafter')
               streamingText.value += chunkText
               assistantReply += chunkText
+              // Only forward to onTextChunk — do NOT write to the editor here.
               onTextChunk(chunkText, chunkAgent)
               break
             }
@@ -296,6 +318,30 @@ export function useLeaseAIChatV2(templateId: () => number) {
                   content: finalReply,
                   tools_used: toolsUsed?.length ? toolsUsed : undefined,
                 })
+              }
+              // P0-2: done.html carries the final rendered document HTML.
+              // Sanitize and pass to the editor via onDocumentUpdate.
+              // This is THE authoritative document update path — text_chunk
+              // only updates the chat pane (conversational reply).
+              const rawHtml = String(d.html ?? '')
+              if (rawHtml && onDocumentUpdate) {
+                const sanitizedHtml = DOMPurify.sanitize(rawHtml, {
+                  // Allow HTML elements used in lease documents
+                  ALLOWED_TAGS: [
+                    'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+                    'strong', 'em', 'u', 's', 'br', 'hr',
+                    'ul', 'ol', 'li',
+                    'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                    'section', 'div', 'span', 'a',
+                  ],
+                  ALLOWED_ATTR: [
+                    'data-merge-field', 'data-clause-id', 'data-sa-section',
+                    'data-signature-role', 'data-signature-type', 'data-signature-name',
+                    'data-type', 'data-field-type', 'data-signer-role', 'data-field-name',
+                    'class', 'id', 'style', 'href',
+                  ],
+                })
+                onDocumentUpdate(sanitizedHtml)
               }
               // Mark all running agents as done
               agentSteps.value.forEach(s => {
@@ -331,16 +377,48 @@ export function useLeaseAIChatV2(templateId: () => number) {
         // User cancelled — silently clean up
       } else {
         const msg = (err as Error)?.message ?? 'Network error'
-        streamError.value = msg
-        agentSteps.value.forEach(s => {
-          if (s.status === 'running') s.status = 'error'
-        })
-        messages.value.push({ role: 'assistant', content: `Error: ${msg}` })
+        // P1-7: distinguish network/connection drops from hard errors.
+        // A TypeError with "Failed to fetch" or "network error" is a connection
+        // drop; expose a reconnect CTA rather than a permanent error message.
+        const isConnectionDrop = (
+          (err instanceof TypeError) ||
+          msg.toLowerCase().includes('failed to fetch') ||
+          msg.toLowerCase().includes('network') ||
+          msg.toLowerCase().includes('connection')
+        )
+        if (isConnectionDrop) {
+          connectionLost.value = true
+          agentSteps.value.forEach(s => {
+            if (s.status === 'running') s.status = 'error'
+          })
+        } else {
+          streamError.value = msg
+          agentSteps.value.forEach(s => {
+            if (s.status === 'running') s.status = 'error'
+          })
+          messages.value.push({ role: 'assistant', content: `Error: ${msg}` })
+        }
       }
     } finally {
       isStreaming.value = false
       abortController = null
     }
+  }
+
+  /**
+   * P1-7: re-POST the last request after a connection drop.
+   * Implements exponential back-off (1s, 2s, 4s) up to 3 attempts.
+   */
+  async function retryConnection(attempt = 0) {
+    if (!_lastSendArgs) return
+    connectionLost.value = false
+    const delay = Math.pow(2, attempt) * 1000
+    await new Promise(resolve => setTimeout(resolve, delay))
+    await send(
+      _lastSendArgs.message,
+      _lastSendArgs.onTextChunk,
+      _lastSendArgs.onDocumentUpdate,
+    )
   }
 
   function cancel() {
@@ -368,11 +446,13 @@ export function useLeaseAIChatV2(templateId: () => number) {
     auditReport,   // not wrapped in readonly so the prop can accept the mutable type
     runId: readonly(runId),
     streamError: readonly(streamError),
+    connectionLost: readonly(connectionLost),
     statusLine: readonly(statusLine),
     // Actions
     send,
     cancel,
     clearError,
     dismissAuditReport,
+    retryConnection,
   }
 }

@@ -28,16 +28,18 @@
 
       <!-- Right actions -->
       <div class="flex items-center gap-2 ml-auto">
+        <!-- P1-9: Save/Accept is disabled while the AI pipeline is streaming
+             to prevent saving a half-rendered lease. -->
         <button
           class="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors"
-          :class="isDirty
+          :class="(isDirty && !v2Chat.isStreaming.value)
             ? 'bg-navy text-white hover:bg-navy/90 border border-navy'
             : 'text-gray-400 border border-gray-200 cursor-default'"
-          @click="saveContent" :disabled="saving || !isDirty"
+          @click="saveContent" :disabled="saving || !isDirty || v2Chat.isStreaming.value"
         >
           <Loader2 v-if="saving" :size="12" class="animate-spin" />
           <Save v-else :size="12" />
-          {{ saving ? 'Saving…' : isDirty ? 'Save' : 'Saved' }}
+          {{ saving ? 'Saving…' : v2Chat.isStreaming.value ? 'AI running…' : isDirty ? 'Save' : 'Saved' }}
         </button>
         <!-- Export dropdown -->
         <div class="relative">
@@ -230,6 +232,24 @@
               title="Retry last message"
             >
               <RefreshCw :size="9" /> Retry
+            </button>
+          </div>
+
+          <!-- P1-7: Connection-lost banner with reconnect CTA -->
+          <div
+            v-if="v2Chat.connectionLost.value"
+            class="mx-2.5 mb-2 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 flex items-start gap-2 flex-shrink-0"
+          >
+            <AlertTriangle :size="12" class="text-amber-500 flex-shrink-0 mt-0.5" />
+            <div class="flex-1 min-w-0">
+              <p class="text-xs text-amber-700 leading-snug">Connection lost — the AI pipeline was interrupted.</p>
+            </div>
+            <button
+              class="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 text-micro font-medium bg-white border border-amber-300 text-amber-700 rounded hover:bg-amber-50 transition-colors"
+              @click="v2Chat.retryConnection()"
+              title="Reconnect and retry"
+            >
+              <RefreshCw :size="9" /> Reconnect
             </button>
           </div>
 
@@ -2654,33 +2674,27 @@ async function sendMessage() {
   chatThinking.value = true
   scrollChat()
 
-  // _trackingDrafterContent becomes true when the drafter's text_chunk
-  // events start, so we replace editorHtml once at first chunk then append.
-  let draftingStarted = false
-
   await v2Chat.send(
     msg,
-    // onTextChunk: stream drafter output directly into the editor
-    (text: string, agent: string) => {
-      if (agent === 'drafter') {
-        if (!draftingStarted) {
-          // Clear the editor for fresh drafter content
-          draftingStarted = true
-          if (editorEl.value) {
-            editorEl.value.innerHTML = ''
-            editorHtml.value = ''
-          }
-        }
-        // Append raw text into the editor div
-        if (editorEl.value) {
-          // Append as a text node inside the last paragraph, or create a new one
-          const current = editorEl.value.innerHTML
-          editorEl.value.innerHTML = current + text
-          editorHtml.value = editorEl.value.innerHTML
-          isDirty.value = true
-          store.updateHtml(editorEl.value.innerHTML)
-        }
-        scrollChat()
+    // P0-1 / P0-2: text_chunk carries CONVERSATIONAL REPLY only (plain text,
+    // sanitized in the composable). Do NOT write it to the editor — just scroll
+    // the chat to show the Drafter is working.
+    (_text: string, _agent: string) => {
+      scrollChat()
+    },
+    // P0-2: onDocumentUpdate — called once when done.html arrives.
+    // The HTML is already DOMPurify-sanitized by the composable.
+    (sanitizedHtml: string) => {
+      if (editorEl.value) {
+        editorEl.value.innerHTML = sanitizedHtml
+        editorHtml.value = editorEl.value.innerHTML
+        isDirty.value = true
+        store.updateHtml(editorEl.value.innerHTML)
+        nextTick(() => {
+          _hydrateFieldChips()
+          schedulePageBreaks()
+          savedHtml.value = getCleanHtml()
+        })
       }
     },
   )
@@ -2688,16 +2702,6 @@ async function sendMessage() {
   // Sync messages from composable into local chatMessages (for persistence)
   chatMessages.value = v2Chat.messages.value as typeof chatMessages.value
   _saveChatHistory()
-
-  // Post-stream: re-hydrate field chips and schedule page breaks
-  nextTick(() => {
-    _hydrateFieldChips()
-    schedulePageBreaks()
-    if (draftingStarted) {
-      savedHtml.value = getCleanHtml()
-      isDirty.value = true
-    }
-  })
 
   chatThinking.value = false
   scrollChat()

@@ -272,6 +272,38 @@ class DrafterResult:
     rha_compliance: list[dict[str, Any]] = field(default_factory=list)
 
 
+# ── Signature-token preservation helper ─────────────────────────────── #
+
+
+def _assert_sig_tokens_preserved(
+    before_html: str, after_html: str, tool_name: str
+) -> str | None:
+    """P0-8: verify no ``⟪SIG#N⟫`` tokens were lost by a Drafter tool.
+
+    Checks that the set of token indices AFTER the mutation is a superset of
+    the set BEFORE. Returns ``None`` when the invariant holds, or a tool-result
+    error string (that the Drafter sees as feedback) when tokens are missing.
+
+    Call AFTER every HTML-mutating tool implementation, BEFORE returning the
+    result tuple. On failure: return ``(original_html, error)`` so the document
+    is rolled back.
+
+    The architecture doc treats ``⟪SIG#N⟫`` tokens as load-bearing — losing
+    one corrupts the signing surface at PDF time.
+    """
+    before_indices = {int(m.group(1)) for m in _SIG_TOKEN_RE.finditer(before_html)}
+    after_indices = {int(m.group(1)) for m in _SIG_TOKEN_RE.finditer(after_html)}
+    lost = before_indices - after_indices
+    if lost:
+        lost_str = ", ".join(f"SIG#{i}" for i in sorted(lost))
+        return (
+            f"{tool_name} failed: mutation would lose signature token(s) "
+            f"[{lost_str}]. Document reverted. "
+            f"Preserve elements containing ⟪SIG#N⟫ tokens when editing."
+        )
+    return None
+
+
 # ── Tool-impl helpers ────────────────────────────────────────────────── #
 
 
@@ -315,18 +347,22 @@ def _apply_add_clause(args: dict[str, Any], document_html: str) -> tuple[str, st
 
     after_line = args.get("after_line_index")
     if isinstance(after_line, int) and after_line >= 0:
-        # Day 1-2 stub: we don't have a line→HTML offset mapping yet
-        # (Phase 3 work). Append at the end and let the Formatter sort
-        # ordering. The tool_result reflects this honestly so the model
-        # doesn't think it placed the clause mid-document.
-        new_html = (document_html or "") + snippet
-        summary = (
-            f"Inserted clause {match.id!r} ({title}). Appended at end — "
-            f"Phase 3 will honour after_line_index."
+        # P0-6: positional insert is not implemented yet (Phase 3 work).
+        # Hard-fail instead of silently appending at end so the Drafter
+        # picks a different strategy rather than being silently misled.
+        return document_html, (
+            f"add_clause failed: after_line_index={after_line} is not yet "
+            f"supported (line-to-offset mapping is Phase 3 work). "
+            f"Use after_line_index=-1 to append at end, or call edit_lines "
+            f"to position the clause manually."
         )
-    else:
-        new_html = (document_html or "") + snippet
-        summary = f"Appended clause {match.id!r} ({title}) at end."
+    new_html = (document_html or "") + snippet
+    summary = f"Appended clause {match.id!r} ({title}) at end."
+
+    # P0-8: assert no sig tokens were lost.
+    error = _assert_sig_tokens_preserved(document_html or "", new_html, "add_clause")
+    if error:
+        return document_html, error
 
     return new_html, summary
 
@@ -459,6 +495,12 @@ def _apply_format_sa_standard(
             f"</section>"
         )
     new_html = (document_html or "") + "".join(snippets)
+
+    # P0-8: assert sig tokens are preserved.
+    error = _assert_sig_tokens_preserved(document_html or "", new_html, "format_sa_standard")
+    if error:
+        return document_html, error
+
     summary = (
         f"format_sa_standard inserted {len(snippets)} placeholder "
         f"section(s): {', '.join(missing) or '(none)'}. "
@@ -501,6 +543,14 @@ def _apply_insert_signature_field(
     signer_role = str(args.get("signer_role") or "tenant")
     field_name = str(args.get("field_name") or "")
 
+    after_line = args.get("after_line_index")
+    if isinstance(after_line, int) and after_line >= 0:
+        # P0-6: positional insert is not implemented yet (Phase 3 work).
+        return document_html, (
+            f"insert_signature_field failed: after_line_index={after_line} is not "
+            f"yet supported. Use after_line_index=-1 to append at end."
+        )
+
     used_indices = {int(m.group(1)) for m in _SIG_TOKEN_RE.finditer(document_html or "")}
     next_index = 1
     while next_index in used_indices:
@@ -517,6 +567,13 @@ def _apply_insert_signature_field(
         f"insert_signature_field allocated token {token} "
         f"(role={signer_role}, type={field_type}, name={field_name!r})."
     )
+
+    # P0-8: assert no sig tokens were lost (the new token adds one, so
+    # the count must be >= before count).
+    error = _assert_sig_tokens_preserved(document_html or "", new_html, "insert_signature_field")
+    if error:
+        return document_html, error
+
     return new_html, summary
 
 
@@ -679,6 +736,10 @@ class DrafterHandler:
         terminated_reason = "end_turn"
         highlighted_fields: list[dict[str, Any]] = []
         rha_compliance: list[dict[str, Any]] = []
+        # P1-3: initialise response before the loop so the reference at
+        # _fallback_html_from_response(response) is always bound even if
+        # the loop somehow executes zero iterations (e.g. MAX_INTERNAL_TURNS=0).
+        response: Any = None
 
         for turn in range(self.MAX_INTERNAL_TURNS):
             response = runner.dispatch(
@@ -769,7 +830,7 @@ class DrafterHandler:
             # the Drafter exhausted its internal turn budget cleanly.
             terminated_reason = "internal_turn_cap"
 
-        if not document_html:
+        if not document_html and response is not None:
             document_html = _fallback_html_from_response(response)
 
         return DrafterResult(

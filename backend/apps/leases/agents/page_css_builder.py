@@ -57,6 +57,19 @@ _PLACEHOLDER_RE = re.compile(r"\{pages?\}")
 
 # ── Placeholder → CSS counter expansion ─────────────────────────────── #
 
+def _escape_css_string(text: str) -> str:
+    """P1-4: escape a literal text fragment for use inside a CSS double-quoted string.
+
+    CSS string escaping per CSS Syntax Module Level 3 §4.3.7:
+      - ``\\`` → ``\\\\``
+      - ``"``  → ``\\"``
+
+    This prevents a Formatter tool call from injecting CSS that closes the
+    quoted string and inserts arbitrary rules.
+    """
+    return text.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _expand_placeholders(text: str) -> str:
     """Expand ``{page}`` and ``{pages}`` into CSS counter() calls.
 
@@ -65,6 +78,10 @@ def _expand_placeholders(text: str) -> str:
 
     This is the CSS ``content:`` property value — the counters are not
     quoted; they sit adjacent to quoted string fragments.
+
+    P1-4: literal text fragments are CSS-string-escaped via
+    :func:`_escape_css_string` before interpolation so that
+    user-controllable text cannot inject arbitrary CSS rules.
     """
     if not text:
         return ""
@@ -76,7 +93,7 @@ def _expand_placeholders(text: str) -> str:
     fragments: list[str] = []
     for i, part in enumerate(parts):
         if part:
-            fragments.append(f'"{part}"')
+            fragments.append(f'"{_escape_css_string(part)}"')
         if i < len(tokens):
             tok = tokens[i]
             if tok == "{page}":

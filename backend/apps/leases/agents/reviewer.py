@@ -374,6 +374,7 @@ class ReviewerHandler:
             {"role": "user", "content": user_payload}
         ]
         pull_tool_calls: list[dict[str, Any]] = []
+        pull_tool_failure_count: int = 0
         force_submit_next = False
         terminated_reason = self._SUBMIT_TOOL_NAME
 
@@ -420,6 +421,7 @@ class ReviewerHandler:
                     pull_tool_calls=pull_tool_calls,
                     internal_turns=turn + 1,
                     terminated_reason=terminated_reason,
+                    pull_tool_failure_count=pull_tool_failure_count,
                 )
 
             # No submit_audit_report this turn. If the loop forced submit
@@ -457,6 +459,8 @@ class ReviewerHandler:
                 continue
 
             # Pull-tool turn: execute every pull tool the model called.
+            # P1-6: track failures so _finalise_submission can inject a
+            # synthetic finding when the audit was partial.
             tool_results: list[dict[str, Any]] = []
             for block in tool_use_blocks:
                 name = getattr(block, "name", "")
@@ -464,6 +468,14 @@ class ReviewerHandler:
                     raise ReviewerInvalidToolError(name)
                 inp = getattr(block, "input", {}) or {}
                 result_summary = _execute_pull_tool(name, inp, document_html)
+                # Detect failure: _execute_pull_tool returns JSON with "error" key.
+                import json as _json_check
+                try:
+                    _parsed = _json_check.loads(result_summary)
+                    if isinstance(_parsed, dict) and "error" in _parsed:
+                        pull_tool_failure_count += 1
+                except Exception:  # noqa: BLE001
+                    pass
                 pull_tool_calls.append(
                     {
                         "name": name,
@@ -503,13 +515,52 @@ class ReviewerHandler:
         pull_tool_calls: list[dict[str, Any]],
         internal_turns: int,
         terminated_reason: str,
+        pull_tool_failure_count: int = 0,
     ) -> ReviewerResult:
-        """Validate the submit_audit_report payload + build the result."""
+        """Validate the submit_audit_report payload + build the result.
+
+        P0-4: after schema validation, downgrade any finding whose ``citation``
+        is NOT in ``CANONICAL_CITATIONS`` to ``nice_to_have`` severity. This
+        prevents the Reviewer from blocking a document on an unverified citation.
+
+        P1-6: if any pull tool failed (``pull_tool_failure_count > 0``), force
+        ``verdict`` to at least ``revise_recommended`` and inject a synthetic
+        finding so the operator knows the audit was partial.
+        """
         raw_input = getattr(submit_block, "input", {}) or {}
         _validate_audit_report(raw_input)
 
+        # P0-4: citation verification — downgrade unverified citations.
+        raw_input = _downgrade_unverified_citations(dict(raw_input))
+
         verdict = str(raw_input.get("verdict") or "pass")
         summary = str(raw_input.get("summary") or "")
+
+        # P1-6: if RAG pulls failed, the audit is partial — upgrade verdict.
+        if pull_tool_failure_count > 0:
+            if verdict == "pass":
+                verdict = "revise_recommended"
+                summary = (
+                    f"[Partial audit — {pull_tool_failure_count} RAG tool(s) "
+                    f"unavailable] {summary}"
+                )
+            # Inject a synthetic finding into statute_findings.
+            rag_warning: dict[str, Any] = {
+                "citation": "RAG corpus",
+                "severity": "recommended",
+                "message": (
+                    f"{pull_tool_failure_count} pull tool(s) failed; audit may be "
+                    "incomplete. Re-run once the corpus is indexed."
+                ),
+                "confidence_level": "ai_curated",
+            }
+            statute_findings = list(raw_input.get("statute_findings") or [])
+            statute_findings.insert(0, rag_warning)
+            raw_input = dict(raw_input)
+            raw_input["statute_findings"] = statute_findings
+            raw_input["verdict"] = verdict
+            raw_input["summary"] = summary
+
         findings: list[dict[str, Any]] = []
         for bucket in (
             "statute_findings",
@@ -733,6 +784,77 @@ def _legal_fact_to_dict(fact: Any) -> dict[str, Any]:
         "legal_provisional": bool(getattr(fact, "legal_provisional", False)),
         "topic_tags": list(getattr(fact, "topic_tags", ()) or ()),
     }
+
+
+def _downgrade_unverified_citations(raw_input: dict[str, Any]) -> dict[str, Any]:
+    """P0-4: walk every finding's ``citation`` field.
+
+    If the citation is NOT present in ``CANONICAL_CITATIONS`` (the map the
+    Drafter's ``check_rha_compliance`` already uses), downgrade the finding's
+    ``severity`` to ``nice_to_have`` so an unverified citation never blocks
+    the document.
+
+    Returns a shallow-copied ``raw_input`` with the affected findings mutated.
+    The original dict is NOT modified in place (for test isolation).
+    """
+    try:
+        from apps.leases.management.commands.verify_caselaw_citations import (
+            CANONICAL_CITATIONS,
+            normalise,
+        )
+        import re as _re
+
+        # Regex matching RHA / POPIA / CPA / PIE citations in the string.
+        _citation_re = _re.compile(
+            r"\b(RHA|POPIA|CPA|PIE)\s+(s\d+[A-Z]?(?:\(\d+\))?(?:\([a-z]\))?(?:\(\d+\))?)",
+            _re.IGNORECASE,
+        )
+
+        def _is_known(citation_str: str) -> bool:
+            """True if citation_str matches at least one CANONICAL_CITATIONS key."""
+            if not citation_str:
+                return True  # empty citation — don't penalise
+            for m in _citation_re.finditer(citation_str):
+                key = normalise(m.group(1), m.group(2))
+                if key not in CANONICAL_CITATIONS:
+                    return False
+            return True
+
+    except ImportError:
+        logger.warning("P0-4: CANONICAL_CITATIONS not importable — skipping citation downgrade.")
+        return raw_input
+
+    result = dict(raw_input)
+    for bucket in ("statute_findings", "case_law_findings", "format_findings"):
+        bucket_findings = list(result.get(bucket) or [])
+        updated = []
+        for finding in bucket_findings:
+            f = dict(finding)
+            if not _is_known(f.get("citation", "")):
+                if f.get("severity") in ("blocking", "recommended"):
+                    logger.info(
+                        "P0-4: downgrading finding with unverified citation %r "
+                        "from %r to nice_to_have.",
+                        f.get("citation"),
+                        f.get("severity"),
+                    )
+                    f["severity"] = "nice_to_have"
+            updated.append(f)
+        result[bucket] = updated
+
+    # Re-derive verdict after possible severity downgrades.
+    all_findings = (
+        result.get("statute_findings", [])
+        + result.get("case_law_findings", [])
+        + result.get("format_findings", [])
+    )
+    has_blocking = any(f.get("severity") == "blocking" for f in all_findings)
+    has_recommended = any(f.get("severity") == "recommended" for f in all_findings)
+    current_verdict = result.get("verdict", "pass")
+    if current_verdict == "revise_required" and not has_blocking:
+        result["verdict"] = "revise_recommended" if has_recommended else "pass"
+
+    return result
 
 
 def _validate_audit_report(payload: dict[str, Any]) -> None:

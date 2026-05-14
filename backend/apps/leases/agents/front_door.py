@@ -35,6 +35,21 @@ from apps.leases.agents.reviewer import PERSONA as REVIEWER_PERSONA
 logger = logging.getLogger(__name__)
 
 
+# ── Exceptions ───────────────────────────────────────────────────────────── #
+
+
+class CorpusIndexingRequired(RuntimeError):
+    """Raised by :func:`build_dispatch` when both ``_pull_clauses`` and
+    ``_pull_statutes`` return empty for an intent that REQUIRES RAG
+    (generate / audit / insert_clause / audit_case_law).
+
+    The view catches this and returns HTTP 503 with
+    ``{"error": "corpus_indexing_required"}``.
+
+    Per §6.3 of the architecture spec + P1-1 of the code-reviewer audit.
+    """
+
+
 # ── Intent classification keyword table ──────────────────────────────── #
 
 
@@ -283,6 +298,31 @@ def build_dispatch(context: LeaseContext) -> FrontDoorDispatch:
     pushed_clauses = _pull_clauses(context)
     pushed_statutes = _pull_statutes(context)
 
+    # P1-1: For intents that REQUIRE corpus data, fail fast when both
+    # retrieval calls returned nothing. The view converts this to HTTP 503
+    # with ``{"error": "corpus_indexing_required"}``.
+    _RAG_REQUIRED_INTENTS = frozenset({
+        IntentEnum.GENERATE,
+        IntentEnum.AUDIT,
+        IntentEnum.INSERT_CLAUSE,
+        IntentEnum.AUDIT_CASE_LAW,
+    })
+    if (
+        context.intent in _RAG_REQUIRED_INTENTS
+        and not pushed_clauses
+        and not pushed_statutes
+    ):
+        logger.error(
+            "Front Door: corpus empty for RAG-required intent=%s — "
+            "raising CorpusIndexingRequired (§6.3 + P1-1).",
+            context.intent.value,
+        )
+        raise CorpusIndexingRequired(
+            f"Both clause and statute corpora are empty for intent "
+            f"{context.intent.value!r}. Run manage.py reindex_lease_corpus + "
+            "manage.py reindex_legal_corpus before calling this endpoint."
+        )
+
     # Pick the agent persona for the leading agent. The Reviewer is the
     # leading agent for audit intents; everything else leads with the
     # Drafter. The third (RAG) block is shared either way; the merge-
@@ -439,8 +479,26 @@ def _pull_statutes(context: LeaseContext) -> list[dict[str, Any]]:
         )
         return []
 
+    # P1-5: replace the hard-coded "deposit" fallback with per-intent defaults.
+    # When the user hasn't supplied explicit conditions, use a broader tag set
+    # so the statute block covers the most relevant RHA sections.
+    _INTENT_DEFAULT_TAGS: dict[str, list[str]] = {
+        "generate": [
+            "parties", "deposit", "term", "rent", "default", "signatures",
+            "maintenance", "termination", "dispute", "utilities",
+            "escalation", "notice", "occupation",
+        ],
+        "audit": ["deposit", "term", "rent", "default", "signatures"],
+        "audit_case_law": ["deposit", "term", "rent", "default", "signatures"],
+        "insert_clause": ["deposit", "term", "rent", "default"],
+        "edit": ["deposit", "term", "rent", "default"],
+    }
+    _fallback = _INTENT_DEFAULT_TAGS.get(
+        context.intent.value if hasattr(context.intent, "value") else str(context.intent),
+        ["deposit", "term", "rent"],
+    )
     try:
-        topics = list(context.conditions) or ["deposit"]
+        topics = list(context.conditions) or _fallback
         facts = query_facts_by_topic(
             topic_tags=topics,
             statute="RHA",
@@ -520,6 +578,11 @@ def _build_rag_chunks_block(
     Compact, deterministic format. Same Context Object always produces
     the same string so the block is cacheable.
 
+    P0-5: ``clause_body`` is now included under each clause entry so the
+    Drafter can assemble real prose from the corpus rather than only seeing
+    IDs and titles. Capped at 4 kB total output (20 chunks max is enforced
+    upstream by ``query_clauses(k=20)``).
+
     When neither retrieval returned chunks (corpus not indexed, ChromaDB
     missing, etc.) we ship the
     :data:`RAG_CORPUS_UNAVAILABLE_PLACEHOLDER` text so the system block
@@ -548,11 +611,22 @@ def _build_rag_chunks_block(
             cites = ", ".join(c.get("related_citations") or [])
             cite_tag = f" — {cites}" if cites else ""
             lines.append(f"- `{c['id']}` **{c['clause_title']}**{cite_tag}")
+            # P0-5: include clause_body so Drafter can assemble real prose.
+            body = (c.get("clause_body") or "").strip()
+            if body:
+                lines.append(f"  {body}")
         lines.append("")
-    return "\n".join(lines) + "\n"
+    result = "\n".join(lines) + "\n"
+    # Enforce 4 kB cap: truncate at 4096 bytes with an ellipsis marker.
+    _MAX_BYTES = 4096
+    encoded = result.encode("utf-8")
+    if len(encoded) > _MAX_BYTES:
+        result = encoded[:_MAX_BYTES].decode("utf-8", errors="ignore") + "\n…(truncated)\n"
+    return result
 
 
 __all__ = [
+    "CorpusIndexingRequired",
     "FrontDoorDispatch",
     "RAG_CORPUS_UNAVAILABLE_PLACEHOLDER",
     "build_dispatch",
