@@ -1,0 +1,72 @@
+---
+# S8 in plan §3.3 — Formatter agent: add running header + per-page initials.
+#
+# Intent: format
+# Route: formatter only (no Drafter or Reviewer per architecture §8.2)
+#
+# Assertions:
+#   structural — post-Formatter HTML contains @page CSS with both
+#                @top-right and @bottom-center margin-box rules.
+#
+# Cassette: cassettes/s8_format_add_running_header_and_initials__day-1-2-stub.jsonl
+# (hand-crafted; re-record on Phase 3 Day 3+ once live Formatter is validated).
+id: s8_format_add_running_header_and_initials
+title: Formatter — add running header + per-page initials to an existing lease
+category: happy
+priority: smoke
+intent: format
+
+context:
+  property_type: sectional_title
+  tenant_count: 1
+  lease_type: fixed_term
+  with_case_law: false
+  fast_mode: false
+
+parties:
+  landlord_name: "Alex Tester"
+  landlord_id_number: "8001015009087"
+  landlord_address: "1 Test Way, Stellenbosch, 7600"
+  tenant_name: "Sam Sample"
+  tenant_id_number: "9203124567083"
+  tenant_address: "45 Fixture Street, Mowbray, 7700"
+
+property:
+  property_address: "1 Test Way"
+  property_suburb: "Stellenbosch"
+  property_city: "Stellenbosch"
+  property_province: "Western Cape"
+  property_postal_code: "7600"
+  unit_number: "12"
+  scheme_name: "Test Scheme"
+
+dates:
+  lease_start_date: "2026-06-01"
+  lease_end_date: "2027-05-31"
+  signing_date: "2026-05-15"
+
+chat:
+  - role: user
+    content: |
+      Add a running header and per-page initials placeholder to this lease.
+
+# S8 assertions:
+# - structural: the post-Formatter HTML contains the standard SA @page CSS.
+# - reviewer_pipeline, cost_and_latency, semantic are stubbed (Phase 3+).
+assertions:
+  structural:
+    - no_placeholder_text: true
+  citation_correctness:
+    - all_citations_resolve_in_canonical_map: true
+    - known_wrong_citations_zero: true
+  reviewer_pipeline:
+    - formatter_ran: true
+    - formatter_applied_running_header: true
+    - formatter_applied_initials: true
+  cost_and_latency:
+    - llm_call_count_max: 2
+    - wall_clock_seconds_max: 30.0
+    - cost_usd_max: 0.05
+  semantic:
+    - judge_rubric: formatter_quality_v1
+    - judge_score_min: 4.0

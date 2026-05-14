@@ -47,6 +47,16 @@ from .reviewer import (
 from .reviewer import (
     TOOLS as REVIEWER_TOOLS,
 )
+from .formatter import (
+    PERSONA as FORMATTER_PERSONA,
+)
+from .formatter import (
+    TOOLS as FORMATTER_TOOLS,
+)
+from .formatter import (
+    FormatterHandler,
+    FormatterResult,
+)
 from .reviewer import (
     ReviewerHandler,
     ReviewerInvalidToolError,
@@ -59,6 +69,10 @@ __all__ = [
     "DRAFTER_TOOLS",
     "DrafterHandler",
     "DrafterResult",
+    "FORMATTER_PERSONA",
+    "FORMATTER_TOOLS",
+    "FormatterHandler",
+    "FormatterResult",
     "FrontDoorDispatch",
     "IntentEnum",
     "LeaseContext",

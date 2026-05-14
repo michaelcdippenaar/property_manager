@@ -40,6 +40,8 @@ from apps.leases.agent_runner import LeaseAgentBudgetExceeded, LeaseAgentRunner
 from apps.leases.agents import (
     DrafterHandler,
     DrafterResult,
+    FormatterHandler,
+    FormatterResult,
     IntentEnum,
     LeaseContext,
     ReviewerHandler,
@@ -416,6 +418,7 @@ async def _sse_pipeline(
     t0 = time.monotonic()
     drafter_result: DrafterResult | None = None
     reviewer_result: ReviewerResult | None = None
+    formatter_result: FormatterResult | None = None
 
     yield _sse(
         "status",
@@ -502,10 +505,83 @@ async def _sse_pipeline(
                 "agent_finished",
                 {
                     "agent": "reviewer",
-                    "llm_calls": 1,
+                    "llm_calls": reviewer_result.internal_turns,
                     "duration_ms": int((time.monotonic() - t0) * 1000),
                 },
             )
+
+        # Formatter pass — runs after Reviewer for generate + format intents;
+        # skipped for audit (read-only, no reformatting).
+        if "formatter" in dispatch.route:
+            yield _sse(
+                "agent_handoff",
+                {
+                    "from_agent": "reviewer" if reviewer_result else (
+                        "drafter" if drafter_result else "front_door"
+                    ),
+                    "to_agent": "formatter",
+                    "reason": "layout",
+                },
+            )
+            yield _sse(
+                "agent_started",
+                {"agent": "formatter", "phase": "formatting", "request_id": request_id},
+            )
+            # Use the most up-to-date HTML (post-Reviewer if it ran, else post-Drafter).
+            document_for_formatter = (
+                drafter_result.rendered_html
+                if drafter_result
+                else context.template_html
+            )
+            formatter_result = await sync_to_async(
+                _run_formatter, thread_sensitive=False
+            )(
+                runner=runner,
+                context=context,
+                document_html=document_for_formatter,
+                system_blocks=dispatch.system_blocks,
+            )
+            for tc in formatter_result.tool_calls:
+                yield _sse(
+                    "tool_use",
+                    {
+                        "agent": "formatter",
+                        "tool_name": tc.get("name"),
+                        "input_summary": _summarise_tool_input(tc.get("input")),
+                    },
+                )
+            # text_chunk carries the change summary (not the document body)
+            if formatter_result.applied_changes:
+                summary_text = "; ".join(formatter_result.applied_changes)
+                yield _sse(
+                    "text_chunk",
+                    {"agent": "formatter", "text": summary_text},
+                )
+            elif formatter_result.conversational_reply:
+                yield _sse(
+                    "text_chunk",
+                    {"agent": "formatter", "text": formatter_result.conversational_reply},
+                )
+            yield _sse(
+                "agent_finished",
+                {
+                    "agent": "formatter",
+                    "llm_calls": formatter_result.internal_turns,
+                    "changes_applied": len(formatter_result.applied_changes),
+                    "duration_ms": int((time.monotonic() - t0) * 1000),
+                },
+            )
+
+        # Resolve final document HTML (post-Formatter if it ran, else post-Drafter).
+        final_html = (
+            formatter_result.html
+            if formatter_result is not None
+            else (
+                drafter_result.rendered_html
+                if drafter_result
+                else context.template_html
+            )
+        )
 
         # Final done frame
         yield _sse(
@@ -516,6 +592,7 @@ async def _sse_pipeline(
                     if drafter_result and drafter_result.conversational_reply
                     else (reviewer_result.summary if reviewer_result else "")
                 ),
+                "html": final_html,
                 "total_calls": runner.llm_call_count,
                 "total_latency_ms": int((time.monotonic() - t0) * 1000),
                 "total_cost_usd": round(runner.running_cost_usd, 6),
@@ -643,6 +720,23 @@ def _run_reviewer(
 ) -> ReviewerResult:
     """Sync helper so we can ``sync_to_async`` the call."""
     handler = ReviewerHandler()
+    return handler.run(
+        runner=runner,
+        context=context,
+        document_html=document_html,
+        system_blocks=system_blocks,
+    )
+
+
+def _run_formatter(
+    *,
+    runner: LeaseAgentRunner,
+    context: LeaseContext,
+    document_html: str,
+    system_blocks: list[dict[str, Any]],
+) -> FormatterResult:
+    """Sync helper so we can ``sync_to_async`` the call."""
+    handler = FormatterHandler()
     return handler.run(
         runner=runner,
         context=context,

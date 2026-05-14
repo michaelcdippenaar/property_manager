@@ -64,6 +64,7 @@ export function useLeaseAIChatV2(templateId: () => number) {
     { agent: 'front_door', label: 'Front Door', status: 'idle' },
     { agent: 'drafter',    label: 'Drafter',    status: 'idle' },
     { agent: 'reviewer',   label: 'Reviewer',   status: 'idle' },
+    { agent: 'formatter',  label: 'Formatter',  status: 'idle' },
   ])
 
   // Chat messages list
@@ -97,6 +98,7 @@ export function useLeaseAIChatV2(templateId: () => number) {
       { agent: 'front_door', label: 'Front Door', status: 'idle' },
       { agent: 'drafter',    label: 'Drafter',    status: 'idle' },
       { agent: 'reviewer',   label: 'Reviewer',   status: 'idle' },
+      { agent: 'formatter',  label: 'Formatter',  status: 'idle' },
     ]
     streamingText.value = ''
     auditReport.value = null
@@ -239,9 +241,10 @@ export function useLeaseAIChatV2(templateId: () => number) {
 
             case 'agent_started': {
               const agent = String(d.agent ?? '')
-              // Mark previous agent done if applicable
+              // Mark the predecessor agent done when the next one starts.
               if (agent === 'drafter') _setAgentStatus('front_door', 'done')
               if (agent === 'reviewer') _setAgentStatus('drafter', 'done')
+              if (agent === 'formatter') _setAgentStatus('reviewer', 'done')
               _setAgentStatus(agent, 'running')
               statusLine.value = String(d.message ?? `${agent} working…`)
               break

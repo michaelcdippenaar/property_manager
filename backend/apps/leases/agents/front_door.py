@@ -171,10 +171,13 @@ _REQUIRED_BY_INTENT: dict[IntentEnum, frozenset[str]] = {
 # Drafter call. ``("drafter", "reviewer")`` means Drafter then Reviewer
 # gate (with possible 1-retry per decision 10).
 _ROUTE_BY_INTENT: dict[IntentEnum, tuple[str, ...]] = {
-    IntentEnum.GENERATE: ("drafter", "reviewer"),
+    # generate → Drafter → Reviewer gate → Formatter final pass.
+    IntentEnum.GENERATE: ("drafter", "reviewer", "formatter"),
     IntentEnum.EDIT: ("drafter",),
     IntentEnum.INSERT_CLAUSE: ("drafter",),
+    # format → Formatter only (no Drafter or Reviewer).
     IntentEnum.FORMAT: ("formatter",),
+    # audit → Reviewer only; Formatter is skipped (read-only audit).
     IntentEnum.AUDIT: ("reviewer",),
     IntentEnum.AUDIT_CASE_LAW: ("reviewer",),
     IntentEnum.ANSWER: ("drafter",),

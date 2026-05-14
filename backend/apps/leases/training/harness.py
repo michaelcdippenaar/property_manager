@@ -412,6 +412,7 @@ class LeaseTrainingHarness:
         """
         from apps.leases.agents import (
             DrafterHandler,
+            FormatterHandler,
             ReviewerHandler,
             build_dispatch,
         )
@@ -453,6 +454,19 @@ class LeaseTrainingHarness:
                 # surface the error to the harness verdict via the
                 # rendered HTML rather than crashing the whole battery.
                 logger.exception("Harness: Reviewer pass failed in replay.")
+
+        if "formatter" in dispatch.route:
+            formatter = FormatterHandler()
+            try:
+                fmt_result = formatter.run(
+                    runner=runner,
+                    context=context,
+                    document_html=rendered_html,
+                    system_blocks=dispatch.system_blocks,
+                )
+                rendered_html = fmt_result.html
+            except Exception:
+                logger.exception("Harness: Formatter pass failed in replay.")
 
         # When no agent produced HTML (e.g. ANSWER intent with no
         # document mutation), fall back to the Drafter's prose so the
